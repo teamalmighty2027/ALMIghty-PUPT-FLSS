@@ -1,0 +1,302 @@
+@use '../../../styles/mixins';
+@use '../../../styles/breakpoints' as bp;
+
+*,
+*::before {
+  @include mixins.default-transition;
+}
+
+:host {
+  @include mixins.custom-spinner(white);
+}
+
+.login-container {
+  @include mixins.flex-layout($align: stretch, $justify: flex-start);
+  height: 100%;
+  background-image: var(--background-image);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  padding: var(--spacing-lg);
+  box-sizing: border-box;
+  transition: background-image 1s ease-in-out;
+  will-change: background-image;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--blur-bg);
+    backdrop-filter: blur(50px) saturate(150%);
+    z-index: 1;
+  }
+}
+
+.login-image-section,
+.login-main-section {
+  position: relative;
+  z-index: 2;
+}
+
+/* ------- LOGIN IMAGE SECTION STYLING ------- */
+.login-image-section {
+  padding: var(--spacing-lg);
+  flex: 3;
+  @include mixins.flex-layout($align: center, $justify: center);
+
+  app-slideshow {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* ------- LOGIN FORM SECTION STYLING ------- */
+
+.login-main-section {
+  @include mixins.hide-scrollbar;
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  flex: 2;
+  width: 100%;
+  overflow: scroll;
+
+  /* Login Header Section */
+  .header-section {
+    @include mixins.flex-layout($gap: var(--spacing-lg));
+    width: inherit;
+
+    .university-logo {
+      width: 4.5rem;
+      height: auto;
+    }
+
+    .header-text {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $gap: var(--spacing-xxs)
+      );
+      text-align: left;
+      width: 100%;
+      height: 100%;
+    }
+
+    .university-name,
+    .system-name {
+      font-family: var(--font-header);
+      font-size: var(--font-size-md);
+      font-weight: 600;
+    }
+
+    .university-name {
+      color: var(--primary-text);
+    }
+  }
+
+  /* Login Features Section */
+  .features-section {
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+    padding: var(--spacing-sm) 0;
+    width: inherit;
+
+    .feature-item {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $justify: flex-start,
+        $gap: var(--spacing-xs)
+      );
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      width: 100%;
+
+      .feature-header {
+        @include mixins.flex-layout($gap: var(--spacing-xs));
+
+        h3 {
+          margin: 0;
+          font-size: var(--font-size-lg);
+          font-weight: 500;
+          color: var(--primary-text);
+        }
+      }
+
+      .feature-icon-wrapper {
+        @include mixins.flex-layout($align: center, $justify: center);
+        min-width: 2rem;
+        height: 2rem;
+        border-radius: var(--border-radius-md);
+        background: var(--surface-card);
+        transition: background 0.3s ease;
+
+        span[mat-symbol] {
+          font-size: var(--font-size-xlx);
+          width: auto;
+          height: auto;
+          color: var(--primary-text);
+          transition: transform 0.3s ease;
+        }
+      }
+
+      .feature-content {
+        p {
+          margin: 0;
+          font-size: var(--font-size-md);
+          color: var(--neutral-base);
+          line-height: 1.5;
+          letter-spacing: var(--letter-spacing-xxs);
+          text-align: justify;
+        }
+      }
+    }
+  }
+
+  /* Login Buttons Section */
+  .buttons-section {
+    width: 100%;
+    @include mixins.flex-layout($gap: var(--spacing-md));
+
+    .login-button {
+      @include mixins.flex-layout(
+        $direction: row-reverse,
+        $gap: var(--spacing-md)
+      );
+      width: inherit;
+      font-size: var(--font-size-mdx);
+      padding: var(--spacing-lg);
+      letter-spacing: var(--letter-spacing-xs);
+
+      &.faculty {
+        @include mixins.gradient-primary(315deg);
+      }
+
+      &.admin {
+        @include mixins.gradient-secondary(315deg);
+      }
+    }
+
+    .button-text {
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+    }
+  }
+
+  .toggle-theme-section {
+    width: 100%;
+    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
+
+    .toggle-button {
+      &.light-theme {
+        color: var(--primary-text);
+
+        mat-icon {
+          color: var(--primary-one);
+        }
+      }
+
+      &.dark-theme {
+        color: var(--secondary-text);
+
+        mat-icon {
+          color: var(--secondary-text);
+        }
+      }
+    }
+  }
+}
+
+// =============
+// Media Queries
+// =============
+
+@media screen and (max-width: bp.$breakpoint-xl) {
+  .login-main-section {
+    .header-section {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: center,
+        $gap: var(--spacing-md)
+      );
+
+      .header-text {
+        @include mixins.flex-layout(
+          $direction: column,
+          $align: center,
+          $justify: center,
+          $gap: var(--spacing-xxs)
+        );
+        text-align: center;
+      }
+    }
+
+    .features-section {
+      .feature-item.extra {
+        display: none;
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-lgx) {
+  .login-image-section {
+    display: none;
+  }
+
+  .login-main-section {
+    .header-text {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $justify: flex-start,
+        $gap: var(--spacing-xxs)
+      );
+      text-align: left;
+    }
+
+    .features-section {
+      .feature-item.extra {
+        @include mixins.flex-layout(
+          $direction: column,
+          $align: flex-start,
+          $justify: flex-start,
+          $gap: var(--spacing-xs)
+        );
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-md) {
+  .login-container {
+    padding: 0;
+  }
+
+  .login-main-section {
+    .features-section {
+      .feature-item.extra {
+        display: none;
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .login-container {
+    .login-main-section {
+      padding: var(--spacing-xl);
+
+      .buttons-section {
+        @include mixins.flex-layout(
+          $direction: column,
+          $gap: var(--spacing-sm)
+        );
+      }
+    }
+  }
+}

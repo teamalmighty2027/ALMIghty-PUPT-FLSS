@@ -1,0 +1,151 @@
+@use '../../../styles/mixins';
+@use '../../../styles/breakpoints' as bp;
+
+:host {
+  @include mixins.custom-spinner($color: white);
+}
+
+.header-container {
+  @include mixins.flex-layout($align: stretch, $justify: space-between);
+  @include mixins.default-transition;
+  padding-bottom: var(--spacing-sm);
+
+  .input-container {
+    @include mixins.flex-layout($gap: var(--spacing-md));
+    flex-wrap: wrap;
+
+    .search-field {
+      width: auto;
+      flex: 1;
+    }
+
+    .program-field {
+      width: auto;
+      flex: 2;
+    }
+
+    .year-level-field {
+      width: auto;
+      flex: 1;
+    }
+
+    .sections-field {
+      width: auto;
+      flex: 1;
+
+      mat-icon {
+        cursor: pointer;
+      }
+    }
+
+    .curriculum-field {
+      width: auto;
+    }
+
+    .academic-year-field {
+      flex: 1;
+    }
+  }
+
+  .object-container {
+    @include mixins.flex-layout($align: stretch);
+
+    .active-year-sem-container {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $gap: var(--spacing-xxs)
+      );
+
+      @include mixins.gradient-primary(315deg);
+      padding: 0 var(--spacing-md);
+      border-radius: var(--border-radius-md);
+      color: white;
+      cursor: pointer;
+
+      .text,
+      .label {
+        @include mixins.reset-styles;
+      }
+
+      .text {
+        font-weight: 500;
+      }
+
+      .label {
+        opacity: var(--opacity-semi-opaque);
+      }
+    }
+  }
+
+  .button-container {
+    @include mixins.flex-layout($align: flex-end, $justify: space-between);
+    gap: var(--spacing-md);
+  }
+
+  .tooltip-container {
+    width: 100%;
+  }
+
+  .custom-mat-button {
+    color: white;
+    width: 100%;
+  }
+
+  .add-button {
+    background-color: var(--primary-one);
+  }
+
+  .button-wrapper {
+    @include mixins.flex-layout($gap: var(--spacing-xxs));
+
+    mat-icon {
+      @include mixins.flex-layout($justify: flex-start);
+      font-size: var(--font-size-lg);
+    }
+  }
+
+  .export-button {
+    background-color: var(--neutral-button);
+
+    span {
+      text-wrap: nowrap;
+    }
+  }
+}
+
+// ==============
+// MEDIA QUERIES
+// ==============
+
+@media screen and (max-width: bp.$breakpoint-lgx) {
+  .header-container {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: space-between,
+      $gap: var(--spacing-md)
+    );
+  }
+
+  .header-container .object-container {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: flex-end,
+      $justify: space-between,
+      $gap: var(--spacing-md)
+    );
+
+    .active-year-sem-container {
+      padding: var(--spacing-sm) !important;
+    }
+  }
+
+  .header-container .button-container {
+    @include mixins.flex-layout(
+      $align: stretch,
+      $justify: flex-end,
+      $gap: var(--spacing-md)
+    );
+  }
+}

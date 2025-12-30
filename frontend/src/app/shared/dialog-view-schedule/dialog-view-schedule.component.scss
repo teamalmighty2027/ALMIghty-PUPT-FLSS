@@ -1,0 +1,113 @@
+@use '../../../styles/mixins';
+@use '../../../styles/breakpoints.scss' as bp;
+
+.dialog-view-schedule-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+  padding: var(--spacing-lg);
+  height: 100%;
+}
+
+.pdf-warning {
+  display: none;
+}
+
+.entity-info {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: space-between,
+    $gap: var(--spacing-xxs)
+  );
+
+  .schedule-title {
+    .dialog-title {
+      @include mixins.reset-styles;
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    .dialog-subtitle {
+      color: var(--primary-text);
+    }
+  }
+}
+
+.multiple-schedules-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-xl)
+  );
+  max-height: var(--dialog-base-height);
+  overflow: auto;
+  padding-right: var(--spacing-md);
+
+  .schedule-group {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: flex-start,
+      $gap: var(--spacing-xs)
+    );
+    border-radius: var(--border-radius-md);
+
+    .group-title {
+      @include mixins.reset-styles;
+      font-weight: 600;
+    }
+  }
+}
+
+.single-schedule-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start
+  );
+
+  min-height: var(--dialog-base-height);
+}
+
+iframe {
+  width: 100%;
+  max-height: var(--dialog-base-height);
+  border: none;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
+}
+
+.dialog-actions {
+  @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+  .close-button {
+    color: var(--primary-text);
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-md) {
+  .pdf-warning {
+    @include mixins.flex-layout($gap: var(--spacing-xs));
+    background-color: var(--primary-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xs);
+
+    .warning-text {
+      font-size: var(--font-size-sm);
+    }
+
+    .warning-icon,
+    .warning-text {
+      color: var(--primary-text);
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  iframe {
+    max-height: 30vh;
+  }
+}

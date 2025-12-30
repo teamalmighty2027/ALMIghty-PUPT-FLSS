@@ -1,0 +1,149 @@
+@use '../../../styles/mixins';
+
+:host {
+  @include mixins.custom-spinner(var(--primary-text));
+  width: 100%;
+
+  ::ng-deep {
+    .mat-mdc-form-field {
+      width: 100%;
+
+      .prefix-icon {
+        color: var(--neutral-base);
+        font-size: var(--font-size-xl);
+      }
+    }
+  }
+}
+
+.dialog-login-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-lg)
+  );
+  padding: var(--spacing-lgx);
+  max-width: var(--dialog-smx);
+}
+
+.dialog-login-title {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: flex-start,
+    $justify: flex-start,
+    $gap: var(--spacing-xxs)
+  );
+
+  .title-text {
+    @include mixins.gradient-primary-text(315deg);
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $gap: var(--spacing-xs)
+    );
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    font-weight: 600;
+
+    .faculty-icon {
+      @include mixins.flex-layout;
+      font-size: var(--font-size-2xl);
+      padding-right: var(--spacing-xxxs);
+    }
+  }
+
+  .title-desc {
+    margin: 0;
+  }
+}
+
+.health-message-container {
+  @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-xs));
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--primary-fade);
+  font-size: var(--font-size-sm);
+  color: var(--primary-text);
+
+  .message-text {
+    margin: 0;
+  }
+}
+
+.dialog-login-form {
+  width: 100%;
+
+  .form-content {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: flex-start,
+      $gap: var(--spacing-xs)
+    );
+  }
+}
+
+.forgot-password-container {
+  text-align: right;
+
+  .forgot-password-link {
+    color: var(--primary-text);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: var(--font-size-sm); 
+    position: relative;
+    display: inline-block;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .forgot-password-link::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 1.5px;
+    bottom: 0;
+    left: 0;
+
+    background-color: var(--primary-text);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s ease;
+    backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    will-change: transform;
+  }
+
+  .forgot-password-link:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+}
+
+
+.dialog-login-actions {
+  @include mixins.flex-layout(
+    $direction: row,
+    $align: center,
+    $justify: flex-end,
+    $gap: var(--spacing-sm)
+  );
+  padding-top: var(--spacing-sm);
+
+  .close-button {
+    color: var(--primary-text);
+  }
+
+  .login-button {
+    @include mixins.gradient-primary(315deg);
+
+    &.button-disabled {
+      background: var(--neutral-fade) !important;
+      color: var(--neutral-base) !important;
+      opacity: var(--opacity-semi-opaque);
+    }
+  }
+}
+

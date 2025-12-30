@@ -1,0 +1,222 @@
+@use 'sass:list';
+@use '../../../styles/mixins';
+@use '../../../styles/breakpoints.scss' as bp;
+
+$day-colors: (
+  monday: (
+    var(--primary-text),
+    var(--primary-text-two),
+  ),
+  tuesday: (
+    var(--secondary-text),
+    var(--secondary-text-two),
+  ),
+  wednesday: (
+    var(--blue-primary),
+    var(--blue-text),
+  ),
+  thursday: (
+    var(--aqua-primary),
+    var(--aqua-text),
+  ),
+  friday: (
+    var(--purple-primary),
+    var(--purple-text),
+  ),
+  saturday: (
+    var(--green-primary),
+    var(--green-text),
+  ),
+  sunday: (
+    var(--primary-text),
+    var(--primary-text-two),
+  ),
+);
+
+@each $day, $colors in $day-colors {
+  $primary-color: list.nth($colors, 1);
+  $text-color: list.nth($colors, 2);
+
+  .schedule-content.schedule-#{$day} .course {
+    color: #{$primary-color};
+  }
+
+  .schedule-content.schedule-#{$day} .time {
+    background-color: #{$primary-color};
+    color: #{$text-color};
+    padding: var(--spacing-xxs) var(--spacing-xs);
+    border-radius: var(--border-radius-xl);
+  }
+}
+
+.faculty-schedule-timetable-container {
+  height: 100%;
+  width: 100%;
+  border-radius: var(--border-radius-md);
+  position: relative;
+  overflow: hidden;
+
+  .table-wrapper {
+    @include mixins.hide-scrollbar;
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+
+    .export-pdf-fab {
+      position: absolute;
+      right: var(--spacing-lg);
+      bottom: var(--spacing-lg);
+      z-index: 100;
+      color: white;
+      background-color: var(--primary-one);
+      transform-origin: center;
+      overflow: hidden;
+      min-width: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .fab-label {
+        display: inline-block;
+        text-wrap: nowrap;
+        opacity: 0;
+        width: 0;
+        visibility: hidden;
+      }
+
+      &.mat-mdc-extended-fab {
+        .fab-label {
+          opacity: 1;
+          width: auto;
+          visibility: visible;
+        }
+      }
+
+      .fab-icon {
+        display: inline-flex;
+        align-items: center;
+      }
+    }
+  }
+
+  .faculty-schedule-timetable-table {
+    @include mixins.default-transition;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: var(--neutral-space);
+    position: relative;
+
+    th,
+    td {
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .faculty-schedule-timetable-table-header {
+      @include mixins.sticky;
+      background-color: var(--primary-one);
+      z-index: 2;
+
+      th {
+        color: white;
+        padding: var(--spacing-xs);
+        border-right: 1px solid var(--neutral-fade);
+        border-bottom: 1px solid var(--neutral-fade);
+      }
+    }
+
+    .faculty-schedule-timetable-table-body {
+      td {
+        padding: 0;
+        border-bottom: 1px solid var(--neutral-fade);
+        border-right: 1px solid var(--neutral-fade);
+        min-width: 10rem;
+        max-width: 10rem;
+        height: 1.5rem;
+        position: relative;
+      }
+
+      tr td:last-child {
+        border-right: none;
+      }
+
+      .time-slot {
+        @include mixins.default-transition;
+        font-weight: 500;
+        border-right: 1px solid var(--neutral-fade);
+        background-color: var(--neutral-light);
+        z-index: 1;
+        padding: var(--spacing-xxxs);
+        min-width: 5rem !important;
+        max-width: 5rem !important;
+      }
+
+      .schedule-cell {
+        position: relative;
+
+        &.schedule-block-start {
+          border-bottom: none;
+
+          & + .schedule-cell {
+            border-top: none;
+          }
+
+          .schedule-content {
+            @include mixins.hide-scrollbar;
+            @include mixins.flex-layout(
+              $direction: column,
+              $align: center,
+              $justify: flex-start,
+              $gap: var(--spacing-xs)
+            );
+
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+            height: 100%;
+            overflow-y: auto;
+
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: var(--font-size-sm);
+            padding: var(--spacing-xs);
+
+            padding-bottom: var(--spacing-sm);
+
+            > div {
+              width: 100%;
+              text-align: center;
+              min-height: fit-content;
+            }
+
+            .course-text {
+              font-weight: 600;
+            }
+
+            .time {
+              position: sticky;
+              bottom: 0;
+              margin-top: auto;
+              width: fit-content;
+              margin-left: auto;
+              margin-right: auto;
+              z-index: 2;
+            }
+          }
+        }
+
+        &[style*='background-color'] {
+          border-bottom: none;
+          border-top: none;
+
+          & + .schedule-cell[style*='background-color'] {
+            border-left: none;
+          }
+        }
+      }
+    }
+  }
+}

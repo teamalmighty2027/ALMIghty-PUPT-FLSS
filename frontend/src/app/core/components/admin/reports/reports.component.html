@@ -1,0 +1,22 @@
+<div class="reports-main">
+  <div class="reports-content">
+    <router-outlet></router-outlet>
+  </div>
+  <mat-tab-group
+    [(selectedIndex)]="selectedTabIndex"
+    animationDuration="250ms"
+    (selectedTabChange)="onTabChange($event)"
+    class="reports-tab"
+    headerPosition="below">
+    @for (tab of tabs; track tab) {
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <div class="tab-label">
+          <span mat-symbol="{{ tab.icon }}"></span>
+          {{ tab.label }}
+        </div>
+      </ng-template>
+    </mat-tab>
+    }
+  </mat-tab-group>
+</div>

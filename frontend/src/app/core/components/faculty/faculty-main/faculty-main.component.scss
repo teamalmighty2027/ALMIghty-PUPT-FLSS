@@ -1,0 +1,611 @@
+@use '../../../../../styles/mixins';
+@use '../../../../../styles/breakpoints' as bp;
+
+* {
+  color: var(--neutral-base);
+  @include mixins.default-transition(true);
+}
+
+.faculty-main-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: none,
+    $justify: none,
+    $gap: var(--spacing-lg)
+  );
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-2xl);
+  background-color: var(--main-bg);
+}
+
+.faculty-main-content {
+  @include mixins.hide-scrollbar;
+  height: 100%;
+  overflow-y: auto;
+}
+
+// ==========================
+// DESKTOP VIEW STYLES
+// ==========================
+
+.desktop-header {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: space-between,
+    $gap: var(--spacing-lg)
+  );
+  width: 100%;
+
+  .header-name,
+  .header-navbar,
+  .header-account {
+    @include mixins.flex-layout;
+    max-width: fit-content;
+  }
+
+  .header-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: var(--spacing-md);
+
+    .university-logo {
+      width: 3.5rem;
+      height: auto;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .header-text {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--spacing-xxs);
+    }
+
+    .university-name,
+    .system-name {
+      @include mixins.ellipsis;
+      font-family: var(--font-header);
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .university-name {
+      color: var(--primary-one);
+    }
+  }
+
+  .header-navbar {
+    flex: 0 1 auto;
+    align-self: center;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    background-color: var(--neutral-mid);
+    border-radius: var(--border-radius-xl);
+    position: relative;
+    display: flex;
+
+    .slider {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      @include mixins.gradient-primary(315deg);
+      border-radius: var(--border-radius-xl);
+      transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      opacity: 0;
+      transform-origin: center;
+    }
+
+    a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-sm);
+      text-decoration: none;
+      padding: var(--spacing-md) var(--spacing-lg);
+      color: var(--neutral-base);
+      font-weight: 500;
+      border-radius: var(--border-radius-xl);
+      position: relative;
+      z-index: 1;
+      transition: color 0.3s ease;
+      cursor: pointer;
+
+      .nav-text {
+        @include mixins.ellipsis;
+      }
+
+      &.active {
+        color: white;
+        transition: color 0.3s ease;
+
+        span.material-symbols-rounded,
+        .nav-text {
+          color: white;
+        }
+      }
+
+      &:not(.active) {
+        transition: color 0.3s ease;
+      }
+
+      &:hover:not(.active) {
+        color: var(--primary-one);
+
+        span.material-symbols-rounded,
+        .nav-text {
+          color: var(--primary-one);
+        }
+      }
+
+      span[mat-symbol] {
+        display: inline-block;
+        backface-visibility: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        will-change: transform;
+        transition: all 0.3s ease-out;
+      }
+
+      &[routerLink='home'].active span[mat-symbol='home'] {
+        animation: home-welcome 1.5s ease-in-out;
+        animation-iteration-count: 2;
+        animation-fill-mode: forwards;
+      }
+
+      &[routerLink='preferences'].active span[mat-symbol='settings'] {
+        animation: settings-rotate-clockwise 2s cubic-bezier(0.4, 0, 0.2, 1),
+          settings-rotate-counterclockwise 2s cubic-bezier(0.4, 0, 0.2, 1);
+        animation-iteration-count: 1, 1;
+        animation-delay: 0s, 2s;
+        animation-fill-mode: forwards;
+        transform-origin: center center;
+      }
+
+      &[routerLink='load-and-schedule'].active
+        span[mat-symbol='calendar_month'] {
+        animation: calendar-pulse 1.5s ease-in-out;
+        animation-iteration-count: 2;
+        animation-fill-mode: forwards;
+      }
+
+      &:not(.active) span[mat-symbol] {
+        animation: none;
+        transform: scale(1);
+      }
+    }
+  }
+
+  .header-account {
+    flex: 0 1 auto;
+    gap: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 0;
+
+    .account-text {
+      font-size: var(--font-size-md);
+      text-align: right;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+
+      .account-name,
+      .account-email {
+        @include mixins.ellipsis;
+      }
+
+      .account-name {
+        font-weight: 600;
+      }
+
+      .account-email {
+        opacity: var(--opacity-semi-opaque);
+      }
+    }
+  }
+
+  .profile-dropdown {
+    @include mixins.flex-layout;
+
+    .profile-icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 3px solid var(--neutral-border);
+      user-select: none;
+
+      &:hover {
+        border-color: var(--neutral-base);
+      }
+    }
+  }
+}
+
+.desktop-bottom-sheet {
+  width: 100%;
+  padding: var(--spacing-xs) 0;
+
+  .bottom-sheet-item {
+    @include mixins.ellipsis;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
+    color: var(--neutral-base);
+    transition: background-color 0.3s ease;
+    border-radius: var(--border-radius-xl);
+    font-weight: 500;
+    user-select: none;
+    cursor: pointer;
+
+    &:hover {
+      background-color: var(--neutral-option);
+    }
+
+    &.logout {
+      color: var(--primary-text);
+
+      span.material-symbols-rounded {
+        color: var(--primary-text);
+      }
+
+      &:hover {
+        background-color: var(--primary-fade);
+      }
+    }
+
+    span.material-symbols-rounded {
+      display: flex;
+      align-items: center;
+      font-size: var(--font-size-lg);
+      font-weight: 500;
+    }
+  }
+}
+
+// ==========================
+// MOBILE VIEW STYLES
+// ==========================
+
+/* Mobile Tab Header */
+.mobile-header {
+  display: none;
+  width: 100%;
+  margin-top: var(--spacing-xs);
+
+  .header-name {
+    @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-sm));
+    width: 100%;
+
+    .university-logo {
+      width: 3rem;
+      height: auto;
+      flex-shrink: 0;
+    }
+
+    .header-text {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+
+      .university-name,
+      .system-name {
+        @include mixins.ellipsis;
+        font-family: var(--font-header);
+        font-size: var(--font-size-smx);
+        font-weight: 600;
+      }
+
+      .university-name {
+        color: var(--primary-one);
+      }
+    }
+  }
+}
+
+/* Mobile Navigation Bar */
+.mobile-navbar {
+  @include mixins.glass-effect;
+  @include mixins.default-transition;
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-top: 1px solid var(--glass-border);
+  justify-content: space-around;
+  align-items: center;
+  height: auto;
+  isolation: isolate;
+
+  &.dropdown-open {
+    box-shadow: none;
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xxs);
+    padding: var(--spacing-xs);
+    text-decoration: none;
+    color: var(--neutral-base);
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+
+    &.active {
+      .icon-container {
+        background-color: var(--primary-fade);
+      }
+
+      span[mat-symbol] {
+        color: var(--primary-text);
+        position: relative;
+        z-index: 1;
+        transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .bottom-nav-label {
+        color: var(--primary-text);
+        font-weight: 500;
+        transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+    }
+
+    .icon-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: var(--spacing-xxs) var(--spacing-mdx);
+      border-radius: var(--border-radius-xl);
+      transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    span[mat-symbol] {
+      font-size: var(--font-size-xl);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .bottom-nav-label {
+      font-size: var(--font-size-smx);
+      font-weight: 500;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    &:hover:not(.active) {
+      .icon-container {
+        @include mixins.glass-hover;
+      }
+    }
+  }
+}
+
+/* Mobile Account Dropdown */
+.mobile-dropdown {
+  @include mixins.glass-effect(20px);
+  @include mixins.default-transition;
+  display: none;
+  position: fixed;
+  bottom: var(--spacing-5xl);
+  left: 0;
+  right: 0;
+  z-index: 999;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+  border-top: 1px solid var(--glass-border);
+  overflow: hidden;
+  transform-origin: bottom;
+  will-change: transform, opacity;
+
+  .mobile-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--glass-border);
+
+    .mobile-profile-icon {
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      border: 2px solid var(--neutral-border);
+      user-select: none;
+    }
+
+    .mobile-account-info {
+      .account-name {
+        font-weight: 600;
+        font-size: var(--font-size-mdx);
+      }
+      .account-email {
+        font-size: var(--font-size-mdx);
+        opacity: var(--opacity-semi-opaque);
+      }
+    }
+  }
+
+  .mobile-dropdown-content {
+    padding: var(--spacing-md);
+
+    .mobile-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      width: 100%;
+      padding: var(--spacing-md);
+      border: none;
+      background: none;
+      font-size: var(--font-size-mdx);
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: var(--border-radius-xl);
+
+      &:hover {
+        background-color: var(--neutral-option);
+      }
+
+      &.logout {
+        color: var(--primary-text);
+
+        span[mat-symbol] {
+          color: var(--primary-text);
+        }
+
+        &:hover {
+          background-color: var(--primary-fade);
+        }
+      }
+    }
+  }
+}
+
+// ==========================
+// MEDIA QUERIES
+// ==========================
+
+@media screen and (max-width: 800px) {
+  .nav-text {
+    display: none;
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .faculty-main-container {
+    padding: var(--spacing-lg);
+  }
+
+  .desktop-header {
+    display: none;
+  }
+
+  .mobile-navbar {
+    display: flex;
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .mobile-dropdown {
+    &:not(:empty) {
+      display: block;
+    }
+  }
+
+  .mobile-header {
+    display: block;
+  }
+
+  .faculty-main-header {
+    display: none;
+  }
+}
+
+/* Mobile Navbar Icon Animations */
+.mobile-navbar
+  a[routerLink='home'].active
+  div.icon-container
+  span[mat-symbol='home'] {
+  animation: home-welcome 1.5s ease-in-out;
+  animation-iteration-count: 2;
+  animation-fill-mode: forwards;
+}
+
+.mobile-navbar
+  a[routerLink='preferences'].active
+  div.icon-container
+  span[mat-symbol='settings'] {
+  animation: settings-rotate-clockwise 2s cubic-bezier(0.4, 0, 0.2, 1),
+    settings-rotate-counterclockwise 2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-iteration-count: 1, 1;
+  animation-delay: 0s, 2s;
+  animation-fill-mode: forwards;
+}
+
+.mobile-navbar
+  a[routerLink='load-and-schedule'].active
+  div.icon-container
+  span[mat-symbol='calendar_month'] {
+  animation: calendar-pulse 1.5s ease-in-out;
+  animation-iteration-count: 2;
+  animation-fill-mode: forwards;
+}
+
+// ==========================
+// KEYFRAMES FOR ANIMATIONS
+// ==========================
+
+@keyframes home-welcome {
+  0%,
+  100% {
+    transform: scale(1.05) translateY(0);
+  }
+  20% {
+    transform: scale(1.1) translateY(-2px);
+  }
+  35% {
+    transform: scale(1.1) translateY(-2px) rotate(8deg);
+  }
+  50% {
+    transform: scale(1.1) translateY(-2px) rotate(-8deg);
+  }
+  65% {
+    transform: scale(1.1) translateY(-2px) rotate(4deg);
+  }
+  80% {
+    transform: scale(1.1) translateY(-2px);
+  }
+}
+
+@keyframes settings-rotate-clockwise {
+  0% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.05) rotate(360deg);
+  }
+}
+
+@keyframes settings-rotate-counterclockwise {
+  0% {
+    transform: scale(1.05) rotate(360deg);
+  }
+  100% {
+    transform: scale(1.05) rotate(0deg);
+  }
+}
+
+@keyframes calendar-pulse {
+  0%,
+  100% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

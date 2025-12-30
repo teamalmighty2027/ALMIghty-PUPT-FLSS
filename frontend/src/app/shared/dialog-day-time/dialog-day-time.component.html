@@ -1,0 +1,89 @@
+<div class="dialog-day-time-container">
+  <!-- Dialog Title -->
+  <div class="dialog-title">
+    <h2 class="title-text">Preferred Day & Time</h2>
+    <span class="course-detail">For {{ courseCode }} - {{ courseTitle }}</span>
+  </div>
+
+  <!-- Dialog Content -->
+  <div class="dialog-content">
+    <!-- Day Picker -->
+    <div class="day-buttons-container">
+      @for (day of dayButtons; track day.name) {
+      <div
+        class="day-button"
+        [class.selected]="day.selected"
+        (click)="toggleDay(day)"
+        matRipple
+        [matRippleColor]="'rgba(255, 255, 255, 0.1)'"
+      >
+        {{ day.shortName }}
+      </div>
+      }
+    </div>
+
+    <div class="time-fields-scroll-container">
+      <!-- Time Selection for Each Day -->
+      @for (day of dayButtons; track day.name) {
+      <div
+        class="time-fields-container"
+        [@showHideFieldsAnimation]="day.selected ? 'visible' : 'hidden'"
+      >
+        <div class="day-label-wrapper">
+          <span class="day-label">{{ day.name }}</span>
+        </div>
+        @if (day.selected) {
+        <div class="time-fields-wrapper">
+          <!-- Start Time Selection -->
+          <mat-form-field appearance="fill" class="dialog-field">
+            <mat-label>Start Time</mat-label>
+            <mat-select
+              [(ngModel)]="day.startTime"
+              (selectionChange)="onStartTimeChange(day)"
+            >
+              @for (time of timeOptions; track time) {
+              <mat-option [value]="time">
+                {{ time }}
+              </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <!-- End Time Selection -->
+          <mat-form-field appearance="fill" class="dialog-field">
+            <mat-label>End Time</mat-label>
+            <mat-select [(ngModel)]="day.endTime" [disabled]="!day.startTime">
+              @for (time of day.endTimeOptions; track time) {
+              <mat-option [value]="time">
+                {{ time }}
+              </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Dialog buttons -->
+  <div class="dialog-actions">
+    <button mat-button class="cancel" (click)="onCancel()">Cancel</button>
+    <button
+      mat-flat-button
+      class="confirm-button"
+      (click)="onConfirm()"
+      [disabled]="!isAnyDaySelected() || isSaving"
+      [ngClass]="{
+        'confirm-btn-disabled': !isAnyDaySelected() || isSaving
+      }"
+    >
+      @if (isSaving) {
+      <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
+      } @else {
+      <span>Confirm</span>
+      }
+    </button>
+  </div>
+</div>

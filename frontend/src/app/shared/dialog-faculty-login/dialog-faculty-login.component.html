@@ -1,0 +1,122 @@
+<div class="dialog-login-container" role="dialog" aria-labelledby="dialogTitle">
+  <!--Dialog Title-->
+  <div class="dialog-login-title">
+    <div class="title-text" id="dialogTitle">
+      <span mat-symbol="group" class="faculty-icon" aria-hidden="true"> </span>
+      <span>Faculty Login</span>
+    </div>
+    <p class="title-desc">Enter your email and password to start.</p>
+  </div>
+
+  <!--Health Status Message-->
+  <div class="health-message-container">
+    <span mat-symbol="wifi_tethering_off"></span>
+    <p class="message-text">
+      PUP-FESR is currently unavailable. Please use your FLSS backup credentials
+      to continue.
+    </p>
+  </div>
+
+  <!--Dialog Form-->
+  <form
+    class="dialog-login-form"
+    [formGroup]="loginForm"
+    (ngSubmit)="onSubmit()"
+    aria-describedby="formInstructions">
+    <div class="form-content">
+      <!--Email-->
+      <mat-form-field appearance="fill">
+        <mat-label for="emailInput">Email Address</mat-label>
+        <mat-icon matPrefix class="prefix-icon" aria-hidden="true">
+          mail
+        </mat-icon>
+        <input
+          matInput
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          maxlength="254"
+          id="emailInput"
+          aria-required="true"
+          aria-describedby="emailErrors" />
+        @if (email?.errors?.['required']) {
+        <mat-error id="emailErrors">Email is required.</mat-error>
+        } @if (email?.errors?.['email']) {
+        <mat-error id="emailErrors">
+          Please enter a valid email address.
+        </mat-error>
+        }
+      </mat-form-field>
+
+      <!--Password-->
+      <mat-form-field appearance="fill">
+        <mat-label for="passwordInput">Password</mat-label>
+        <mat-icon matPrefix class="prefix-icon" aria-hidden="true"
+          >lock</mat-icon
+        >
+        <input
+          matInput
+          [type]="showPassword ? 'text' : 'password'"
+          formControlName="password"
+          autocomplete="current-password"
+          minlength="8"
+          maxlength="128"
+          id="passwordInput"
+          aria-required="true"
+          aria-describedby="passwordErrors" />
+        @if (passwordHasValue) {
+        <button
+          mat-icon-button
+          matSuffix
+          (click)="togglePasswordVisibility()"
+          type="button"
+          [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+          <mat-icon aria-hidden="true">{{
+            showPassword ? 'visibility_off' : 'visibility'
+          }}</mat-icon>
+        </button>
+        } @if (password?.errors?.['required']) {
+        <mat-error id="passwordErrors">Account Password is required.</mat-error>
+        } @if (password?.errors?.['minlength'] ||
+        password?.errors?.['maxlength']) {
+        <mat-error id="passwordErrors">Invalid password.</mat-error>
+        }
+      </mat-form-field>
+
+      <!-- Forgot Password Link -->
+      <div class="forgot-password-container">
+        <a class="forgot-password-link" (click)="onForgotPassword()">
+          Forgot Password?
+        </a>
+      </div>
+
+      <!--Actions-->
+      <div class="dialog-login-actions">
+        <button
+          mat-button
+          class="close-button"
+          type="button"
+          (click)="onCloseClick()"
+          aria-label="Close dialog">
+          Close
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          class="login-button"
+          [class.button-disabled]="loginForm.invalid || isLoading"
+          [disabled]="loginForm.invalid || isLoading"
+          type="submit"
+          aria-label="Log in">
+          @if (!isLoading) { Log In } @if (isLoading) {
+          <mat-spinner
+            class="custom-spinner"
+            diameter="25"
+            strokeWidth="2.5"
+            aria-label="Loading"></mat-spinner>
+          }
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

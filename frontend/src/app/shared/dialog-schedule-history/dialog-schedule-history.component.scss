@@ -1,0 +1,80 @@
+@use '../../../styles/mixins';
+@use '../../../styles/breakpoints' as bp;
+
+.dialog-schedule-history-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: space-between,
+    $gap: var(--spacing-md)
+  );
+  padding: var(--spacing-lg);
+}
+
+.dialog-header {
+  @include mixins.flex-layout($align: stretch, $justify: space-between);
+
+  .title-section {
+    .title-and-icon {
+      @include mixins.flex-layout(
+        $align: center,
+        $justify: flex-start,
+        $gap: var(--spacing-xxs)
+      );
+
+      span[mat-symbol] {
+        color: var(--primary-text);
+      }
+
+      h2 {
+        margin: 0;
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+        color: var(--primary-text);
+      }
+    }
+
+    p {
+      margin: var(--spacing-xxs) 0;
+      font-size: var(--font-size-md);
+      color: var(--primary-text);
+    }
+  }
+
+  .field-section {
+    @include mixins.flex-layout($gap: var(--spacing-sm));
+
+    mat-form-field {
+      flex: 1;
+    }
+  }
+}
+
+.dialog-content {
+  height: 50vh;
+  overflow-y: hidden;
+}
+
+.no-schedule-message {
+  height: 50vh;
+  @include mixins.flex-layout($gap: var(--spacing-xs));
+
+  span[mat-symbol] {
+    font-size: 100%;
+  }
+}
+
+.dialog-footer {
+  @include mixins.flex-layout($align: stretch, $justify: flex-end);
+
+  .close-button {
+    color: var(--primary-text);
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-md) {
+  .dialog-header {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+}

@@ -1,0 +1,81 @@
+@use '../../../styles/mixins';
+
+@include mixins.custom-spinner;
+
+.dialog-pref-success-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-xl)
+  );
+  padding: var(--spacing-lg);
+  max-width: var(--dialog-small);
+
+  .content {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
+
+    .status-badge {
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+      margin-bottom: var(--spacing-md);
+      width: fit-content;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-xl);
+      text-align: center;
+      background: var(--secondary-fade);
+      color: var(--secondary-text);
+      font-weight: 600;
+      font-size: var(--font-size-sm);
+
+      span[mat-symbol] {
+        font-size: larger;
+      }
+    }
+
+    .main-text {
+      @include mixins.flex-layout($direction: column, $gap: var(--spacing-xs));
+      margin-top: var(--spacing-sm);
+
+      span[mat-symbol] {
+        font-size: var(--font-size-4xl);
+        @include mixins.gradient-primary-text(315deg);
+
+        :host-context(.dark-theme) & {
+          -webkit-text-fill-color: var(--primary-text);
+          color: var(--primary-text);
+        }
+      }
+
+      .success-text {
+        color: var(--primary-text);
+        margin: 0;
+        font-size: var(--font-size-lg);
+        font-weight: 500;
+        text-align: center;
+      }
+    }
+
+    .message {
+      margin: 0;
+      text-align: center;
+      line-height: var(--line-height-md);
+    }
+  }
+
+  .actions {
+    @include mixins.flex-layout(
+      $align: stretch,
+      $justify: flex-end,
+      $gap: var(--spacing-xs)
+    );
+
+    .cancel-button {
+      color: var(--primary-text);
+    }
+  }
+}

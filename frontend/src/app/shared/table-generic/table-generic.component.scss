@@ -1,0 +1,116 @@
+@use "../../../styles/mixins";
+
+.table-heading {
+  @include mixins.flex-layout($align: center, $justify: space-between);
+  margin: var(--spacing-xxs) 0;
+
+  .heading-title {
+    color: var(--primary-one);
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .heading-button {
+    color: var(--primary-text);
+  }
+}
+
+.table-container {
+  @include mixins.hide-scrollbar;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--neutral-light);
+  border-radius: var(--border-radius-md);
+  max-height: 50rem;
+
+  .custom-table {
+    @include mixins.default-transition;
+    background-color: var(--neutral-light);
+    border-radius: var(--border-radius-md);
+  }
+
+  .no-data-row {
+    text-align: center;
+    padding: var(--spacing-md);
+    color: var(--neutral-base);
+    border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+  }
+
+  .custom-header {
+    text-wrap: nowrap;
+    background-color: var(--primary-one);
+    color: white;
+    font-weight: 500;
+    text-align: center;
+
+    &.sticky {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    &.action {
+      border-top-right-radius: var(--border-radius-md);
+    }
+
+    &.top-left-radius {
+      border-top-left-radius: var(--border-radius-md);
+    }
+  }
+
+  .custom-cell {
+    text-align: center;
+    padding: var(--spacing-xs);
+
+    .status-badge {
+      padding: var(--spacing-xxs) var(--spacing-sm);
+      border-radius: var(--border-radius-xl);
+    }
+
+    .status-active {
+      color: var(--green-primary);
+      background-color: var(--green-fade);
+    }
+
+    .status-inactive {
+      color: var(--primary-text-lighter);
+      background-color: var(--primary-one-fade);
+    }
+  }
+
+  .action-buttons {
+    @include mixins.flex-layout($direction: row, $align: flex-start);
+    /* Note: For smaller screens in media query, changed the direction to 
+      COLUMN for better viewing.*/
+
+    .view-button {
+      color: var(--neutral-button-lighter);
+      &:hover {
+        background-color: var(--neutral-option);
+      }
+    }
+
+    .edit-button {
+      color: var(--secondary-text);
+
+      &:hover {
+        background-color: var(--secondary-hover);
+      }
+    }
+
+    .delete-button {
+      color: var(--primary-text);
+    }
+
+    .disabled-button {
+      opacity: var(--opacity-semi-opaque);
+    }
+  }
+
+  .custom-table-paginator {
+    @include mixins.default-transition;
+    padding: var(--spacing-md);
+    background-color: var(--neutral-light);
+    border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+  }
+}

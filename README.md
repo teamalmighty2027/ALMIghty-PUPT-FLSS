@@ -1,2 +1,2 @@
-# ALMIghty-PUPT-FLSS
- PUPT Faculty Loading and Scheduling System new iteration
+# PUPT-FLSS
+Streamlining the academic scheduling at PUP Taguig. Made with Angular®

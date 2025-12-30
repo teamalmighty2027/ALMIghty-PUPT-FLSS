@@ -1,0 +1,350 @@
+@use '../../../../../styles/mixins';
+@use '../../../../../styles/breakpoints' as bp;
+
+* {
+  @include mixins.reset-styles;
+  @include mixins.default-transition;
+  @include mixins.hide-scrollbar;
+}
+
+.faculty-home-container {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: center,
+    $gap: var(--spacing-lg)
+  );
+  height: 100%;
+  overflow: auto;
+
+  @media screen and (max-width: 1000px) {
+    @include mixins.flex-layout(
+      $justify: flex-start,
+      $direction: column,
+      $gap: var(--spacing-md)
+    );
+  }
+
+  @media screen and (max-width: bp.$breakpoint-sm) {
+    padding-bottom: var(--spacing-5xl);
+  }
+}
+
+.home-row-one {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: flex-start,
+    $justify: flex-start,
+    $gap: var(--spacing-lg)
+  );
+  flex: 1;
+  height: 100%;
+  width: 100%;
+
+  #home_greetings {
+    display: flex;
+    flex-direction: column;
+
+    h1 {
+      @include mixins.reset-styles;
+      width: fit-content;
+      font-size: var(--font-size-2xxl);
+      font-weight: 700;
+
+      @include mixins.gradient-primary-text(315deg);
+    }
+
+    p {
+      @include mixins.reset-styles;
+      width: fit-content;
+      font-size: var(--font-size-mdx);
+    }
+
+    @media screen and (max-width: bp.$breakpoint-sm) {
+      h1 {
+        font-size: var(--font-size-2xl);
+      }
+    }
+  }
+
+  .faculty-calendar {
+    height: 100%;
+    width: 100%;
+    user-select: none;
+    overflow: hidden;
+
+    .full-calendar {
+      height: 100%;
+      overflow-y: auto;
+    }
+  }
+}
+
+.home-row-two {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $gap: var(--spacing-lg)
+  );
+  flex: 0;
+  height: 100%;
+  width: 100%;
+
+  .active-year-sem-container {
+    @include mixins.flex-layout(
+      $align: flex-start,
+      $justify: flex-start,
+      $gap: var(--spacing-xs)
+    );
+    @include mixins.gradient-primary(315deg);
+    padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs)
+      var(--spacing-xs);
+    border-radius: var(--border-radius-md);
+    color: white;
+    flex-shrink: 0;
+
+    .icon-container {
+      height: 100%;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-2xxl);
+      }
+    }
+
+    .text-container {
+      height: 100%;
+
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $justify: flex-start,
+        $gap: var(--spacing-xxxs)
+      );
+    }
+
+    .text,
+    .label {
+      @include mixins.reset-styles;
+      @include mixins.ellipsis;
+    }
+
+    .text {
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+      font-weight: 500;
+      font-size: var(--font-size-mdx);
+    }
+
+    .label {
+      opacity: var(--opacity-semi-opaque);
+    }
+  }
+
+  .faculty-announcement {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: flex-start,
+      $gap: var(--spacing-md)
+    );
+    flex: 1;
+    min-height: 0;
+    background-color: var(--admin-bg);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+
+    .card-title {
+      @include mixins.flex-layout(
+        $justify: flex-start,
+        $gap: var(--spacing-xs)
+      );
+      font-size: var(--font-size-mdx);
+      font-weight: 600;
+      flex-shrink: 0;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-xl);
+        display: inline-block;
+        animation: pulse-wiggle 5s cubic-bezier(0.4, 0, 0.2, 1) 3;
+        transform-origin: center;
+        backface-visibility: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        will-change: transform;
+      }
+    }
+
+    .notifications-content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 2px;
+      @include mixins.flex-layout($align: stretch, $justify: flex-start);
+
+      .announcements-list {
+        @include mixins.flex-layout(
+          $direction: column,
+          $align: stretch,
+          $justify: flex-start,
+          $gap: var(--spacing-md)
+        );
+        width: 100%;
+
+        .announcement-card {
+          @include mixins.flex-layout(
+            $direction: column,
+            $align: stretch,
+            $justify: flex-start,
+            $gap: var(--spacing-sm)
+          );
+          padding: var(--spacing-md);
+          border-radius: var(--border-radius-md);
+          background-color: var(--main-bg);
+          box-shadow: var(--shadow-level-0);
+
+          .header {
+            @include mixins.flex-layout(
+              $align: center,
+              $justify: flex-start,
+              $gap: var(--spacing-sm)
+            );
+
+            .icon-wrapper {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 40px;
+              height: 40px;
+              border-radius: var(--border-radius-sm);
+              flex-shrink: 0;
+
+              span[mat-symbol] {
+                font-size: var(--font-size-xl);
+              }
+            }
+
+            h3 {
+              margin: 0;
+              font-size: var(--font-size-md);
+              font-weight: 500;
+            }
+          }
+
+          .content {
+            p {
+              margin: 0;
+              color: var(--neutral-base);
+              line-height: var(--line-height-md);
+              font-size: var(--font-size-smx);
+              text-align: left;
+
+              &.secondary-text {
+                margin-top: var(--spacing-sm);
+              }
+
+              .highlight {
+                font-weight: 600;
+
+                &.open,
+                &.published {
+                  color: var(--green-primary);
+                }
+
+                &.close {
+                  color: var(--primary-text);
+                }
+              }
+            }
+          }
+
+          // Specific card styles
+          &.preferences {
+            .icon-wrapper {
+              background-color: var(--purple-fade-lighter);
+              color: var(--purple-primary);
+            }
+
+            h3 {
+              color: var(--purple-primary);
+            }
+          }
+
+          &.schedule {
+            .icon-wrapper {
+              background-color: var(--blue-fade-lighter);
+              color: var(--blue-primary);
+            }
+
+            h3 {
+              color: var(--blue-primary);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes float-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(3deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-2deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(1deg);
+  }
+}
+
+@keyframes pulse-wiggle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  75% {
+    transform: scale(1.1) rotate(5deg);
+  }
+}
+
+:host ::ng-deep {
+  // Style for the event text in month view
+  .fc-daygrid-event {
+    white-space: nowrap;
+    border-radius: var(--border-radius-xl);
+    padding: 2px var(--spacing-xs);
+    transition: background-color var(--duration-short) ease;
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
+
+  // Style for the event dot in month view
+  .fc-daygrid-event-dot {
+    transition: border-color var(--duration-short) ease;
+  }
+
+  // Remove the default background in month view
+  .fc-daygrid-dot-event {
+    background-color: transparent !important;
+    transition: background-color var(--duration-short) ease;
+
+    &:hover {
+      background-color: var(--neutral-hover) !important;
+    }
+  }
+
+  // Add transition for smooth theme switching
+  .fc-view-harness {
+    transition: background-color var(--duration-short) ease;
+  }
+}

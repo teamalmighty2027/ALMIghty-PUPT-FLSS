@@ -1,0 +1,514 @@
+@use '../../../../../styles/mixins';
+@use '../../../../../styles/breakpoints' as bp;
+
+* {
+  @include mixins.reset-styles;
+}
+
+:host {
+  @include mixins.custom-spinner;
+}
+
+.faculty-preferences-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start
+  );
+  @include mixins.default-transition;
+  height: 100%;
+}
+
+.preferences-content-wrapper {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+  height: 100%;
+
+  .total-container {
+    @include mixins.flex-layout($gap: var(--spacing-md));
+
+    &.mobile {
+      display: none;
+    }
+
+    .total {
+      @include mixins.flex-layout($direction: column);
+      border-radius: var(--border-radius-md);
+      padding: var(--spacing-sm);
+      text-align: center;
+
+      h2 {
+        font-size: var(--font-size-2xl);
+      }
+
+      h2,
+      span {
+        color: white;
+      }
+    }
+
+    .units {
+      @include mixins.gradient-primary(315deg);
+    }
+
+    .hours {
+      @include mixins.gradient-secondary(315deg);
+    }
+
+    @media screen and (max-width: bp.$breakpoint-md) {
+      &.desktop {
+        display: none;
+      }
+
+      &.mobile {
+        @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
+
+        & .total {
+          flex: 1;
+        }
+      }
+    }
+  }
+}
+
+/* First row - Header & Units Cards */
+.preferences-row-one {
+  @include mixins.flex-layout($justify: space-between, $gap: var(--spacing-lg));
+
+  #preferences_title {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: none,
+      $justify: none
+    );
+    height: 100%;
+    flex: 1;
+
+    h1,
+    .pref-description {
+      width: fit-content;
+    }
+
+    h1 {
+      @include mixins.gradient-primary-text(315deg);
+      font-size: var(--font-size-2xxl);
+      font-weight: 700;
+
+      @media screen and (max-width: bp.$breakpoint-sm) {
+        font-size: var(--font-size-2xl);
+      }
+    }
+
+    .pref-description {
+      font-size: var(--font-size-mdx);
+      line-height: var(--line-height-sm);
+      white-space: normal;
+
+      .highlight {
+        font-weight: 600;
+      }
+
+      .submission-deadline {
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+/* Second Row - Course List and Table */
+.preferences-row-two {
+  @include mixins.flex-layout($gap: var(--spacing-lg));
+  height: calc(100vh - 17rem);
+  box-sizing: border-box;
+
+  #courses_container,
+  #table_container {
+    border-radius: var(--border-radius-md);
+    height: 100%;
+  }
+
+  /* Courses Picker Container */
+  #courses_container {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+
+    .custom-mat-search {
+      width: 100%;
+
+      input::placeholder {
+        color: var(--neutral-button-lighter);
+      }
+
+      span[mat-symbol] {
+        padding: var(--spacing-sm);
+      }
+
+      .filter-button {
+        margin-right: var(--spacing-xs) !important;
+
+        .mat-icon {
+          @include mixins.flex-layout;
+          font-size: var(--font-size-xl);
+        }
+      }
+
+      .active-filter {
+        color: var(--primary-text);
+        background-color: var(--primary-fade);
+        margin-right: var(--spacing-xs);
+      }
+    }
+
+    #courses_list,
+    #programs_list,
+    #search_results,
+    #empty-results {
+      flex: 1;
+      overflow: hidden;
+      @include mixins.flex-layout($direction: column, $align: stretch);
+
+      .arrow_back {
+        cursor: pointer;
+        border-radius: 100%;
+
+        &:hover {
+          background-color: var(--neutral-bar);
+        }
+      }
+
+      .cards-label {
+        @include mixins.flex-layout(
+          $justify: flex-start,
+          $gap: var(--spacing-sm)
+        );
+        font-weight: 500;
+        margin-bottom: 1rem;
+
+        button {
+          margin-right: 0.5rem;
+        }
+      }
+    }
+
+    #empty-results {
+      align-items: center;
+      font-size: var(--font-size-md);
+      text-align: center;
+      gap: var(--spacing-md);
+      opacity: var(--opacity-semi-opaque);
+
+      span[mat-symbol] {
+        font-size: var(--font-size-3xl);
+      }
+    }
+
+    .courses-scroll-container,
+    .programs-scroll-container {
+      @include mixins.custom-scrollbar;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: var(--spacing-xs);
+
+      .progress-wrapper {
+        height: 100%;
+        @include mixins.flex-layout;
+      }
+    }
+
+    .course-card,
+    .program-card {
+      @include mixins.default-transition;
+      @include mixins.gradient-soft-secondary(30deg);
+      @include mixins.flex-layout($justify: space-between);
+      padding: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        opacity 0.3s ease;
+
+      &:hover {
+        opacity: var(--opacity-semi-opaque);
+      }
+
+      &:active {
+        transform: scale(0.96);
+      }
+
+      .course-info,
+      .program-info {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xxs);
+      }
+
+      .course-code,
+      .program-code {
+        @include mixins.default-transition;
+        font-weight: 600;
+        font-size: var(--font-size-md);
+        color: var(--neutral-base);
+      }
+
+      .course-title,
+      .program-title {
+        font-weight: 400;
+        font-size: var(--font-size-md);
+      }
+
+      .add-button {
+        @include mixins.flex-layout;
+        color: var(--neutral-base);
+      }
+    }
+  }
+
+  /* Preferences Table Styling */
+  #table_container {
+    @include mixins.default-transition;
+    @include mixins.hide-scrollbar;
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: none,
+      $justify: none
+    );
+    flex: 5;
+    overflow: auto;
+    background-color: var(--neutral-light);
+
+    .table-main {
+      @include mixins.default-transition;
+      width: 100%;
+      background-color: var(--neutral-light);
+      table-layout: fixed;
+    }
+
+    .table-header {
+      @include mixins.sticky;
+      color: white;
+      text-align: center;
+      background-color: var(--primary-one);
+    }
+
+    .table-cell {
+      @include mixins.default-transition;
+      padding: var(--spacing-sm);
+      text-wrap: wrap;
+      text-align: center;
+      background-color: var(--neutral-light);
+
+      .day-time-button-container {
+        @include mixins.flex-layout;
+
+        .day-time-button {
+          color: var(--primary-text);
+          transition: opacity 0.3s ease;
+          cursor: pointer;
+          white-space: pre-line;
+          text-align: left;
+          line-height: 1.5;
+
+          &:hover {
+            opacity: var(--opacity-semi-opaque);
+          }
+        }
+      }
+
+      &.title-cell {
+        width: 15rem;
+      }
+
+      &.day-time-cell {
+        min-width: 10rem;
+        text-align: left;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+
+      .remove-button {
+        @include mixins.flex-layout;
+
+        span[mat-symbol] {
+          font-size: var(--font-size-lg);
+          color: var(--primary-text);
+          @include mixins.flex-layout;
+        }
+      }
+    }
+
+    .no-data-text {
+      @include mixins.default-transition;
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+      width: 100%;
+      text-align: center;
+      background-color: var(--neutral-light);
+      font-size: var(--font-size-md);
+      padding: var(--spacing-lg) 0;
+
+      span {
+        opacity: var(--opacity-semi-opaque);
+      }
+
+      span[mat-symbol] {
+        font-size: 100%;
+      }
+    }
+  }
+}
+
+.preferences-closed {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center
+  );
+  opacity: var(--opacity-semi-opaque);
+  height: 100%;
+
+  svg {
+    width: 20rem;
+    height: auto;
+  }
+
+  .closed-info {
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-lg));
+  }
+
+  .closed-text {
+    @include mixins.flex-layout($gap: var(--spacing-xs));
+    font-size: var(--font-size-md);
+    text-align: center;
+
+    span[mat-symbol] {
+      font-size: var(--font-size-md);
+    }
+
+    .request-access-link {
+      color: var(--neutral-base);
+      text-decoration: none;
+      font-weight: 500;
+      position: relative;
+      display: inline-block;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .request-access-link::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 1.5px;
+      bottom: 0;
+      left: 0;
+      background-color: var(--neutral-base);
+      transform: scaleX(0);
+      transform-origin: right;
+      transition: transform 0.5s ease;
+      backface-visibility: hidden;
+      -webkit-font-smoothing: antialiased;
+      will-change: transform;
+    }
+
+    .request-access-link:hover::after {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+
+  .button-options {
+    @include mixins.flex-layout($gap: var(--spacing-sm));
+    width: 100%;
+
+    .preferences-btn {
+      @include mixins.gradient-primary(315deg);
+      font-size: var(--font-size-md);
+      width: 100%;
+      text-wrap: nowrap;
+    }
+
+    .request-btn {
+      @include mixins.gradient-secondary(315deg);
+      font-size: var(--font-size-md);
+      width: 100%;
+      text-wrap: nowrap;
+    }
+  }
+}
+
+.year-level-item {
+  .menu-item-content {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+
+    .mat-icon {
+      margin-right: 0;
+      font-size: var(--font-size-lg);
+      width: var(--font-size-lg);
+      height: var(--font-size-lg);
+    }
+  }
+
+  &.mdc-list-item--selected,
+  &.mat-mdc-menu-item.mdc-list-item--selected {
+    background-color: var(--primary-fade);
+
+    .menu-item-content,
+    mat-icon {
+      color: var(--primary-text);
+    }
+  }
+}
+
+/* Media Query */
+@media screen and (max-width: bp.$breakpoint-md) {
+  #courses_container {
+    max-height: 25rem;
+  }
+
+  .preferences-row-one {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $gap: var(--spacing-lg)
+    );
+
+    #total_container {
+      .total {
+        flex: 1;
+      }
+    }
+  }
+
+  .preferences-row-two {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $gap: var(--spacing-lg)
+    );
+
+    height: auto;
+
+    #courses_container {
+      .courses-scroll-container,
+      .programs-scroll-container {
+        padding-right: var(--spacing-xs);
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .preferences-row-two {
+    padding-bottom: var(--spacing-5xxl);
+  }
+
+  .preferences-closed .button-options {
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+  }
+}

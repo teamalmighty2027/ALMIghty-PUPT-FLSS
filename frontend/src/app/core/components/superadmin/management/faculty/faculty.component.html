@@ -1,0 +1,70 @@
+<div class="faculty-management-container">
+  @if (isLoading) {
+  <div class="loading-wrapper">
+    <app-loading></app-loading>
+  </div>
+  } @else {
+
+  <!-- FESR Status Banner -->
+  <div
+    class="fesr-status-banner"
+    [ngClass]="{ online: isFesrHealthy, offline: !isFesrHealthy }">
+    <span [mat-symbol]="isFesrHealthy ? 'cloud_done' : 'cloud_off'"></span>
+    <span>
+      FESR is {{ isFesrHealthy ? 'online' : 'offline' }}.
+      {{
+        isFesrHealthy
+          ? 'Faculty management is read-only. Please make changes in FESR.'
+          : 'Faculty can be managed here while FESR is offline.'
+      }}
+    </span>
+  </div>
+
+  <!-- Table Header -->
+  <div class="faculty-header-container" [@fadeAnimation]>
+    <app-table-header
+      [searchLabel]="'Search Faculty'"
+      [addButtonLabel]="'Add Faculty'"
+      [inputFields]="headerInputFields"
+      [showExportButton]="false"
+      [buttonDisabled]="isFesrHealthy"
+      (inputChange)="onInputChange($event)"
+      (add)="openAddFacultyDialog()"></app-table-header>
+  </div>
+
+  <!-- Faculty Management Table -->
+  <div class="faculty-table-container" [@fadeAnimation]>
+    <app-table-generic
+      [columns]="columns"
+      [data]="filteredFaculty"
+      [tableName]="'faculty'"
+      [displayedColumns]="displayedColumns"
+      [showViewButton]="false"
+      [showDeleteButton]="false"
+      [disableEdit]="isFesrHealthy"
+      (edit)="openEditFacultyDialog($event)"></app-table-generic>
+  </div>
+
+  }
+</div>
+
+<!-- Faculty Type Template -->
+<ng-template #facultyTypeTemplate let-element>
+  <div
+    class="faculty-type"
+    [ngClass]="
+      getFacultyTypeClass(element.faculty?.faculty_type?.faculty_type ?? 'N/A')
+    ">
+    {{ element.faculty?.faculty_type?.faculty_type ?? 'N/A' }}
+  </div>
+</ng-template>
+
+<!-- Faculty Units Template -->
+<ng-template #facultyUnitsTemplate let-element>
+  <div class="faculty-units">
+    {{
+      (element.faculty?.faculty_type?.regular_units ?? 0) +
+        (element.faculty?.faculty_type?.additional_units ?? 0)
+    }}
+  </div>
+</ng-template>

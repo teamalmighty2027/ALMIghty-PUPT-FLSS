@@ -1,0 +1,168 @@
+@use '../../../../../styles/mixins';
+@use '../../../../../styles/breakpoints' as bp;
+
+* {
+  @include mixins.reset-styles;
+  @include mixins.default-transition;
+  @include mixins.hide-scrollbar;
+}
+
+.faculty-load-schedule-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+  height: 100%;
+
+  @media screen and (max-width: bp.$breakpoint-sm) {
+    padding-bottom: var(--spacing-4xl);
+  }
+}
+
+.row-one {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: space-between,
+    $gap: var(--spacing-md)
+  );
+
+  .page-header {
+    @include mixins.flex-layout($direction: column, $align: flex-start);
+
+    h1 {
+      @include mixins.reset-styles;
+      font-size: var(--font-size-2xxl);
+      font-weight: 700;
+
+      @include mixins.gradient-primary-text(315deg);
+
+      @media screen and (max-width: bp.$breakpoint-sm) {
+        font-size: var(--font-size-2xl);
+      }
+    }
+
+    p {
+      @include mixins.reset-styles;
+      font-size: var(--font-size-mdx);
+
+      .highlight {
+        font-weight: 600;
+      }
+    }
+  }
+
+  .schedule-overview {
+    @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
+    width: min(25rem, 100%);
+
+    .schedule-summary,
+    .schedule-history {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: stretch,
+        $gap: var(--spacing-xxs)
+      );
+      color: white;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-md);
+
+      .mini-heading {
+        @include mixins.flex-layout(
+          $justify: flex-start,
+          $gap: var(--spacing-xxs)
+        );
+        font-weight: 600;
+        max-width: max-content;
+
+        span[mat-symbol] {
+          font-size: medium;
+        }
+      }
+    }
+
+    .schedule-summary {
+      flex: 1;
+      @include mixins.gradient-primary(315deg);
+    }
+
+    .schedule-history {
+      flex: 1;
+      @include mixins.gradient-secondary(315deg);
+      cursor: pointer;
+
+      p {
+        opacity: var(--opacity-semi-opaque);
+      }
+    }
+  }
+}
+
+.row-two {
+  flex: 1;
+  overflow: hidden;
+
+  .unpublished-container {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-xl)
+    );
+    height: 100%;
+    opacity: var(--opacity-semi-opaque);
+
+    svg {
+      width: 13rem;
+      height: auto;
+    }
+
+    .unpublished-text {
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+      font-size: var(--font-size-md);
+      text-align: center;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-md);
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-md) {
+  .row-one {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $gap: var(--spacing-md)
+    );
+
+    .schedule-overview {
+      width: auto;
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .row-two {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .row-one {
+    .schedule-overview {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: stretch,
+        $gap: var(--spacing-sm)
+      );
+
+      .summary-numbers {
+        @include mixins.flex-layout(
+          $justify: flex-start,
+          $gap: var(--spacing-md)
+        );
+      }
+    }
+  }
+}
