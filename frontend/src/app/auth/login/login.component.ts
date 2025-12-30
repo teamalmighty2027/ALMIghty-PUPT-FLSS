@@ -85,21 +85,25 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.isRedirectDialogOpen = false;
     });
 
-    this.authService.checkFesrHealth().subscribe({
-      next: (isHealthy) => {
-        if (isHealthy) {
-          dialogRef.componentInstance.updateState(false, true);
-        } else {
-          dialogRef.close();
-          this.openFacultyLoginDialog();
-        }
-      },
-      error: (error) => {
-        console.error('Error checking FESR health:', error);
-        dialogRef.close();
-        this.openFacultyLoginDialog();
-      },
-    });
+    // Disconnect FESR health check and directly open faculty login dialog
+    dialogRef.close();
+    this.openFacultyLoginDialog();
+    
+    // this.authService.checkFesrHealth().subscribe({
+    //   next: (isHealthy) => {
+    //     if (isHealthy) {
+    //       dialogRef.componentInstance.updateState(false, true);
+    //     } else {
+    //       dialogRef.close();
+    //       this.openFacultyLoginDialog();
+    //     }
+    //   },
+    //   error: (error) => {
+    //     console.error('Error checking FESR health:', error);
+    //     dialogRef.close();
+    //     this.openFacultyLoginDialog();
+    //   },
+    // });
   }
 
   openFacultyLoginDialog(): void {
