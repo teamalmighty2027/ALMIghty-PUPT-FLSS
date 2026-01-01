@@ -36,6 +36,29 @@ export const ADMIN_ROUTES: Routes = [
             (m) => m.SchedulingComponent
           ),
         data: { pageTitle: 'Scheduling' },
+        children: [
+            {
+                path: 'programs',
+                loadComponent: () =>
+                import('./scheduling/scheduling-programs/scheduling-programs.component').then(
+                    (m) => m.SchedulingProgramsComponent
+                ),
+                data: { pageTitle: 'Scheduling' },
+            },
+            {
+                path: 'faculty',
+                loadComponent: () =>
+                import('./scheduling/scheduling-faculty/scheduling-faculty.component').then(
+                    (m) => m.SchedulingFacultyComponent
+                ),
+                data: { pageTitle: 'Scheduling' },
+            },
+            {
+            path: '',
+            redirectTo: 'programs',
+            pathMatch: 'full',
+          },
+        ]
       },
       {
         path: 'academic-years',
