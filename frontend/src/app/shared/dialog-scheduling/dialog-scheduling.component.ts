@@ -57,6 +57,7 @@ interface ProfessorOption {
 }
 
 interface DialogData {
+aiSuggestions: any;
   program: {
     id: number;
     info: string;
