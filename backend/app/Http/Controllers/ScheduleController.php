@@ -742,6 +742,7 @@ class ScheduleController extends Controller
                 'f.id as faculty_id',
                 'u.first_name',
                 'u.last_name',
+                'u.middle_name',
                 'ft.faculty_type'
             )
             ->orderBy('p.created_at', 'asc');
@@ -800,7 +801,10 @@ class ScheduleController extends Controller
 
             $results[] = [
                 'faculty_id' => $p->faculty_id,
-                'name' => trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? '')),
+                'name' => trim(
+                    ($p->last_name ?? '') . ', ' . ($p->first_name ?? '') . 
+                    ' ' . ($p->middle_name ?? '')
+                ),
                 'faculty_type' => $p->faculty_type ?? null,
                 'course_id' => $p->course_id,
                 'course_assignment_id' => $p->course_assignment_id,
@@ -817,7 +821,7 @@ class ScheduleController extends Controller
             return $a['score'] <=> $b['score'];
         });
 
-        $top = array_slice($results, 0, 1);
+        $top = array_slice($results, 0, 1)[0] ?? null;
 
         return response()->json([
             'message' => 'AI scheduling suggestions generated',
@@ -825,11 +829,11 @@ class ScheduleController extends Controller
             'year_level' => $yearLevel,
             'section_id' => $sectionId,
             'course_id' => $courseId,
-            'faculty_name' => $top[0]['name'] ?? null,
-            'faculty_id' => $top[0]['faculty_id'] ?? null,
-            'preference_day' => $top[0]['preference_day'] ?? null,
-            'preferred_start_time' => $top[0]['preferred_start_time'] ?? null,
-            'preferred_end_time' => $top[0]['preferred_end_time'] ?? null
+            'faculty_name' => $top['name'] ?? null,
+            'faculty_id' => $top['faculty_id'] ?? null,
+            'preference_day' => $top['preference_day'] ?? null,
+            'preferred_start_time' => $top['preferred_start_time'] ?? null,
+            'preferred_end_time' => $top['preferred_end_time'] ?? null
         ]);
     }
 }

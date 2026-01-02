@@ -174,7 +174,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       ).subscribe((suggestions) => {
         this.data.aiSuggestion = suggestions;
-        console.log('AI Suggestions:', suggestions);
         this.cdr.markForCheck();
       });
     });

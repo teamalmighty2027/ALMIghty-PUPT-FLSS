@@ -85,10 +85,33 @@
       </div>
       <div class="faculty-ai-suggestions-wrapper">	
 		  <h3 class="faculty-ai-suggestions-title"> AI Suggestions </h3>
-          @if (!data.aiSuggestion.name) {	
+          @if (!data.aiSuggestion) {	
             <p class="no-ai-suggestions"> No AI suggestions available at the moment. </p>	
           } @else {
-		    <p class="ai-suggestions"> {{ data.aiSuggestion.name }} </p>
+            <div	
+              class="faculty-card ai-suggestion-card"	
+              (click)="populateFormWithFacultyPreference(
+                data.aiSuggestion, 
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex]
+            )"	
+              [class.selected-faculty]="	
+                selectedFaculty?.faculty_id === data.aiSuggestion.faculty_id &&	
+                doesPreferenceMatchForm(data.aiSuggestion.preferences[data.aiSuggestion.prefIndex])	
+              "	
+              matRipple	
+            >	
+              <div	
+                class="faculty-type"	
+                [ngClass]="getFacultyTypeClass('AI Suggested')"	
+              >	
+                AI Suggested
+              </div>	
+              <div class="faculty-name">{{ data.aiSuggestion.name }}</div>	
+              <div class="faculty-pref">	
+                {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].day }}, 	
+                {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].time }}	
+              </div>	
+            </div>
           }
 	  </div>
     </mat-dialog-content>
