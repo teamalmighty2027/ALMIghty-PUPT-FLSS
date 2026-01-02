@@ -226,6 +226,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
 
     /**
+     * Scheduling
+     */
+    Route::post('/ai-suggestions', [ScheduleController::class, 'getAISchedulingSuggestions']);
+
+    /**
      * Semester
      */
     Route::get('/semesters', [SemesterController::class, 'index']);

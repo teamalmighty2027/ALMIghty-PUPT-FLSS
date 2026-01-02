@@ -57,7 +57,7 @@ interface ProfessorOption {
 }
 
 interface DialogData {
-aiSuggestions: any;
+  aiSuggestions: string;
   program: {
     id: number;
     info: string;
@@ -162,6 +162,19 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.setupConflictDetection();
         this.cdr.markForCheck();
       });
+    });
+
+    this.schedulingService.getAISuggestions(
+      this.data.program.id,
+      this.data.academic.year_level,
+      this.data.academic.section_id,
+      this.data.course_id
+    ).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe((suggestions) => {
+      this.data.aiSuggestions = suggestions.suggestion;
+      console.log('AI Suggestions:', suggestions);
+      this.cdr.markForCheck();
     });
   }
 

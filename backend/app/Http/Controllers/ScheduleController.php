@@ -680,4 +680,160 @@ class ScheduleController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get AI Scheduling Suggestions
+     */
+    public function getAISchedulingSuggestions(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'program_id' => 'required|integer|exists:programs,program_id',
+            'year_level' => 'required|integer',
+            'section_id' => 'required|integer',
+            'course_id' => 'nullable|integer|exists:courses,course_id',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation Error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $programId = $request->input('program_id');
+        $yearLevel = $request->input('year_level');
+        $sectionId = $request->input('section_id');
+        $courseId = $request->input('course_id'); // newly included
+
+        $activeSemester = DB::table('active_semesters')
+            ->where('is_active', 1)
+            ->first();
+
+        if (!$activeSemester) {
+            return response()->json(['message' => 'No active semester found'], 404);
+        }
+
+        $query = DB::table('preferences as p')
+            ->join('preference_days as pd', 'p.preferences_id', '=', 'pd.preference_id')
+            ->join('course_assignments as ca', 'p.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->join('curricula_program as cp', 'ca.curricula_program_id', '=', 'cp.curricula_program_id')
+            ->leftJoin('section_courses as sc', 'ca.course_assignment_id', '=', 'sc.course_assignment_id')
+            ->leftJoin('sections_per_program_year as sp', 'sc.sections_per_program_year_id', '=', 'sp.sections_per_program_year_id')
+            ->join('semesters as s', 'ca.semester_id', '=', 's.semester_id')
+            ->join('year_levels as yl', 's.year_level_id', '=', 'yl.year_level_id')
+            ->join('faculty as f', 'p.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->leftJoin('faculty_type as ft', 'f.faculty_type_id', '=', 'ft.faculty_type_id')
+            ->where('cp.program_id', $programId)
+            ->where('yl.year', $yearLevel)
+            ->where(function ($q) use ($sectionId) {
+                $q->where('sp.sections_per_program_year_id', $sectionId)
+                ->orWhereNull('sp.sections_per_program_year_id');
+            })
+            ->where('p.active_semester_id', $activeSemester->active_semester_id)
+            ->select(
+                'p.preferences_id',
+                'p.faculty_id',
+                'p.course_assignment_id',
+                'ca.course_id',
+                'p.created_at as submitted_at',
+                'pd.preferred_day',
+                'pd.preferred_start_time',
+                'pd.preferred_end_time',
+                'f.id as faculty_id',
+                'u.first_name',
+                'u.last_name',
+                'ft.faculty_type'
+            )
+            ->orderBy('p.created_at', 'asc');
+
+        // If course_id provided, restrict to that course
+        if (!is_null($courseId)) {
+            $query->where('ca.course_id', $courseId);
+        }
+
+        $prefs = $query->get();
+
+        if ($prefs->isEmpty()) {
+            return response()->json([
+                'message' => 'No preferences found for given parameters (diagnostic)',
+                'program_id' => $programId,
+                'year_level' => $yearLevel,
+                'section_id' => $sectionId,
+                'course_id' => $courseId,
+                'active_semester_id' => $activeSemester->active_semester_id,
+                'sql' => $query->toSql(),
+                'bindings' => $query->getBindings(),
+                'prefs_count' => 0,
+            ], 200);
+        }
+
+        $results = [];        
+
+        foreach ($prefs as $p) {
+            $assignedCount = DB::table('schedules')
+                ->where('faculty_id', $p->faculty_id)
+                ->whereNotNull('day')
+                ->count();
+
+            $hasOtherProgramPref = DB::table('preferences as px')
+                ->join('course_assignments as cax', 'px.course_assignment_id', '=', 'cax.course_assignment_id')
+                ->join('curricula_program as cpx', 'cax.curricula_program_id', '=', 'cpx.curricula_program_id')
+                ->where('px.faculty_id', $p->faculty_id)
+                ->where('px.course_assignment_id', $p->course_assignment_id)
+                ->where('cpx.program_id', '!=', $programId)
+                ->exists();
+
+            $typePriorityMap = [
+                'full-time' => 0,
+                'designee'  => 10,
+                'part-time' => 20,
+                'temporary' => 30,
+            ];
+            $typePenalty = isset($p->faculty_type) ? ($typePriorityMap[strtolower($p->faculty_type)] ?? 25) : 25;
+
+            $submittedAtScore = $p->submitted_at ? strtotime($p->submitted_at) : PHP_INT_MAX;
+
+            $score = ($assignedCount * 1000)
+                + ($hasOtherProgramPref ? 1000000 : 0)
+                + $typePenalty
+                + intval($submittedAtScore / 100000);
+
+            $results[] = [
+                'faculty_id' => $p->faculty_id,
+                'name' => trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? '')),
+                'faculty_type' => $p->faculty_type ?? null,
+                'course_id' => $p->course_id,
+                'course_assignment_id' => $p->course_assignment_id,
+                'preference_day' => $p->preferred_day,
+                'preferred_start_time' => $p->preferred_start_time,
+                'preferred_end_time' => $p->preferred_end_time,
+                'assigned_count' => $assignedCount,
+                'has_other_program_preference' => (bool)$hasOtherProgramPref,
+                'score' => $score,
+            ];
+        }
+
+        usort($results, function ($a, $b) {
+            return $a['score'] <=> $b['score'];
+        });
+
+        $top = array_slice($results, 0, 1);
+
+        $aiSuggestions = array_map(function ($r) {
+            return "{$r['name']} (type={$r['faculty_type']}) — course_id={$r['course_id']}, assigned={$r['assigned_count']}, score={$r['score']}";
+        }, $top);
+
+        $suggestionString = count($aiSuggestions) ? implode("\n", $aiSuggestions) : '';
+
+        return response()->json([
+            'message' => 'AI scheduling suggestions generated',
+            'program_id' => $programId,
+            'year_level' => $yearLevel,
+            'section_id' => $sectionId,
+            'course_id' => $courseId,
+            'suggestion' => $suggestionString,
+            'suggestions' => $top,
+            'readable' => $aiSuggestions,
+        ]);
+    }
 }

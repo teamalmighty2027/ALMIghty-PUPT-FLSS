@@ -239,4 +239,23 @@ export class SchedulingService {
       }
     });
   }
+
+  public getAISuggestions(
+    program_id: number,
+    year_level: number,
+    section_id: number,
+    course_id: number
+  ): Observable<any> {
+    return this.http
+      .post<any>(`${this.baseUrl}/ai-suggestions`, { 
+        program_id, 
+        year_level, 
+        section_id,
+        course_id
+      })
+      .pipe(
+        map(response => response),
+        catchError(this.handleError)
+      );
+  }
 }
