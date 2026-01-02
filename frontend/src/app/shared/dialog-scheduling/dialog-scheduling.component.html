@@ -85,10 +85,10 @@
       </div>
       <div class="faculty-ai-suggestions-wrapper">	
 		  <h3 class="faculty-ai-suggestions-title"> AI Suggestions </h3>
-          @if (!data.aiSuggestions) {	
+          @if (!data.aiSuggestion.name) {	
             <p class="no-ai-suggestions"> No AI suggestions available at the moment. </p>	
           } @else {
-		    <p class="ai-suggestions"> {{ data.aiSuggestions }} </p>
+		    <p class="ai-suggestions"> {{ data.aiSuggestion.name }} </p>
           }
 	  </div>
     </mat-dialog-content>

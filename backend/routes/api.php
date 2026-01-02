@@ -228,7 +228,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Scheduling
      */
-    Route::post('/ai-suggestions', [ScheduleController::class, 'getAISchedulingSuggestions']);
+    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
 
     /**
      * Semester

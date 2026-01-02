@@ -684,7 +684,7 @@ class ScheduleController extends Controller
     /**
      * Get AI Scheduling Suggestions
      */
-    public function getAISchedulingSuggestions(Request $request)
+    public function getAISchedulingSuggestion(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'program_id' => 'required|integer|exists:programs,program_id',
@@ -819,21 +819,17 @@ class ScheduleController extends Controller
 
         $top = array_slice($results, 0, 1);
 
-        $aiSuggestions = array_map(function ($r) {
-            return "{$r['name']} (type={$r['faculty_type']}) — course_id={$r['course_id']}, assigned={$r['assigned_count']}, score={$r['score']}";
-        }, $top);
-
-        $suggestionString = count($aiSuggestions) ? implode("\n", $aiSuggestions) : '';
-
         return response()->json([
             'message' => 'AI scheduling suggestions generated',
             'program_id' => $programId,
             'year_level' => $yearLevel,
             'section_id' => $sectionId,
             'course_id' => $courseId,
-            'suggestion' => $suggestionString,
-            'suggestions' => $top,
-            'readable' => $aiSuggestions,
+            'faculty_name' => $top[0]['name'] ?? null,
+            'faculty_id' => $top[0]['faculty_id'] ?? null,
+            'preference_day' => $top[0]['preference_day'] ?? null,
+            'preferred_start_time' => $top[0]['preferred_start_time'] ?? null,
+            'preferred_end_time' => $top[0]['preferred_end_time'] ?? null
         ]);
     }
 }
