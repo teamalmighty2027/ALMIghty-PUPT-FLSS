@@ -800,8 +800,7 @@ class ScheduleController extends Controller
                 'year_level' => $yearLevel,
                 'section_id' => $sectionId,
                 'course_id' => $courseId,
-                'active_semester_id' => $activeSemester->active_semester_id,
-                'sql' => $query->toSql(),                
+                'active_semester_id' => $activeSemester->active_semester_id,     
                 'prefs_count' => 0,
             ], 200);
         }
@@ -818,6 +817,7 @@ class ScheduleController extends Controller
             'course_id' => $courseId,
             'faculty_name' => $name,
             'faculty_id' => $top->faculty_id,
+            'faculty_type' => $top->faculty_type,
             'preference_day' => $top->preferred_day,
             'preferred_start_time' => $top->preferred_start_time,
             'preferred_end_time' => $top->preferred_end_time,

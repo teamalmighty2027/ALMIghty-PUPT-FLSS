@@ -226,7 +226,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
 
     /**
-     * Scheduling
+     * AI Assisted Scheduling
      */
     Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
 

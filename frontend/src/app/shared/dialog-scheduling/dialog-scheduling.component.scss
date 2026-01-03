@@ -353,41 +353,41 @@
       }			
     }
 
-		.faculty-preferences-wrapper {
-			margin-bottom: var(--spacing-sm);			
-		}
+        .faculty-preferences-wrapper {
+            margin-bottom: var(--spacing-sm);			
+        }
 
-		.faculty-ai-suggestions-wrapper {
-			position: sticky;
-			bottom: 0;
-			z-index: 3;
-			height: auto; // Allow height to grow with content
-			display: flex;
-			flex-direction: column; // Make children stack vertically
-			align-items: flex-start; // Align items to the start
-			background: var(--neutral-extra-dark);
-			margin-top: 0;
-			margin-bottom: 0;
-			padding: var(--spacing-sm);
-			padding-bottom: var(--spacing-md);
-			border-top: 1px solid var(--neutral-base);
-			border-radius: 12% 12% 0 0;
-			width: 100%;
-			box-sizing: border-box;
-			font-size: var(--font-size-sm);
-			color: var(--secondary-text);
-		
-			.faculty-ai-suggestions-title {
-				font-weight: 600;
-				margin-bottom: var(--spacing-xs);
-				width: 100%;
-			}
-			.ai-suggestions,
-			.no-ai-suggestions {
-				margin-bottom: var(--spacing-xs);
-				width: 100%;
-				word-break: break-word;
-			}
-		}
+        .faculty-ai-suggestions-wrapper {
+            position: sticky;
+            bottom: 0;
+            z-index: 3;
+            height: auto; // Allow height to grow with content
+            display: flex;
+            flex-direction: column; // Make children stack vertically
+            align-items: flex-start; // Align items to the start
+            background: var(--neutral-extra-dark);
+            margin-top: 0;
+            margin-bottom: 0;
+            padding: var(--spacing-sm);
+            padding-bottom: var(--spacing-md);
+            border-top: 1px solid var(--neutral-base);
+            border-radius: 12px 12px 0 0;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: var(--font-size-sm);
+            color: var(--secondary-text);
+        
+            .faculty-ai-suggestions-title {
+                font-weight: 600;
+                margin-bottom: var(--spacing-xs);
+                width: 100%;
+            }
+            .ai-suggestions,
+            .no-ai-suggestions {
+                margin-bottom: var(--spacing-xs);
+                width: 100%;
+                word-break: break-word;
+            }
+        }
   }
 }

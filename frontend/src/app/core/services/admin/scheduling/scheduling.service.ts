@@ -240,8 +240,9 @@ export class SchedulingService {
     });
   }
 
-  /* 
-  * Sends a post request for AI Scheduling Suggestion
+  /*
+  * Creates an Observable that, when subscribed, sends a POST request
+  * to fetch AI scheduling suggestions for the given parameters.
   **/
   public getAISuggestion(
     program_id: number,
