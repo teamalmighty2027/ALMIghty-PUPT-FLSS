@@ -57,6 +57,7 @@ interface ProfessorOption {
 }
 
 interface DialogData {
+  aiSuggestion?: SuggestedFaculty;
   program: {
     id: number;
     info: string;
@@ -159,6 +160,29 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.setupAutocomplete();
         this.subscribeToStartTimeChanges();
         this.setupConflictDetection();
+        this.cdr.markForCheck();
+      });
+    });
+
+    queueMicrotask(() => {
+      this.schedulingService.getAISuggestion(
+        this.data.program.id,
+        this.data.academic.year_level,
+        this.data.academic.section_id,
+        this.data.course_id
+      ).pipe(
+        takeUntil(this.destroy$)
+      ).subscribe((suggestions) => {
+        if (suggestions.success === false) {
+            this.snackBar.open(
+                suggestions.message || 'No AI suggestions available.',
+                'Close',
+                { duration: 3000 }
+            );
+            return;
+        };
+
+        this.data.aiSuggestion = suggestions;
         this.cdr.markForCheck();
       });
     });

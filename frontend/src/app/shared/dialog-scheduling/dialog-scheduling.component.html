@@ -12,75 +12,108 @@
       class="content faculty-list"
       [@cardEntranceSide]="data.suggestedFaculty.length"
     >
-      <!-- Check if suggestedFaculty is empty -->
-      @if (data.suggestedFaculty.length === 0) {
-      <div class="no-faculty-message">
+      <div class="faculty-preferences-wrapper">  
+        <!-- Check if suggestedFaculty is empty -->
+        @if (data.suggestedFaculty.length === 0) {
+        <div class="no-faculty-message">
         No faculty has selected this course as their preference.
-      </div>
-      } @else {
-      <!-- Outer loop for faculty -->
-      @for (faculty of data.suggestedFaculty; track faculty.faculty_id) {
-      <div class="faculty-card-wrapper">
+        </div>
+        } @else {
+        <!-- Outer loop for faculty -->
+        @for (faculty of data.suggestedFaculty; track faculty.faculty_id) {
+        <div class="faculty-card-wrapper">
         <!-- Faculty Pref Navigator -->
         @if (faculty.preferences.length > 1) {
         <div class="faculty-pref-nav">
-          <!-- Display current and total preference count -->
-          <span class="preference-count">
+            <!-- Display current and total preference count -->
+            <span class="preference-count">
             {{ faculty.prefIndex + 1 }} of {{ faculty.preferences.length }}
             Preferences
-          </span>
-          <!-- Navigation arrows -->
-          <div class="nav-button-container">
+            </span>
+            <!-- Navigation arrows -->
+            <div class="nav-button-container">
             <button
-              class="pref-nav-button"
-              (click)="showPreviousFacultyPreference(faculty)"
-              [disabled]="faculty.prefIndex === 0"
+                class="pref-nav-button"
+                (click)="showPreviousFacultyPreference(faculty)"
+                [disabled]="faculty.prefIndex === 0"
             >
-              <mat-icon>chevron_left</mat-icon>
+                <mat-icon>chevron_left</mat-icon>
             </button>
             <button
-              class="pref-nav-button"
-              (click)="showNextFacultyPreference(faculty)"
-              [disabled]="faculty.prefIndex === faculty.preferences.length - 1"
+                class="pref-nav-button"
+                (click)="showNextFacultyPreference(faculty)"
+                [disabled]="faculty.prefIndex === faculty.preferences.length - 1"
             >
-              <mat-icon>chevron_right</mat-icon>
+                <mat-icon>chevron_right</mat-icon>
             </button>
-          </div>
+            </div>
         </div>
         }
 
         <!-- Inner loop for preferences (each card) -->
         @if (faculty.preferences[faculty.prefIndex]) {
         <div
-          class="faculty-card"
-          (click)="
+            class="faculty-card"
+            (click)="
             populateFormWithFacultyPreference(
-              faculty,
-              faculty.preferences[faculty.prefIndex]
+                faculty,
+                faculty.preferences[faculty.prefIndex]
             )
-          "
-          [class.selected-faculty]="
+            "
+            [class.selected-faculty]="
             selectedFaculty?.faculty_id === faculty.faculty_id &&
             doesPreferenceMatchForm(faculty.preferences[faculty.prefIndex])
-          "
-          [@cardSwipeAnimation]="faculty.prefIndex"
-          matRipple
+            "
+            [@cardSwipeAnimation]="faculty.prefIndex"
+            matRipple
         >
-          <div
+            <div
             class="faculty-type"
             [ngClass]="getFacultyTypeClass(faculty.type)"
-          >
+            >
             {{ faculty.type }}
-          </div>
-          <div class="faculty-name">{{ faculty.name }}</div>
-          <div class="faculty-pref">
+            </div>
+            <div class="faculty-name">{{ faculty.name }}</div>
+            <div class="faculty-pref">
             {{ faculty.preferences[faculty.prefIndex].day }},
             {{ faculty.preferences[faculty.prefIndex].time }}
-          </div>
+            </div>
         </div>
         }
+        </div>
+        } }
       </div>
-      } }
+      <div class="faculty-ai-suggestions-wrapper">	
+          <h3 class="faculty-ai-suggestions-title"> AI Suggestions </h3>
+          @if (!data.aiSuggestion) {	
+            <p class="no-ai-suggestions"> No AI suggestions available at the moment. </p>	
+          } @else {
+            <div	
+              class="faculty-card ai-suggestion-card"	
+              (click)="populateFormWithFacultyPreference(
+                data.aiSuggestion, 
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex]
+            )"	
+              [class.selected-faculty]="	
+                selectedFaculty?.faculty_id === data.aiSuggestion.faculty_id &&	
+                doesPreferenceMatchForm(data.aiSuggestion.preferences[data.aiSuggestion.prefIndex])	
+              "	
+              matRipple	
+            >	
+              <div	
+                class="faculty-type"	
+                [ngClass]="getFacultyTypeClass('AI Suggested')"	
+              >	
+                AI Suggested
+              </div>	
+              <div class="faculty-name">{{ data.aiSuggestion.name }}</div>	
+              <div class="faculty-pref">	
+                {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].day }}, 	
+                {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].time }}	
+              </div>	
+            </div>
+          }
+      </div>
     </mat-dialog-content>
   </section>
 

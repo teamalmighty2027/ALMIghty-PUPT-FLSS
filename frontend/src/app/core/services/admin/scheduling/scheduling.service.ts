@@ -239,4 +239,59 @@ export class SchedulingService {
       }
     });
   }
+
+  /*
+  * Creates an Observable that, when subscribed, sends a POST request
+  * to fetch AI scheduling suggestions for the given parameters.
+  **/
+  public getAISuggestion(
+    program_id: number,
+    year_level: number,
+    section_id: number,
+    course_id: number
+  ): Observable<any> {
+    return this.http
+      .post<any>(`${this.baseUrl}/ai-suggestion`, { 
+        program_id, 
+        year_level, 
+        section_id,
+        course_id
+      })
+      .pipe(
+        // Map backend response to front-end SuggestedFaculty shape
+        map(response => {
+          if (!response) return null;
+
+          if (response.success === false) {
+            return { success: false, message: response.message};
+          }
+
+          const facultyId = response.faculty_id ?? null;
+          const name = response.faculty_name ?? null;
+          const facultyType = response.faculty_type ?? 'Unknown';
+
+          const prefs: { day: string; time: string }[] = [];
+          const start = response.preferred_start_time;
+          const end = response.preferred_end_time;
+          const day = response.preference_day;
+
+          if (day && start && end) {
+            const displayStart = this.scheduleValidationService.formatTimeForDisplay(start);
+            const displayEnd = this.scheduleValidationService.formatTimeForDisplay(end);
+            prefs.push({ day, time: `${displayStart} - ${displayEnd}` });
+          }
+
+          return {
+            faculty_id: facultyId,
+            success: response.success,
+            name,
+            type: facultyType,
+            preferences: prefs,
+            prefIndex: 0,
+            animating: false
+          };
+        }),
+        catchError(this.handleError)
+      );
+  }
 }
