@@ -261,6 +261,10 @@ export class SchedulingService {
         map(response => {
           if (!response) return null;
 
+          if (response.success === false) {
+            return { success: false, message: response.message};
+          }
+
           const facultyId = response.faculty_id ?? null;
           const name = response.faculty_name ?? null;
           const facultyType = response.faculty_type ?? 'Unknown';
@@ -278,6 +282,7 @@ export class SchedulingService {
 
           return {
             faculty_id: facultyId,
+            success: response.success,
             name,
             type: facultyType,
             preferences: prefs,

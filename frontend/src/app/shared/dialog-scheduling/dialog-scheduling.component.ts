@@ -173,6 +173,18 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       ).pipe(
         takeUntil(this.destroy$)
       ).subscribe((suggestions) => {
+        console.log('AI Suggestions:', suggestions);
+        if (suggestions.success == false) {
+            if (suggestions.errors) {
+                this.snackBar.open(
+                    suggestions.message || 'No AI suggestions available.',
+                    'Close',
+                    { duration: 3000 }
+                );
+            }
+            return;
+        };
+
         this.data.aiSuggestion = suggestions;
         this.cdr.markForCheck();
       });
