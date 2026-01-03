@@ -142,22 +142,21 @@ class PreferenceController extends Controller
                             ];
                         })->values()->toArray();
 
+                    $program_details = DB::table('course_assignments')
+                        ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                        ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                        ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
+                        ->select('programs.program_id', 'programs.program_code')
+                        ->first();
+
                     return [
                         'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
                         'course_details'       => [
                             'course_id'    => $preference->course_id ?? 'N/A',
                             'course_code'  => $preference->course_code ?? null,
                             'course_title' => $preference->course_title ?? null,
-                            'program_id'   => DB::table('course_assignments')
-                                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
-                                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
-                                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
-                                ->value('programs.program_id'),
-                            'program_code' => DB::table('course_assignments')
-                                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
-                                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
-                                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
-                                ->value('programs.program_code'),
+                            'program_id'   => $program_details->program_id ?? null,
+                            'program_code' => $program_details->program_code ?? null,
                         ],
                         'lec_hours'            => is_numeric($preference->lec_hours) ? (int) $preference->lec_hours : 0,
                         'lab_hours'            => is_numeric($preference->lab_hours) ? (int) $preference->lab_hours : 0,
@@ -308,12 +307,15 @@ class PreferenceController extends Controller
                         'semester_id'           => $activeSemester->semester_id,
                         'semester_label'        => $this->getSemesterLabel($activeSemester->semester_id),
                         'global_start_date'     => $preferenceSetting && $preferenceSetting->global_start_date
-                        ? Carbon::parse($preferenceSetting->global_start_date)->toDateString() : null,
+                            ? Carbon::parse($preferenceSetting->global_start_date)->toDateString() : null,
                         'individual_start_date' => $preferenceSetting && $preferenceSetting->individual_start_date
-                        ? Carbon::parse($preferenceSetting->individual_start_date)->toDateString() : null,
-                        'global_deadline'       => $preferenceSetting && $preferenceSetting->global_deadline ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
+                            ? Carbon::parse($preferenceSetting->individual_start_date)->toDateString() : null,
+                        'global_deadline'       => $preferenceSetting && $preferenceSetting->global_deadline 
+                            ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                         'individual_deadline'   => $preferenceSetting && $preferenceSetting->individual_deadline
-                        ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
+                            ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString()
+                            : ($preferenceSetting && $preferenceSetting->global_deadline 
+                            ? Carbon::parse($preferenceSetting->global_deadline)->toDateString(): null),
                         'courses'               => $courses->values()->toArray(),
                     ],
                 ],
@@ -365,7 +367,20 @@ class PreferenceController extends Controller
             ->where('semester_id', $activeSemester->semester_id)
             ->value('is_published') ?? 0;
 
-        $courses = $faculty->preferences->map(function ($preference) {
+        // PRELOAD program details for all course_assignment_ids
+        $courseAssignmentIds = $faculty->preferences->pluck('course_assignment_id')->filter()->unique()->toArray();
+        $programDetailsByCourseAssignment = collect();
+        if (!empty($courseAssignmentIds)) {
+            $programDetailsByCourseAssignment = DB::table('course_assignments')
+                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                ->whereIn('course_assignments.course_assignment_id', $courseAssignmentIds)
+                ->select('course_assignments.course_assignment_id', 'programs.program_id', 'programs.program_code')
+                ->get()
+                ->keyBy('course_assignment_id');
+        }
+
+        $courses = $faculty->preferences->map(function ($preference) use ($programDetailsByCourseAssignment) {
             $preferenceDays = $preference->preferenceDays->map(function ($day) {
                 return [
                     'day'        => $day->preferred_day,
@@ -374,13 +389,7 @@ class PreferenceController extends Controller
                 ];
             })->sortBy('day')->values()->toArray();
 
-            // fetch program info for this course_assignment
-            $program = DB::table('course_assignments')
-                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
-                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
-                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
-                ->select('programs.program_id', 'programs.program_code')
-                ->first();
+            $program = $programDetailsByCourseAssignment->get($preference->course_assignment_id);
 
             return [
                 'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',

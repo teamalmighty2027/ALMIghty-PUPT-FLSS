@@ -491,7 +491,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
-      (subject) => (subject.course_id === course.course_id)
+      (subject) => subject.course_id === course.course_id,
     );
     if (isAdded) this.showSnackBar('You already selected this course.');
     return isAdded;
