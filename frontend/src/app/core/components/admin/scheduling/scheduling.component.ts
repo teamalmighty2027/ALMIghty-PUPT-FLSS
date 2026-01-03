@@ -718,8 +718,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   openEditScheduleDialog(schedule: Schedule) {
-    console.log("Editing schedule:", schedule);
-
     if (!schedule.schedule_id) {
       this.snackBar.open('Schedule ID is missing.', 'Close', {
         duration: 3000,
@@ -736,8 +734,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.schedulingService.getSubmittedPreferencesForActiveSemester(),
     }).subscribe({
       next: ({ rooms, faculty, preferences }) => {
-        console.log("All preferences fetched:", preferences);
-
         this.loadingScheduleId = null;
         const availableRooms = rooms.rooms.filter(
           (room) => room.status === 'Available'
@@ -792,9 +788,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 const existingFaculty = suggestedFaculty.find(
                   (f) => f.faculty_id === facultyDetails.faculty_id
                 );
-
-                console.log("Processing preference for faculty:", facultyDetails.name, 
-                    "Course:", course.course_assignment_id, "Program Code:", course.course_details.program_code);
 
                 const facultyPref: SuggestedFaculty = {
                   faculty_id: facultyDetails.faculty_id,

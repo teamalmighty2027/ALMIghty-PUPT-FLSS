@@ -374,12 +374,23 @@ class PreferenceController extends Controller
                 ];
             })->sortBy('day')->values()->toArray();
 
+            // fetch program info for this course_assignment
+            $program = DB::table('course_assignments')
+                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
+                ->select('programs.program_id', 'programs.program_code')
+                ->first();
+
             return [
                 'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
                 'course_details'       => [
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
+                    // added program info for frontend consumption
+                    'program_id'   => $program->program_id ?? null,
+                    'program_code' => $program->program_code ?? null,
                 ],
                 'lec_hours'            => is_numeric($preference->courseAssignment->course->lec_hours) ? (int) $preference->courseAssignment->course->lec_hours : 0,
                 'lab_hours'            => is_numeric($preference->courseAssignment->course->lab_hours) ? (int) $preference->courseAssignment->course->lab_hours : 0,

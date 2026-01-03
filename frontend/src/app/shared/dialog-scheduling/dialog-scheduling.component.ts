@@ -152,10 +152,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.setupCustomValidators();
     this.populateExistingSchedule();
     this.data.suggestedFaculty.forEach(
-      (faculty) => {
-        faculty.animating = false;
-        console.log("Faculty preferences:", faculty.preferences);
-      }
+      (faculty) => (faculty.animating = false)
     );
 
     queueMicrotask(() => {

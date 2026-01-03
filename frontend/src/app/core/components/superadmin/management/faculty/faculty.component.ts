@@ -194,7 +194,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         takeUntil(this.destroy$),
       )
       .subscribe((faculty) => {
-        console.log('Fetched faculty:', faculty); // Debug log
         this.faculty = faculty;
         this.filteredFaculty = [...this.faculty];
         this.isLoading = false;
