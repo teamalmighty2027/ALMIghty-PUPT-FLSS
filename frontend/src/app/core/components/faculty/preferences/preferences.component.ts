@@ -33,6 +33,7 @@ import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../.
 interface TableData extends Course {
   preferredDays: PreferredDay[];
   isSubmitted: boolean;
+  program_code?: string | null;
 }
 
 @Component({
@@ -138,6 +139,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   isRemoving = signal<{ [course_code: string]: boolean }>({});
   displayedColumns: string[] = [
     'action',
+    'program',
     'course_code',
     'course_title',
     'lec_hours',
@@ -288,6 +290,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       pre_req: course.course_details.pre_req ?? null,
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
+      program_code: course.course_details.program_code ?? null,
     }));
   }
 
@@ -411,6 +414,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         end_time: '',
       })),
       isSubmitted: false,
+      program_code: this.selectedProgram()?.program_code ?? (course as any).program_code ?? null,
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);

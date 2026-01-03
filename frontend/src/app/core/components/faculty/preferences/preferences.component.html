@@ -217,6 +217,16 @@
             </td>
           </ng-container>
 
+          <!-- Program Column -->
+          <ng-container matColumnDef="program">
+            <th mat-header-cell *matHeaderCellDef class="table-header">
+              Program
+            </th>
+            <td mat-cell *matCellDef="let element" class="table-cell">
+              {{ element.program_code || '—' }}
+            </td>
+          </ng-container>
+
           <!-- Course Code Column -->
           <ng-container matColumnDef="course_code">
             <th mat-header-cell *matHeaderCellDef class="table-header">
