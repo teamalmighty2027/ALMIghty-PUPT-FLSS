@@ -40,6 +40,7 @@ function mustMatchOption(validOptions: string[]): ValidatorFn {
 interface Preference {
   day: string;
   time: string;
+  program_code: string;
 }
 
 interface SuggestedFaculty {
@@ -151,7 +152,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.setupCustomValidators();
     this.populateExistingSchedule();
     this.data.suggestedFaculty.forEach(
-      (faculty) => (faculty.animating = false)
+      (faculty) => {
+        faculty.animating = false;
+        console.log("Faculty preferences:", faculty.preferences);
+      }
     );
 
     queueMicrotask(() => {

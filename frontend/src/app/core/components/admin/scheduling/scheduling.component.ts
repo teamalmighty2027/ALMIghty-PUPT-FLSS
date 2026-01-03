@@ -718,6 +718,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   openEditScheduleDialog(schedule: Schedule) {
+    console.log("Editing schedule:", schedule);
+
     if (!schedule.schedule_id) {
       this.snackBar.open('Schedule ID is missing.', 'Close', {
         duration: 3000,
@@ -734,6 +736,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.schedulingService.getSubmittedPreferencesForActiveSemester(),
     }).subscribe({
       next: ({ rooms, faculty, preferences }) => {
+        console.log("All preferences fetched:", preferences);
+
         this.loadingScheduleId = null;
         const availableRooms = rooms.rooms.filter(
           (room) => room.status === 'Available'
@@ -761,6 +765,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         interface Preference {
           day: string;
           time: string;
+          program_code: string;
         }
 
         interface SuggestedFaculty {
@@ -788,6 +793,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                   (f) => f.faculty_id === facultyDetails.faculty_id
                 );
 
+                console.log("Processing preference for faculty:", facultyDetails.name, 
+                    "Course:", course.course_assignment_id, "Program Code:", course.course_details.program_code);
+
                 const facultyPref: SuggestedFaculty = {
                   faculty_id: facultyDetails.faculty_id,
                   name: pref.faculty_name,
@@ -797,6 +805,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                     time: `${this.formatTimeFromBackend(
                       prefDay.start_time
                     )} - ${this.formatTimeFromBackend(prefDay.end_time)}`,
+                    program_code: course.course_details.program_code,
                   })),
                   prefIndex: 0,
                 };

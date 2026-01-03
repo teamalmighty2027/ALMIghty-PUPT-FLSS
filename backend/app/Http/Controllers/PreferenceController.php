@@ -148,6 +148,16 @@ class PreferenceController extends Controller
                             'course_id'    => $preference->course_id ?? 'N/A',
                             'course_code'  => $preference->course_code ?? null,
                             'course_title' => $preference->course_title ?? null,
+                            'program_id'   => DB::table('course_assignments')
+                                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
+                                ->value('programs.program_id'),
+                            'program_code' => DB::table('course_assignments')
+                                ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                                ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                                ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
+                                ->value('programs.program_code'),
                         ],
                         'lec_hours'            => is_numeric($preference->lec_hours) ? (int) $preference->lec_hours : 0,
                         'lab_hours'            => is_numeric($preference->lab_hours) ? (int) $preference->lab_hours : 0,
@@ -247,36 +257,37 @@ class PreferenceController extends Controller
                         })->values()->toArray();
 
                     // Fetch all courses with the same course code OR course title that are active
-                    $relatedCourses = DB::table('courses')
-                        ->join('course_assignments', 'courses.course_id', '=', 'course_assignments.course_id')
-                        ->where(function ($query) use ($preference) {
-                            $query->where('courses.course_code', $preference->course_code)
-                                ->orWhere('courses.course_title', $preference->course_title);
-                        })
-                        ->whereIn('course_assignments.curricula_program_id', function ($query) {
-                            $query->select('curricula_program_id')
-                                ->from('curricula_program')
-                                ->join('curricula', 'curricula_program.curriculum_id', '=', 'curricula.curriculum_id')
-                                ->where('curricula.status', 'Active');
-                        })
-                        ->get();
+                    $submittedCourse = DB::table('course_assignments')
+                        ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
+                        ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                        ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                        ->where('course_assignments.course_assignment_id', $preference->course_assignment_id)
+                        ->select(
+                            'courses.*',
+                            'course_assignments.*',
+                            'programs.program_id',
+                            'programs.program_code'
+                        )
+                        ->first();
 
-                    return $relatedCourses->map(function ($course) use ($preference, $preferenceDays) {
-                        return [
-                            'course_assignment_id' => $course->course_assignment_id ?? 'N/A',
+                    return $submittedCourse
+                        ? [[
+                            'course_assignment_id' => $submittedCourse->course_assignment_id ?? 'N/A',
                             'course_details'       => [
-                                'course_id'    => $course->course_id ?? 'N/A',
-                                'course_code'  => $course->course_code ?? null,
-                                'course_title' => $course->course_title ?? null,
+                                'course_id'    => $submittedCourse->course_id ?? 'N/A',
+                                'course_code'  => $submittedCourse->course_code ?? null,
+                                'course_title' => $submittedCourse->course_title ?? null,
+                                'program_id'   => $submittedCourse->program_id ?? null,
+                                'program_code' => $submittedCourse->program_code ?? null,
                             ],
-                            'lec_hours'            => is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
-                            'lab_hours'            => is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
-                            'units'                => $course->units ?? 0,
-                            'preferred_days'       => $preferenceDays,
-                            'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
-                            'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
-                        ];
-                    });
+                            'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
+                            'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
+                            'units'          => $submittedCourse->units ?? 0,
+                            'preferred_days' => $preferenceDays,
+                            'created_at'     => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
+                            'updated_at'     => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
+                        ]]
+                        : collect();
                 }
                 return collect();
             })->filter();
@@ -302,8 +313,7 @@ class PreferenceController extends Controller
                         ? Carbon::parse($preferenceSetting->individual_start_date)->toDateString() : null,
                         'global_deadline'       => $preferenceSetting && $preferenceSetting->global_deadline ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                         'individual_deadline'   => $preferenceSetting && $preferenceSetting->individual_deadline
-                        ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString()
-                        : ($preferenceSetting && $preferenceSetting->global_deadline ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null),
+                        ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
                         'courses'               => $courses->values()->toArray(),
                     ],
                 ],
