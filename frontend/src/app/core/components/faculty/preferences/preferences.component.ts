@@ -448,7 +448,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.allSelectedCourses.update((courses) =>
-            courses.filter((c) => c.course_code !== course.course_code),
+            courses.filter((c) => c.course_id !== course.course_id),
           );
           this.isRemoving.update((value) => {
             const updatedValue = { ...value };
@@ -475,7 +475,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
-      courses.filter((c) => c.course_code !== course.course_code),
+      courses.filter((c) => c.course_id !== course.course_id),
     );
     this.showSnackBar(
       `${course.course_code} has been removed from your preferences.`,
@@ -483,8 +483,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   private isCourseAlreadyAdded(course: Course): boolean {
-    const isAdded = this.allSelectedCourses().some(
-      (subject) => subject.course_code === course.course_code,
+    const isAdded = this.allSelectedCourses().some(      
+      (subject) => (subject.course_id === course.course_id)
     );
     if (isAdded) this.showSnackBar('You already selected this course.');
     return isAdded;
@@ -512,7 +512,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .subscribe((result) => {
         if (result) {
           const courseIndex = this.allSelectedCourses().findIndex(
-            (c) => c.course_code === element.course_code,
+            (c) => c.course_id === element.course_id,
           );
 
           if (courseIndex !== -1) {
