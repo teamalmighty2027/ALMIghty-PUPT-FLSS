@@ -687,6 +687,7 @@ export class ManagePreferencesComponent
 
                 return [
                   (index + 1).toString(),
+                  course.course_details?.program_code || 'N/A',
                   course.course_details?.course_code || 'N/A',
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
@@ -701,6 +702,7 @@ export class ManagePreferencesComponent
             const tableHead = [
               [
                 '#',
+                'Program Code',
                 'Course Code',
                 'Course Title',
                 'Lec',
@@ -730,12 +732,13 @@ export class ManagePreferencesComponent
               },
               columnStyles: {
                 0: { cellWidth: 10 },
-                1: { cellWidth: 30 },
-                2: { cellWidth: 50 },
-                3: { cellWidth: 13 },
+                1: { cellWidth: 20 },
+                2: { cellWidth: 30 },
+                3: { cellWidth: 50 },
                 4: { cellWidth: 13 },
                 5: { cellWidth: 13 },
-                6: { cellWidth: 55 },
+                6: { cellWidth: 13 },
+                7: { cellWidth: 55 },
               },
               margin: { left: 10, right: 10 },
             };
