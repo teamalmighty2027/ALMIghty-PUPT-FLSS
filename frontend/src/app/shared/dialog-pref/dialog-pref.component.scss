@@ -21,6 +21,27 @@
   }
 }
 
+.dialog-pref-history-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start
+  );
+  max-height: var(--dialog-base-height);
+  padding: 0 var(--spacing-md);
+  margin: 0 var(--spacing-sm);
+
+  p {
+    font-weight: 600;
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-md);
+  }
+
+  .history-select-field {
+    width: 100%;
+  }
+}
+
 .dialog-pref-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;

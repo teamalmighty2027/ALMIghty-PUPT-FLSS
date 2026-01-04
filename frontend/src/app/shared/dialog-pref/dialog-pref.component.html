@@ -18,7 +18,23 @@
 
     @if (selectedView === 'history-view') {
       <div class="dialog-pref-history-container">
-        <p> History of Preferences </p>
+        <form>
+          <mat-form-field appearance="fill" class="history-select-field">
+            <mat-label> Select Academic Year and Semester </mat-label>
+            <mat-select
+              [(value)]="selectedHistory"
+              (selectionChange)="onHistoryChange()"
+            >
+              @for (history of preferenceHistories; track history.id) {
+              <mat-option
+                [value]="history"
+              >
+                {{ history.academic_year }} - {{ history.semester }}
+              </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </form>
       </div>
     }
 

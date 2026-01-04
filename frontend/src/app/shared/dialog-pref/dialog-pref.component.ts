@@ -21,6 +21,8 @@ import { fadeAnimation } from '../../core/animations/animations';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { MatFormField, MatLabel } from "@angular/material/form-field";
+import { MatSelect, MatOption } from "@angular/material/select";
 
 interface Course {
   course_code: string;
@@ -50,7 +52,11 @@ interface DialogPrefData {
     MatButtonToggleModule,
     MatIconModule,
     MatSymbolDirective,
-  ],
+    MatFormField,
+    MatLabel,
+    MatSelect,
+    MatOption
+],
   templateUrl: './dialog-pref.component.html',
   styleUrls: ['./dialog-pref.component.scss'],
   animations: [fadeAnimation],
@@ -62,6 +68,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   courses: Course[] = [];
   isLoading = true;
   selectedView: 'table-view' | 'pdf-view' | 'history-view' = 'table-view';
+  selectedHistory: any;
+  preferenceHistories: any[] = [];
   pdfBlobUrl: SafeResourceUrl | null = null;
 
   private destroy$ = new Subject<void>();
@@ -128,6 +136,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     } else {
       this.pdfBlobUrl = null;
     }
+  }
+
+  onHistoryChange() {
+    throw new Error('Method not implemented.');
   }
 
   generateAndDisplayPdf(): void {
