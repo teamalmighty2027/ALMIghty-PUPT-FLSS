@@ -421,21 +421,27 @@
   }
 
   .button-options {
-    @include mixins.flex-layout($gap: var(--spacing-sm));
+    @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
     width: 100%;
+
+    button {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: var(--font-size-md);
+      white-space: nowrap;
+    }
 
     .preferences-btn {
       @include mixins.gradient-primary(315deg);
-      font-size: var(--font-size-md);
-      width: 100%;
-      text-wrap: nowrap;
+    }
+
+    .history-btn {
+      @include mixins.gradient-primary(210deg);
     }
 
     .request-btn {
       @include mixins.gradient-secondary(315deg);
-      font-size: var(--font-size-md);
-      width: 100%;
-      text-wrap: nowrap;
     }
   }
 }

@@ -546,7 +546,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       data: {
         facultyName: this.facultyName(),
         faculty_id: parseInt(this.facultyId()!, 10),
-        viewOnlyTable: true,
+        isViewOnlyTable: true,
+      },
+      disableClose: true,
+    });
+  }
+
+  public openPreferenceHistoryDialog(): void {
+    this.dialog.open(DialogPrefComponent, {
+      maxWidth: '90vw',
+      width: '100%',
+      data: {
+        facultyName: this.facultyName(),
+        faculty_id: parseInt(this.facultyId()!, 10),
+        isViewHistory: true,
       },
       disableClose: true,
     });

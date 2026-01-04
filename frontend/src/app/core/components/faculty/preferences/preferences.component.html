@@ -1354,6 +1354,13 @@
             (click)="openViewPreferencesDialog()">
             View my preferences
           </button>
+          <!--View Preference History -->
+          <button
+            mat-flat-button
+            class="history-btn"
+            (click)="openPreferenceHistoryDialog()">
+            View history
+          </button>
           <!--Request for access-->
           @if (!isSchedulesPublished()) {
           <button
