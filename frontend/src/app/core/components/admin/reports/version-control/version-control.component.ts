@@ -16,6 +16,8 @@ import { TableHeaderComponent, InputField } from '../../../../../shared/table-he
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 import { ConfirmDialogComponent } from '../../../../../shared/dialog-confirm-vc/dialog-confirm-vc.component';
 
+import { ReportsService } from '../../../../services/admin/reports/reports.service';
+
 import { fadeAnimation } from '../../../../animations/animations';
 
 interface VersionControl {
@@ -78,7 +80,10 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
-  constructor(public dialog: MatDialog) {}
+  constructor(
+    public dialog: MatDialog,
+    private reportsService: ReportsService // ADD THIS
+  ) {}
 
   ngOnInit(): void {
     this.fetchVersionControlData();
@@ -102,40 +107,28 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   fetchVersionControlData(): void {
     this.isLoading = true;
     
-    // Mock data - Replace with actual service call
-    setTimeout(() => {
-      const mockData: VersionControl[] = [
-        {
-          id: 1,
-          dateTime: new Date('2026-01-03T09:15:00'),
-          facultyName: 'Marissa Ferrer',
-          actionType: 'UPDATED',
-          component: 'Room 302',
-          changesSummary: 'Changed capacity from 30 → 45',
-        },
-        {
-          id: 2,
-          dateTime: new Date('2026-01-03T08:30:00'),
-          facultyName: 'Harper Diaz',
-          actionType: 'ADDED',
-          component: 'Faculty',
-          changesSummary: 'Added "Something" to her preference.',
-        },
-        {
-          id: 3,
-          dateTime: new Date('2026-01-02T16:00:00'),
-          facultyName: 'Marissa Ferrer',
-          actionType: 'DELETED',
-          component: 'Schedule',
-          changesSummary: 'Removed "Math 101" from Monday.',
-        },
-      ];
+    // Call the actual API
+    this.reportsService.getVersionControlReport().subscribe({
+      next: (response) => {
+        const records = response.version_control_report.records.map((record: any) => ({
+          id: record.id,
+          dateTime: new Date(record.dateTime),
+          facultyName: record.facultyName,
+          actionType: record.actionType,
+          component: record.component,
+          changesSummary: record.changesSummary,
+        }));
 
-      this.isLoading = false;
-      this.dataSource.data = mockData;
-      this.filteredData = [...mockData];
-      this.dataSource.paginator = this.paginator;
-    }, 1000);
+        this.isLoading = false;
+        this.dataSource.data = records;
+        this.filteredData = [...records];
+        this.dataSource.paginator = this.paginator;
+      },
+      error: (error) => {
+        this.isLoading = false;
+        console.error('Error fetching version control data:', error);
+      },
+    });
   }
 
   getRowIndex(index: number): number {
@@ -230,15 +223,15 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   onRestore(element: VersionControl): void {
     console.log('Restoring:', element);
-    // Implement restore logic here
-    // After successful restore, you might want to refresh the data
+    // TODO: Implement restore logic here
+    // After successful restore, refresh the data
     // this.fetchVersionControlData();
   }
 
   onDelete(element: VersionControl): void {
     console.log('Deleting:', element);
-    // Implement delete logic here
-    // After successful delete, you might want to refresh the data
+    // TODO: Implement delete logic here
+    // After successful delete, refresh the data
     // this.fetchVersionControlData();
   }
 
