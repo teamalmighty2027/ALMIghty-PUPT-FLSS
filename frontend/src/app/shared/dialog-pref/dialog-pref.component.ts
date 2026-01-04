@@ -35,7 +35,8 @@ interface Course {
 interface DialogPrefData {
   facultyName: string;
   faculty_id: number;
-  viewOnlyTable?: boolean;
+  isViewOnlyTable?: boolean;
+  isViewHistory?: boolean;
 }
 
 @Component({
@@ -60,7 +61,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   semesterLabel: string = '';
   courses: Course[] = [];
   isLoading = true;
-  selectedView: 'table-view' | 'pdf-view' = 'table-view';
+  selectedView: 'table-view' | 'pdf-view' | 'history-view' = 'table-view';
   pdfBlobUrl: SafeResourceUrl | null = null;
 
   private destroy$ = new Subject<void>();
@@ -77,9 +78,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
 
-    if (this.data.viewOnlyTable) {
-      this.selectedView = 'table-view';
-    }
+    if (this.data.isViewOnlyTable) {
+      this.selectedView = 'table-view'; 
+      if (this.data.isViewHistory) {
+        this.selectedView = 'history-view';
+      }
+    } 
 
     this.preferencesService
       .getPreferencesByFacultyId(this.data.faculty_id.toString())
@@ -107,7 +111,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           }
 
           this.isLoading = false;
-          if (!this.data.viewOnlyTable && this.selectedView === 'pdf-view') {
+          if (!this.data.isViewOnlyTable && this.selectedView === 'pdf-view') {
             this.generateAndDisplayPdf();
           }
         },
