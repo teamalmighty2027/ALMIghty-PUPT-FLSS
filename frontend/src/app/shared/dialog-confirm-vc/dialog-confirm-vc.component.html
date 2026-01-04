@@ -1,0 +1,31 @@
+<div class="confirm-dialog">
+  <h2 mat-dialog-title>
+    <mat-icon>{{ data.confirmColor === 'warn' ? 'warning' : 'info' }}</mat-icon>
+    {{ data.title }}
+  </h2>
+  
+  <mat-dialog-content>
+    <p class="dialog-message">{{ data.message }}</p>
+    @if (data.details) {
+      <div class="dialog-details">
+        <p>{{ data.details }}</p>
+      </div>
+    }
+  </mat-dialog-content>
+  
+  <mat-dialog-actions align="end">
+    <button 
+      mat-button 
+      (click)="onCancel()"
+      class="cancel-button">
+      {{ data.cancelText || 'Cancel' }}
+    </button>
+    <button 
+      mat-raised-button 
+      [color]="data.confirmColor || 'primary'"
+      (click)="onConfirm()"
+      class="confirm-button">
+      {{ data.confirmText || 'Confirm' }}
+    </button>
+  </mat-dialog-actions>
+</div>

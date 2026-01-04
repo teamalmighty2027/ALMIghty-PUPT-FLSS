@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
 import { Observable, throwError } from 'rxjs';
 import { catchError, shareReplay } from 'rxjs/operators';
@@ -108,6 +108,26 @@ export class ReportsService {
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.cache.facultyAcademicYearsHistory[faculty_id];
+  }
+
+  /**
+   * Fetches the version control report with optional filters
+   */
+  getVersionControlReport(search?: string, startDate?: string, endDate?: string): Observable<any> {
+    const url = `${this.baseUrl}/version-control-report`;
+    let params = new HttpParams();
+    
+    if (search) {
+      params = params.set('search', search);
+    }
+    if (startDate) {
+      params = params.set('start_date', startDate);
+    }
+    if (endDate) {
+      params = params.set('end_date', endDate);
+    }
+    
+    return this.http.get(url, { params }).pipe(catchError(this.handleError));
   }
 
   /**

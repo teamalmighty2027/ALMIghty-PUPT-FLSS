@@ -195,6 +195,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+    Route::get('/version-control-report', [ReportsController::class, 'getVersionControlReport']);
 
     /**
      * Rooms
