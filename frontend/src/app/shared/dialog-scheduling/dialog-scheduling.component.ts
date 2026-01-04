@@ -40,6 +40,7 @@ function mustMatchOption(validOptions: string[]): ValidatorFn {
 interface Preference {
   day: string;
   time: string;
+  program_code: string;
 }
 
 interface SuggestedFaculty {

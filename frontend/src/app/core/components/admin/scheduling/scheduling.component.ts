@@ -761,6 +761,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         interface Preference {
           day: string;
           time: string;
+          program_code: string;
         }
 
         interface SuggestedFaculty {
@@ -797,6 +798,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                     time: `${this.formatTimeFromBackend(
                       prefDay.start_time
                     )} - ${this.formatTimeFromBackend(prefDay.end_time)}`,
+                    program_code: course.course_details.program_code,
                   })),
                   prefIndex: 0,
                 };

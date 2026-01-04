@@ -189,6 +189,8 @@ export interface CourseDetails {
   course_id: number;
   course_code: string;
   course_title: string;
+  program_id: number;
+  program_code: string;
 }
 
 export interface ConflictingCourseDetail {

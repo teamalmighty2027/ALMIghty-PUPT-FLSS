@@ -29,6 +29,7 @@ interface Course {
   lab_hours: number;
   units: number;
   preferred_days: { day: string; start_time: string; end_time: string }[];
+  program_code?: string | null; // add program code from backend
 }
 
 interface DialogPrefData {
@@ -98,6 +99,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
+              program_code:
+                course.course_details?.program_code ??
+                course.program_code ??
+                null,
             }));
           }
 
