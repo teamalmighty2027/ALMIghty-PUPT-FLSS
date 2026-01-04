@@ -117,17 +117,24 @@ export class ReportsService {
     const url = `${this.baseUrl}/version-control-report`;
     let params = new HttpParams();
     
-    if (search) {
-      params = params.set('search', search);
-    }
-    if (startDate) {
-      params = params.set('start_date', startDate);
-    }
-    if (endDate) {
-      params = params.set('end_date', endDate);
-    }
+    if (search) params = params.set('search', search);
+    if (startDate) params = params.set('start_date', startDate);
+    if (endDate) params = params.set('end_date', endDate);
     
     return this.http.get(url, { params }).pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Restores a version control record (reverts an update)
+   */
+  restoreVersionControl(id: number): Observable<any> {
+    const url = `${this.baseUrl}/version-control/restore/${id}`;
+    return this.http.post(url, {}).pipe(catchError(this.handleError));
+  }
+
+  revertAddVersionControl(id: number): Observable<any> {
+    const url = `${this.baseUrl}/version-control/revert-add/${id}`;
+    return this.http.delete(url).pipe(catchError(this.handleError));
   }
 
   /**

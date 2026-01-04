@@ -104,30 +104,30 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
     }
   }
 
-  fetchVersionControlData(): void {
+  fetchVersionControlData(search: string = '', startDate: string = '', endDate: string = ''): void {
     this.isLoading = true;
-    
-    // Call the actual API
-    this.reportsService.getVersionControlReport().subscribe({
-      next: (response) => {
-        const records = response.version_control_report.records.map((record: any) => ({
-          id: record.id,
-          dateTime: new Date(record.dateTime),
-          facultyName: record.facultyName,
-          actionType: record.actionType,
-          component: record.component,
-          changesSummary: record.changesSummary,
+
+    this.reportsService.getVersionControlReport(search, startDate, endDate).subscribe({
+      next: (response: any) => {
+        // Map the response to ensure dateTime is a JS Date object
+        const realData = response.version_control_report.records.map((item: any) => ({
+          ...item,
+          dateTime: new Date(item.dateTime) 
         }));
 
+        this.dataSource.data = realData;
         this.isLoading = false;
-        this.dataSource.data = records;
-        this.filteredData = [...records];
-        this.dataSource.paginator = this.paginator;
+        
+        // Re-attach paginator
+        if (this.paginator) {
+          this.dataSource.paginator = this.paginator;
+        }
       },
       error: (error) => {
-        this.isLoading = false;
         console.error('Error fetching version control data:', error);
-      },
+        this.isLoading = false;
+        this.dataSource.data = []; // Clear table on error
+      }
     });
   }
 
@@ -222,17 +222,34 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   onRestore(element: VersionControl): void {
-    console.log('Restoring:', element);
-    // TODO: Implement restore logic here
-    // After successful restore, refresh the data
-    // this.fetchVersionControlData();
+    this.isLoading = true;
+    this.reportsService.restoreVersionControl(element.id).subscribe({
+      next: (response) => {
+        console.log('Restore successful:', response);
+        // Refresh the table to see the new "RESTORED" log
+        this.fetchVersionControlData(); 
+        // Optional: Add a toast/snackbar here for user feedback
+      },
+      error: (error) => {
+        console.error('Restore failed:', error);
+        this.isLoading = false;
+      }
+    });
   }
 
   onDelete(element: VersionControl): void {
-    console.log('Deleting:', element);
-    // TODO: Implement delete logic here
-    // After successful delete, refresh the data
-    // this.fetchVersionControlData();
+    this.isLoading = true;
+    this.reportsService.revertAddVersionControl(element.id).subscribe({
+      next: (response) => {
+        console.log('Delete successful:', response);
+        // Refresh the table
+        this.fetchVersionControlData();
+      },
+      error: (error) => {
+        console.error('Delete failed:', error);
+        this.isLoading = false;
+      }
+    });
   }
 
   formatDateTime(date: Date): string {

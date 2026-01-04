@@ -29,8 +29,8 @@ class VersionControlHelper
             'record_id' => $recordId,
             'component' => $component,
             'changes_summary' => $changesSummary,
-            'old_data' => $oldData ? json_encode($oldData) : null,
-            'new_data' => $newData ? json_encode($newData) : null,
+            'old_data' => $oldData,
+            'new_data' => $newData,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);
