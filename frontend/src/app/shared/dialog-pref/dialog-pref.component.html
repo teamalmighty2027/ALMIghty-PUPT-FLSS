@@ -25,7 +25,7 @@
               [(value)]="selectedHistory"
               (selectionChange)="onHistoryChange()"
             >
-              @for (history of preferenceHistories; track history.id) {
+              @for (history of preferenceHistories; track history.academic_year_id) {
               <mat-option
                 [value]="history"
               >

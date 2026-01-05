@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
+import { AcademicYearService } from '../../core/services/admin/academic-year/academic-year.service';
 
 interface Course {
   course_code: string;
@@ -71,11 +72,13 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   selectedHistory: any;
   preferenceHistories: any[] = [];
   pdfBlobUrl: SafeResourceUrl | null = null;
+  // initialSemesterLabel: string = '';
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private preferencesService: PreferencesService,
+    private academicYearService: AcademicYearService,
     public dialogRef: MatDialogRef<DialogPrefComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DialogPrefData,
     private sanitizer: DomSanitizer,
@@ -93,6 +96,16 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       }
     } 
 
+    if (this.data.isViewHistory) {
+      this.academicYearService.getAcademicYears().subscribe(
+        (years) => {
+          this.preferenceHistories = years;
+        },
+        (error) => {
+          console.error('Error fetching academic years:', error);
+        });
+    }
+
     this.preferencesService
       .getPreferencesByFacultyId(this.data.faculty_id.toString())
       .subscribe(
@@ -103,6 +116,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             const activeSemester = faculty.active_semesters[0];
             this.academicYear = activeSemester.academic_year;
             this.semesterLabel = activeSemester.semester_label;
+
+            // this.initialSemesterLabel = activeSemester.semester_label;
 
             this.courses = activeSemester.courses.map((course: any) => ({
               course_code: course.course_details.course_code,
@@ -139,7 +154,20 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   onHistoryChange() {
-    throw new Error('Method not implemented.');
+    if (!this.selectedHistory) return;
+
+    // Use the current active semester when dialog opened
+    // const targetSemesterLabel = this.initialSemesterLabel || this.semesterLabel;
+
+    // this.academicYear = this.selectedHistory.academic_year;
+    // this.semesterLabel = targetSemesterLabel;
+
+    // this.isLoading = true;
+    this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
+        (academic_years) => {
+            console.log(academic_years)
+        }
+    )
   }
 
   generateAndDisplayPdf(): void {

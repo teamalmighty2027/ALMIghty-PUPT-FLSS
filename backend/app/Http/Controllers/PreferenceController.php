@@ -438,6 +438,138 @@ class PreferenceController extends Controller
         ], 200, [], JSON_PRETTY_PRINT);
     }
 
+    /*
+    * Retrieves faculty preference history across all academic years and semesters.
+    **/
+    public function getPreferencesHistoryByFacultyId($faculty_id)
+    {
+        $faculty = Faculty::find($faculty_id);
+        if (! $faculty) {
+            return response()->json(['error' => 'Faculty not found'], 404);
+        }
+
+        // Load all preferences for this faculty with related data
+        $preferences = Preference::with(['preferenceDays', 'courseAssignment.course'])
+            ->where('faculty_id', $faculty_id)
+            ->get();
+
+        if ($preferences->isEmpty()) {
+            return response()->json([
+                'academic_years' => [],
+            ], 200, [], JSON_PRETTY_PRINT);
+        }
+
+        // Preload active semester + academic year info
+        $activeSemesterMap = ActiveSemester::with('academicYear')
+            ->whereIn('active_semester_id', $preferences->pluck('active_semester_id')->unique())
+            ->get()
+            ->keyBy('active_semester_id');
+
+        // Index by academic_year_id + semester_id for quick lookup
+        $aySemIndex = [];
+        foreach ($activeSemesterMap as $as) {
+            if ($as->academicYear) {
+                $aySemIndex[$as->academic_year_id][$as->semester_id] = $as;
+            }
+        }
+
+        $grouped = [];
+
+        foreach ($preferences as $pref) {
+            $as = $activeSemesterMap->get($pref->active_semester_id);
+            if (! $as || ! $as->academicYear) {
+                continue;
+            }
+
+            $academicYearId    = $as->academic_year_id;
+            $academicYearLabel = $as->academicYear->year_start . '-' . $as->academicYear->year_end;
+            $academicYearStart = (int) $as->academicYear->year_start;
+            $semesterId        = (int) $as->semester_id;
+
+            // Initialize academic year bucket with three semesters
+            if (! isset($grouped[$academicYearId])) {
+                $grouped[$academicYearId] = [
+                    'academic_year_id' => $academicYearId,
+                    'academic_year'    => $academicYearLabel,
+                    'year_start'       => $academicYearStart,
+                    'semesters'        => [
+                        1 => [
+                            'semester_id'        => 1,
+                            'semester_label'     => $this->getSemesterLabel(1),
+                            'active_semester_id' => $aySemIndex[$academicYearId][1]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                        2 => [
+                            'semester_id'        => 2,
+                            'semester_label'     => $this->getSemesterLabel(2),
+                            'active_semester_id' => $aySemIndex[$academicYearId][2]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                        3 => [
+                            'semester_id'        => 3,
+                            'semester_label'     => $this->getSemesterLabel(3),
+                            'active_semester_id' => $aySemIndex[$academicYearId][3]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                    ],
+                ];
+            }
+
+            // Prepare preference payload
+            $preferenceDays = $pref->preferenceDays
+                ->map(fn($day) => [
+                    'day'        => $day->preferred_day,
+                    'start_time' => $day->preferred_start_time,
+                    'end_time'   => $day->preferred_end_time,
+                ])
+                ->sortBy('day')
+                ->values()
+                ->toArray();
+
+            $course = $pref->courseAssignment->course ?? null;
+            $preferencePayload = [
+                'course_assignment_id' => $pref->course_assignment_id ?? 'N/A',
+                'course_details'       => [
+                    'course_id'    => $course->course_id ?? 'N/A',
+                    'course_code'  => $course->course_code ?? null,
+                    'course_title' => $course->course_title ?? null,
+                ],
+                'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
+                'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
+                'units'          => $course->units ?? 0,
+                'preferred_days' => $preferenceDays,
+                'created_at'     => $pref->created_at ? Carbon::parse($pref->created_at)->toDateTimeString() : 'N/A',
+                'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
+            ];
+
+            // Push into the correct semester
+            if (isset($grouped[$academicYearId]['semesters'][$semesterId])) {
+                $grouped[$academicYearId]['semesters'][$semesterId]['preferences'][] = $preferencePayload;
+            }
+        }
+
+        // Normalize to arrays and sort: academic years desc by year_start, semesters asc by semester_id
+        $result = collect($grouped)
+            ->sortByDesc('year_start')
+            ->map(function ($year) {
+                $semesters = collect($year['semesters'])
+                    ->sortBy('semester_id')
+                    ->values()
+                    ->toArray();
+                return [
+                    'academic_year_id' => $year['academic_year_id'],
+                    'academic_year'    => $year['academic_year'],
+                    'semesters'        => $semesters,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        return response()->json([
+            'academic_years' => $result,
+        ], 200, [], JSON_PRETTY_PRINT);
+    }
+
     /**
      * Deletes a specific faculty preference.
      */
