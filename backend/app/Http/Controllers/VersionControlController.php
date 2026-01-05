@@ -90,8 +90,9 @@ class VersionControlController extends Controller
                         }
                         // Delete the user
                         $user->delete();
+                    }
                     break;
-
+                            
                 default:
                     return response()->json(['message' => 'Table deletion not implemented yet.'], 501);
             }
