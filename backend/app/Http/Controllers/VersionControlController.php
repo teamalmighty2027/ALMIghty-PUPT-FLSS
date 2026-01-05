@@ -14,6 +14,10 @@ class VersionControlController extends Controller
     {
         $log = VersionControl::find($id);
 
+        if ($log->is_reverted) {
+             return response()->json(['message' => 'This record has already been restored.'], 400);
+        }
+
         if (!$log || empty($log->old_data)) {
             return response()->json(['message' => 'Record not found or no backup data available.'], 404);
         }
@@ -61,6 +65,8 @@ class VersionControlController extends Controller
                 "Restored state from: " . $log->created_at->format('M d, Y g:i A')
             );
 
+            $log->update(['is_reverted' => true]);
+
             DB::commit();
             return response()->json(['message' => 'Record restored successfully.']);
 
@@ -104,6 +110,8 @@ class VersionControlController extends Controller
                 $log->component,
                 "Reverted (Deleted) the addition made on: " . $log->created_at->format('M d, Y g:i A')
             );
+
+            $log->update(['is_reverted' => true]);
 
             DB::commit();
             return response()->json(['message' => 'Addition reverted successfully.']);

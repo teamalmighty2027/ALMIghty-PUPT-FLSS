@@ -28,6 +28,7 @@ interface VersionControl {
   actionType: 'UPDATED' | 'ADDED' | 'DELETED' | 'RESTORED';
   component: string;
   changesSummary: string;
+  is_reverted: boolean;
 }
 
 @Component({
@@ -51,31 +52,22 @@ interface VersionControl {
 })
 export class VersionControlComponent implements OnInit, AfterViewInit, AfterViewChecked {
   inputFields: InputField[] = [
-    {
-      type: 'text',
-      label: 'Search Faculty',
-      key: 'search',
-    },
-    {
-      type: 'date',
-      label: 'Date Range',
-      key: 'dateRange',
-    },
+    { type: 'text', label: 'Search Faculty', key: 'search' },
+    { type: 'date', label: 'Date Range', key: 'dateRange' },
   ];
 
   displayedColumns: string[] = [
-    'index',
-    'dateTime',
-    'facultyName',
-    'actionType',
-    'component',
-    'changesSummary',
-    'actions',
+    'index', 'dateTime', 'facultyName', 'actionType', 'component', 'changesSummary', 'actions',
   ];
 
   dataSource = new MatTableDataSource<VersionControl>();
   filteredData: VersionControl[] = [];
   isLoading = true;
+
+  // Track the specific ID being processed
+  processingId: number | null = null;
+  // NEW: Track IDs that have been successfully processed to keep them disabled
+  completedActionIds = new Set<number>();
 
   private searchInput$ = new Subject<string>();
   private dateRangeFilter: { start?: Date; end?: Date } = {};
@@ -109,19 +101,15 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   fetchVersionControlData(search: string = '', startDate: string = '', endDate: string = ''): void {
     this.isLoading = true;
-
     this.reportsService.getVersionControlReport(search, startDate, endDate).subscribe({
       next: (response: any) => {
-        // Map the response to ensure dateTime is a JS Date object
         const realData = response.version_control_report.records.map((item: any) => ({
           ...item,
           dateTime: new Date(item.dateTime) 
         }));
-
         this.dataSource.data = realData;
         this.isLoading = false;
         
-        // Re-attach paginator
         if (this.paginator) {
           this.dataSource.paginator = this.paginator;
         }
@@ -129,7 +117,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
       error: (error) => {
         console.error('Error fetching version control data:', error);
         this.isLoading = false;
-        this.dataSource.data = []; // Clear table on error
+        this.dataSource.data = [];
       }
     });
   }
@@ -146,7 +134,6 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
       const searchQuery = changes['search'].trim().toLowerCase();
       this.searchInput$.next(searchQuery);
     }
-
     if (changes['dateRange'] !== undefined) {
       this.dateRangeFilter = changes['dateRange'];
       this.applyFilters();
@@ -159,28 +146,19 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   applyFilters(searchQuery?: string) {
     let filtered = [...this.filteredData];
-
-    // Apply search filter
     if (searchQuery) {
       filtered = filtered.filter((item) =>
         item.facultyName.toLowerCase().includes(searchQuery)
       );
     }
-
-    // Apply date range filter
     if (this.dateRangeFilter.start || this.dateRangeFilter.end) {
       filtered = filtered.filter((item) => {
         const itemDate = new Date(item.dateTime);
-        if (this.dateRangeFilter.start && itemDate < this.dateRangeFilter.start) {
-          return false;
-        }
-        if (this.dateRangeFilter.end && itemDate > this.dateRangeFilter.end) {
-          return false;
-        }
+        if (this.dateRangeFilter.start && itemDate < this.dateRangeFilter.start) return false;
+        if (this.dateRangeFilter.end && itemDate > this.dateRangeFilter.end) return false;
         return true;
       });
     }
-
     this.dataSource.data = filtered;
   }
 
@@ -225,60 +203,52 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   onRestore(element: VersionControl): void {
-    this.isLoading = true;
+    this.processingId = element.id;
+    
     this.reportsService.restoreVersionControl(element.id).subscribe({
       next: (response) => {
         console.log('Restore successful:', response);
-
-        this.snackBar.open('Record restored successfully.', 'Close', {
-          duration: 3000,
-        });
-        // Refresh the table to see the new "RESTORED" log
+        this.snackBar.open('Record restored successfully.', 'Close', { duration: 3000 });
+        
+        // Mark this ID as completed so it stays disabled
+        this.completedActionIds.add(element.id);
+        
         this.fetchVersionControlData(); 
-        // Optional: Add a toast/snackbar here for user feedback
+        this.processingId = null;
       },
       error: (error) => {
         console.error('Restore failed:', error);
-        this.isLoading = false;
-
-        // Show error snackbar
-        this.snackBar.open('Failed to restore record. Please try again.', 'Close', {
-          duration: 3000,
-        });
+        this.snackBar.open('Failed to restore record. Please try again.', 'Close', { duration: 3000 });
+        this.processingId = null; // Only unlock on error
       }
     });
   }
 
   onDelete(element: VersionControl): void {
-    this.isLoading = true;
+    this.processingId = element.id;
+    
     this.reportsService.revertAddVersionControl(element.id).subscribe({
       next: (response) => {
         console.log('Delete successful:', response);
-        // Show success snackbar
-        this.snackBar.open('Addition reverted (deleted) successfully.', 'Close', {
-          duration: 3000,
-        });
-        // Refresh the table
+        this.snackBar.open('Addition reverted (deleted) successfully.', 'Close', { duration: 3000 });
+        
+        // Mark this ID as completed so it stays disabled
+        this.completedActionIds.add(element.id);
+
         this.fetchVersionControlData();
+        this.processingId = null;
       },
       error: (error) => {
         console.error('Delete failed:', error);
-        this.isLoading = false;
-        // Show error snackbar
-        this.snackBar.open('Failed to delete record. Please try again.', 'Close', {
-          duration: 3000,
-        });
+        this.snackBar.open('Failed to delete record. Please try again.', 'Close', { duration: 3000 });
+        this.processingId = null; // Only unlock on error
       }
     });
   }
 
   formatDateTime(date: Date): string {
     const options: Intl.DateTimeFormatOptions = {
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
+      month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true,
     };
     return new Date(date).toLocaleString('en-US', options);
   }

@@ -20,12 +20,14 @@ class VersionControl extends Model
         'new_data',
         'ip_address',
         'user_agent',
+        'is_reverted'
     ];
 
     protected $casts = [
         'old_data' => 'array',
         'new_data' => 'array',
         'created_at' => 'datetime',
+        'is_reverted' => 'boolean',
     ];
 
     // Disable updated_at since we only have created_at
