@@ -220,8 +220,8 @@
   text-align: center;
   
   &.action-updated {
-    background-color: #ffd54f;
-    color: #000;
+    background-color: #e2c257;
+    color: #fff;
   }
   
   &.action-added {
@@ -231,6 +231,11 @@
   
   &.action-deleted {
     background-color: #e57373;
+    color: #fff;
+  }
+
+  &.action-restored {
+    background-color: #68cae5;
     color: #fff;
   }
 }
