@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
@@ -83,7 +84,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   constructor(
     public dialog: MatDialog,
-    private reportsService: ReportsService
+    private reportsService: ReportsService,
     private snackBar: MatSnackBar
   ) {}
 
