@@ -14,7 +14,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
-import { ConfirmDialogComponent } from '../../../../../shared/dialog-confirm-vc/dialog-confirm-vc.component';
+import { DialogConfirmVcComponent } from '../../../../../shared/dialog-confirm-vc/dialog-confirm-vc.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
 
@@ -24,7 +24,7 @@ interface VersionControl {
   id: number;
   dateTime: Date;
   facultyName: string;
-  actionType: 'UPDATED' | 'ADDED' | 'DELETED';
+  actionType: 'UPDATED' | 'ADDED' | 'DELETED' | 'RESTORED';
   component: string;
   changesSummary: string;
 }
@@ -42,6 +42,7 @@ interface VersionControl {
     MatTooltipModule,
     FormsModule,
     MatDialogModule,
+    MatSnackBarModule,
   ],
   templateUrl: './version-control.component.html',
   styleUrls: ['./version-control.component.scss'],
@@ -82,7 +83,8 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
 
   constructor(
     public dialog: MatDialog,
-    private reportsService: ReportsService // ADD THIS
+    private reportsService: ReportsService
+    private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
@@ -182,7 +184,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   confirmRestore(element: VersionControl): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+    const dialogRef = this.dialog.open(DialogConfirmVcComponent, {
       width: '400px',
       data: {
         title: 'Confirm Restore',
@@ -202,7 +204,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   confirmDelete(element: VersionControl): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+    const dialogRef = this.dialog.open(DialogConfirmVcComponent, {
       width: '400px',
       data: {
         title: 'Confirm Delete',
@@ -226,6 +228,10 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
     this.reportsService.restoreVersionControl(element.id).subscribe({
       next: (response) => {
         console.log('Restore successful:', response);
+
+        this.snackBar.open('Record restored successfully.', 'Close', {
+          duration: 3000,
+        });
         // Refresh the table to see the new "RESTORED" log
         this.fetchVersionControlData(); 
         // Optional: Add a toast/snackbar here for user feedback
@@ -233,6 +239,11 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
       error: (error) => {
         console.error('Restore failed:', error);
         this.isLoading = false;
+
+        // Show error snackbar
+        this.snackBar.open('Failed to restore record. Please try again.', 'Close', {
+          duration: 3000,
+        });
       }
     });
   }
@@ -242,12 +253,20 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
     this.reportsService.revertAddVersionControl(element.id).subscribe({
       next: (response) => {
         console.log('Delete successful:', response);
+        // Show success snackbar
+        this.snackBar.open('Addition reverted (deleted) successfully.', 'Close', {
+          duration: 3000,
+        });
         // Refresh the table
         this.fetchVersionControlData();
       },
       error: (error) => {
         console.error('Delete failed:', error);
         this.isLoading = false;
+        // Show error snackbar
+        this.snackBar.open('Failed to delete record. Please try again.', 'Close', {
+          duration: 3000,
+        });
       }
     });
   }

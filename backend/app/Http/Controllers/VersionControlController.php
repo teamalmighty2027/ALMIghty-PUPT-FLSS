@@ -90,9 +90,6 @@ class VersionControlController extends Controller
                         }
                         // Delete the user
                         $user->delete();
-                    } else {
-                        // If user is already gone, we just log the deletion to keep history consistent
-                    }
                     break;
 
                 default:
