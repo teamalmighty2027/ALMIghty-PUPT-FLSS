@@ -1096,4 +1096,72 @@ class ReportsController extends Controller
         }
         return 'N/A';
     }
+
+    /**
+ * Get Version Control Report
+ */
+public function getVersionControlReport(Request $request)
+{
+    // Step 1: Get query parameters for filtering
+    $search = $request->query('search'); // Faculty name search
+    $startDate = $request->query('start_date'); // Date range start
+    $endDate = $request->query('end_date'); // Date range end
+    
+    // Step 2: Build the query
+    $query = DB::table('version_control')
+        ->select(
+            'version_control.id',
+            'version_control.created_at as dateTime',
+            'version_control.faculty_name as facultyName',
+            'version_control.action_type as actionType',
+            'version_control.component',
+            'version_control.changes_summary as changesSummary',
+            'version_control.table_name',
+            'version_control.record_id',
+            'version_control.old_data',
+            'version_control.new_data'
+        )
+        ->orderBy('version_control.created_at', 'desc');
+    
+    // Step 3: Apply search filter if provided
+    if ($search) {
+        $query->where('version_control.faculty_name', 'LIKE', '%' . $search . '%');
+    }
+    
+    // Step 4: Apply date range filter if provided
+    if ($startDate) {
+        $query->where('version_control.created_at', '>=', $startDate);
+    }
+    
+    if ($endDate) {
+        $query->where('version_control.created_at', '<=', $endDate . ' 23:59:59');
+    }
+    
+    // Step 5: Get the results
+    $versionControl = $query->get();
+    
+    // Step 6: Transform the data for frontend
+    $transformedData = $versionControl->map(function ($item) {
+        return [
+            'id' => $item->id,
+            'dateTime' => $item->dateTime,
+            'facultyName' => $item->facultyName,
+            'actionType' => $item->actionType,
+            'component' => $item->component,
+            'changesSummary' => $item->changesSummary,
+            'tableName' => $item->table_name,
+            'recordId' => $item->record_id,
+            'oldData' => $item->old_data ? json_decode($item->old_data) : null,
+            'newData' => $item->new_data ? json_decode($item->new_data) : null,
+        ];
+    });
+    
+    // Step 7: Return the response
+    return response()->json([
+        'version_control_report' => [
+            'total_records' => $transformedData->count(),
+            'records' => $transformedData,
+        ],
+    ]);
+}
 }

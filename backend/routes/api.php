@@ -22,6 +22,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
+use App\Http\Controllers\VersionControlController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
@@ -195,6 +196,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+    Route::get('/version-control-report', [ReportsController::class, 'getVersionControlReport']);
+
+    /**
+     * Version Control
+     */
+    Route::post('/version-control/restore/{id}', [VersionControlController::class, 'restore']);
+    // Optional: If you want to fix the "Delete" button for added records as well:
+    Route::delete('/version-control/revert-add/{id}', [VersionControlController::class, 'revertAdd']);
 
     /**
      * Rooms
