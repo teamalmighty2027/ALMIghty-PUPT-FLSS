@@ -14,7 +14,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
-import { ConfirmDialogComponent } from '../../../../../shared/dialog-confirm-vc/dialog-confirm-vc.component';
+import { DialogConfirmVcComponent } from '../../../../../shared/dialog-confirm-vc/dialog-confirm-vc.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
 
@@ -182,7 +182,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   confirmRestore(element: VersionControl): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+    const dialogRef = this.dialog.open(DialogConfirmVcComponent, {
       width: '400px',
       data: {
         title: 'Confirm Restore',
@@ -202,7 +202,7 @@ export class VersionControlComponent implements OnInit, AfterViewInit, AfterView
   }
 
   confirmDelete(element: VersionControl): void {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+    const dialogRef = this.dialog.open(DialogConfirmVcComponent, {
       width: '400px',
       data: {
         title: 'Confirm Delete',

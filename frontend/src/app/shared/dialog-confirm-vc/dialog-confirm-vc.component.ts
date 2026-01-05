@@ -25,9 +25,9 @@ export interface ConfirmDialogData {
   templateUrl: './dialog-confirm-vc.component.html',
   styleUrls: ['./dialog-confirm-vc.component.scss'],
 })
-export class ConfirmDialogComponent {
+export class DialogConfirmVcComponent {
   constructor(
-    public dialogRef: MatDialogRef<ConfirmDialogComponent>,
+    public dialogRef: MatDialogRef<DialogConfirmVcComponent>,
     @Inject(MAT_DIALOG_DATA) public data: ConfirmDialogData
   ) {}
 
