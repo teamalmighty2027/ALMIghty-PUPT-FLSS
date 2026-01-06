@@ -408,7 +408,8 @@ class PreferenceController extends Controller
                 'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
                 'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
             ];
-        });
+            }
+        );
 
         $facultyPreference = [
             'faculty_id'             => $faculty->id,
@@ -542,12 +543,26 @@ class PreferenceController extends Controller
                 ->toArray();
 
             $course = $pref->courseAssignment->course ?? null;
+
+            // Fetch program details for this course_assignment (if available)
+            $program = null;
+            if (! empty($pref->course_assignment_id)) {
+                $program = DB::table('course_assignments')
+                    ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                    ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                    ->where('course_assignments.course_assignment_id', $pref->course_assignment_id)
+                    ->select('programs.program_id', 'programs.program_code')
+                    ->first();
+            }
+
             $preferencePayload = [
                 'course_assignment_id' => $pref->course_assignment_id ?? 'N/A',
                 'course_details'       => [
                     'course_id'    => $course->course_id ?? 'N/A',
                     'course_code'  => $course->course_code ?? null,
                     'course_title' => $course->course_title ?? null,
+                    'program_id'   => $program->program_id ?? null,
+                    'program_code' => $program->program_code ?? null,
                 ],
                 'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,

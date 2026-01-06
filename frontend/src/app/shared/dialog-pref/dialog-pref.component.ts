@@ -186,12 +186,13 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     if (!semesterId) return;
 
     this.selectedSemester = semesterId;
-    this.tryUpdateTableFromSelection();
+    this.updateTableFromSelection();
   }
 
   onAcademicYearChange(eventOrValue?: any) {
     // Accept either (selectionChange) event or direct value/object
     let yearObj: any = null;
+
     if (eventOrValue && eventOrValue.value !== undefined) {
       yearObj = eventOrValue.value;
     } else if (eventOrValue && typeof eventOrValue === 'object' && eventOrValue.academic_year_id) {
@@ -207,14 +208,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.selectedYear = yearObj.academic_year_id;
     this.selectedHistory = yearObj;
     this.academicYear = yearObj.academic_year;
-    this.tryUpdateTableFromSelection();
+    this.updateTableFromSelection();
   }
 
   /**
    * When both selectedYear and selectedSemester are set, find matching entry
    * in academicYearList and reset the table (this.courses) with that semester's data.
    */
-  private tryUpdateTableFromSelection(): void {
+  private updateTableFromSelection(): void {
     if (!this.selectedYear || !this.selectedSemester) return;
 
     this.isLoading = true;
