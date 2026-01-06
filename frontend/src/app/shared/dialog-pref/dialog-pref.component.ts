@@ -21,6 +21,9 @@ import { fadeAnimation } from '../../core/animations/animations';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { MatFormField, MatLabel } from "@angular/material/form-field";
+import { MatSelect, MatOption } from "@angular/material/select";
+import { AcademicYearService } from '../../core/services/admin/academic-year/academic-year.service';
 
 interface Course {
   course_code: string;
@@ -35,7 +38,19 @@ interface Course {
 interface DialogPrefData {
   facultyName: string;
   faculty_id: number;
-  viewOnlyTable?: boolean;
+  isViewOnlyTable?: boolean;
+  isViewHistory?: boolean;
+}
+
+interface AcademicYearSemester {
+  academic_year_id: number;
+  academic_year: string;
+  semester: Semester[];
+}
+
+interface Semester {
+    semester_number: string;
+    semester_id: number;
 }
 
 @Component({
@@ -49,7 +64,11 @@ interface DialogPrefData {
     MatButtonToggleModule,
     MatIconModule,
     MatSymbolDirective,
-  ],
+    MatFormField,
+    MatLabel,
+    MatSelect,
+    MatOption
+],
   templateUrl: './dialog-pref.component.html',
   styleUrls: ['./dialog-pref.component.scss'],
   animations: [fadeAnimation],
@@ -60,13 +79,18 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   semesterLabel: string = '';
   courses: Course[] = [];
   isLoading = true;
-  selectedView: 'table-view' | 'pdf-view' = 'table-view';
+  selectedView: 'table-view' | 'pdf-view' | 'history-view' = 'table-view';
+  selectedHistory: any;  
+  academicYearList: AcademicYearSemester[] = [];  
   pdfBlobUrl: SafeResourceUrl | null = null;
+  selectedYear: any;
+  selectedSemester: any;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private preferencesService: PreferencesService,
+    private academicYearService: AcademicYearService,
     public dialogRef: MatDialogRef<DialogPrefComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DialogPrefData,
     private sanitizer: DomSanitizer,
@@ -77,10 +101,24 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
 
-    if (this.data.viewOnlyTable) {
-      this.selectedView = 'table-view';
+    // TODO: Fix this logic for selecting default view
+    if (this.data.isViewOnlyTable) {
+      this.selectedView = 'table-view'; 
+    } else if (this.data.isViewHistory) {
+      this.selectedView = 'history-view'; 
     }
 
+    // Load academic years for history view
+    
+    this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
+      (response) => {
+          this.academicYearList = response.academic_years;
+      },
+      (error) => {
+          console.error('Error fetching academic years:', error);
+    });
+
+    // Load faculty preferences
     this.preferencesService
       .getPreferencesByFacultyId(this.data.faculty_id.toString())
       .subscribe(
@@ -90,7 +128,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           if (faculty) {
             const activeSemester = faculty.active_semesters[0];
             this.academicYear = activeSemester.academic_year;
-            this.semesterLabel = activeSemester.semester_label;
+            this.selectedYear = activeSemester.academic_year_id;
+            this.selectedSemester = activeSemester.semester_id;
 
             this.courses = activeSemester.courses.map((course: any) => ({
               course_code: course.course_details.course_code,
@@ -107,7 +146,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           }
 
           this.isLoading = false;
-          if (!this.data.viewOnlyTable && this.selectedView === 'pdf-view') {
+          if (!this.data.isViewOnlyTable && this.selectedView === 'pdf-view') {
             this.generateAndDisplayPdf();
           }
         },
@@ -124,6 +163,104 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     } else {
       this.pdfBlobUrl = null;
     }
+  }
+
+  onSemesterChange(eventOrValue?: any): void {
+    // Accept either (selectionChange) event or direct value, keep backward compatibility
+    let semesterId: number | null = null;
+    
+    if (eventOrValue && eventOrValue.value !== undefined) {
+      semesterId = Number(eventOrValue.value);
+    } else if (typeof eventOrValue === 'number') {
+      semesterId = eventOrValue;
+    } else if (this.selectedHistory && 
+        (this.selectedHistory.semester_id 
+        || this.selectedHistory.semester_id === 0)
+    ) {
+      semesterId = Number(this.selectedHistory.semester_id);
+    } else if (this.selectedSemester) {
+      semesterId = Number(this.selectedSemester);
+    }
+
+    if (!semesterId) return;
+
+    this.selectedSemester = semesterId;
+    this.updateTableFromSelection();
+  }
+
+  onAcademicYearChange(eventOrValue?: any) {
+    // Accept either (selectionChange) event or direct value/object
+    let yearObj: any = null;
+
+    if (eventOrValue && eventOrValue.value !== undefined) {
+      yearObj = eventOrValue.value;
+    } else if (eventOrValue && typeof eventOrValue === 'object' && eventOrValue.academic_year_id) {
+      yearObj = eventOrValue;
+    } else if (this.selectedHistory && this.selectedHistory.academic_year_id) {
+      yearObj = this.selectedHistory;
+    } else if (this.selectedYear) {
+      yearObj = this.academicYearList.find(y => y.academic_year_id === this.selectedYear) ?? null;
+    }
+
+    if (!yearObj) return;
+
+    this.selectedYear = yearObj.academic_year_id;
+    this.selectedHistory = yearObj;
+    this.academicYear = yearObj.academic_year;
+    this.updateTableFromSelection();
+  }
+
+  /**
+   * When both selectedYear and selectedSemester are set, find matching entry
+   * in academicYearList and reset the table (this.courses) with that semester's data.
+   */
+  private updateTableFromSelection(): void {
+    if (!this.selectedYear || !this.selectedSemester) return;
+
+    this.isLoading = true;
+
+    const ay = this.academicYearList.find(
+      (y) => y.academic_year_id === this.selectedYear || y.academic_year === this.academicYear,
+    );
+
+    if (!ay) {
+      this.isLoading = false;
+      return;
+    }
+
+    // Support both 'semesters' or 'semester' keys returned by backend
+    const semesters: any[] = (ay as any).semesters ?? (ay as any).semester ?? [];
+
+    const sem = semesters.find(
+      (s) => s.semester_id === this.selectedSemester || s.semester_number === String(this.selectedSemester),
+    );
+
+    if (!sem) {
+      this.isLoading = false;
+      return;
+    }
+
+    // Accept both 'courses' or 'preferences' arrays as source
+    const sourceCourses = sem.courses ?? sem.preferences ?? [];
+
+    this.semesterLabel =
+      sem.semester_label ??
+      (sem.semester_number === 1 || sem.semester_id === 1 ? 'First Semester' :
+        sem.semester_number === 2 || sem.semester_id === 2 ? 'Second Semester' :
+        sem.semester_number === 3 || sem.semester_id === 3 ? 'Summer Semester' :
+        '');
+
+    this.courses = sourceCourses.map((course: any) => ({
+      course_code: course.course_details?.course_code ?? course.course_code ?? 'N/A',
+      course_title: course.course_details?.course_title ?? course.course_title ?? 'N/A',
+      lec_hours: course.lec_hours ?? 0,
+      lab_hours: course.lab_hours ?? 0,
+      units: course.units ?? 0,
+      preferred_days: course.preferred_days ?? course.preferredDays ?? [],
+      program_code: course.course_details?.program_code ?? course.program_code ?? null,
+    }));
+
+    this.isLoading = false;
   }
 
   generateAndDisplayPdf(): void {
