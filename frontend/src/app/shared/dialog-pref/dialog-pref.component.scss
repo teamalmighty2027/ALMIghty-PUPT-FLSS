@@ -28,17 +28,25 @@
     $justify: flex-start
   );
   max-height: var(--dialog-base-height);
-  padding: 0 var(--spacing-md);
-  margin: 0 var(--spacing-sm);
 
   p {
     font-weight: 600;
     font-size: var(--font-size-lg);
-    margin-bottom: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+  }
+
+  /* make form controls stack as rows and fit container */
+  form {
+    display: flex;
+    flex-direction: row;
+    gap: var(--spacing-sm);
+    width: 100%;
   }
 
   .history-select-field {
+    margin: 0;
     width: 100%;
+    max-width: 100%;
   }
 }
 

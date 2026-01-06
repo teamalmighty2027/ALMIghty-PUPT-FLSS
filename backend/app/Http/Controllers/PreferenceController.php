@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Jobs\NotifyAdminOfPreferenceChangeJob;
 use App\Jobs\SendFacultyPreferenceEmailJob;
 use App\Models\ActiveSemester;
+use App\Models\AcademicYear;
 use App\Models\Faculty;
 use App\Models\Preference;
 use App\Models\PreferenceDay;
@@ -397,7 +398,6 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    // added program info for frontend consumption
                     'program_id'   => $program->program_id ?? null,
                     'program_code' => $program->program_code ?? null,
                 ],
@@ -459,16 +459,31 @@ class PreferenceController extends Controller
             ], 200, [], JSON_PRETTY_PRINT);
         }
 
-        // Preload active semester + academic year info
-        $activeSemesterMap = ActiveSemester::with('academicYear')
-            ->whereIn('active_semester_id', $preferences->pluck('active_semester_id')->unique())
+        // Preload all active semesters with their AY/semester relations, keyed by active_semester_id
+        $activeSemesterMap = ActiveSemester::with(['academicYear', 'semester'])
             ->get()
             ->keyBy('active_semester_id');
 
+        // Preload all academic years/semesters and capture active_semester_id for lookup
+        $academicYears = AcademicYear::join('active_semesters', 'academic_years.academic_year_id', '=', 'active_semesters.academic_year_id')
+            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
+            ->select(
+                'academic_years.academic_year_id',
+                \DB::raw("CONCAT(academic_years.year_start, '-', academic_years.year_end) as academic_year"),
+                'semesters.semester_id',
+                'semesters.semester as semester_number',
+                'active_semesters.active_semester_id',   // needed for mapping
+                'active_semesters.start_date',
+                'active_semesters.end_date'
+            )
+            ->orderBy('academic_years.year_start', 'desc')
+            ->orderBy('semesters.semester')
+            ->get();
+
         // Index by academic_year_id + semester_id for quick lookup
         $aySemIndex = [];
-        foreach ($activeSemesterMap as $as) {
-            if ($as->academicYear) {
+        foreach ($academicYears as $as) {
+            if ($as->academic_year_id && $as->semester_id) {
                 $aySemIndex[$as->academic_year_id][$as->semester_id] = $as;
             }
         }
@@ -566,7 +581,7 @@ class PreferenceController extends Controller
             ->toArray();
 
         return response()->json([
-            'academic_years' => $result,
+            'academic_years' => $result
         ], 200, [], JSON_PRETTY_PRINT);
     }
 
