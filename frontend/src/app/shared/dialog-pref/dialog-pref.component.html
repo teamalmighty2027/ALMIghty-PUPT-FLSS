@@ -16,47 +16,8 @@
       </span>
     </div>
 
-    @if (selectedView === 'history-view') {
-      <div class="dialog-pref-history-container">
-        <form>
-          <mat-form-field appearance="fill" class="history-select-field">
-            <mat-label> Select Academic Year </mat-label>
-            <mat-select
-              [(value)]="selectedHistory"
-              (selectionChange)="onAcademicYearChange($event)"
-            >
-              @for (academicYear of academicYearList; track academicYear.academic_year_id) {
-              <mat-option
-                [value]="academicYear"
-              >
-                {{ academicYear.academic_year }}
-              </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="fill" class="history-select-field">
-            <mat-label> Select Semester </mat-label>
-            <mat-select
-              [(value)]="selectedSemester"
-              (selectionChange)="onSemesterChange($event)"
-            >
-                <mat-option [value]="1">
-                    First Semester
-                </mat-option>
-                <mat-option [value]="2">
-                    Second Semester
-                </mat-option>
-                <mat-option [value]="3">
-                    Summer Semester
-                </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </form>
-      </div>
-    }
-
     <!-- Toggle View -->
-    @if (!data.isViewOnlyTable) {
+    @if (!data.isViewOnlyTable || data.isViewHistory) {
     <div class="view-option">
       <mat-button-toggle-group
         name="viewOption"
@@ -68,11 +29,18 @@
           <mat-icon class="icon-spacing">table_chart</mat-icon>
           <span>Table view</span>
         </mat-button-toggle>
-        <!--PDF View Option-->
-        <mat-button-toggle value="pdf-view">
-          <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
-          <span>PDF view</span>
-        </mat-button-toggle>
+        @if (!data.isViewOnlyTable) {
+          <!--PDF View Option-->
+          <mat-button-toggle value="pdf-view">
+            <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
+            <span>PDF view</span>
+          </mat-button-toggle>
+       }
+        <!-- History View Option -->
+        <mat-button-toggle value="history-view">
+          <mat-icon class="icon-spacing">history</mat-icon>
+          <span>History view</span>
+        </mat-button-toggle>  
       </mat-button-toggle-group>
     </div>
     }
@@ -81,8 +49,47 @@
   <!-- Faculty Preferences Table or PDF View -->
   <div class="dialog-pref-content">
     <!-- Table View -->
-    @if (data.isViewOnlyTable || selectedView === 'table-view') {
+    @if (data.isViewOnlyTable || selectedView === 'table-view' || selectedView === 'history-view') {
     <div class="dialog-pref-table-container">
+      @if (selectedView === 'history-view') {
+        <div class="dialog-pref-history-container">
+          <form>
+            <mat-form-field appearance="fill" class="history-select-field">
+              <mat-label> Select Academic Year </mat-label>
+              <mat-select
+                [(value)]="selectedHistory"
+                (selectionChange)="onAcademicYearChange($event)"
+              >
+                @for (academicYear of academicYearList; track academicYear.academic_year_id) {
+                <mat-option
+                  [value]="academicYear"
+                >
+                  {{ academicYear.academic_year }}
+                </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="fill" class="history-select-field">
+              <mat-label> Select Semester </mat-label>
+              <mat-select
+                [(value)]="selectedSemester"
+                (selectionChange)="onSemesterChange($event)"
+              >
+                  <mat-option [value]="1">
+                      First Semester
+                  </mat-option>
+                  <mat-option [value]="2">
+                      Second Semester
+                  </mat-option>
+                  <mat-option [value]="3">
+                      Summer Semester
+                  </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </form>
+        </div>
+      }
+      
       <div class="table-container">
         <table
           mat-table

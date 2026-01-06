@@ -101,23 +101,22 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
 
+    // TODO: Fix this logic for selecting default view
     if (this.data.isViewOnlyTable) {
       this.selectedView = 'table-view'; 
-      if (this.data.isViewHistory) {
-        this.selectedView = 'history-view';
-      }
-    } 
+    } else if (this.data.isViewHistory) {
+      this.selectedView = 'history-view'; 
+    }
 
     // Load academic years for history view
-    if (this.data.isViewHistory) {
-      this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
-        (response) => {
+    
+    this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
+      (response) => {
           this.academicYearList = response.academic_years;
-        },
-        (error) => {
+      },
+      (error) => {
           console.error('Error fetching academic years:', error);
-        });
-    }
+    });
 
     // Load faculty preferences
     this.preferencesService
