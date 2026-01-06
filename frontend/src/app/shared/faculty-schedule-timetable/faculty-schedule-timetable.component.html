@@ -39,6 +39,14 @@
                 {{ getBlockProperty(day, i, 'roomCode') }}
               </div>
               <div class="time">{{ getFormattedTime(day, i) }}</div>
+              <button
+                mat-icon-button
+                class="edit-button"
+                (click)="onEditScheduleBlock(day, i)"
+                matTooltip="Appeal Schedule"
+                aria-label="Appeal Schedule Block">
+                <mat-icon>flag</mat-icon>
+              </button>
             </div>
             }
           </td>
