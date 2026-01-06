@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { DialogAppealScheduleComponent } from '../dialog-appeal-schedule/dialog-appeal-schedule.component';
 import { DialogViewScheduleComponent } from '../dialog-view-schedule/dialog-view-schedule.component';
 import { ReportHeaderService } from '../../core/services/report-header/report-header.service';
 
@@ -347,6 +348,25 @@ export class FacultyScheduleTimetableComponent
     });
 
     return totalHeight + 5;
+  }
+
+  onEditScheduleBlock(day: string, slotIndex: number) {
+    const block = this.getScheduleBlock(day, slotIndex);
+    
+    if (block) {
+      const timeRange = this.getFormattedTime(day, slotIndex);
+
+      this.dialog.open(DialogAppealScheduleComponent, {
+        width: '600px', // Increased width for edit mode
+        disableClose: true,
+        data: {
+          block: block,
+          timeRange: timeRange,
+          facultyName: this.facultySchedule.faculty_name,
+          isEditMode: true // Add this flag to trigger edit mode
+        }
+      });
+    }
   }
 
   onExportPdf() {
