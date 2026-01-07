@@ -68,7 +68,17 @@
           <span mat-symbol="bar_chart" matListItemIcon></span>
           <span matListItemTitle>Official Reports</span>
         </a>
+        <!--Rescheduling-->
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/rescheduling"
+          routerLinkActive="active-link">
+          <span mat-symbol="edit_calendar" matListItemIcon></span>
+          <span matListItemTitle>Rescheduling</span>
+        </a>
       </div>
+      
 
       <!-- Mobile Admin Controls -->
       @if (isHandset$ | async) {

@@ -1,0 +1,251 @@
+<div class="rescheduling-container">
+  <!--Display while loading-->
+  @if (isLoading) {
+  <div class="loading-wrapper">
+    <app-loading></app-loading>
+  </div>
+  } @else {
+
+  <!--Rescheduling Header-->
+  <div class="rescheduling-header-container" [@fadeAnimation]>
+    <app-table-header
+      [inputFields]="headerInputFields"
+      [showExportButton]="false"
+      [showAddButton]="false"
+      (export)="onExportAll()"
+      (inputChange)="onInputChange($event)"
+      [buttonDisabled]="dataSource.data.length === 0"
+      [tooltipMessage]="
+        dataSource.data.length === 0 ? 'No appeals available for export' : ''
+      "
+    ></app-table-header>
+  </div>
+
+  <!--Rescheduling Table-->
+  <div class="rescheduling-table-container" [@fadeAnimation]>
+    <div class="table-container">
+      <table mat-table [dataSource]="dataSource" class="custom-table">
+        <!-- Index Column -->
+        <ng-container matColumnDef="index">
+          <th mat-header-cell *matHeaderCellDef class="custom-header index">
+            #
+          </th>
+          <td mat-cell *matCellDef="let element; let i = index" class="index">
+            {{ getRowIndex(i) }}
+          </td>
+        </ng-container>
+
+        <!-- Faculty Name Column -->
+        <ng-container matColumnDef="facultyName">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Faculty Name
+          </th>
+          <td
+            mat-cell
+            *matCellDef="let element"
+            class="custom-cell max-cell"
+          >
+            {{ element.facultyName }}
+          </td>
+        </ng-container>
+
+        <!-- Program / Course Column -->
+        <ng-container matColumnDef="programCode">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Program / Course
+          </th>
+          <td mat-cell *matCellDef="let element" class="custom-cell">
+            {{ element.programCode }} - {{ element.courseTitle }}
+          </td>
+        </ng-container>
+
+        <!-- Original Schedule Column -->
+        <ng-container matColumnDef="originalSchedule">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Original Schedule
+          </th>
+          <td mat-cell *matCellDef="let element" class="custom-cell">
+            {{ element.originalSchedule }}
+          </td>
+        </ng-container>
+
+        <!-- Appeal Verification Column -->
+        <ng-container matColumnDef="appealVerification">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Appeal Verification
+          </th>
+          <td mat-cell *matCellDef="let element" class="custom-cell">
+            <span class="status-badge">{{ element.appealVerification }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Action Column -->
+        <ng-container matColumnDef="action">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Action
+          </th>
+          <td mat-cell *matCellDef="let element" class="custom-cell action">
+            <div class="action-button-container">
+              <button
+                mat-button
+                class="edit-button sec-ripple"
+                (click)="openEditModal(element)"
+              >
+                <div class="button-content">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit</span>
+                </div>
+              </button>
+            </div>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+
+        <!-- No Data Row -->
+        <tr *matNoDataRow>
+          <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
+            <div class="flex-cell">
+              <div class="no-data-text">
+                <span mat-symbol="info"></span>
+                <span> No appeals found.</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Table Paginator -->
+      <mat-paginator
+        class="custom-paginator"
+        [length]="dataSource.data.length"
+        [pageSize]="25"
+        [pageSizeOptions]="[5, 10, 25, 50, 100]"
+        [showFirstLastButtons]="true"
+        aria-label="Select page"
+      >
+      </mat-paginator>
+    </div>
+  </div>
+  }
+</div>
+
+ <!-- Modal (unchanged) -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-body">
+        <!-- Left Section: Original Schedule -->
+        <div class="modal-left">
+          <div class="original-header">
+            <span class="calendar-icon">📅</span>
+            <div>
+              <h3>Original Schedule</h3>
+              <p class="subtitle">Current class schedule</p>
+            </div>
+          </div>
+
+          <div class="original-schedule-card">
+            <div class="schedule-item">
+              <label>Day:</label>
+              <div class="schedule-value">{{ selectedAppeal?.originalDay }}</div>
+            </div>
+
+            <div class="schedule-item">
+              <label>Time:</label>
+              <div class="schedule-value">
+                {{ selectedAppeal?.originalStartTime }} - {{ selectedAppeal?.originalEndTime }}
+              </div>
+            </div>
+
+            <div class="schedule-item">
+              <label>Room:</label>
+              <div class="schedule-value">{{ selectedAppeal?.originalRoom }}</div>
+            </div>
+
+            <div class="schedule-item">
+              <label>Professor:</label>
+              <div class="schedule-value">{{ selectedAppeal?.facultyName }}</div>
+            </div>
+
+            <div class="schedule-item">
+              <label>Course:</label>
+              <div class="schedule-value">
+                {{ selectedAppeal?.programCode }} - {{ selectedAppeal?.courseTitle }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Section: Edit Schedule Details -->
+        <div class="modal-right">
+          <h3 class="modal-title">Edit Schedule Details</h3>
+          <p class="course-info">{{ selectedAppeal?.programCode }} - {{ selectedAppeal?.courseTitle }}</p>
+
+          <!-- Day Selection -->
+          <div class="day-selector">
+            <button 
+              *ngFor="let day of daysOfWeek" 
+              class="day-btn"
+              [class.active]="isDaySelected(day)"
+              (click)="selectDay(day)">
+              {{ day }}
+            </button>
+          </div>
+
+          <!-- Time Selection -->
+          <div class="time-section">
+            <div class="time-input-group">
+              <label>
+                <span class="icon">🕐</span>
+                Start Time
+              </label>
+              <select [(ngModel)]="selectedAppeal!.preferredStartTime" class="time-select">
+                <option *ngFor="let time of timeOptions" [value]="time">{{ time }}</option>
+              </select>
+            </div>
+
+            <div class="time-input-group">
+              <label>
+                <span class="icon">🕐</span>
+                End Time
+              </label>
+              <select [(ngModel)]="selectedAppeal!.preferredEndTime" class="time-select">
+                <option *ngFor="let time of timeOptions" [value]="time">{{ time }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Professor Info -->
+          <div class="info-field">
+            <label>
+              <span class="icon">👤</span>
+              Professor
+            </label>
+            <div class="info-value">{{ selectedAppeal?.facultyName }}</div>
+          </div>
+
+          <!-- Room Info -->
+          <div class="info-field">
+            <label>
+              <span class="icon">🏛️</span>
+              Room
+            </label>
+            <input 
+              type="text" 
+              [(ngModel)]="selectedAppeal!.room" 
+              class="room-input"
+              placeholder="Enter room number">
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="modal-actions">
+            <button class="btn-clear" (click)="clearAll()">Clear All</button>
+            <button class="btn-cancel" (click)="closeModal()">Cancel</button>
+            <button class="btn-assign" (click)="assignSchedule()">Assign Schedule</button>
+          </div>
+        </div>
+      </div>
+    </div>
+</div>
+

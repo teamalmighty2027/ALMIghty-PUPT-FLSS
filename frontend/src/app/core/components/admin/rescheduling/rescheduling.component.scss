@@ -1,0 +1,415 @@
+//rescheduling.component.scss
+
+@use "../../../../../styles/mixins";
+
+* {
+  @include mixins.reset-styles;
+}
+
+:host {
+  @include mixins.custom-spinner(var(--neutral-base));
+  @include mixins.custom-spinner-two;
+}
+
+.rescheduling-container {
+  @include mixins.default-transition;
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: none,
+    $justify: none,
+    $gap: var(--spacing-md)
+  );
+  height: 100%;
+}
+
+.rescheduling-table-container {
+  @include mixins.flex-layout($direction: column, $align: none, $justify: none);
+  @include mixins.hide-scrollbar;
+  overflow: auto;
+  position: relative;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
+
+  .table-container {
+    @include mixins.hide-scrollbar;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--neutral-light);
+    max-height: 50rem;
+
+    .custom-table {
+      @include mixins.default-transition;
+      background-color: var(--neutral-light);
+
+      .table-button {
+        color: var(--primary-text);
+      }
+
+      td {
+        border-bottom: 1px solid var(--mat-table-row-item-outline-color);
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+    }
+
+    .index {
+      padding: 0 var(--spacing-md);
+    }
+
+    .custom-header {
+      text-wrap: nowrap;
+      background-color: var(--primary-one);
+      color: white;
+      font-weight: 500;
+      text-align: center;
+
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .custom-cell {
+      padding: var(--spacing-xs);
+      text-align: center;
+
+      .status-badge {
+        background-color: var(--primary-one-fade);
+        color: var(--primary-text-lighter);
+        padding: var(--spacing-xxs) var(--spacing-sm);
+        border-radius: var(--border-radius-lg);
+        text-wrap: nowrap;
+      }
+
+      &.action {
+        .action-button-container {
+          @include mixins.flex-layout($align: stretch);
+        }
+
+        .edit-button {
+          @include mixins.flex-layout;
+          color: var(--secondary-text);
+
+          .button-content {
+            @include mixins.flex-layout($gap: var(--spacing-xs));
+
+            mat-icon {
+              @include mixins.flex-layout;
+              font-size: var(--font-size-lg);
+            }
+          }
+
+          &:hover {
+            background-color: var(--secondary-hover);
+          }
+        }
+      }
+    }
+
+    .no-data-cell {
+      text-align: center;
+      padding: var(--spacing-lg);
+
+      .flex-cell {
+        @include mixins.flex-layout(
+          $align: center,
+          $justify: center,
+          $gap: var(--spacing-xs)
+        );
+
+        span {
+          opacity: var(--opacity-semi-opaque);
+        }
+      }
+    }
+  }
+}
+
+// Loading wrapper
+.loading-wrapper {
+  @include mixins.flex-layout($align: center, $justify: center);
+  height: 400px;
+  width: 100%;
+}
+
+// Modal styles (keeping your existing modal design)
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-body {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+}
+
+// Left Section - Original Schedule
+.modal-left {
+  flex: 1;
+  padding: 1rem;
+  background-color: #f0f8ff;
+  border-radius: 8px;
+  border: 1px solid #b8d4f1;
+}
+
+.original-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  .calendar-icon {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+  }
+}
+
+.original-schedule-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #d4e6f7;
+
+  .schedule-item {
+    margin-bottom: 1rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .schedule-value {
+      font-size: 0.95rem;
+      color: #333;
+      padding: 0.4rem 0.5rem;
+      background-color: #f8f8f8;
+      border-radius: 4px;
+    }
+  }
+}
+
+// Right Section
+.modal-right {
+  flex: 1.5;
+  padding: 1rem;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 0.25rem 0;
+}
+
+.course-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin: 0 0 1.5rem 0;
+}
+
+.day-selector {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.day-btn {
+  padding: 0.6rem 1rem;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #f5f5f5;
+  }
+
+  &.active {
+    background-color: #7d1f1f;
+    color: white;
+    border-color: #7d1f1f;
+  }
+}
+
+.time-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (max-width: 568px) {
+    flex-direction: column;
+  }
+}
+
+.time-input-group {
+  flex: 1;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+
+    .icon {
+      font-size: 1rem;
+    }
+  }
+
+  .time-select {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: white;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: #7d1f1f;
+    }
+  }
+}
+
+.info-field {
+  margin-bottom: 1.5rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.5rem;
+
+    .icon {
+      font-size: 1rem;
+    }
+  }
+
+  .info-value {
+    padding: 0.6rem;
+    background-color: #f8f8f8;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  .room-input {
+    width: 100%;
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+
+    &:focus {
+      outline: none;
+      border-color: #7d1f1f;
+    }
+  }
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e0e0e0;
+
+  button {
+    padding: 0.6rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+
+    &.btn-clear {
+      background-color: transparent;
+      color: #666;
+      border: 1px solid #ddd;
+
+      &:hover {
+        background-color: #f5f5f5;
+      }
+    }
+
+    &.btn-cancel {
+      background-color: transparent;
+      color: #666;
+      border: 1px solid #ddd;
+
+      &:hover {
+        background-color: #f5f5f5;
+      }
+    }
+
+    &.btn-assign {
+      background-color: #7d1f1f;
+      color: white;
+
+      &:hover {
+        background-color: #6a1a1a;
+      }
+    }
+  }
+}

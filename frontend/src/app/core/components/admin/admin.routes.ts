@@ -91,6 +91,14 @@ export const ADMIN_ROUTES: Routes = [
         ],
       },
       {
+        path: 'rescheduling',
+        loadComponent: () =>
+          import('./rescheduling/rescheduling.component').then(
+            (m) => m.ReschedulingComponent
+          ),
+        data: { pageTitle: 'Rescheduling' },
+      },
+      {
         path: 'help',
         loadComponent: () =>
           import('./help/help.component').then((m) => m.HelpComponent),
