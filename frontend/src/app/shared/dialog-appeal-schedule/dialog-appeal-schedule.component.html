@@ -1,0 +1,151 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>{{ isEditMode ? 'Edit Schedule Details' : 'Appeal Schedule' }}</h2>
+    <button mat-icon-button (click)="onCancel()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <!-- Original Schedule Summary -->
+    <div class="schedule-summary">
+      <div class="section-label">{{ isEditMode ? 'CURRENT SCHEDULE' : 'Schedule Information' }}</div>
+      <div class="info-row">
+        <span class="label">Course:</span>
+        <span class="value">{{ data.block.courseCode }} - {{ data.block.courseTitle }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Section:</span>
+        <span class="value">{{ data.block.program }} {{ data.block.yearLevel }}-{{ data.block.section }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Time:</span>
+        <span class="value">{{ data.block.day }} | {{ data.timeRange }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Room:</span>
+        <span class="value">{{ data.block.roomCode }}</span>
+      </div>
+    </div>
+
+    <form [formGroup]="appealForm" class="appeal-form">
+      <!-- Edit Mode: File Upload and Appeal Schedule -->
+      <div *ngIf="isEditMode" class="edit-mode-section">
+        <div class="section-label suggested-label">
+          <span>APPEAL SCHEDULE DETAILS</span>
+        </div>
+
+        <!-- File Upload -->
+        <div class="file-upload-section">
+          <label class="file-label">Upload Appeal Document (PDF)<span class="required-asterisk">*</span></label>
+          <div class="file-input-wrapper">
+            <input 
+              type="file" 
+              #fileInput
+              accept=".pdf"
+              (change)="onFileSelected($event)"
+              style="display: none">
+            <button 
+              mat-stroked-button 
+              type="button"
+              (click)="fileInput.click()">
+              <mat-icon>upload_file</mat-icon>
+              Choose File
+            </button>
+            <span class="file-info" *ngIf="!selectedFileName">No file chosen</span>
+            <span class="file-info selected" *ngIf="selectedFileName">
+              {{ selectedFileName }}
+              <mat-icon class="remove-icon" (click)="removeFile()">close</mat-icon>
+            </span>
+          </div>
+        </div>
+
+        <!-- Day Selection -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Day</mat-label>
+          <mat-select formControlName="appealDay">
+            <mat-option *ngFor="let day of days" [value]="day">
+              {{ day }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="appealForm.get('appealDay')?.hasError('required')">
+            Day is required.
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Time Selection -->
+        <div class="time-row">
+          <mat-form-field appearance="outline" class="time-field">
+            <mat-label>Start Time</mat-label>
+            <mat-select formControlName="appealStartTime">
+              <mat-option *ngFor="let time of timeOptions" [value]="time">
+                {{ time }}
+              </mat-option>
+            </mat-select>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <mat-error *ngIf="appealForm.get('appealStartTime')?.hasError('required')">
+              Start time is required.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="time-field">
+            <mat-label>End Time</mat-label>
+            <mat-select formControlName="appealEndTime">
+              <mat-option *ngFor="let time of timeOptions" [value]="time">
+                {{ time }}
+              </mat-option>
+            </mat-select>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <mat-error *ngIf="appealForm.get('appealEndTime')?.hasError('required')">
+              End time is required.
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Room Input -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Room</mat-label>
+          <input matInput formControlName="appealRoom" placeholder="e.g., A401">
+          <mat-icon matPrefix>meeting_room</mat-icon>
+          <mat-error *ngIf="appealForm.get('appealRoom')?.hasError('required')">
+            Room is required.
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Reason Section with Title -->
+      <div class="reason-section" [class.with-spacing]="isEditMode">
+        <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE<span class="required-asterisk">*</span></div>
+        
+        <!-- Reason Field (Both Modes) -->
+        <mat-form-field appearance="outline" class="full-width">
+          <textarea 
+            matInput 
+            formControlName="reason" 
+            placeholder="Please explain why you are requesting a change for this schedule..."
+            rows="5"></textarea>
+          <mat-error *ngIf="appealForm.get('reason')?.hasError('required')">
+            Reason is required.
+          </mat-error>
+          <mat-error *ngIf="appealForm.get('reason')?.hasError('minlength')">
+            Please provide more detail (at least 10 characters).
+          </mat-error>
+        </mat-form-field>
+      </div>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onClearAll()" *ngIf="isEditMode" class="clear-btn">
+      Clear All
+    </button>
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button 
+      mat-flat-button 
+      color="primary" 
+      (click)="onSubmit()" 
+      [disabled]="appealForm.invalid">
+      {{ isEditMode ? 'Submit Appeal' : 'Submit Appeal' }}
+    </button>
+  </mat-dialog-actions>
+</div>

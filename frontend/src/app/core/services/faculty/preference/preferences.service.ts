@@ -112,6 +112,24 @@ export class PreferencesService {
     return preferences$;
   }
 
+  /*
+  * Retrieves preferences history for a specific faculty by ID.
+  **/
+  getPreferencesHistoryByFacultyId(facultyId: string): Observable<any> {
+    const url = `${this.baseUrl}/get-preferences-history/${facultyId}`;
+    return this.http.get(url).pipe(
+        shareReplay(1),
+        catchError((error) => {
+        console.error(
+          `Error fetching preferences for faculty ID ${facultyId}:`,
+          error
+        );
+        this.preferencesCache.delete(facultyId);
+        return throwError(() => error);
+      })
+    );
+  }
+
   /**
    * Submits a single preference for a faculty member.
    */

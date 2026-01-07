@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Jobs\NotifyAdminOfPreferenceChangeJob;
 use App\Jobs\SendFacultyPreferenceEmailJob;
 use App\Models\ActiveSemester;
+use App\Models\AcademicYear;
 use App\Models\Faculty;
 use App\Models\Preference;
 use App\Models\PreferenceDay;
@@ -397,7 +398,6 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    // added program info for frontend consumption
                     'program_id'   => $program->program_id ?? null,
                     'program_code' => $program->program_code ?? null,
                 ],
@@ -408,7 +408,8 @@ class PreferenceController extends Controller
                 'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
                 'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
             ];
-        });
+            }
+        );
 
         $facultyPreference = [
             'faculty_id'             => $faculty->id,
@@ -435,6 +436,167 @@ class PreferenceController extends Controller
 
         return response()->json([
             'preferences' => $facultyPreference,
+        ], 200, [], JSON_PRETTY_PRINT);
+    }
+
+    /*
+    * Retrieves faculty preference history across all academic years and semesters.
+    **/
+    public function getPreferencesHistoryByFacultyId($faculty_id)
+    {
+        $faculty = Faculty::find($faculty_id);
+        if (! $faculty) {
+            return response()->json(['error' => 'Faculty not found'], 404);
+        }
+
+        // Load all preferences for this faculty with related data
+        $preferences = Preference::with(['preferenceDays', 'courseAssignment.course'])
+            ->where('faculty_id', $faculty_id)
+            ->get();
+
+        if ($preferences->isEmpty()) {
+            return response()->json([
+                'academic_years' => [],
+            ], 200, [], JSON_PRETTY_PRINT);
+        }
+
+        // Preload all active semesters with their AY/semester relations, keyed by active_semester_id
+        $activeSemesterMap = ActiveSemester::with(['academicYear', 'semester'])
+            ->get()
+            ->keyBy('active_semester_id');
+
+        // Preload all academic years/semesters and capture active_semester_id for lookup
+        $academicYears = AcademicYear::join('active_semesters', 'academic_years.academic_year_id', '=', 'active_semesters.academic_year_id')
+            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
+            ->select(
+                'academic_years.academic_year_id',
+                \DB::raw("CONCAT(academic_years.year_start, '-', academic_years.year_end) as academic_year"),
+                'semesters.semester_id',
+                'semesters.semester as semester_number',
+                'active_semesters.active_semester_id',   // needed for mapping
+                'active_semesters.start_date',
+                'active_semesters.end_date'
+            )
+            ->orderBy('academic_years.year_start', 'desc')
+            ->orderBy('semesters.semester')
+            ->get();
+
+        // Index by academic_year_id + semester_id for quick lookup
+        $aySemIndex = [];
+        foreach ($academicYears as $as) {
+            if ($as->academic_year_id && $as->semester_id) {
+                $aySemIndex[$as->academic_year_id][$as->semester_id] = $as;
+            }
+        }
+
+        $grouped = [];
+
+        foreach ($preferences as $pref) {
+            $as = $activeSemesterMap->get($pref->active_semester_id);
+            if (! $as || ! $as->academicYear) {
+                continue;
+            }
+
+            $academicYearId    = $as->academic_year_id;
+            $academicYearLabel = $as->academicYear->year_start . '-' . $as->academicYear->year_end;
+            $academicYearStart = (int) $as->academicYear->year_start;
+            $semesterId        = (int) $as->semester_id;
+
+            // Initialize academic year bucket with three semesters
+            if (! isset($grouped[$academicYearId])) {
+                $grouped[$academicYearId] = [
+                    'academic_year_id' => $academicYearId,
+                    'academic_year'    => $academicYearLabel,
+                    'year_start'       => $academicYearStart,
+                    'semesters'        => [
+                        1 => [
+                            'semester_id'        => 1,
+                            'semester_label'     => $this->getSemesterLabel(1),
+                            'active_semester_id' => $aySemIndex[$academicYearId][1]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                        2 => [
+                            'semester_id'        => 2,
+                            'semester_label'     => $this->getSemesterLabel(2),
+                            'active_semester_id' => $aySemIndex[$academicYearId][2]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                        3 => [
+                            'semester_id'        => 3,
+                            'semester_label'     => $this->getSemesterLabel(3),
+                            'active_semester_id' => $aySemIndex[$academicYearId][3]->active_semester_id ?? null,
+                            'preferences'        => [],
+                        ],
+                    ],
+                ];
+            }
+
+            // Prepare preference payload
+            $preferenceDays = $pref->preferenceDays
+                ->map(fn($day) => [
+                    'day'        => $day->preferred_day,
+                    'start_time' => $day->preferred_start_time,
+                    'end_time'   => $day->preferred_end_time,
+                ])
+                ->sortBy('day')
+                ->values()
+                ->toArray();
+
+            $course = $pref->courseAssignment->course ?? null;
+
+            // Fetch program details for this course_assignment (if available)
+            $program = null;
+            if (! empty($pref->course_assignment_id)) {
+                $program = DB::table('course_assignments')
+                    ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
+                    ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                    ->where('course_assignments.course_assignment_id', $pref->course_assignment_id)
+                    ->select('programs.program_id', 'programs.program_code')
+                    ->first();
+            }
+
+            $preferencePayload = [
+                'course_assignment_id' => $pref->course_assignment_id ?? 'N/A',
+                'course_details'       => [
+                    'course_id'    => $course->course_id ?? 'N/A',
+                    'course_code'  => $course->course_code ?? null,
+                    'course_title' => $course->course_title ?? null,
+                    'program_id'   => $program->program_id ?? null,
+                    'program_code' => $program->program_code ?? null,
+                ],
+                'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
+                'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
+                'units'          => $course->units ?? 0,
+                'preferred_days' => $preferenceDays,
+                'created_at'     => $pref->created_at ? Carbon::parse($pref->created_at)->toDateTimeString() : 'N/A',
+                'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
+            ];
+
+            // Push into the correct semester
+            if (isset($grouped[$academicYearId]['semesters'][$semesterId])) {
+                $grouped[$academicYearId]['semesters'][$semesterId]['preferences'][] = $preferencePayload;
+            }
+        }
+
+        // Normalize to arrays and sort: academic years desc by year_start, semesters asc by semester_id
+        $result = collect($grouped)
+            ->sortByDesc('year_start')
+            ->map(function ($year) {
+                $semesters = collect($year['semesters'])
+                    ->sortBy('semester_id')
+                    ->values()
+                    ->toArray();
+                return [
+                    'academic_year_id' => $year['academic_year_id'],
+                    'academic_year'    => $year['academic_year'],
+                    'semesters'        => $semesters,
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        return response()->json([
+            'academic_years' => $result
         ], 200, [], JSON_PRETTY_PRINT);
     }
 

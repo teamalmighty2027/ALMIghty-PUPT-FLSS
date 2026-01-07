@@ -546,7 +546,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       data: {
         facultyName: this.facultyName(),
         faculty_id: parseInt(this.facultyId()!, 10),
-        viewOnlyTable: true,
+        isViewOnlyTable: true,
+        isViewHistory: true,
       },
       disableClose: true,
     });
