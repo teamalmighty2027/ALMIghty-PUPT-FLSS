@@ -23,7 +23,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
-import { AcademicYearService } from '../../core/services/admin/academic-year/academic-year.service';
 
 interface Course {
   course_code: string;
@@ -32,7 +31,7 @@ interface Course {
   lab_hours: number;
   units: number;
   preferred_days: { day: string; start_time: string; end_time: string }[];
-  program_code?: string | null; // add program code from backend
+  program_code?: string | null;
 }
 
 interface DialogPrefData {
@@ -90,7 +89,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
 
   constructor(
     private preferencesService: PreferencesService,
-    private academicYearService: AcademicYearService,
     public dialogRef: MatDialogRef<DialogPrefComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DialogPrefData,
     private sanitizer: DomSanitizer,
@@ -101,7 +99,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
 
-    // TODO: Fix this logic for selecting default view
     if (this.data.isViewOnlyTable) {
       this.selectedView = 'table-view'; 
     } else if (this.data.isViewHistory) {
@@ -109,7 +106,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
 
     // Load academic years for history view
-    
     this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
       (response) => {
           this.academicYearList = response.academic_years;
@@ -129,7 +125,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             const activeSemester = faculty.active_semesters[0];
             this.academicYear = activeSemester.academic_year;
             this.selectedYear = activeSemester.academic_year_id;
-            this.selectedSemester = activeSemester.semester_id;
+            this.selectedSemester = activeSemester.semester_id;            
+            this.semesterLabel = activeSemester.semester_label;
 
             this.courses = activeSemester.courses.map((course: any) => ({
               course_code: course.course_details.course_code,
