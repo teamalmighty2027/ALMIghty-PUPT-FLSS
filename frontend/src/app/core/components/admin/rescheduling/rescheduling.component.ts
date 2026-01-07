@@ -1,6 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { trigger, transition, style, animate } from '@angular/animations';
+import { LoadingComponent } from '../../../../shared/loading/loading.component';
+import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 
 interface ReschedulingAppeal {
   id: number;
@@ -22,24 +31,57 @@ interface ReschedulingAppeal {
 @Component({
   selector: 'app-rescheduling',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatTableModule,
+    MatPaginatorModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTooltipModule,
+    MatSlideToggleModule,
+    LoadingComponent,
+    TableHeaderComponent
+  ],
+  animations: [
+    trigger('fadeAnimation', [
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('300ms', style({ opacity: 1 }))
+      ])
+    ])
+  ],
   templateUrl: './rescheduling.component.html',
   styleUrl: './rescheduling.component.scss'
 })
-export class ReschedulingComponent implements OnInit {
+export class ReschedulingComponent implements OnInit, AfterViewInit {
+  // Loading state
+  isLoading = false;
+  
+  // Header input fields for search/filter
+  headerInputFields: any[] = [];
+
   pendingAppeals: ReschedulingAppeal[] = [];
   selectedAppeal: ReschedulingAppeal | null = null;
   showModal: boolean = false;
-  
-  // Days of the week
+
+  // Table
+  displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
+  dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  // Days & time
   daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  
-  // Time options (you can customize these)
   timeOptions: string[] = [];
 
   ngOnInit(): void {
     this.generateTimeOptions();
     this.loadMockData();
+  }
+
+  ngAfterViewInit(): void {
+    this.dataSource.paginator = this.paginator;
   }
 
   generateTimeOptions(): void {
@@ -48,7 +90,7 @@ export class ReschedulingComponent implements OnInit {
       for (let minute = 0; minute < 60; minute += 30) {
         const period = hour >= 12 ? 'PM' : 'AM';
         const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const displayMinute = minute === 0 ? '00' : minute;
+        const displayMinute = minute === 0 ? '00' : String(minute).padStart(2, '0');
         this.timeOptions.push(`${displayHour}:${displayMinute} ${period}`);
       }
     }
@@ -154,22 +196,39 @@ export class ReschedulingComponent implements OnInit {
         appealVerification: 'No started'
       }
     ];
+
+    this.dataSource.data = this.pendingAppeals;
+  }
+
+  getRowIndex(i: number): number {
+    const pageIndex = this.paginator ? this.paginator.pageIndex : 0;
+    const pageSize = this.paginator ? this.paginator.pageSize : 25;
+    return i + 1 + pageIndex * pageSize;
+  }
+
+  // Actions
+  onView(appeal: ReschedulingAppeal): void {
+    this.openEditModal(appeal);
+  }
+
+  onExportAll(): void {
+    console.log('Export all appeals', this.dataSource.data);
+    // Stub: implement real export (CSV/Excel) as needed.
+  }
+
+  onInputChange(event: any): void {
+    console.log('Input changed:', event);
+    // Stub: implement search/filter logic here
+  }
+
+  onExportSingle(appeal: ReschedulingAppeal): void {
+    console.log('Export single appeal', appeal);
+    // Stub: implement real export for `appeal`.
   }
 
   openEditModal(appeal: ReschedulingAppeal): void {
+    console.log('Opening edit modal for appeal:', appeal);
     this.selectedAppeal = { ...appeal };
-    if (!this.selectedAppeal.preferredDay) {
-      this.selectedAppeal.preferredDay = 'Tue';
-    }
-    if (!this.selectedAppeal.preferredStartTime) {
-      this.selectedAppeal.preferredStartTime = '8:00 AM';
-    }
-    if (!this.selectedAppeal.preferredEndTime) {
-      this.selectedAppeal.preferredEndTime = '11:00 AM';
-    }
-    if (!this.selectedAppeal.room) {
-      this.selectedAppeal.room = 'A401';
-    }
     this.showModal = true;
   }
 
@@ -183,9 +242,7 @@ export class ReschedulingComponent implements OnInit {
   }
 
   selectDay(day: string): void {
-    if (this.selectedAppeal) {
-      this.selectedAppeal.preferredDay = day;
-    }
+    if (this.selectedAppeal) this.selectedAppeal.preferredDay = day;
   }
 
   clearAll(): void {
@@ -198,18 +255,14 @@ export class ReschedulingComponent implements OnInit {
   }
 
   assignSchedule(): void {
-    if (this.selectedAppeal) {
-      // Find the appeal in the list and update it
-      const index = this.pendingAppeals.findIndex(a => a.id === this.selectedAppeal!.id);
-      if (index !== -1) {
-        this.pendingAppeals[index] = { ...this.selectedAppeal };
-        this.pendingAppeals[index].appealVerification = 'Scheduled';
-      }
-      
-      // Here you would typically make an API call to save the data
-      console.log('Assigning schedule:', this.selectedAppeal);
-      
-      this.closeModal();
+    if (!this.selectedAppeal) return;
+    const index = this.pendingAppeals.findIndex(a => a.id === this.selectedAppeal!.id);
+    if (index !== -1) {
+      this.pendingAppeals[index] = { ...this.selectedAppeal };
+      this.pendingAppeals[index].appealVerification = 'Scheduled';
+      this.dataSource.data = this.pendingAppeals;
     }
+    console.log('Assigning schedule:', this.selectedAppeal);
+    this.closeModal();
   }
 }
