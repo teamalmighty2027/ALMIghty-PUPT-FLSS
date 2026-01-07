@@ -102,98 +102,98 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
       {
         id: 1,
         facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        programCode: 'COMP 001',
+        courseTitle: 'Introduction to Computing',
         originalSchedule: '8:00 AM - 11:00 AM',
         originalDay: 'Mon',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
         originalRoom: 'A301',
-        appealVerification: 'No started'
+        appealVerification: 'Not started'
       },
       {
         id: 2,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        facultyName: 'Olazo, John Albert F',
+        programCode: 'COMP 002',
+        courseTitle: 'Computer Programming 1',
         originalSchedule: '8:00 AM - 11:00 AM',
         originalDay: 'Tue',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
-        originalRoom: 'B202',
-        appealVerification: 'No started'
+        originalRoom: 'Aboitiz',
+        appealVerification: 'Not started'
       },
       {
         id: 3,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        facultyName: 'Jundam, Dann Kyle O',
+        programCode: 'INTE 301',
+        courseTitle: 'Integrative Programming',
         originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Wed',
+        originalDay: 'Sat',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
-        originalRoom: 'C105',
-        appealVerification: 'No started'
+        originalRoom: 'DOST',
+        appealVerification: 'Not started'
       },
       {
         id: 4,
         facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        programCode: 'COMP 002',
+        courseTitle: 'Computer Programming 2',
         originalSchedule: '8:00 AM - 11:00 AM',
         originalDay: 'Thu',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
         originalRoom: 'A401',
-        appealVerification: 'No started'
+        appealVerification: 'Not started'
       },
       {
         id: 5,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        facultyName: 'Olazo, John Albert F',
+        programCode: 'COMP 014',
+        courseTitle: 'Data Structures',
         originalSchedule: '8:00 AM - 11:00 AM',
         originalDay: 'Fri',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
-        originalRoom: 'D301',
-        appealVerification: 'No started'
+        originalRoom: 'A302',
+        appealVerification: 'Not started'
       },
       {
         id: 6,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
-        originalSchedule: '8:00 AM - 11:00 AM',
+        facultyName: 'Espinola, Frankie Josh M',
+        programCode: 'COMP 005',
+        courseTitle: 'Database Administration',
+        originalSchedule: '12:00 AM - 5:00 PM',
         originalDay: 'Mon',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'E102',
-        appealVerification: 'No started'
+        originalStartTime: '12:00 AM',
+        originalEndTime: '5:00 PM',
+        originalRoom: 'DOST',
+        appealVerification: 'Not started'
       },
       {
         id: 7,
         facultyName: 'Bautista, John Matthew B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
+        programCode: 'INTE 302',
+        courseTitle: 'Systems Analysis and Design',
         originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Tue',
+        originalDay: 'Sat',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
-        originalRoom: 'F201',
-        appealVerification: 'No started'
+        originalRoom: 'A204',
+        appealVerification: 'Not started'
       },
       {
         id: 8,
-        facultyName: 'Bautista, John Matthew B',
+        facultyName: 'Dimayuga, Adriel Joseph B',
         programCode: 'ACCO 014',
         courseTitle: 'Principles of Accounting',
         originalSchedule: '8:00 AM - 11:00 AM',
         originalDay: 'Wed',
         originalStartTime: '8:00 AM',
         originalEndTime: '11:00 AM',
-        originalRoom: 'G304',
-        appealVerification: 'No started'
+        originalRoom: 'E304',
+        appealVerification: 'Not started'
       }
     ];
 
