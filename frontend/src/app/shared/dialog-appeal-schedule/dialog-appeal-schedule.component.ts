@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 
 @Component({
   selector: 'app-dialog-appeal-schedule',
@@ -34,9 +35,11 @@ export class DialogAppealScheduleComponent {
   
   // Time options for dropdowns
   timeOptions: string[] = [];
+  roomOptions: string[] = [];
 
   constructor(
     private fb: FormBuilder,
+    private schedulingService: SchedulingService,
     public dialogRef: MatDialogRef<DialogAppealScheduleComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
@@ -46,6 +49,30 @@ export class DialogAppealScheduleComponent {
     // Initialize appealForm immediately in constructor
     this.appealForm = this.fb.group({});
     this.initializeForm();
+  }
+
+  ngOnInit(): void {    
+    this.loadRooms();
+  }
+
+  private loadRooms(): void {
+    this.schedulingService.getAllRooms().subscribe({
+      next: (response: any) => {
+        // Matches the logic from your scheduling.ts
+        if (response && response.rooms) {
+          const availableRooms = response.rooms.filter(
+            (room: any) => room.status === 'Available'
+          );
+          // Map to room codes for the dropdown
+          this.roomOptions = availableRooms.map((room: any) => room.room_code);
+        }
+      },
+      error: (error: any) => {
+        console.error('Failed to load rooms:', error);
+        // Fallback options in case of error (optional)
+        this.roomOptions = ['A401', 'A402']; 
+      }
+    });
   }
 
   private generateTimeOptions(): void {
