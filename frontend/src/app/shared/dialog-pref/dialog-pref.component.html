@@ -57,7 +57,7 @@
             <mat-form-field appearance="fill" class="history-select-field">
               <mat-label> Select Academic Year </mat-label>
               <mat-select
-                [(value)]="academicYearList[0]"
+                [(value)]="selectedHistory"
                 (selectionChange)="onAcademicYearChange($event)"
               >
                 @for (ay of academicYearList; track ay.academic_year_id) {

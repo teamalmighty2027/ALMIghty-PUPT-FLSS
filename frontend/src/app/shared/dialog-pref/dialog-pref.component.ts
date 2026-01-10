@@ -124,8 +124,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           if (faculty) {
             const activeSemester = faculty.active_semesters[0];
             this.academicYear = activeSemester.academic_year;
-            this.selectedYear = activeSemester.academic_year_id;
-            this.selectedSemester = activeSemester.semester_id;            
+            this.selectedYear = activeSemester.academic_year;
             this.semesterLabel = activeSemester.semester_label;
 
             this.courses = activeSemester.courses.map((course: any) => ({
@@ -162,14 +161,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
-  onSemesterChange(eventOrValue?: any): void {
+  onSemesterChange(event?: any): void {
     // Accept either (selectionChange) event or direct value, keep backward compatibility
     let semesterId: number | null = null;
     
-    if (eventOrValue && eventOrValue.value !== undefined) {
-      semesterId = Number(eventOrValue.value);
-    } else if (typeof eventOrValue === 'number') {
-      semesterId = eventOrValue;
+    if (event && event.value !== undefined) {
+      semesterId = Number(event.value);
+    } else if (typeof event === 'number') {
+      semesterId = event;
     } else if (this.selectedHistory && 
         (this.selectedHistory.semester_id 
         || this.selectedHistory.semester_id === 0)
@@ -185,14 +184,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
-  onAcademicYearChange(eventOrValue?: any) {
-    // Accept either (selectionChange) event or direct value/object
+  // TODO: after clicking the new acad year, the old one disappears
+  onAcademicYearChange(event?: any) {    
     let yearObj: any = null;
 
-    if (eventOrValue && eventOrValue.value !== undefined) {
-      yearObj = eventOrValue.value;
-    } else if (eventOrValue && typeof eventOrValue === 'object' && eventOrValue.academic_year_id) {
-      yearObj = eventOrValue;
+    if (event && event.value !== undefined) {
+      yearObj = event.value;
+    } else if (event && typeof event === 'object' && event.academic_year_id) {
+      yearObj = event;
     } else if (this.selectedHistory && this.selectedHistory.academic_year_id) {
       yearObj = this.selectedHistory;
     } else if (this.selectedYear) {
