@@ -105,7 +105,11 @@
         <!-- Room Input -->
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Room</mat-label>
-          <input matInput formControlName="appealRoom" placeholder="e.g., A401">
+          <mat-select formControlName="appealRoom">
+            <mat-option *ngFor="let room of roomOptions" [value]="room">
+              {{ room }}
+            </mat-option>
+          </mat-select>
           <mat-icon matPrefix>meeting_room</mat-icon>
           <mat-error *ngIf="appealForm.get('appealRoom')?.hasError('required')">
             Room is required.

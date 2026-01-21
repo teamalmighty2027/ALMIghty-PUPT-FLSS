@@ -23,7 +23,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
-import { AcademicYearService } from '../../core/services/admin/academic-year/academic-year.service';
 
 interface Course {
   course_code: string;
@@ -32,7 +31,7 @@ interface Course {
   lab_hours: number;
   units: number;
   preferred_days: { day: string; start_time: string; end_time: string }[];
-  program_code?: string | null; // add program code from backend
+  program_code?: string | null;
 }
 
 interface DialogPrefData {
@@ -90,7 +89,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
 
   constructor(
     private preferencesService: PreferencesService,
-    private academicYearService: AcademicYearService,
     public dialogRef: MatDialogRef<DialogPrefComponent>,
     @Inject(MAT_DIALOG_DATA) public data: DialogPrefData,
     private sanitizer: DomSanitizer,
@@ -98,27 +96,30 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.isLoading = true;
-    this.facultyName = this.data.facultyName;
-
-    // TODO: Fix this logic for selecting default view
-    if (this.data.isViewOnlyTable) {
-      this.selectedView = 'table-view'; 
-    } else if (this.data.isViewHistory) {
-      this.selectedView = 'history-view'; 
-    }
+    this.loadFacultyPreferences();
 
     // Load academic years for history view
-    
-    this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
+    this.preferencesService
+      .getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
       (response) => {
           this.academicYearList = response.academic_years;
       },
       (error) => {
           console.error('Error fetching academic years:', error);
     });
+  }
 
-    // Load faculty preferences
+  // Load faculty preferences from the service
+  private loadFacultyPreferences() {
+    this.isLoading = true;
+    this.facultyName = this.data.facultyName;
+
+    if (this.data.isViewOnlyTable) {
+      this.selectedView = 'table-view'; 
+    } else if (this.data.isViewHistory) {
+      this.selectedView = 'history-view'; 
+    }
+
     this.preferencesService
       .getPreferencesByFacultyId(this.data.faculty_id.toString())
       .subscribe(
@@ -128,8 +129,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           if (faculty) {
             const activeSemester = faculty.active_semesters[0];
             this.academicYear = activeSemester.academic_year;
-            this.selectedYear = activeSemester.academic_year_id;
-            this.selectedSemester = activeSemester.semester_id;
+            this.selectedYear = activeSemester.academic_year;
+            this.semesterLabel = activeSemester.semester_label;
 
             this.courses = activeSemester.courses.map((course: any) => ({
               course_code: course.course_details.course_code,
@@ -138,8 +139,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
-              program_code:
-                course.course_details?.program_code ??
+              program_code: course.course_details?.program_code ??
                 course.program_code ??
                 null,
             }));
@@ -153,7 +153,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         (error) => {
           console.error('Error loading faculty preferences:', error);
           this.isLoading = false;
-        },
+        }
       );
   }
 
@@ -165,14 +165,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
-  onSemesterChange(eventOrValue?: any): void {
+  onSemesterChange(event?: any): void {
     // Accept either (selectionChange) event or direct value, keep backward compatibility
     let semesterId: number | null = null;
     
-    if (eventOrValue && eventOrValue.value !== undefined) {
-      semesterId = Number(eventOrValue.value);
-    } else if (typeof eventOrValue === 'number') {
-      semesterId = eventOrValue;
+    if (event && event.value !== undefined) {
+      semesterId = Number(event.value);
+    } else if (typeof event === 'number') {
+      semesterId = event;
     } else if (this.selectedHistory && 
         (this.selectedHistory.semester_id 
         || this.selectedHistory.semester_id === 0)
@@ -188,14 +188,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
-  onAcademicYearChange(eventOrValue?: any) {
-    // Accept either (selectionChange) event or direct value/object
+  // TODO: after clicking the new acad year, the old one disappears
+  onAcademicYearChange(event?: any) {    
     let yearObj: any = null;
 
-    if (eventOrValue && eventOrValue.value !== undefined) {
-      yearObj = eventOrValue.value;
-    } else if (eventOrValue && typeof eventOrValue === 'object' && eventOrValue.academic_year_id) {
-      yearObj = eventOrValue;
+    if (event && event.value !== undefined) {
+      yearObj = event.value;
+    } else if (event && typeof event === 'object' && event.academic_year_id) {
+      yearObj = event;
     } else if (this.selectedHistory && this.selectedHistory.academic_year_id) {
       yearObj = this.selectedHistory;
     } else if (this.selectedYear) {
