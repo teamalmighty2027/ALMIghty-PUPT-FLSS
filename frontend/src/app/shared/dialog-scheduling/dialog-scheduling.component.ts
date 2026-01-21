@@ -155,7 +155,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.data.suggestedFaculty.forEach(
       (faculty) => (faculty.animating = false)
     );
-
+    
     queueMicrotask(() => {
       requestAnimationFrame(() => {
         this.setupAutocomplete();

@@ -73,34 +73,35 @@ export class DialogViewScheduleComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeScheduleTitle();
+    this.initializeScheduleData();
+  }
 
+  private initializeScheduleData() {
     if (this.data.entity === 'program') {
-      if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
-        this.scheduleGroups = this.data.scheduleGroups;
-        this.scheduleData = this.flattenScheduleGroups(
-          this.data.scheduleGroups,
-        );
-        this.generateAndDisplayPdf();
-      } else {
-        console.warn('No schedule groups available for programs.');
-        this.scheduleData = [];
-      }
+        if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
+            this.scheduleGroups = this.data.scheduleGroups;
+            this.scheduleData = this.flattenScheduleGroups(
+                this.data.scheduleGroups
+            );
+            this.generateAndDisplayPdf();
+        } else {
+            console.warn('No schedule groups available for programs.');
+            this.scheduleData = [];
+        }
     } else if (this.data.entity === 'faculty' || this.data.entity === 'room') {
-      if (this.data.exportType === 'all') {
-        this.scheduleData = this.data.entityData;
-        this.generateAndDisplayPdf();
-      } else if (
-        Array.isArray(this.data.entityData) &&
-        this.data.entityData.length > 0
-      ) {
-        this.scheduleData = this.data.entityData;
-      } else {
-        console.warn(
-          'No schedules found or invalid data structure:',
-          this.data.entityData,
-        );
-        this.scheduleData = this.data.entityData || [];
-      }
+        if (this.data.exportType === 'all') {
+            this.scheduleData = this.data.entityData;
+            this.generateAndDisplayPdf();
+        } else if (Array.isArray(this.data.entityData) &&
+            this.data.entityData.length > 0) {
+            this.scheduleData = this.data.entityData;
+        } else {
+            console.warn(
+                'No schedules found or invalid data structure:',
+                this.data.entityData
+            );
+            this.scheduleData = this.data.entityData || [];
+        }
     }
     this.isLoading = false;
   }

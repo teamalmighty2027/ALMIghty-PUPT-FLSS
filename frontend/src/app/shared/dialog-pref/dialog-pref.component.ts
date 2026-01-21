@@ -96,6 +96,21 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.loadFacultyPreferences();
+
+    // Load academic years for history view
+    this.preferencesService
+      .getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
+      (response) => {
+          this.academicYearList = response.academic_years;
+      },
+      (error) => {
+          console.error('Error fetching academic years:', error);
+    });
+  }
+
+  // Load faculty preferences from the service
+  private loadFacultyPreferences() {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
 
@@ -105,16 +120,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       this.selectedView = 'history-view'; 
     }
 
-    // Load academic years for history view
-    this.preferencesService.getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
-      (response) => {
-          this.academicYearList = response.academic_years;
-      },
-      (error) => {
-          console.error('Error fetching academic years:', error);
-    });
-
-    // Load faculty preferences
     this.preferencesService
       .getPreferencesByFacultyId(this.data.faculty_id.toString())
       .subscribe(
@@ -134,8 +139,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
-              program_code:
-                course.course_details?.program_code ??
+              program_code: course.course_details?.program_code ??
                 course.program_code ??
                 null,
             }));
@@ -149,7 +153,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         (error) => {
           console.error('Error loading faculty preferences:', error);
           this.isLoading = false;
-        },
+        }
       );
   }
 
