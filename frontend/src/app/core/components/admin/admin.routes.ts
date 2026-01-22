@@ -76,14 +76,6 @@ export const ADMIN_ROUTES: Routes = [
             data: { pageTitle: 'Reports' },
           },
           {
-            path: 'version',
-            loadComponent: () =>
-              import('./reports/version-control/version-control.component').then(
-                (m) => m.VersionControlComponent
-              ),
-            data: { pageTitle: 'Reports' },
-          },
-          {
             path: '',
             redirectTo: 'faculty',
             pathMatch: 'full',
