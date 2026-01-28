@@ -78,7 +78,7 @@
           <mat-form-field appearance="outline" class="time-field">
             <mat-label>Start Time</mat-label>
             <mat-select formControlName="appealStartTime">
-              <mat-option *ngFor="let time of timeOptions" [value]="time">
+              <mat-option *ngFor="let time of data.options.timeOptions" [value]="time">
                 {{ time }}
               </mat-option>
             </mat-select>
@@ -91,7 +91,7 @@
           <mat-form-field appearance="outline" class="time-field">
             <mat-label>End Time</mat-label>
             <mat-select formControlName="appealEndTime">
-              <mat-option *ngFor="let time of timeOptions" [value]="time">
+              <mat-option *ngFor="let time of data.options.endTimeOptions" [value]="time">
                 {{ time }}
               </mat-option>
             </mat-select>

@@ -75,7 +75,6 @@ export class DialogAppealScheduleComponent {
     @Inject(MAT_DIALOG_DATA) public data: DialogData
   ) {
     this.isEditMode = data.isEditMode || false;
-    this.generateTimeOptions();   
     
     this.appealForm = this.fb.group({
       day: [data.appealDay || '', Validators.required],
@@ -116,34 +115,22 @@ export class DialogAppealScheduleComponent {
     });
   }
 
-  private generateTimeOptions(): void {
-    const times: string[] = [];
-    for (let hour = 7; hour <= 21; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const displayMinute = minute.toString().padStart(2, '0');
-        times.push(`${displayHour}:${displayMinute} ${period}`);
-      }
-    }
-    this.timeOptions = times;
-  }
-
   private subscribeToStartTimeChanges(): void {
       this.appealForm
-        .get('startTime')!
+        .get('appealStartTime')!
         .valueChanges.pipe(takeUntil(this.destroy$))
         .subscribe((startTime) => {
-          const endTimeControl = this.appealForm.get('endTime');
+          const endTimeControl = this.appealForm.get('appealEndTime');
 
           if (startTime) {
             this.updateEndTimeOptions(startTime);
-            if (!endTimeControl?.value) {
+            if (!endTimeControl?.value) {              
               endTimeControl?.setErrors({ required: true });
             }
           } else {
             this.data.options.endTimeOptions = [...this.data.options.timeOptions];
             if (!endTimeControl?.value) {
+              console.log('Clearing error on endTimeControl');
               endTimeControl?.setErrors(null);
             }
           }
@@ -153,10 +140,10 @@ export class DialogAppealScheduleComponent {
         });
 
       this.appealForm
-        .get('endTime')!
+        .get('appealEndTime')!
         .valueChanges.pipe(takeUntil(this.destroy$))
         .subscribe((endTime) => {
-          const startTimeControl = this.appealForm.get('startTime');
+          const startTimeControl = this.appealForm.get('appealStartTime');
 
           if (endTime) {
             if (!startTimeControl?.value) {
@@ -173,16 +160,19 @@ export class DialogAppealScheduleComponent {
         });
     }
 
-  private updateEndTimeOptions(startTime: string): void {
+  private updateEndTimeOptions(startTime: string): void {    
     const startIndex = this.data.options.timeOptions.indexOf(startTime);
     if (startIndex === -1) {
-      const endTimeControl = this.appealForm.get('endTime');
+      const endTimeControl = this.appealForm.get('appealEndTime');
+
       if (endTimeControl) {
         endTimeControl.reset('');
         endTimeControl.markAsTouched();
+
         if (!endTimeControl.value) {
           endTimeControl.setErrors({ required: true });
         }
+
         this.data.options.endTimeOptions = [];
       }
       return;
@@ -192,12 +182,15 @@ export class DialogAppealScheduleComponent {
       startIndex + 1
     );
 
-    const currentEndTime = this.appealForm.get('endTime')?.value;
-    if (currentEndTime) {
+    const currentEndTime = this.appealForm.get('appealEndTime')?.value;
+
+    if (currentEndTime) {      
       const endTimeIndex =
         this.data.options.timeOptions.indexOf(currentEndTime);
+
       if (endTimeIndex <= startIndex) {
-        const endTimeControl = this.appealForm.get('endTime');
+        const endTimeControl = this.appealForm.get('appealEndTime');
+
         if (endTimeControl) {
           endTimeControl.reset('');
           endTimeControl.markAsTouched();
@@ -205,7 +198,7 @@ export class DialogAppealScheduleComponent {
         }
       }
     }
-
+    
     this.cdr.markForCheck();
   }
 
