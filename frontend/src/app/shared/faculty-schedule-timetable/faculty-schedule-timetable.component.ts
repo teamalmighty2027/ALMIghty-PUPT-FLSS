@@ -357,13 +357,15 @@ export class FacultyScheduleTimetableComponent
       const timeRange = this.getFormattedTime(day, slotIndex);
 
       this.dialog.open(DialogAppealScheduleComponent, {
-        width: '600px', // Increased width for edit mode
+        width: '600px',
         disableClose: true,
         data: {
-          block: block,
-          timeRange: timeRange,
+          original: {
+            ...block,
+            timeRange: timeRange
+          },
           facultyName: this.facultySchedule.faculty_name,
-          isEditMode: true // Add this flag to trigger edit mode
+          isEditMode: true
         }
       });
     }

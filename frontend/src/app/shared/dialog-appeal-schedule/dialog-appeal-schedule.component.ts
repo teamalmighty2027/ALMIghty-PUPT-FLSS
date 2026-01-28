@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -8,6 +8,34 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subject, takeUntil } from 'rxjs';
+
+interface DialogData {  
+  isEditMode?: boolean;
+  facultyName: string,
+  appealFile: File | null,
+  appealDay: string,
+  appealStartTime: string,
+  appealEndTime: string,
+  appealRoom: string,
+  reason: string,
+  options: {  
+    timeOptions: string[];
+    endTimeOptions: string[];
+  },
+  original: {
+    courseCode: string;
+    courseTitle: string;
+    program: string;
+    yearLevel: string;
+    section: string;
+    day: string;
+    roomCode: string;
+    timeRange: string;
+  },
+};
+
 
 @Component({
   selector: 'app-dialog-appeal-schedule',
@@ -30,46 +58,59 @@ export class DialogAppealScheduleComponent {
   isEditMode: boolean = false;
   selectedFile: File | null = null;
   selectedFileName: string = '';
-
   days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   
   // Time options for dropdowns
   timeOptions: string[] = [];
   roomOptions: string[] = [];
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private fb: FormBuilder,
     private schedulingService: SchedulingService,
     public dialogRef: MatDialogRef<DialogAppealScheduleComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef,
+    @Inject(MAT_DIALOG_DATA) public data: DialogData
   ) {
     this.isEditMode = data.isEditMode || false;
-    this.generateTimeOptions();
+    this.generateTimeOptions();   
     
-    // Initialize appealForm immediately in constructor
-    this.appealForm = this.fb.group({});
+    this.appealForm = this.fb.group({
+      day: [data.appealDay || '', Validators.required],
+      startTime: [data.appealStartTime || '', Validators.required],
+      endTime: [data.appealEndTime || '', Validators.required],
+      room: [data.appealRoom || '', Validators.required],
+      reason: [data.reason || '', [Validators.required, Validators.minLength(10)]]
+    });
+    
     this.initializeForm();
   }
 
   ngOnInit(): void {    
     this.loadRooms();
+
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        this.subscribeToStartTimeChanges();        
+        this.cdr.markForCheck();
+      });
+    });
   }
 
   private loadRooms(): void {
     this.schedulingService.getAllRooms().subscribe({
       next: (response: any) => {
-        // Matches the logic from your scheduling.ts
         if (response && response.rooms) {
           const availableRooms = response.rooms.filter(
             (room: any) => room.status === 'Available'
           );
-          // Map to room codes for the dropdown
           this.roomOptions = availableRooms.map((room: any) => room.room_code);
         }
       },
       error: (error: any) => {
         console.error('Failed to load rooms:', error);
-        // Fallback options in case of error (optional)
         this.roomOptions = ['A401', 'A402']; 
       }
     });
@@ -88,12 +129,92 @@ export class DialogAppealScheduleComponent {
     this.timeOptions = times;
   }
 
+  private subscribeToStartTimeChanges(): void {
+      this.appealForm
+        .get('startTime')!
+        .valueChanges.pipe(takeUntil(this.destroy$))
+        .subscribe((startTime) => {
+          const endTimeControl = this.appealForm.get('endTime');
+
+          if (startTime) {
+            this.updateEndTimeOptions(startTime);
+            if (!endTimeControl?.value) {
+              endTimeControl?.setErrors({ required: true });
+            }
+          } else {
+            this.data.options.endTimeOptions = [...this.data.options.timeOptions];
+            if (!endTimeControl?.value) {
+              endTimeControl?.setErrors(null);
+            }
+          }
+
+          endTimeControl?.markAsTouched();
+          this.cdr.markForCheck();
+        });
+
+      this.appealForm
+        .get('endTime')!
+        .valueChanges.pipe(takeUntil(this.destroy$))
+        .subscribe((endTime) => {
+          const startTimeControl = this.appealForm.get('startTime');
+
+          if (endTime) {
+            if (!startTimeControl?.value) {
+              startTimeControl?.setErrors({ required: true });
+            }
+          } else {
+            if (!startTimeControl?.value) {
+              startTimeControl?.setErrors(null);
+            }
+          }
+
+          startTimeControl?.markAsTouched();
+          this.cdr.markForCheck();
+        });
+    }
+
+  private updateEndTimeOptions(startTime: string): void {
+    const startIndex = this.data.options.timeOptions.indexOf(startTime);
+    if (startIndex === -1) {
+      const endTimeControl = this.appealForm.get('endTime');
+      if (endTimeControl) {
+        endTimeControl.reset('');
+        endTimeControl.markAsTouched();
+        if (!endTimeControl.value) {
+          endTimeControl.setErrors({ required: true });
+        }
+        this.data.options.endTimeOptions = [];
+      }
+      return;
+    }
+
+    this.data.options.endTimeOptions = this.data.options.timeOptions.slice(
+      startIndex + 1
+    );
+
+    const currentEndTime = this.appealForm.get('endTime')?.value;
+    if (currentEndTime) {
+      const endTimeIndex =
+        this.data.options.timeOptions.indexOf(currentEndTime);
+      if (endTimeIndex <= startIndex) {
+        const endTimeControl = this.appealForm.get('endTime');
+        if (endTimeControl) {
+          endTimeControl.reset('');
+          endTimeControl.markAsTouched();
+          endTimeControl.setErrors({ required: true });
+        }
+      }
+    }
+
+    this.cdr.markForCheck();
+  }
+
   private initializeForm(): void {
     if (this.isEditMode) {
       // Edit mode with appeal schedule fields - rebuild the form
       this.appealForm = this.fb.group({
         appealFile: [null, Validators.required],
-        appealDay: [this.data.block.day || '', Validators.required],
+        appealDay: [this.data.appealDay || '', Validators.required],
         appealStartTime: ['', Validators.required],
         appealEndTime: ['', Validators.required],
         appealRoom: ['', Validators.required],
@@ -164,12 +285,12 @@ export class DialogAppealScheduleComponent {
         const endTime = this.appealForm.value.appealEndTime;
         
         if (this.compareTimeStrings(startTime, endTime) >= 0) {
-          alert('End time must be after start time.');
+          this.snackBar.open('End time must be after start time.');
           return;
         }
 
         const appealData = {
-          ...this.data.block,
+          ...this.data,
           appealFile: this.selectedFile,
           appealSchedule: {
             day: this.appealForm.value.appealDay,
@@ -185,7 +306,7 @@ export class DialogAppealScheduleComponent {
         this.dialogRef.close(appealData);
       } else {
         const appealData = {
-          ...this.data.block,
+          ...this.data,
           reason: this.appealForm.value.reason,
           timestamp: new Date()
         };

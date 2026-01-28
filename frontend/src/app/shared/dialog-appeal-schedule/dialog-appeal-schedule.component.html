@@ -12,19 +12,19 @@
       <div class="section-label">{{ isEditMode ? 'CURRENT SCHEDULE' : 'Schedule Information' }}</div>
       <div class="info-row">
         <span class="label">Course:</span>
-        <span class="value">{{ data.block.courseCode }} - {{ data.block.courseTitle }}</span>
+        <span class="value">{{ data.original.courseCode }} - {{ data.original.courseTitle }}</span>
       </div>
       <div class="info-row">
         <span class="label">Section:</span>
-        <span class="value">{{ data.block.program }} {{ data.block.yearLevel }}-{{ data.block.section }}</span>
+        <span class="value">{{ data.original.program }} {{ data.original.yearLevel }}-{{ data.original.section }}</span>
       </div>
       <div class="info-row">
         <span class="label">Time:</span>
-        <span class="value">{{ data.block.day }} | {{ data.timeRange }}</span>
+        <span class="value">{{ data.original.day }} | {{ data.original.timeRange }}</span>
       </div>
       <div class="info-row">
         <span class="label">Room:</span>
-        <span class="value">{{ data.block.roomCode }}</span>
+        <span class="value">{{ data.original.roomCode }}</span>
       </div>
     </div>
 
