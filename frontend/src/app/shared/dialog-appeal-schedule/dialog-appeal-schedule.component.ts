@@ -10,6 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
+import { ReschedulingService } from '../../core/services/faculty/rescheduling/rescheduling.service';
 
 interface DialogData {  
   isEditMode?: boolean;
@@ -69,6 +70,7 @@ export class DialogAppealScheduleComponent {
   constructor(
     private fb: FormBuilder,
     private schedulingService: SchedulingService,
+    private reschedulingService: ReschedulingService,
     public dialogRef: MatDialogRef<DialogAppealScheduleComponent>,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
@@ -80,7 +82,7 @@ export class DialogAppealScheduleComponent {
       day: [data.appealDay || '', Validators.required],
       startTime: [data.appealStartTime || '', Validators.required],
       endTime: [data.appealEndTime || '', Validators.required],
-      room: [data.appealRoom || '', Validators.required],
+      room: [data.appealRoom || ''],
       reason: [data.reason || '', [Validators.required, Validators.minLength(10)]]
     });
     
@@ -210,7 +212,7 @@ export class DialogAppealScheduleComponent {
         appealDay: [this.data.appealDay || '', Validators.required],
         appealStartTime: ['', Validators.required],
         appealEndTime: ['', Validators.required],
-        appealRoom: ['', Validators.required],
+        appealRoom: [''],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
     } else {
@@ -282,6 +284,8 @@ export class DialogAppealScheduleComponent {
           return;
         }
 
+        // TODO: Change submitReschedulingAppeal to return an 
+        // Observable and handle success/error properly
         const appealData = {
           ...this.data,
           appealFile: this.selectedFile,
@@ -294,8 +298,22 @@ export class DialogAppealScheduleComponent {
           reason: this.appealForm.value.reason,
           timestamp: new Date()
         };
-        
-        console.log('Edit Appeal Submitted:', appealData);
+
+        this.reschedulingService.submitReschedulingAppeal(appealData)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.snackBar.open('Appeal submitted successfully.', 
+                'Close', {duration: 3000,}
+              );
+            },
+            error: (error: any) => {              
+              this.snackBar.open('Failed to submit appeal. Please try again.', 
+                'Close', {duration: 3000,}
+              );
+            }
+          });
+
         this.dialogRef.close(appealData);
       } else {
         const appealData = {
