@@ -29,7 +29,7 @@ export class ReschedulingService {
       day: string,
       startTime: string,
       endTime: string,
-      roomId: string
+      roomCode: string
     }
   ): Observable<any> {
     const url = `${this.baseUrl}/submit-rescheduling-appeal`;
@@ -44,12 +44,11 @@ export class ReschedulingService {
     form.append('day', appealDetails.day ?? '');
     form.append('startTime', appealDetails.startTime ?? '');
     form.append('endTime', appealDetails.endTime ?? '');
-    form.append('roomId', String(appealDetails.roomId ?? ''));
+    form.append('roomCode', String(appealDetails.roomCode ?? ''));
 
     return this.http.post(url, form).pipe(
-      catchError((error) => {
-        console.error('Error submitting rescheduling appeal:', error);
-        return throwError(() => error);
+      catchError((error: any) => {
+        return throwError(() => new Error(error));
       })
     );
   }

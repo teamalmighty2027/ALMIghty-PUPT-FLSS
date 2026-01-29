@@ -86,7 +86,7 @@ export class FacultyScheduleTimetableComponent
 
   ngOnInit() {
     this.generateTimeSlots();
-    this.processScheduleData();    
+    this.processScheduleData();
   }
 
   ngAfterViewInit() {

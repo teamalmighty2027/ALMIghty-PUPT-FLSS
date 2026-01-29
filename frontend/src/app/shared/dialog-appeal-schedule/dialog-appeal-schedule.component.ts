@@ -284,8 +284,6 @@ export class DialogAppealScheduleComponent {
         return;
       }
 
-      // TODO: Change submitReschedulingAppeal to return an 
-      // Observable and handle success/error properly        
       this.reschedulingService.submitReschedulingAppeal(
         this.data.original.scheduleId,
         this.selectedFile,
@@ -294,25 +292,25 @@ export class DialogAppealScheduleComponent {
           day: this.appealForm.value.appealDay,
           startTime: this.appealForm.value.appealStartTime,
           endTime: this.appealForm.value.appealEndTime,
-          // TODO: Map room code to room ID
-          roomId: this.appealForm.value.appealRoom
+          roomCode: this.appealForm.value.appealRoom
         },          
       )
         .pipe(takeUntil(this.destroy$))
         .subscribe({
-          next: () => {
-            this.snackBar.open('Appeal submitted successfully.', 
+          next: (response) => {
+            this.snackBar.open(response, 
               'Close', {duration: 3000,}
             );
+            this.dialogRef.close();
+            // TODO: Remove the send appeal button to the schedule block 
           },
-          error: (error: any) => {              
-            this.snackBar.open('Failed to submit appeal. Please try again.', 
+          error: (error) => {
+            console.log('Error submitting appeal:', error);
+            this.snackBar.open(error.message, 
               'Close', {duration: 3000,}
             );
           }
         });
-
-      this.dialogRef.close();
     }
   }
 

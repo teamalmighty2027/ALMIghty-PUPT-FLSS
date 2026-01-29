@@ -18,12 +18,12 @@ class RescheduleController extends Controller
     {
       $validator = Validator::make($request->all(), [
           'scheduleId' => 'required|integer',
-          'appealFile' => 'file|mimes:pdf,doc,docx|max:2048', // TODO: Make required when file upload is implemented
+          'appealFile' => 'required|file|mimes:pdf,doc,docx|max:2048',
           'reason' => 'required|string|max:255',
           'day' => 'nullable|string|max:20',
           'startTime' => 'nullable|string|max:10',
           'endTime' => 'nullable|string|max:10',
-          'roomId' => 'nullable|string', // TODO: Change to integer when roomId is implemented
+          'roomCode' => 'nullable|string',
       ]);
 
       if ($validator->fails()) {
@@ -35,9 +35,18 @@ class RescheduleController extends Controller
       $day = $request->input('day');
       $startTime = $request->input('startTime');
       $endTime = $request->input('endTime');
-      $roomId = $request->input('roomId');
+      $roomCode = $request->input('roomCode');
 
-      // TODO: Check scheduleId and roomId validity
+      // Check scheduleId and roomId validity
+      $schedule = DB::table('schedules')->where('schedule_id', $scheduleId)->first();
+      if (!$schedule) {
+        return response()->json(['error' => 'Invalid schedule ID.'], 400);
+      }
+
+      $roomId = DB::table('rooms')->where('room_code', $roomCode)->value('room_id');
+      if (!$roomId) {
+        return response()->json(['error' => 'Invalid room code.'], 400);
+      }
 
       // Change startTime to sql format
       $startTime = $date = date('H:i:s', strtotime($startTime));
@@ -46,27 +55,37 @@ class RescheduleController extends Controller
       // Handle file upload
       if ($request->hasFile('appealFile')) {
           $file = $request->file('appealFile');
-          // TODO: Fix file saving path according to storage setup
           $filePath = $file->store('appeals', 'public');
       } else {
           return response()->json(['error' => 'No appeal file uploaded.'], 400);
       }
-
+      
       // Insert into appeals table
-      DB::table('appeals')->insert([
-          'schedule_id' => $scheduleId,
-          'day' => $day ?? null,
-          'start_time' => $startTime ?? null,
-          'end_time' => $endTime ?? null,
-          'room_id' => 2, // TODO: Change default roomId when roomId is implemented
-          'file_path' => $filePath,
-          'is_approved' => false,
-          'reasoning' => $reason,
-          'created_at' => now(),
-          'updated_at' => now(),
-      ]);
+      try {
+        DB::beginTransaction();
+        DB::table('appeals')->insert([
+            'schedule_id' => $scheduleId,
+            'day' => $day ?? null,
+            'start_time' => $startTime ?? null,
+            'end_time' => $endTime ?? null,
+            'room_id' => $roomId,
+            'file_path' => $filePath,
+            'is_approved' => false,
+            'reasoning' => $reason,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+      } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+          'message' => 'Failed to submit rescheduling appeal',
+          'error' => $e->getMessage()
+        ], 500);
+      }
 
-      return response()->json(['message' => 'Rescheduling appeal submitted successfully.'], 200);
-    
+      DB::commit();
+      return response()->json([
+        'message' => 'Rescheduling appeal submitted successfully.'
+      ], 200);
     }
 }
