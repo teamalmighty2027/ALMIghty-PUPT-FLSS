@@ -16,6 +16,7 @@ use App\Http\Controllers\LogoController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
+use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoomController;

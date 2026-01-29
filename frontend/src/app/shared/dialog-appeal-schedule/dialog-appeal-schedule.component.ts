@@ -294,7 +294,8 @@ export class DialogAppealScheduleComponent {
           day: this.appealForm.value.appealDay,
           startTime: this.appealForm.value.appealStartTime,
           endTime: this.appealForm.value.appealEndTime,
-          room: this.appealForm.value.appealRoom
+          // TODO: Map room code to room ID
+          roomId: this.appealForm.value.appealRoom
         },          
       )
         .pipe(takeUntil(this.destroy$))

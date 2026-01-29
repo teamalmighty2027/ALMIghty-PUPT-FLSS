@@ -23,26 +23,30 @@ export class ReschedulingService {
    */
   submitReschedulingAppeal(
     scheduleId: number,
-    appealFile: File | null, // TODO: Change to required when file upload is implemented
+    appealFile: File | null,
     reason: string,
     appealDetails: {
       day: string,
       startTime: string,
       endTime: string,
-      room: string
+      roomId: string
     }
   ): Observable<any> {
     const url = `${this.baseUrl}/submit-rescheduling-appeal`;
 
     // TODO: Create checks for the payload data
-    const payload = {
-      scheduleId,
-      appealFile,
-      reason,
-      appealDetails
+    const form = new FormData();
+    form.append('scheduleId', String(scheduleId));
+    if (appealFile) {
+      form.append('appealFile', appealFile, appealFile.name);
     }
+    form.append('reason', reason);
+    form.append('day', appealDetails.day ?? '');
+    form.append('startTime', appealDetails.startTime ?? '');
+    form.append('endTime', appealDetails.endTime ?? '');
+    form.append('roomId', String(appealDetails.roomId ?? ''));
 
-    return this.http.post(url, payload).pipe(
+    return this.http.post(url, form).pipe(
       catchError((error) => {
         console.error('Error submitting rescheduling appeal:', error);
         return throwError(() => error);
