@@ -20,7 +20,7 @@ export class ReschedulingService {
 
     return this.http.post(url, appealData).pipe(
       catchError((error) => {
-        console.error('Error submitting single preference:', error);
+        console.error('Error submitting rescheduling appeal:', error);
         return throwError(() => error);
       })
     );

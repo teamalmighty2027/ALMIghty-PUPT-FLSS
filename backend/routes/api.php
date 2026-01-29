@@ -178,6 +178,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cancel-request-access', [PreferenceController::class, 'cancelRequestAccess']);
 
     /**
+     * Rescheduling Appeals
+     */
+    Route::post('/submit-rescheduling-appeal', [RescheduleController::class, 'submitReschedulingAppeal']);
+
+    /**
      * Programs
      */
     Route::get('/programs', [ProgramController::class, 'getPrograms']);
