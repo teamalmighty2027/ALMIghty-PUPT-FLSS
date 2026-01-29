@@ -34,7 +34,11 @@ export class ReschedulingService {
   ): Observable<any> {
     const url = `${this.baseUrl}/submit-rescheduling-appeal`;
 
-    // TODO: Create checks for the payload data
+    // Check parameter validity
+    if (!scheduleId || !reason || !appealDetails) {
+      return throwError(() => new Error('Invalid parameters provided.'));
+    }
+
     const form = new FormData();
     form.append('scheduleId', String(scheduleId));
     if (appealFile) {

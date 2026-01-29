@@ -101,6 +101,7 @@ export class DialogAppealScheduleComponent {
     });
   }
 
+  // Load available rooms from the scheduling service
   private loadRooms(): void {
     this.schedulingService.getAllRooms().subscribe({
       next: (response: any) => {
@@ -118,51 +119,53 @@ export class DialogAppealScheduleComponent {
     });
   }
 
+  // Add listeners to start time changes to update end time options
   private subscribeToStartTimeChanges(): void {
-      this.appealForm
-        .get('appealStartTime')!
-        .valueChanges.pipe(takeUntil(this.destroy$))
-        .subscribe((startTime) => {
-          const endTimeControl = this.appealForm.get('appealEndTime');
+    this.appealForm
+      .get('appealStartTime')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((startTime) => {
+        const endTimeControl = this.appealForm.get('appealEndTime');
 
-          if (startTime) {
-            this.updateEndTimeOptions(startTime);
-            if (!endTimeControl?.value) {              
-              endTimeControl?.setErrors({ required: true });
-            }
-          } else {
-            this.data.options.endTimeOptions = [...this.data.options.timeOptions];
-            if (!endTimeControl?.value) {
-              console.log('Clearing error on endTimeControl');
-              endTimeControl?.setErrors(null);
-            }
+        if (startTime) {
+          this.updateEndTimeOptions(startTime);
+          if (!endTimeControl?.value) {              
+            endTimeControl?.setErrors({ required: true });
           }
-
-          endTimeControl?.markAsTouched();
-          this.cdr.markForCheck();
-        });
-
-      this.appealForm
-        .get('appealEndTime')!
-        .valueChanges.pipe(takeUntil(this.destroy$))
-        .subscribe((endTime) => {
-          const startTimeControl = this.appealForm.get('appealStartTime');
-
-          if (endTime) {
-            if (!startTimeControl?.value) {
-              startTimeControl?.setErrors({ required: true });
-            }
-          } else {
-            if (!startTimeControl?.value) {
-              startTimeControl?.setErrors(null);
-            }
+        } else {
+          this.data.options.endTimeOptions = [...this.data.options.timeOptions];
+          if (!endTimeControl?.value) {
+            console.log('Clearing error on endTimeControl');
+            endTimeControl?.setErrors(null);
           }
+        }
 
-          startTimeControl?.markAsTouched();
-          this.cdr.markForCheck();
-        });
+        endTimeControl?.markAsTouched();
+        this.cdr.markForCheck();
+      });
+
+    this.appealForm
+      .get('appealEndTime')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((endTime) => {
+        const startTimeControl = this.appealForm.get('appealStartTime');
+
+        if (endTime) {
+          if (!startTimeControl?.value) {
+            startTimeControl?.setErrors({ required: true });
+          }
+        } else {
+          if (!startTimeControl?.value) {
+            startTimeControl?.setErrors(null);
+          }
+        }
+
+        startTimeControl?.markAsTouched();
+        this.cdr.markForCheck();
+      });
     }
 
+  // Helper function to update end time options based on selected start time
   private updateEndTimeOptions(startTime: string): void {    
     const startIndex = this.data.options.timeOptions.indexOf(startTime);
     if (startIndex === -1) {
@@ -205,6 +208,7 @@ export class DialogAppealScheduleComponent {
     this.cdr.markForCheck();
   }
 
+  // Initialize the form based on previous data (if any)
   private initializeForm(): void {
     if (this.isEditMode) {
       // Edit mode with appeal schedule fields - rebuild the form
@@ -224,6 +228,7 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Add event handler for file selection
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -234,10 +239,10 @@ export class DialogAppealScheduleComponent {
         return;
       }
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
       if (file.size > maxSize) {
-        alert('File size must be less than 5MB.');
+        alert('File size must be less than 2MB.');
         event.target.value = '';
         return;
       }
@@ -248,16 +253,19 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Remove selected file button handler
   removeFile(): void {
     this.selectedFile = null;
     this.selectedFileName = '';
     this.appealForm.patchValue({ appealFile: null });
   }
 
+  // Cancel and close the dialog button handler
   onCancel(): void {
     this.dialogRef.close();
   }
 
+  // Clear all form fields button handler
   onClearAll(): void {
     if (this.isEditMode) {
       this.appealForm.reset({
@@ -273,6 +281,7 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Submit the appeal form button handler
   onSubmit(): void {
     if (this.appealForm.valid) {
       // Validate end time is after start time
