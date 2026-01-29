@@ -26,6 +26,7 @@ interface DialogData {
     endTimeOptions: string[];
   },
   original: {
+    scheduleId: number;
     courseCode: string;
     courseTitle: string;
     program: string;
@@ -274,57 +275,43 @@ export class DialogAppealScheduleComponent {
 
   onSubmit(): void {
     if (this.appealForm.valid) {
-      if (this.isEditMode) {
-        // Validate end time is after start time
-        const startTime = this.appealForm.value.appealStartTime;
-        const endTime = this.appealForm.value.appealEndTime;
-        
-        if (this.compareTimeStrings(startTime, endTime) >= 0) {
-          this.snackBar.open('End time must be after start time.');
-          return;
-        }
-
-        // TODO: Change submitReschedulingAppeal to return an 
-        // Observable and handle success/error properly
-        const appealData = {
-          ...this.data,
-          appealFile: this.selectedFile,
-          appealSchedule: {
-            day: this.appealForm.value.appealDay,
-            startTime: this.appealForm.value.appealStartTime,
-            endTime: this.appealForm.value.appealEndTime,
-            room: this.appealForm.value.appealRoom
-          },
-          reason: this.appealForm.value.reason,
-          timestamp: new Date()
-        };
-
-        this.reschedulingService.submitReschedulingAppeal(appealData)
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
-            next: () => {
-              this.snackBar.open('Appeal submitted successfully.', 
-                'Close', {duration: 3000,}
-              );
-            },
-            error: (error: any) => {              
-              this.snackBar.open('Failed to submit appeal. Please try again.', 
-                'Close', {duration: 3000,}
-              );
-            }
-          });
-
-        this.dialogRef.close(appealData);
-      } else {
-        const appealData = {
-          ...this.data,
-          reason: this.appealForm.value.reason,
-          timestamp: new Date()
-        };
-        
-        console.log('Appeal Submitted:', appealData);
-        this.dialogRef.close(appealData);
+      // Validate end time is after start time
+      const startTime = this.appealForm.value.appealStartTime;
+      const endTime = this.appealForm.value.appealEndTime;
+      
+      if (this.compareTimeStrings(startTime, endTime) >= 0) {
+        this.snackBar.open('End time must be after start time.');
+        return;
       }
+
+      // TODO: Change submitReschedulingAppeal to return an 
+      // Observable and handle success/error properly        
+      this.reschedulingService.submitReschedulingAppeal(
+        this.data.original.scheduleId,
+        this.selectedFile,
+        this.appealForm.value.reason,
+        {
+          day: this.appealForm.value.appealDay,
+          startTime: this.appealForm.value.appealStartTime,
+          endTime: this.appealForm.value.appealEndTime,
+          room: this.appealForm.value.appealRoom
+        },          
+      )
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Appeal submitted successfully.', 
+              'Close', {duration: 3000,}
+            );
+          },
+          error: (error: any) => {              
+            this.snackBar.open('Failed to submit appeal. Please try again.', 
+              'Close', {duration: 3000,}
+            );
+          }
+        });
+
+      this.dialogRef.close();
     }
   }
 

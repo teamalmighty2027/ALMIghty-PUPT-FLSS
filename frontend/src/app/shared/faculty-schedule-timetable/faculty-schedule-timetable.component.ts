@@ -22,6 +22,7 @@ interface TimeSlot {
 }
 
 interface ScheduleBlock {
+  scheduleId: number;
   day: string;
   startSlot: number;
   duration: number;
@@ -85,7 +86,7 @@ export class FacultyScheduleTimetableComponent
 
   ngOnInit() {
     this.generateTimeSlots();
-    this.processScheduleData();
+    this.processScheduleData();    
   }
 
   ngAfterViewInit() {
@@ -130,6 +131,7 @@ export class FacultyScheduleTimetableComponent
             (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
 
           return {
+            scheduleId: schedule.schedule_id,
             day: schedule.day,
             startSlot: startSlot,
             duration: adjustedDuration,
