@@ -16,6 +16,7 @@ use App\Http\Controllers\LogoController;
 use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
+use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoomController;
@@ -176,6 +177,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-preferences', [PreferenceController::class, 'toggleSinglePreferences']);
     Route::post('/request-access', [PreferenceController::class, 'requestAccess']);
     Route::post('/cancel-request-access', [PreferenceController::class, 'cancelRequestAccess']);
+
+    /**
+     * Rescheduling Appeals
+     */
+    Route::post('/submit-rescheduling-appeal', [RescheduleController::class, 'submitReschedulingAppeal']);
 
     /**
      * Programs

@@ -14,6 +14,7 @@ import { fadeAnimation, fabAnimation } from '../../core/animations/animations';
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { options } from '@fullcalendar/core/preact.js';
 
 interface TimeSlot {
   time: string;
@@ -21,6 +22,7 @@ interface TimeSlot {
 }
 
 interface ScheduleBlock {
+  scheduleId: number;
   day: string;
   startSlot: number;
   duration: number;
@@ -129,6 +131,7 @@ export class FacultyScheduleTimetableComponent
             (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
 
           return {
+            scheduleId: schedule.schedule_id,
             day: schedule.day,
             startSlot: startSlot,
             duration: adjustedDuration,
@@ -355,18 +358,39 @@ export class FacultyScheduleTimetableComponent
     
     if (block) {
       const timeRange = this.getFormattedTime(day, slotIndex);
+      const timeOptions = this.generateTimeOptions();
 
       this.dialog.open(DialogAppealScheduleComponent, {
-        width: '600px', // Increased width for edit mode
+        width: '600px',
         disableClose: true,
         data: {
-          block: block,
-          timeRange: timeRange,
+          original: {
+            ...block,
+            timeRange: timeRange
+          },
+          options: {
+            timeOptions: timeOptions,
+            endTimeOptions: [...timeOptions]
+          },
           facultyName: this.facultySchedule.faculty_name,
-          isEditMode: true // Add this flag to trigger edit mode
+          isEditMode: true
         }
       });
     }
+  }
+
+  // Helper function to generate time options from 7AM to 9PM
+  private generateTimeOptions(): string[] {
+    const times: string[] = [];
+    for (let hour = 7; hour <= 21; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const period = hour >= 12 ? 'PM' : 'AM';
+        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const displayMinute = minute.toString().padStart(2, '0');
+        times.push(`${displayHour}:${displayMinute} ${period}`);
+      }
+    }
+    return times;
   }
 
   onExportPdf() {
