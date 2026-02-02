@@ -1,5 +1,7 @@
+START TRANSACTION;
+
 -- SQL script to create the 'appeals' table
-CREATE TABLE `appeals` (
+CREATE TABLE IF NOT EXISTS `appeals` (
   `appeal_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
   `schedule_id` bigint(20) UNSIGNED NOT NULL COMMENT 'Reference to the original schedule item',
   
@@ -30,3 +32,5 @@ ALTER TABLE `appeals`
     ADD INDEX `appeals_start_time_index` (`start_time`),
     ADD INDEX `appeals_end_time_index` (`end_time`),
     ADD INDEX `appeals_file_path_index` (`file_path`);
+
+COMMIT;
