@@ -52,7 +52,7 @@ export class ReschedulingService {
 
     return this.http.post(url, form).pipe(
       catchError((error: any) => {
-        return throwError(() => new Error(error));
+        return error;
       })
     );
   }

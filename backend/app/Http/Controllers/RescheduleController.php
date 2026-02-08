@@ -35,16 +35,25 @@ class RescheduleController extends Controller
       $day = $request->input('day');
       $startTime = $request->input('startTime');
       $endTime = $request->input('endTime');
-      $roomCode = $request->input('roomCode');
+      $roomCode = $request->input('roomCode') ?? null;
 
       // Check scheduleId and roomId validity
+      try {
       $schedule = DB::table('schedules')->where('schedule_id', $scheduleId)->first();
       if (!$schedule) {
         return response()->json(['error' => 'Invalid schedule ID.'], 400);
       }
 
-      $roomId = DB::table('rooms')->where('room_code', $roomCode)->value('room_id');
-      if (!$roomId) {
+      $roomId = $roomCode ? DB::table('rooms')
+        ->where('room_code', $roomCode)
+        ->value('room_id') : null;
+      } catch (\Exception $e) {
+        return response()->json([
+          'error' => 'Database error: ' . $e->getMessage()
+        ], 500);
+      }
+      
+      if ($roomCode && !$roomId) {
         return response()->json(['error' => 'Invalid room code.'], 400);
       }
 
@@ -53,11 +62,18 @@ class RescheduleController extends Controller
       $endTime = $date = date('H:i:s', strtotime($endTime));
 
       // Handle file upload
-      if ($request->hasFile('appealFile')) {
-          $file = $request->file('appealFile');
-          $filePath = $file->store('appeals', 'public');
-      } else {
-          return response()->json(['error' => 'No appeal file uploaded.'], 400);
+      try {
+        if ($request->hasFile('appealFile')) {
+            $file = $request->file('appealFile');
+            $filePath = $file->store('appeals', 'public');
+        } else {
+            return response()->json(['error' => 'No appeal file uploaded.'], 400);
+        }
+      } catch (\Exception $e) {
+        return response()->json([
+          'message' => 'Failed to upload appeal file',
+          'error' => $e->getMessage()
+        ], 500);
       }
       
       // Insert into appeals table
