@@ -307,7 +307,7 @@ export class DialogAppealScheduleComponent {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (response) => {
-            this.snackBar.open(response, 
+            this.snackBar.open(response.message || 'Appeal submitted successfully.', 
               'Close', {duration: 3000,}
             );
             this.dialogRef.close();

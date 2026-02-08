@@ -16,6 +16,11 @@ class RescheduleController extends Controller
      */
     public function submitReschedulingAppeal(Request $request)
     {
+      // Temporary fix for "headers already sent" error
+      while (ob_get_level() > 0) { @ob_end_clean(); }
+      @ini_set('display_errors', '0');
+      error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+
       $validator = Validator::make($request->all(), [
           'scheduleId' => 'required|integer',
           'appealFile' => 'required|file|mimes:pdf,doc,docx|max:2048',
