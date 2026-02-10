@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -8,6 +8,36 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subject, takeUntil } from 'rxjs';
+import { ReschedulingService } from '../../core/services/faculty/rescheduling/rescheduling.service';
+
+interface DialogData {  
+  isEditMode?: boolean;
+  facultyName: string,
+  appealFile: File | null,
+  appealDay: string,
+  appealStartTime: string,
+  appealEndTime: string,
+  appealRoom: string,
+  reason: string,
+  options: {  
+    timeOptions: string[];
+    endTimeOptions: string[];
+  },
+  original: {
+    scheduleId: number;
+    courseCode: string;
+    courseTitle: string;
+    program: string;
+    yearLevel: string;
+    section: string;
+    day: string;
+    roomCode: string;
+    timeRange: string;
+  },
+};
+
 
 @Component({
   selector: 'app-dialog-appeal-schedule',
@@ -30,73 +60,164 @@ export class DialogAppealScheduleComponent {
   isEditMode: boolean = false;
   selectedFile: File | null = null;
   selectedFileName: string = '';
-
   days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   
   // Time options for dropdowns
   timeOptions: string[] = [];
   roomOptions: string[] = [];
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private fb: FormBuilder,
     private schedulingService: SchedulingService,
+    private reschedulingService: ReschedulingService,
     public dialogRef: MatDialogRef<DialogAppealScheduleComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef,
+    @Inject(MAT_DIALOG_DATA) public data: DialogData
   ) {
     this.isEditMode = data.isEditMode || false;
-    this.generateTimeOptions();
     
-    // Initialize appealForm immediately in constructor
-    this.appealForm = this.fb.group({});
+    this.appealForm = this.fb.group({
+      day: [data.appealDay || '', Validators.required],
+      startTime: [data.appealStartTime || '', Validators.required],
+      endTime: [data.appealEndTime || '', Validators.required],
+      room: [data.appealRoom || ''],
+      reason: [data.reason || '', [Validators.required, Validators.minLength(10)]]
+    });
+    
     this.initializeForm();
   }
 
   ngOnInit(): void {    
     this.loadRooms();
+
+    queueMicrotask(() => {
+      requestAnimationFrame(() => {
+        this.subscribeToStartTimeChanges();        
+        this.cdr.markForCheck();
+      });
+    });
   }
 
+  // Load available rooms from the scheduling service
   private loadRooms(): void {
     this.schedulingService.getAllRooms().subscribe({
       next: (response: any) => {
-        // Matches the logic from your scheduling.ts
         if (response && response.rooms) {
           const availableRooms = response.rooms.filter(
             (room: any) => room.status === 'Available'
           );
-          // Map to room codes for the dropdown
           this.roomOptions = availableRooms.map((room: any) => room.room_code);
         }
       },
       error: (error: any) => {
         console.error('Failed to load rooms:', error);
-        // Fallback options in case of error (optional)
         this.roomOptions = ['A401', 'A402']; 
       }
     });
   }
 
-  private generateTimeOptions(): void {
-    const times: string[] = [];
-    for (let hour = 7; hour <= 21; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-        const displayMinute = minute.toString().padStart(2, '0');
-        times.push(`${displayHour}:${displayMinute} ${period}`);
+  // Add listeners to start time changes to update end time options
+  private subscribeToStartTimeChanges(): void {
+    this.appealForm
+      .get('appealStartTime')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((startTime) => {
+        const endTimeControl = this.appealForm.get('appealEndTime');
+
+        if (startTime) {
+          this.updateEndTimeOptions(startTime);
+          if (!endTimeControl?.value) {              
+            endTimeControl?.setErrors({ required: true });
+          }
+        } else {
+          this.data.options.endTimeOptions = [...this.data.options.timeOptions];
+          if (!endTimeControl?.value) {
+            console.log('Clearing error on endTimeControl');
+            endTimeControl?.setErrors(null);
+          }
+        }
+
+        endTimeControl?.markAsTouched();
+        this.cdr.markForCheck();
+      });
+
+    this.appealForm
+      .get('appealEndTime')!
+      .valueChanges.pipe(takeUntil(this.destroy$))
+      .subscribe((endTime) => {
+        const startTimeControl = this.appealForm.get('appealStartTime');
+
+        if (endTime) {
+          if (!startTimeControl?.value) {
+            startTimeControl?.setErrors({ required: true });
+          }
+        } else {
+          if (!startTimeControl?.value) {
+            startTimeControl?.setErrors(null);
+          }
+        }
+
+        startTimeControl?.markAsTouched();
+        this.cdr.markForCheck();
+      });
+    }
+
+  // Helper function to update end time options based on selected start time
+  private updateEndTimeOptions(startTime: string): void {    
+    const startIndex = this.data.options.timeOptions.indexOf(startTime);
+    if (startIndex === -1) {
+      const endTimeControl = this.appealForm.get('appealEndTime');
+
+      if (endTimeControl) {
+        endTimeControl.reset('');
+        endTimeControl.markAsTouched();
+
+        if (!endTimeControl.value) {
+          endTimeControl.setErrors({ required: true });
+        }
+
+        this.data.options.endTimeOptions = [];
+      }
+      return;
+    }
+
+    this.data.options.endTimeOptions = this.data.options.timeOptions.slice(
+      startIndex + 1
+    );
+
+    const currentEndTime = this.appealForm.get('appealEndTime')?.value;
+
+    if (currentEndTime) {      
+      const endTimeIndex =
+        this.data.options.timeOptions.indexOf(currentEndTime);
+
+      if (endTimeIndex <= startIndex) {
+        const endTimeControl = this.appealForm.get('appealEndTime');
+
+        if (endTimeControl) {
+          endTimeControl.reset('');
+          endTimeControl.markAsTouched();
+          endTimeControl.setErrors({ required: true });
+        }
       }
     }
-    this.timeOptions = times;
+    
+    this.cdr.markForCheck();
   }
 
+  // Initialize the form based on previous data (if any)
   private initializeForm(): void {
     if (this.isEditMode) {
       // Edit mode with appeal schedule fields - rebuild the form
       this.appealForm = this.fb.group({
         appealFile: [null, Validators.required],
-        appealDay: [this.data.block.day || '', Validators.required],
+        appealDay: [this.data.appealDay || '', Validators.required],
         appealStartTime: ['', Validators.required],
         appealEndTime: ['', Validators.required],
-        appealRoom: ['', Validators.required],
+        appealRoom: [''],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
     } else {
@@ -107,6 +228,7 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Add event handler for file selection
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -117,10 +239,10 @@ export class DialogAppealScheduleComponent {
         return;
       }
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      // Validate file size (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
       if (file.size > maxSize) {
-        alert('File size must be less than 5MB.');
+        alert('File size must be less than 2MB.');
         event.target.value = '';
         return;
       }
@@ -131,16 +253,19 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Remove selected file button handler
   removeFile(): void {
     this.selectedFile = null;
     this.selectedFileName = '';
     this.appealForm.patchValue({ appealFile: null });
   }
 
+  // Cancel and close the dialog button handler
   onCancel(): void {
     this.dialogRef.close();
   }
 
+  // Clear all form fields button handler
   onClearAll(): void {
     if (this.isEditMode) {
       this.appealForm.reset({
@@ -156,43 +281,45 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  // Submit the appeal form button handler
   onSubmit(): void {
     if (this.appealForm.valid) {
-      if (this.isEditMode) {
-        // Validate end time is after start time
-        const startTime = this.appealForm.value.appealStartTime;
-        const endTime = this.appealForm.value.appealEndTime;
-        
-        if (this.compareTimeStrings(startTime, endTime) >= 0) {
-          alert('End time must be after start time.');
-          return;
-        }
-
-        const appealData = {
-          ...this.data.block,
-          appealFile: this.selectedFile,
-          appealSchedule: {
-            day: this.appealForm.value.appealDay,
-            startTime: this.appealForm.value.appealStartTime,
-            endTime: this.appealForm.value.appealEndTime,
-            room: this.appealForm.value.appealRoom
-          },
-          reason: this.appealForm.value.reason,
-          timestamp: new Date()
-        };
-        
-        console.log('Edit Appeal Submitted:', appealData);
-        this.dialogRef.close(appealData);
-      } else {
-        const appealData = {
-          ...this.data.block,
-          reason: this.appealForm.value.reason,
-          timestamp: new Date()
-        };
-        
-        console.log('Appeal Submitted:', appealData);
-        this.dialogRef.close(appealData);
+      // Validate end time is after start time
+      const startTime = this.appealForm.value.appealStartTime;
+      const endTime = this.appealForm.value.appealEndTime;
+      
+      if (this.compareTimeStrings(startTime, endTime) >= 0) {
+        this.snackBar.open('End time must be after start time.');
+        return;
       }
+
+      this.reschedulingService.submitReschedulingAppeal(
+        this.data.original.scheduleId,
+        this.selectedFile,
+        this.appealForm.value.reason,
+        {
+          day: this.appealForm.value.appealDay,
+          startTime: this.appealForm.value.appealStartTime,
+          endTime: this.appealForm.value.appealEndTime,
+          roomCode: this.appealForm.value.appealRoom
+        },          
+      )
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: (response) => {
+            this.snackBar.open(response.message || 'Appeal submitted successfully.', 
+              'Close', {duration: 3000,}
+            );
+            this.dialogRef.close();
+            // TODO: Remove the send appeal button to the schedule block 
+          },
+          error: (error) => {
+            console.log('Error submitting appeal:', error);
+            this.snackBar.open(error.message, 
+              'Close', {duration: 3000,}
+            );
+          }
+        });
     }
   }
 
