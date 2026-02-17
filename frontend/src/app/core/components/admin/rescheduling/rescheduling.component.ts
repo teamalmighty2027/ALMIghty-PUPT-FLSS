@@ -16,6 +16,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 
+// ── Local view model ───────────────────────────────────────────
 interface ReschedulingAppeal {
   id: number;
   rawAppealId: number;
@@ -27,7 +28,7 @@ interface ReschedulingAppeal {
   originalStartTime?: string;
   originalEndTime?: string;
   originalRoom?: string;
-  appealVerification: string;
+  appealVerification: string;   // 'Pending' | 'Approved' | 'Denied'
   preferredDay?: string;
   preferredStartTime?: string;
   preferredEndTime?: string;
@@ -71,10 +72,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   headerInputFields: any[] = [];
 
   selectedAppeal: ReschedulingAppeal | null = null;
+  showModal = false;
   adminRemarks = '';
-
-  // Get reference to the ng-template in HTML
-  @ViewChild('appealDialog') appealDialog!: TemplateRef<any>;
 
   displayedColumns: string[] = [
     'index', 'facultyName', 'programCode',
@@ -87,10 +86,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
 
-  constructor(
-    private reschedulingService: ReschedulingService,
-    private dialog: MatDialog
-  ) {}
+  constructor(private reschedulingService: ReschedulingService) {}
 
   ngOnInit(): void {
     this.generateTimeOptions();
@@ -113,28 +109,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     }
   }
 
-  private to12Hour(time: string | null | undefined): string {
-    if (!time) return '—';
-    if (time.includes('AM') || time.includes('PM')) return time;
-    const [hourStr, minuteStr] = time.split(':');
-    let hours = parseInt(hourStr, 10);
-    const minutes = minuteStr ?? '00';
-    const period = hours >= 12 ? 'PM' : 'AM';
-    if (hours === 0) hours = 12;
-    else if (hours > 12) hours -= 12;
-    return `${hours}:${minutes} ${period}`;
-  }
-
   private mapAppeal(a: AppealResponse): ReschedulingAppeal {
-    const approved = a.is_approved;
     let status = 'Pending';
-    if (approved === true  || (approved as any) === 1)  status = 'Approved';
-    if (approved === false || (approved as any) === 0)  status = 'Denied';
-
-    const origStart = this.to12Hour(a.original_start_time);
-    const origEnd   = this.to12Hour(a.original_end_time);
-    const appStart  = this.to12Hour(a.appeal_start_time);
-    const appEnd    = this.to12Hour(a.appeal_end_time);
+    if (a.is_approved === true)  status = 'Approved';
+    if (a.is_approved === false) status = 'Denied';
 
     return {
       id:               a.appeal_id,
@@ -142,15 +120,15 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
       facultyName:      a.faculty_name,
       programCode:      a.program_code,
       courseTitle:      a.course_title,
-      originalSchedule: `${a.original_day} | ${origStart} - ${origEnd}`,
+      originalSchedule: `${a.original_day} | ${a.original_start_time} - ${a.original_end_time}`,
       originalDay:      a.original_day,
-      originalStartTime: origStart,
-      originalEndTime:  origEnd,
+      originalStartTime: a.original_start_time,
+      originalEndTime:  a.original_end_time,
       originalRoom:     a.original_room,
       appealVerification: status,
       preferredDay:      a.appeal_day,
-      preferredStartTime: appStart,
-      preferredEndTime:  appEnd,
+      preferredStartTime: a.appeal_start_time,
+      preferredEndTime:  a.appeal_end_time,
       room:              a.appeal_room ?? undefined,
       filePath:          a.file_path,
       reasoning:         a.reasoning,
@@ -174,22 +152,15 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
 
   getRowIndex(i: number): number {
     const pageIndex = this.paginator ? this.paginator.pageIndex : 0;
-    const pageSize  = this.paginator ? this.paginator.pageSize  : 25;
+    const pageSize = this.paginator ? this.paginator.pageSize : 25;
     return i + 1 + pageIndex * pageSize;
   }
 
-  openEditDialog(appeal: ReschedulingAppeal): void {
+  // ── Modal ──────────────────────────────────────────────────────
+  openEditModal(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
     this.adminRemarks = '';
-    
-    this.dialog.open(this.appealDialog, {
-      width: '55%',           
-      maxWidth: '1000px',     
-      maxHeight: '90vh',      
-      height: 'auto',        
-      disableClose: true,
-      panelClass: 'custom-dialog-container'
-    });
+    this.showModal = true;
   }
 
   closeDialog(): void {
@@ -205,6 +176,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     this.selectedAppeal.preferredEndTime   = undefined;
     this.selectedAppeal.room               = undefined;
     this.adminRemarks = '';
+  }
+
+  isDaySelected(day: string): boolean {
+    return this.selectedAppeal?.preferredDay === day;
+  }
+
+  selectDay(day: string): void {
+    if (this.selectedAppeal) this.selectedAppeal.preferredDay = day;
   }
 
   // ── Approve ────────────────────────────────────────────────────
@@ -223,7 +202,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
-        this.closeDialog();
+        this.closeModal();
       },
       error: (err) => console.error('Failed to approve appeal:', err),
     });
@@ -239,7 +218,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Denied');
-        this.closeDialog();
+        this.closeModal();
       },
       error: (err) => console.error('Failed to deny appeal:', err),
     });
@@ -260,8 +239,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     this.dataSource.filter = event?.value?.trim().toLowerCase() ?? '';
   }
 
+  // Build full URL for uploaded appeal PDF
   getFileUrl(filePath: string | null | undefined): string {
     if (!filePath) return "#";
     return `http://127.0.0.1:8000/storage/${filePath}`;
+  }
+
+  assignSchedule(): void {
+    this.approveAppeal();
   }
 }
