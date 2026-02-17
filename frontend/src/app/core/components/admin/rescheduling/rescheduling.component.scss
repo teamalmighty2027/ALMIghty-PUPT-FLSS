@@ -1,5 +1,4 @@
-//rescheduling.component.scss
-
+// rescheduling.component.scss
 @use "../../../../../styles/mixins";
 
 * {
@@ -11,6 +10,7 @@
   @include mixins.custom-spinner-two;
 }
 
+// ─── Page Shell ────────────────────────────────────────────────
 .rescheduling-container {
   @include mixins.default-transition;
   @include mixins.flex-layout(
@@ -22,6 +22,7 @@
   height: 100%;
 }
 
+// ─── Table Container ───────────────────────────────────────────
 .rescheduling-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;
@@ -41,14 +42,9 @@
       @include mixins.default-transition;
       background-color: var(--neutral-light);
 
-      .table-button {
-        color: var(--primary-text);
-      }
-
       td {
         border-bottom: 1px solid var(--mat-table-row-item-outline-color);
       }
-
       tr:last-child td {
         border-bottom: none;
       }
@@ -64,7 +60,6 @@
       color: white;
       font-weight: 500;
       text-align: center;
-
       position: sticky;
       top: 0;
       z-index: 2;
@@ -74,14 +69,36 @@
       padding: var(--spacing-xs);
       text-align: center;
 
+      // ── Status Badges ──
       .status-badge {
-        background-color: var(--primary-one-fade);
-        color: var(--primary-text-lighter);
         padding: var(--spacing-xxs) var(--spacing-sm);
         border-radius: var(--border-radius-lg);
         text-wrap: nowrap;
+        font-size: var(--font-size-sm);
+        font-weight: 500;
       }
 
+      .status-pending {
+        background-color: var(--primary-one-fade);
+        color: var(--primary-text-lighter);
+      }
+
+      .status-approved {
+        background-color: #e6f4ea;
+        color: #2e7d32;
+      }
+
+      .status-denied {
+        background-color: #fdecea;
+        color: #c62828;
+      }
+
+      .status-cancelled {
+        background-color: var(--neutral-fade, #f0f0f0);
+        color: var(--secondary-text);
+      }
+
+      // ── Action Cell ──
       &.action {
         .action-button-container {
           @include mixins.flex-layout($align: stretch);
@@ -117,299 +134,372 @@
           $justify: center,
           $gap: var(--spacing-xs)
         );
-
-        span {
-          opacity: var(--opacity-semi-opaque);
-        }
+        span { opacity: var(--opacity-semi-opaque); }
       }
     }
   }
 }
 
-// Loading wrapper
+// ─── Loading ───────────────────────────────────────────────────
 .loading-wrapper {
   @include mixins.flex-layout($align: center, $justify: center);
   height: 400px;
   width: 100%;
 }
 
-// Modal styles (keeping your existing modal design)
+// ═══════════════════════════════════════════════════════════════
+//  ADMIN REVIEW MODAL
+//  Styled to match dialog.appeal.schedule.component.scss
+// ═══════════════════════════════════════════════════════════════
+
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  padding: 2rem;
+  padding: 1.5rem;
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
+  background: var(--neutral-light, #fff);
+  border-radius: var(--border-radius-md, 8px);
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-level-3, 0 8px 32px rgba(0,0,0,0.18));
+  display: flex;
+  flex-direction: column;
 }
 
+// ── Modal Header ───────────────────────────────────────────────
+// Matches .dialog-header from dialog.appeal.schedule.component.scss
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--neutral-fade);
+
+  .modal-title {
+    margin: 0;
+    color: var(--primary-text);
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .modal-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--secondary-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-xxs);
+    border-radius: var(--border-radius-sm);
+    transition: background 0.2s;
+
+    &:hover {
+      background-color: var(--secondary-hover);
+    }
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+}
+
+// ── Modal Top (full-width current schedule) ────────────────────
+.modal-top {
+  padding: var(--spacing-md) var(--spacing-md) 0;
+
+  .schedule-summary {
+    margin-bottom: 0;
+  }
+
+  // Vertical line-by-line layout
+  .current-schedule-grid {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// ── Modal Body ─────────────────────────────────────────────────
 .modal-body {
   display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
+  gap: 0;
+  padding: var(--spacing-sm) var(--spacing-md);
+
+  // Visual divider in the middle
+  .modal-left {
+    padding-right: var(--spacing-md);
+    border-right: 1px solid var(--neutral-fade);
+  }
+
+  .modal-right {
+    padding-left: var(--spacing-md);
+  }
 
   @media (max-width: 768px) {
     flex-direction: column;
   }
 }
 
-// Left Section - Original Schedule
+// ─────────────────────────────────────────────────────────────
+//  LEFT PANEL
+//  Reuses .schedule-summary + .reason-section + .document-section
+// ─────────────────────────────────────────────────────────────
 .modal-left {
-  flex: 1;
-  padding: 1rem;
-  background-color: #f0f8ff;
-  border-radius: 8px;
-  border: 1px solid #b8d4f1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
 }
 
-.original-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+// Sized to match the mat-form-field text in the right panel
+.schedule-summary {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
 
-  .calendar-icon {
-    font-size: 1.5rem;
+  // Requested schedule variant — slightly different border to distinguish
+  &.requested-schedule {
+    border-color: var(--primary-one, #7d1f1f);
+    border-left: 3px solid var(--primary-one, #7d1f1f);
   }
 
-  h3 {
-    margin: 0;
-    font-size: 1.1rem;
+  .section-label {
+    font-size: var(--font-size-xs);
     font-weight: 600;
-    color: #333;
+    color: var(--primary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--neutral-fade);
   }
 
-  .subtitle {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #666;
-  }
-}
+  .info-row {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: var(--spacing-sm);
 
-.original-schedule-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 6px;
-  border: 1px solid #d4e6f7;
+    &:last-child { margin-bottom: 0; }
 
-  .schedule-item {
-    margin-bottom: 1rem;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    label {
-      display: block;
-      font-size: 0.8rem;
+    .label {
       font-weight: 600;
-      color: #666;
-      margin-bottom: 0.25rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      min-width: 70px;
+      color: var(--secondary-text);
+      font-size: 0.875rem;
     }
 
-    .schedule-value {
-      font-size: 0.95rem;
-      color: #333;
-      padding: 0.4rem 0.5rem;
-      background-color: #f8f8f8;
-      border-radius: 4px;
+    .value {
+      color: var(--primary-text);
+      font-weight: 500;
+      font-size: 1rem;
     }
   }
 }
 
-// Right Section
+// Matches dialog .reason-section exactly
+.reason-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
+
+  // with-spacing no longer needed — footer gap handles vertical rhythm
+
+  .reason-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--primary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--neutral-fade);
+  }
+
+  .reason-text {
+    font-size: var(--font-size-sm);
+    color: var(--primary-text);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  mat-form-field {
+    margin-bottom: 0;
+  }
+}
+
+// Document attachment row
+.document-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
+
+  .section-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--primary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  .doc-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background-color: var(--neutral-light);
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+
+    .doc-icon {
+      color: #d32f2f;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+
+    .doc-name {
+      flex: 1;
+      font-size: var(--font-size-sm);
+      color: var(--primary-text);
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .doc-view-btn {
+      color: var(--secondary-text);
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RIGHT PANEL
+//  Reuses .edit-mode-section + .reason-section from dialog
+// ─────────────────────────────────────────────────────────────
 .modal-right {
-  flex: 1.5;
-  padding: 1rem;
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 0.25rem 0;
-}
-
-.course-info {
-  font-size: 0.9rem;
-  color: #666;
-  margin: 0 0 1.5rem 0;
-}
-
-.day-selector {
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.day-btn {
-  padding: 0.6rem 1rem;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+// Matches dialog .edit-mode-section exactly
+.edit-mode-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
 
-  &:hover {
-    background-color: #f5f5f5;
-  }
-
-  &.active {
-    background-color: #7d1f1f;
-    color: white;
-    border-color: #7d1f1f;
-  }
-}
-
-.time-section {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-
-  @media (max-width: 568px) {
-    flex-direction: column;
-  }
-}
-
-.time-input-group {
-  flex: 1;
-
-  label {
+  .suggested-label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 0.5rem;
-
-    .icon {
-      font-size: 1rem;
-    }
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--primary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--neutral-fade);
   }
 
-  .time-select {
-    width: 100%;
-    padding: 0.6rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    background-color: white;
-    cursor: pointer;
+  mat-form-field {
+    margin-bottom: var(--spacing-xs);
+  }
 
-    &:focus {
-      outline: none;
-      border-color: #7d1f1f;
-    }
+  .full-width { width: 100%; }
+}
+
+// Matches dialog .time-row exactly
+.time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+
+  .time-field { width: 100%; }
+}
+
+// ── Modal Footer (full-width remarks + actions) ────────────────
+.modal-footer {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+
+  .reason-section {
+    margin-top: 0;
+  }
+
+  .full-width {
+    width: 100%;
   }
 }
 
-.info-field {
-  margin-bottom: 1.5rem;
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: #333;
-    margin-bottom: 0.5rem;
-
-    .icon {
-      font-size: 1rem;
-    }
-  }
-
-  .info-value {
-    padding: 0.6rem;
-    background-color: #f8f8f8;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    color: #555;
-  }
-
-  .room-input {
-    width: 100%;
-    padding: 0.6rem;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 0.9rem;
-
-    &:focus {
-      outline: none;
-      border-color: #7d1f1f;
-    }
-  }
-}
-
+// ── Modal Action Buttons ───────────────────────────────────────
+// Matches dialog mat-dialog-actions
 .modal-actions {
   display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) 0 0 0;
+  border-top: 1px solid var(--neutral-fade);
 
-  button {
-    padding: 0.6rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 500;
+  .btn-clear {
+    margin-right: auto;
+    color: var(--secondary-text);
+  }
 
-    &.btn-clear {
-      background-color: transparent;
-      color: #666;
-      border: 1px solid #ddd;
+  .btn-cancel {
+    color: var(--secondary-text);
+  }
 
-      &:hover {
-        background-color: #f5f5f5;
-      }
+  .btn-deny {
+    background-color: var(--primary-one, #7d1f1f);
+    color: white;
+
+    &:hover {
+      background-color: var(--primary-one-dark, #6a1a1a);
     }
+  }
 
-    &.btn-cancel {
-      background-color: transparent;
-      color: #666;
-      border: 1px solid #ddd;
+  .btn-approve {
+    background-color: var(--primary-one, #7d1f1f);
+    color: white;
 
-      &:hover {
-        background-color: #f5f5f5;
-      }
+    &:hover {
+      background-color: var(--primary-one-dark, #6a1a1a);
     }
+  }
+}
 
-    &.btn-assign {
-      background-color: #7d1f1f;
-      color: white;
-
-      &:hover {
-        background-color: #6a1a1a;
-      }
-    }
+// Material prefix icon sizing (mirror dialog ::ng-deep)
+::ng-deep {
+  mat-icon[matPrefix] {
+    margin-right: var(--spacing-xs);
+    color: var(--secondary-text);
   }
 }
