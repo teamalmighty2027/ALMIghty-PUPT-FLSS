@@ -107,10 +107,34 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     }
   }
 
+  /**
+   * Converts "08:00:00" or "08:00" (DB time format) → "8:00 AM"
+   * Also handles already-converted "8:00 AM" strings safely.
+   */
+  private to12Hour(time: string | null | undefined): string {
+    if (!time) return '—';
+    // Already 12-hour format
+    if (time.includes('AM') || time.includes('PM')) return time;
+    const [hourStr, minuteStr] = time.split(':');
+    let hours = parseInt(hourStr, 10);
+    const minutes = minuteStr ?? '00';
+    const period = hours >= 12 ? 'PM' : 'AM';
+    if (hours === 0) hours = 12;
+    else if (hours > 12) hours -= 12;
+    return `${hours}:${minutes} ${period}`;
+  }
+
   private mapAppeal(a: AppealResponse): ReschedulingAppeal {
+    // MySQL returns 1/0/null for tinyint, not true/false/null
+    const approved = a.is_approved;
     let status = 'Pending';
-    if (a.is_approved === true)  status = 'Approved';
-    if (a.is_approved === false) status = 'Denied';
+    if (approved === true  || (approved as any) === 1)  status = 'Approved';
+    if (approved === false || (approved as any) === 0)  status = 'Denied';
+
+    const origStart = this.to12Hour(a.original_start_time);
+    const origEnd   = this.to12Hour(a.original_end_time);
+    const appStart  = this.to12Hour(a.appeal_start_time);
+    const appEnd    = this.to12Hour(a.appeal_end_time);
 
     return {
       id:               a.appeal_id,
@@ -118,15 +142,15 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
       facultyName:      a.faculty_name,
       programCode:      a.program_code,
       courseTitle:      a.course_title,
-      originalSchedule: `${a.original_day} | ${a.original_start_time} - ${a.original_end_time}`,
+      originalSchedule: `${a.original_day} | ${origStart} - ${origEnd}`,
       originalDay:      a.original_day,
-      originalStartTime: a.original_start_time,
-      originalEndTime:  a.original_end_time,
+      originalStartTime: origStart,
+      originalEndTime:  origEnd,
       originalRoom:     a.original_room,
       appealVerification: status,
       preferredDay:      a.appeal_day,
-      preferredStartTime: a.appeal_start_time,
-      preferredEndTime:  a.appeal_end_time,
+      preferredStartTime: appStart,
+      preferredEndTime:  appEnd,
       room:              a.appeal_room ?? undefined,
       filePath:          a.file_path,
       reasoning:         a.reasoning,
