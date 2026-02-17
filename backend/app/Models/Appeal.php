@@ -11,6 +11,12 @@ class Appeal extends Model
 
     protected $fillable = [
         'schedule_id',
+        // Snapshot of original schedule at submission time (never changes)
+        'original_day',
+        'original_start_time',
+        'original_end_time',
+        'original_room_code',
+        // Faculty's requested new schedule
         'day',
         'start_time',
         'end_time',
