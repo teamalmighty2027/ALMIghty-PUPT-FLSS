@@ -7,12 +7,18 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
+import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 
+// ── Local view model ───────────────────────────────────────────
 interface ReschedulingAppeal {
   id: number;
+  rawAppealId: number;
   facultyName: string;
   programCode: string;
   courseTitle: string;
@@ -21,11 +27,13 @@ interface ReschedulingAppeal {
   originalStartTime?: string;
   originalEndTime?: string;
   originalRoom?: string;
-  appealVerification: string;
+  appealVerification: string;   // 'Pending' | 'Approved' | 'Denied'
   preferredDay?: string;
   preferredStartTime?: string;
   preferredEndTime?: string;
   room?: string;
+  filePath?: string | null;
+  reasoning?: string | null;
 }
 
 @Component({
@@ -40,52 +48,55 @@ interface ReschedulingAppeal {
     MatButtonModule,
     MatTooltipModule,
     MatSlideToggleModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
     LoadingComponent,
-    TableHeaderComponent
+    TableHeaderComponent,
   ],
   animations: [
     trigger('fadeAnimation', [
       transition(':enter', [
         style({ opacity: 0 }),
-        animate('300ms', style({ opacity: 1 }))
-      ])
-    ])
+        animate('300ms', style({ opacity: 1 })),
+      ]),
+    ]),
   ],
   templateUrl: './rescheduling.component.html',
-  styleUrl: './rescheduling.component.scss'
+  styleUrl: './rescheduling.component.scss',
 })
 export class ReschedulingComponent implements OnInit, AfterViewInit {
-  // Loading state
   isLoading = false;
-  
-  // Header input fields for search/filter
   headerInputFields: any[] = [];
 
-  pendingAppeals: ReschedulingAppeal[] = [];
   selectedAppeal: ReschedulingAppeal | null = null;
-  showModal: boolean = false;
+  showModal = false;
+  adminRemarks = '';
 
-  // Table
-  displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
+  displayedColumns: string[] = [
+    'index', 'facultyName', 'programCode',
+    'originalSchedule', 'appealVerification', 'action',
+  ];
   dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
-  // Days & time
-  daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
+
+  constructor(private reschedulingService: ReschedulingService) {}
 
   ngOnInit(): void {
     this.generateTimeOptions();
-    this.loadMockData();
+    this.loadAppeals();
   }
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
   }
 
+  // ── Helpers ────────────────────────────────────────────────────
   generateTimeOptions(): void {
-    // Generate time options from 7:00 AM to 9:00 PM in 30-minute intervals
     for (let hour = 7; hour <= 21; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -96,145 +107,73 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     }
   }
 
-  loadMockData(): void {
-    // Mock data - replace this with actual API call
-    this.pendingAppeals = [
-      {
-        id: 1,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'COMP 001',
-        courseTitle: 'Introduction to Computing',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Mon',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'A301',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 2,
-        facultyName: 'Olazo, John Albert F',
-        programCode: 'COMP 002',
-        courseTitle: 'Computer Programming 1',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Tue',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'Aboitiz',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 3,
-        facultyName: 'Jundam, Dann Kyle O',
-        programCode: 'INTE 301',
-        courseTitle: 'Integrative Programming',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Sat',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'DOST',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 4,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'COMP 002',
-        courseTitle: 'Computer Programming 2',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Thu',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'A401',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 5,
-        facultyName: 'Olazo, John Albert F',
-        programCode: 'COMP 014',
-        courseTitle: 'Data Structures',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Fri',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'A302',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 6,
-        facultyName: 'Espinola, Frankie Josh M',
-        programCode: 'COMP 005',
-        courseTitle: 'Database Administration',
-        originalSchedule: '12:00 AM - 5:00 PM',
-        originalDay: 'Mon',
-        originalStartTime: '12:00 AM',
-        originalEndTime: '5:00 PM',
-        originalRoom: 'DOST',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 7,
-        facultyName: 'Bautista, John Matthew B',
-        programCode: 'INTE 302',
-        courseTitle: 'Systems Analysis and Design',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Sat',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'A204',
-        appealVerification: 'Not started'
-      },
-      {
-        id: 8,
-        facultyName: 'Dimayuga, Adriel Joseph B',
-        programCode: 'ACCO 014',
-        courseTitle: 'Principles of Accounting',
-        originalSchedule: '8:00 AM - 11:00 AM',
-        originalDay: 'Wed',
-        originalStartTime: '8:00 AM',
-        originalEndTime: '11:00 AM',
-        originalRoom: 'E304',
-        appealVerification: 'Not started'
-      }
-    ];
+  private mapAppeal(a: AppealResponse): ReschedulingAppeal {
+    let status = 'Pending';
+    if (a.is_approved === true)  status = 'Approved';
+    if (a.is_approved === false) status = 'Denied';
 
-    this.dataSource.data = this.pendingAppeals;
+    return {
+      id:               a.appeal_id,
+      rawAppealId:      a.appeal_id,
+      facultyName:      a.faculty_name,
+      programCode:      a.program_code,
+      courseTitle:      a.course_title,
+      originalSchedule: `${a.original_day} | ${a.original_start_time} - ${a.original_end_time}`,
+      originalDay:      a.original_day,
+      originalStartTime: a.original_start_time,
+      originalEndTime:  a.original_end_time,
+      originalRoom:     a.original_room,
+      appealVerification: status,
+      preferredDay:      a.appeal_day,
+      preferredStartTime: a.appeal_start_time,
+      preferredEndTime:  a.appeal_end_time,
+      room:              a.appeal_room ?? undefined,
+      filePath:          a.file_path,
+      reasoning:         a.reasoning,
+    };
+  }
+
+  // ── Data loading ───────────────────────────────────────────────
+  loadAppeals(): void {
+    this.isLoading = true;
+    this.reschedulingService.getAllAppeals().subscribe({
+      next: (data) => {
+        this.dataSource.data = data.map(a => this.mapAppeal(a));
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Failed to load appeals:', err);
+        this.isLoading = false;
+      },
+    });
   }
 
   getRowIndex(i: number): number {
     const pageIndex = this.paginator ? this.paginator.pageIndex : 0;
-    const pageSize = this.paginator ? this.paginator.pageSize : 25;
+    const pageSize  = this.paginator ? this.paginator.pageSize  : 25;
     return i + 1 + pageIndex * pageSize;
   }
 
-  // Actions
-  onView(appeal: ReschedulingAppeal): void {
-    this.openEditModal(appeal);
-  }
-
-  onExportAll(): void {
-    console.log('Export all appeals', this.dataSource.data);
-    // Stub: implement real export (CSV/Excel) as needed.
-  }
-
-  onInputChange(event: any): void {
-    console.log('Input changed:', event);
-    // Stub: implement search/filter logic here
-  }
-
-  onExportSingle(appeal: ReschedulingAppeal): void {
-    console.log('Export single appeal', appeal);
-    // Stub: implement real export for `appeal`.
-  }
-
+  // ── Modal ──────────────────────────────────────────────────────
   openEditModal(appeal: ReschedulingAppeal): void {
-    console.log('Opening edit modal for appeal:', appeal);
     this.selectedAppeal = { ...appeal };
+    this.adminRemarks = '';
     this.showModal = true;
   }
 
   closeModal(): void {
     this.showModal = false;
     this.selectedAppeal = null;
+    this.adminRemarks = '';
+  }
+
+  clearAll(): void {
+    if (!this.selectedAppeal) return;
+    this.selectedAppeal.preferredDay       = undefined;
+    this.selectedAppeal.preferredStartTime = undefined;
+    this.selectedAppeal.preferredEndTime   = undefined;
+    this.selectedAppeal.room               = undefined;
+    this.adminRemarks = '';
   }
 
   isDaySelected(day: string): boolean {
@@ -245,24 +184,66 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     if (this.selectedAppeal) this.selectedAppeal.preferredDay = day;
   }
 
-  clearAll(): void {
-    if (this.selectedAppeal) {
-      this.selectedAppeal.preferredDay = 'Tue';
-      this.selectedAppeal.preferredStartTime = '8:00 AM';
-      this.selectedAppeal.preferredEndTime = '11:00 AM';
-      this.selectedAppeal.room = 'A401';
-    }
+  // ── Approve ────────────────────────────────────────────────────
+  approveAppeal(): void {
+    if (!this.selectedAppeal) return;
+
+    this.reschedulingService.approveAppeal(
+      this.selectedAppeal.rawAppealId,
+      {
+        day:       this.selectedAppeal.preferredDay       ?? '',
+        startTime: this.selectedAppeal.preferredStartTime ?? '',
+        endTime:   this.selectedAppeal.preferredEndTime   ?? '',
+        room:      this.selectedAppeal.room               ?? '',
+      },
+      this.adminRemarks
+    ).subscribe({
+      next: () => {
+        this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
+        this.closeModal();
+      },
+      error: (err) => console.error('Failed to approve appeal:', err),
+    });
+  }
+
+  // ── Deny ───────────────────────────────────────────────────────
+  denyAppeal(): void {
+    if (!this.selectedAppeal) return;
+
+    this.reschedulingService.denyAppeal(
+      this.selectedAppeal.rawAppealId,
+      this.adminRemarks
+    ).subscribe({
+      next: () => {
+        this.updateLocalStatus(this.selectedAppeal!.id, 'Denied');
+        this.closeModal();
+      },
+      error: (err) => console.error('Failed to deny appeal:', err),
+    });
+  }
+
+  private updateLocalStatus(id: number, status: string): void {
+    this.dataSource.data = this.dataSource.data.map(row =>
+      row.id === id ? { ...row, appealVerification: status } : row
+    );
+  }
+
+  // ── Other ──────────────────────────────────────────────────────
+  onExportAll(): void {
+    console.log('Export all appeals', this.dataSource.data);
+  }
+
+  onInputChange(event: any): void {
+    this.dataSource.filter = event?.value?.trim().toLowerCase() ?? '';
+  }
+
+  // Build full URL for uploaded appeal PDF
+  getFileUrl(filePath: string | null | undefined): string {
+    if (!filePath) return "#";
+    return `http://127.0.0.1:8000/storage/${filePath}`;
   }
 
   assignSchedule(): void {
-    if (!this.selectedAppeal) return;
-    const index = this.pendingAppeals.findIndex(a => a.id === this.selectedAppeal!.id);
-    if (index !== -1) {
-      this.pendingAppeals[index] = { ...this.selectedAppeal };
-      this.pendingAppeals[index].appealVerification = 'Scheduled';
-      this.dataSource.data = this.pendingAppeals;
-    }
-    console.log('Assigning schedule:', this.selectedAppeal);
-    this.closeModal();
+    this.approveAppeal();
   }
 }

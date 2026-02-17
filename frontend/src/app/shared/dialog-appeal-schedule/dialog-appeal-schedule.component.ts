@@ -314,7 +314,7 @@ export class DialogAppealScheduleComponent {
             // TODO: Remove the send appeal button to the schedule block 
           },
           error: (error) => {
-            console.log('Error submitting appeal:', error);
+            console.log('Full error:', JSON.stringify(error));
             this.snackBar.open(error.message, 
               'Close', {duration: 3000,}
             );
