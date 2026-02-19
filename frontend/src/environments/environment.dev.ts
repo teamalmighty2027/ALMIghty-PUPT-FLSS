@@ -7,6 +7,6 @@
 
 export const environment = {
   production: false,
-  apiUrl: 'http://127.0.0.1:8000/api',
+  apiUrl: 'https://flss-backend-api-d9eecxcnhpccdpdk.southeastasia-01.azurewebsites.net/api',
   appUrl: 'http://localhost:4201',
 };
