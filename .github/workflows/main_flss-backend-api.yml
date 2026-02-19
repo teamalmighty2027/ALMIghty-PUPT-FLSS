@@ -6,7 +6,7 @@ name: Build and deploy PHP app to Azure Web App - flss-backend-api
 on:
   push:
     branches:
-      - test-deployment-1
+      - main
   workflow_dispatch:
 
 jobs:
