@@ -6,5 +6,5 @@ export const environment = {
   // 2. YOUR FUTURE FRONTEND URL
   // (We don't know this yet because we haven't deployed the frontend. 
   // For now, put a placeholder or your planned custom domain if you have one.)
-  appUrl: 'https://flss-frontend.azurestaticapps.net', 
+  appUrl: 'https://flssfrontendstore.z23.web.core.windows.net/', 
 };
