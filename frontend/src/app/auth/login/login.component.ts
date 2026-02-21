@@ -75,31 +75,34 @@ export class LoginComponent implements OnInit, OnDestroy {
   handleFacultyLogin(): void {
     if (this.isRedirectDialogOpen || this.isFacultyDialogOpen) return;
 
-    this.isRedirectDialogOpen = true;
-    const dialogRef = this.dialog.open(DialogRedirectComponent, {
-      disableClose: true,
-      data: { checkingFesr: true },
-    });
+    // this.isRedirectDialogOpen = true;
+    // const dialogRef = this.dialog.open(DialogRedirectComponent, {
+    //   disableClose: true,
+    //   data: { checkingFesr: true },
+    // });
 
-    dialogRef.afterClosed().subscribe(() => {
-      this.isRedirectDialogOpen = false;
-    });
+    // dialogRef.afterClosed().subscribe(() => {
+    //   this.isRedirectDialogOpen = false;
+    // });
 
-    this.authService.checkFesrHealth().subscribe({
-      next: (isHealthy) => {
-        if (isHealthy) {
-          dialogRef.componentInstance.updateState(false, true);
-        } else {
-          dialogRef.close();
-          this.openFacultyLoginDialog();
-        }
-      },
-      error: (error) => {
-        console.error('Error checking FESR health:', error);
-        dialogRef.close();
-        this.openFacultyLoginDialog();
-      },
-    });
+    this.openFacultyLoginDialog();
+
+    // NOTE: Temporary disconnect FESR health checker
+    // this.authService.checkFesrHealth().subscribe({
+    //   next: (isHealthy) => {
+    //     if (isHealthy) {
+    //       dialogRef.componentInstance.updateState(false, true);
+    //     } else {
+    //       dialogRef.close();
+    //       this.openFacultyLoginDialog();
+    //     }
+    //   },
+    //   error: (error) => {
+    //     console.error('Error checking FESR health:', error);
+    //     dialogRef.close();
+    //     this.openFacultyLoginDialog();
+    //   },
+    // });
   }
 
   openFacultyLoginDialog(): void {
