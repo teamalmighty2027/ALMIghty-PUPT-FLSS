@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, concat } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -34,7 +34,7 @@ interface TableData extends Course {
   preferredDays: PreferredDay[];
   isSubmitted: boolean;
   program_details: Program | undefined;
-  sections: Sections | undefined;
+  year_section: String;
 }
 
 @Component({
@@ -142,7 +142,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   displayedColumns: string[] = [
     'action',
     'program',
-    'section',
+    'year_section',
     'course_code',
     'course_title',
     'lec_hours',
@@ -294,7 +294,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: this.selectedProgram(),
-      sections: this.selectedSection()
+      year_section: this.getYearSection()
     }));
   }
 
@@ -410,8 +410,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public addCourseToTable(course: Course): void {
     if (this.isCourseAlreadyAdded(course)) return;
 
-    console.log(course);
-
     const newCourse: TableData = {
       ...course,
       preferredDays: this.daysOfWeek.map((day) => ({
@@ -421,7 +419,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram() ?? undefined,
-      sections: this.selectedSection()
+      year_section: this.getYearSection()
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
@@ -652,5 +650,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
+  }
+
+  public getYearSection(): String {
+    return this.selectedYearLevel() 
+      + "-" + 
+      this.selectedSection()?.section_number;
   }
 }
