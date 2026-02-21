@@ -314,7 +314,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public selectProgram(program: Program): void {
     this.selectedProgram.set(program);
     this.searchState.set('courseList');
-    this.selectedYearLevel.set(null);
+
+    // TODO: Find a way to fit, year level fetching (auto) and section selection UI
+    this.selectedSection.set(undefined);
+    this.selectedYearLevel.set(1);
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -385,6 +388,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   public onSearchInput(query: string): void {
+    // Prevent searchbar activation when program not selected
+    if (this.searchState() == "programSelection") {
+      this.showSnackBar("Choose a program first!");
+      return;
+    }
+
     this.searchQuerySubject.next(query);
   }
 
