@@ -33,7 +33,7 @@ import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../.
 interface TableData extends Course {
   preferredDays: PreferredDay[];
   isSubmitted: boolean;
-  program_code?: string | null;
+  program_details: Program | undefined;
 }
 
 @Component({
@@ -290,10 +290,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       pre_req: course.course_details.pre_req ?? null,
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
-      program_code:
-        course.course_details?.program_code ??
-        course.program_code ??
-        null,
+      program_details: this.selectedProgram()
     }));
   }
 
@@ -409,6 +406,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public addCourseToTable(course: Course): void {
     if (this.isCourseAlreadyAdded(course)) return;
 
+    console.log(this.selectedProgram());
+
     const newCourse: TableData = {
       ...course,
       preferredDays: this.daysOfWeek.map((day) => ({
@@ -417,7 +416,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         end_time: '',
       })),
       isSubmitted: false,
-      program_code: this.selectedProgram()?.program_code ?? (course as any).program_code ?? null,
+      program_details: this.selectedProgram() ?? undefined,
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
