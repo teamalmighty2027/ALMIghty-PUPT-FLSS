@@ -26,7 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { CookieService } from 'ngx-cookie-service';
-import { Program, Course, PreferredDay } from '../../../models/preferences.model';
+import { Program, Course, PreferredDay, Sections } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 
@@ -34,6 +34,7 @@ interface TableData extends Course {
   preferredDays: PreferredDay[];
   isSubmitted: boolean;
   program_details: Program | undefined;
+  sections: Sections | undefined;
 }
 
 @Component({
@@ -76,6 +77,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   programs = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);
+  selectedSection = signal<Sections | undefined>(undefined);
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
       ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
@@ -140,6 +142,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   displayedColumns: string[] = [
     'action',
     'program',
+    'section',
     'course_code',
     'course_title',
     'lec_hours',
@@ -290,7 +293,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       pre_req: course.course_details.pre_req ?? null,
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
-      program_details: this.selectedProgram()
+      program_details: this.selectedProgram(),
+      sections: this.selectedSection()
     }));
   }
 
@@ -406,7 +410,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public addCourseToTable(course: Course): void {
     if (this.isCourseAlreadyAdded(course)) return;
 
-    console.log(this.selectedProgram());
+    console.log(course);
 
     const newCourse: TableData = {
       ...course,
@@ -417,6 +421,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram() ?? undefined,
+      sections: this.selectedSection()
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);

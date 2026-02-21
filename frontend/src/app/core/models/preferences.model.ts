@@ -42,6 +42,11 @@ export interface YearLevel {
   semester: SemesterDetails;
 }
 
+export interface Sections {
+  year_level: YearLevel;
+  section_number: number;
+}
+
 export interface Program {
   program_id: number;
   program_code: string;
