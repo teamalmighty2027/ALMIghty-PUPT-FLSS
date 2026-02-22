@@ -818,7 +818,8 @@ class AcademicYearController extends Controller
                 'co.lab_hours',
                 'co.units',
                 'co.tuition_hours',
-                'ca.course_assignment_id' // Add this line to select course_assignment_id
+                'ca.course_assignment_id',
+                'sppy.section_name'
             )
             ->join('programs as p', 'pylc.program_id', '=', 'p.program_id')
             ->join('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
@@ -839,6 +840,12 @@ class AcademicYearController extends Controller
                 $join->on('ca.semester_id', '=', 's.semester_id')
                     ->on('ca.curricula_program_id', '=', 'cp.curricula_program_id');
             })
+            ->leftJoin('section_courses as sc', function ($join) {
+                $join->on('ca.course_assignment_id', '=', 'sc.course_assignment_id');
+            })
+            ->leftJoin('sections_per_program_year as sppy', function ($join) {
+                $join->on('sc.sections_per_program_year_id', '=', 'sppy.sections_per_program_year_id');
+            })            
             ->leftJoin('courses as co', 'ca.course_id', '=', 'co.course_id')
             ->where('pylc.academic_year_id', $activeSemester->academic_year_id) // Match the active academic year
             ->orderBy('p.program_id')
@@ -882,6 +889,7 @@ class AcademicYearController extends Controller
                     'year_level' => $row->year_level,
                     'curriculum_id' => $row->curriculum_id,
                     'curriculum_year' => $row->curriculum_year,
+                    'section_name' => $row->section_name,
                     'semester' => [
                         'semester' => $activeSemester->semester_id,
                         'courses' => [],

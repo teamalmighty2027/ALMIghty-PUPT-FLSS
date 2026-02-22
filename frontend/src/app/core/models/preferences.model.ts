@@ -40,6 +40,7 @@ export interface YearLevel {
   curriculum_id: number;
   curriculum_year: string;
   semester: SemesterDetails;
+  section_name: number
 }
 
 export interface Sections {
