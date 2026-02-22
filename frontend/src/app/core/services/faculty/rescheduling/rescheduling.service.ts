@@ -21,7 +21,7 @@ export interface AppealResponse {
   appeal_room: string | null;
   file_path: string | null;
   reasoning: string | null;
-  is_approved: boolean | null;
+  is_approved: 'pending' | 'approved' | 'denied';
   created_at: string;
 }
 
