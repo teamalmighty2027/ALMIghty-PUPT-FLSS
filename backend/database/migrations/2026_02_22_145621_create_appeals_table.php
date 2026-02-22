@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('day');
             $table->time('start_time');
             $table->time('end_time');
-            $table->string('room')->nullable();
+            $table->unsignedBigInteger('room_id')->nullable();
             
             // Justification & Files
             $table->text('reason')->nullable();
