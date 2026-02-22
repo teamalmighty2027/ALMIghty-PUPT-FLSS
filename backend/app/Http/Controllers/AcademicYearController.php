@@ -902,13 +902,14 @@ class AcademicYearController extends Controller
             if ($row->course_id !== null) {
                 $response['programs'][$programIndex]['year_levels'][$yearLevelIndex]['semester']['courses'][] = [
                     'course_assignment_id' => $row->course_assignment_id,
-                    'course_id' => $row->course_id, // Include course_assignment_id here
+                    'course_id' => $row->course_id,
                     'course_code' => $row->course_code,
                     'course_title' => $row->course_title,
                     'lec_hours' => $row->lec_hours,
                     'lab_hours' => $row->lab_hours,
                     'units' => $row->units,
                     'tuition_hours' => $row->tuition_hours,
+                    'year_level' => $yearLevelIndex
                 ];
             }
         }

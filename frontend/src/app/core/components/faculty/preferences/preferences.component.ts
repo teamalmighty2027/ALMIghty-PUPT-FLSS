@@ -237,6 +237,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           next: (programsResponse) => {
             if (!programsResponse) return;
 
+            console.log(programsResponse);
+
             const allCoursesMap = new Map<string, Course>();
             programsResponse.programs.forEach((program) =>
               this.populateUniqueCourses(program, allCoursesMap),
@@ -294,7 +296,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: this.selectedProgram(),
-      year_section: this.getYearSection()
+      year_section: this.getYearSection(course),
+      year_level: this.selectedYearLevel()
     }));
   }
 
@@ -316,8 +319,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.searchState.set('courseList');
 
     // TODO: Find a way to fit, year level fetching (auto) and section selection UI
-    this.selectedSection.set(undefined);
-    this.selectedYearLevel.set(1);
+    // this.selectedSection.set(undefined);
+    // this.selectedYearLevel.set(null);
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -326,7 +329,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private populateUniqueCourses(
     program: Program,
     coursesMap: Map<string, Course>,
-  ): void {
+  ): void {    
     program.year_levels.forEach((yearLevel) => {
       yearLevel.semester.courses.forEach((course) => {
         coursesMap.set(course.course_code, course);
@@ -428,7 +431,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram() ?? undefined,
-      year_section: this.getYearSection()
+      year_section: this.getYearSection(course)
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
@@ -657,13 +660,18 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       : '';
   }
 
+  // TODO: Fix side effect where filter activates after clicking a subject
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
   }
 
-  public getYearSection(): String {
+  public getYearSection(course: Course): String {
+    if (this.selectedYearLevel() == null) {
+      this.selectedYearLevel.set(course.year_level)
+    }
+
     return this.selectedYearLevel() 
       + "-" + 
-      this.selectedSection()?.section_number;
+      this.selectedSection()?.section_name;
   }
 }
