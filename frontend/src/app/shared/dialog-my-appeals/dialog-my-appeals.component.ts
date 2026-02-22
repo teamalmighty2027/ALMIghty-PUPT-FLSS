@@ -5,13 +5,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ReschedulingService, AppealResponse } from '../../core/services/faculty/rescheduling/rescheduling.service';
-
-// Import your environment variables
-import { environment } from '../../../../../environments/environment.dev';
+import { environment } from '../../../environments/environment.dev';
 
 interface AppealView {
   appealId:         number;
-  status:           string;        // 'Pending' | 'Approved' | 'Denied'
+  status:           string; 
   createdAt:        string;
   originalDay:      string;
   originalStartTime: string;
@@ -67,9 +65,9 @@ export class DialogMyAppealsComponent implements OnInit {
   }
 
   // Updated to use the new string ENUM from the database
-  private mapStatus(is_approved: string | null): string {
-    if (is_approved === 'approved') return 'Approved';
-    if (is_approved === 'denied')   return 'Denied';
+  private mapStatus(is_approved: number | boolean | null | any): string {
+    if (is_approved === true  || is_approved === 1)  return 'Approved';
+    if (is_approved === false || is_approved === 0)  return 'Denied';
     return 'Pending';
   }
 
@@ -80,7 +78,7 @@ export class DialogMyAppealsComponent implements OnInit {
         const filtered = data.filter(a => a.schedule_id === this.data.scheduleId);
         this.appeals = filtered.map(a => ({
           appealId:          a.appeal_id,
-          status:            this.mapStatus(a.is_approved as string), // Casting to ensure type safety
+          status:            this.mapStatus(a.is_approved),
           createdAt:         new Date(a.created_at).toLocaleDateString('en-US', {
                                year: 'numeric', month: 'short', day: 'numeric'
                              }),

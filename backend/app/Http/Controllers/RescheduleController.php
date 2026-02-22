@@ -61,7 +61,7 @@ class RescheduleController extends Controller
             'room_id'             => $roomId,
             'file_path'           => $filePath,
             'reasoning'           => $validated['reason'],
-            'is_approved'         => 'pending',
+            'is_approved'         => null,
         ]);
 
         return response()->json(['message' => 'Appeal submitted successfully.', 'appeal' => $appeal], 201);
@@ -201,7 +201,7 @@ class RescheduleController extends Controller
 
         DB::transaction(function () use ($appeal, $validated, $roomId) {
             $appeal->update([
-                'is_approved' => 'approved',
+                'is_approved' => 1,
                 'admin_remarks' => $validated['admin_remarks'] ?? null,
                 'day'         => $validated['day'],
                 'start_time'  => $validated['start_time'],
@@ -234,7 +234,7 @@ class RescheduleController extends Controller
         $appeal = Appeal::findOrFail($id);
 
         $appeal->update([
-            'is_approved'   => 'denied',                           
+            'is_approved'   => 0,                           
             'admin_remarks' => $validated['admin_remarks'] ?? null,
         ]);
 

@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('file_path')->nullable();
             
             // Status & Admin
-            $table->enum('is_approved', ['pending', 'approved', 'denied'])->default('pending');
+            $table->tinyInteger('is_approved')->nullable();
             $table->text('admin_remarks')->nullable();
             
             $table->timestamps();
