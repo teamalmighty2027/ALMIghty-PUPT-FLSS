@@ -76,7 +76,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   semesterLabel = signal('');
   programs = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
-  selectedYearLevel = signal<number | null>(null);
+  selectedYearLevel = signal<number | null>(null);  
   selectedSection = signal<Sections | undefined>(undefined);
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
@@ -340,7 +340,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public backToProgramSelection(): void {
     this.searchState.set('programSelection');
     this.selectedProgram.set(undefined);
-    this.selectedYearLevel.set(null);
+    this.selectedYearLevel.set(null);    
     this.clearSearch();
   }
 
@@ -435,6 +435,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
+    this.selectedYearLevel.set(null);
     this.showSnackBar(
       `${course.course_code} successfully added to your preferences.`,
     );
@@ -660,17 +661,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       : '';
   }
 
-  // TODO: Fix side effect where filter activates after clicking a subject
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
   }
 
   public getYearSection(course: Course): String {
-    if (this.selectedYearLevel() == null) {
-      this.selectedYearLevel.set(course.year_level)
+    if (this.selectedYearLevel() === null) {
+      this.selectedYearLevel.set(course.year_level) 
     }
 
-    return this.selectedYearLevel() 
+    return this.selectedYearLevel()
       + "-" + 
       this.selectedSection()?.section_name;
   }
