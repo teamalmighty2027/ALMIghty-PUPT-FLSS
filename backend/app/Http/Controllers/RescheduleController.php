@@ -74,7 +74,10 @@ class RescheduleController extends Controller
     public function getMyAppeals(Request $request)
     {
         // Fetch appeals AND eagerly load the linked schedule to prevent slow queries
-        $appeals = Appeal::with('schedule')->where('faculty_id', $request->user()->id)->get();
+        $schedules = DB::table('schedules')
+            ->where('faculty_id', $request->user()->id)
+            ->get();
+        $appeals = DB::table('appeals')->whereIn('schedule_id', $schedules)->get();
 
         // Map the data so the frontend still gets the 'original' fields it expects
         $formattedAppeals = $appeals->map(function ($appeal) {
@@ -83,11 +86,11 @@ class RescheduleController extends Controller
                 'schedule_id'         => $appeal->schedule_id,
                 
                 // Fetch dynamically from the relation instead of the appeals table!
-                'original_day'        => $appeal->schedule->day,
-                'original_start_time' => $appeal->schedule->start_time,
-                'original_end_time'   => $appeal->schedule->end_time,
+                'original_day'        => $schedules->day,
+                'original_start_time' => $schedules->start_time,
+                'original_end_time'   => $schedules->end_time,
                 // (Adjust the room fetch based on how your schedule table stores it)
-                'original_room'       => $appeal->schedule->room_id, 
+                'original_room'       => $schedules->room_id, 
 
                 'appeal_day'          => $appeal->day,
                 'appeal_start_time'   => $appeal->start_time,

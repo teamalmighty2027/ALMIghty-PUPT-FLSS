@@ -9,18 +9,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('appeals', function (Blueprint $table) {
-            $table->id('appeal_id');
+            $table->id();
             $table->unsignedBigInteger('schedule_id');
-            $table->enum('day', ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']);
+
+            // Appeal Details
+            $table->string('day');
             $table->time('start_time');
             $table->time('end_time');
-            $table->unsignedBigInteger('room_id')->nullable()->comment('Nullable if no specific room is requested');
-            $table->string('file_path')->nullable()->comment('Path to supporting documents');
-            $table->text('reasoning')->nullable()->comment('Explanation for the appeal');
-            $table->boolean('is_approved')->nullable()->default(null);
-
-            $table->timestamp('created_at')->useCurrent();
-            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->string('room')->nullable();
+            
+            // Justification & Files
+            $table->text('reason')->nullable();
+            $table->string('file_path')->nullable();
+            
+            // Status & Admin
+            $table->tinyInteger('is_approved')->nullable();
+            $table->text('admin_remarks')->nullable();
 
             // Indexes
             $table->index('schedule_id', 'appeals_schedule_id_index');
@@ -29,12 +33,11 @@ return new class extends Migration
             $table->index('start_time', 'appeals_start_time_index');
             $table->index('end_time', 'appeals_end_time_index');
             $table->index('file_path', 'appeals_file_path_index');
+            
+            $table->timestamps();
 
-            // Foreign keys
-            $table->foreign('schedule_id')
-                  ->references('schedule_id')
-                  ->on('schedules')
-                  ->onDelete('cascade');
+            // Foreign key
+            $table->foreign('schedule_id')->references('schedule_id')->on('schedules')->onDelete('cascade');
         });
     }
 
