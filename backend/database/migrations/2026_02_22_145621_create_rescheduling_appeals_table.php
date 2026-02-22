@@ -11,12 +11,6 @@ return new class extends Migration
         Schema::create('rescheduling_appeals', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('schedule_id');
-            
-            // Original Schedule Details
-            $table->string('original_day')->nullable();
-            $table->time('original_start_time')->nullable();
-            $table->time('original_end_time')->nullable();
-            $table->string('original_room')->nullable();
 
             // Appeal Details
             $table->string('day');
