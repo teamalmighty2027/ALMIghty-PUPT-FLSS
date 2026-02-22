@@ -6,6 +6,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ReschedulingService, AppealResponse } from '../../core/services/faculty/rescheduling/rescheduling.service';
 
+// Import your environment variables
+import { environment } from '../../../../../environments/environment.dev';
+
 interface AppealView {
   appealId:         number;
   status:           string;        // 'Pending' | 'Approved' | 'Denied'
@@ -63,9 +66,10 @@ export class DialogMyAppealsComponent implements OnInit {
     return `${hours}:${minutes} ${period}`;
   }
 
-  private mapStatus(is_approved: boolean | null | any): string {
-    if (is_approved === true  || is_approved === 1)  return 'Approved';
-    if (is_approved === false || is_approved === 0)  return 'Denied';
+  // Updated to use the new string ENUM from the database
+  private mapStatus(is_approved: string | null): string {
+    if (is_approved === 'approved') return 'Approved';
+    if (is_approved === 'denied')   return 'Denied';
     return 'Pending';
   }
 
@@ -73,11 +77,10 @@ export class DialogMyAppealsComponent implements OnInit {
     this.isLoading = true;
     this.reschedulingService.getMyAppeals().subscribe({
       next: (data) => {
-        // Filter to only show appeals for this specific schedule
         const filtered = data.filter(a => a.schedule_id === this.data.scheduleId);
         this.appeals = filtered.map(a => ({
           appealId:          a.appeal_id,
-          status:            this.mapStatus(a.is_approved),
+          status:            this.mapStatus(a.is_approved as string), // Casting to ensure type safety
           createdAt:         new Date(a.created_at).toLocaleDateString('en-US', {
                                year: 'numeric', month: 'short', day: 'numeric'
                              }),
@@ -108,7 +111,6 @@ export class DialogMyAppealsComponent implements OnInit {
     this.reschedulingService.cancelAppeal(appeal.appealId).subscribe({
       next: () => {
         this.snackBar.open('Appeal cancelled successfully.', 'Close', { duration: 3000 });
-        // Remove from local list
         this.appeals = this.appeals.filter(a => a.appealId !== appeal.appealId);
         this.cancellingId = null;
       },
@@ -121,7 +123,11 @@ export class DialogMyAppealsComponent implements OnInit {
 
   getFileUrl(filePath: string | null): string {
     if (!filePath) return '#';
-    return `http://127.0.0.1:8000/storage/${filePath}`;
+    
+    // TODO: Temporary implementation. The process regarding file upload needs to be re-examined.
+    // This dynamically removes '/api' from the end of the environment URL to point to the base storage folder.
+    const baseUrl = environment.apiUrl.replace(/\/api\/?$/, '');
+    return `${baseUrl}/storage/${filePath}`;
   }
 
   onClose(): void {
