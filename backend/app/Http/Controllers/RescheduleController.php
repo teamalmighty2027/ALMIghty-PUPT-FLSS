@@ -31,6 +31,7 @@ class RescheduleController extends Controller
             return response()->json(['message' => 'The end time must be after the start time.'], 422);
         }
 
+        // Snapshot the original schedule at submission time
         $schedule = Schedule::with(['room'])
             ->join('rooms as r', 'schedules.room_id', '=', 'r.room_id')
             ->where('schedules.schedule_id', $validated['scheduleId'])

@@ -385,6 +385,28 @@ CREATE TABLE `faculty_notifications` (
   KEY `faculty_notifications_is_read_index` (`is_read`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `appeals` (
+  `appeal_id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `schedule_id` bigint(20) UNSIGNED NOT NULL
+  `day` enum('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `room_id` bigint(20) UNSIGNED DEFAULT NULL COMMENT 'Nullable if no specific room is requested',
+  `file_path` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Path to supporting documents',
+  `reasoning` text COLLATE utf8mb4_unicode_ci COMMENT 'Explanation for the appeal',
+  `is_approved` boolean DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`appeal_id`),
+  FOREIGN KEY (`schedule_id`) REFERENCES `schedules` (`schedule_id`) ON DELETE CASCADE,
+  KEY `appeals_schedule_id_index` (`schedule_id`),
+  KEY `appeals_room_id_index` (`room_id`),
+  KEY `appeals_day_index` (`day`),
+  KEY `appeals_start_time_index` (`start_time`),
+  KEY `appeals_end_time_index` (`end_time`),
+  KEY `appeals_file_path_index` (`file_path`);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 4. System-related tables
 CREATE TABLE `api_keys` (
   `api_keys_id` bigint UNSIGNED NOT NULL AUTO_INCREMENT,
