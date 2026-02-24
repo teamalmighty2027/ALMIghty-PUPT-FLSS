@@ -9,4 +9,15 @@
   );
   padding: var(--spacing-lg);
   height: 100%;
+
+  mat-button-toggle-group {
+    width: fit-content;
+  }
+
+  .dialog-actions {
+    margin-top:16px;
+    display:flex;
+    gap:8px;
+    justify-content:flex-end;
+  }
 }

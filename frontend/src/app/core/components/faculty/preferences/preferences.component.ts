@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, concat } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, concat, firstValueFrom } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -415,8 +415,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /**
    * Course Management
    */
-  public addCourseToTable(course: Course): void {
-    this.willSelectAnotherSection(course);
+  public async addCourseToTable(course: Course): Promise<void> {
+    const shouldProceed = await this.willSelectAnotherSection(course);
+    if (!shouldProceed) return;
+    
     if (this.isCourseAlreadyAdded(course)) {
       this.showSnackBar('You already selected this course.');
       return;
@@ -512,37 +514,32 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return isAdded;
   }
 
-  private willSelectAnotherSection(course: Course): boolean {  
+  private async willSelectAnotherSection(course: Course): Promise<boolean> {  
     const yearLevels = this.selectedProgram()?.year_levels;
-
-    if (course.year_level == null) { 
-      return false;
+    if (course.year_level == null) {
+      return true;
     }
 
     const targetYear = yearLevels?.[course.year_level - 1];
+    if (!targetYear) return true;
 
-    if (targetYear == undefined) {
+    // If only one or no section, set it and continue
+    const maxSections = Number(targetYear.section_name);
+    if (isNaN(maxSections) || maxSections <= 1) {
+      this.selectedSection.set(Number(targetYear.section_name).toString());
+      return true;
+    }
+
+    const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
+      data: { sectionMax: maxSections },
+    });
+
+    const result = await firstValueFrom(dialogRef.afterClosed());
+    if (result === undefined || result === null) {      
       return false;
     }
 
-    if (targetYear && Number(targetYear.section_name) <= 1) {
-      return false;
-    }
-    
-    console.log("Will add another section");
-
-    const dialogRef = this.dialog.open(
-      DialogPrefSectionComponent, {
-        data: {
-          sectionMax: Number(targetYear.section_name)
-        }
-      }
-    );
-
-    console.log("adding");
-
-    dialogRef.afterClosed().subscribe();
-
+    this.selectedSection.set(result.toString());
     return true;
   }
 
@@ -707,17 +704,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     if (this.selectedSection() === undefined) {
-      const yearLevels = this.selectedProgram()?.year_levels;
-
-      if (course.year_level != null) { 
-        const targetYear = yearLevels?.[course.year_level];
-
-        if (targetYear && Number(targetYear.section_name) > 1) {
-          const addAnotherSection = this.dialog.open(DialogPrefSectionComponent);
-        } else {
-          this.selectedSection.set('1'); 
-        }
-      }
+      this.selectedSection.set(course.section_name);
     }
 
     return this.selectedYearLevel()

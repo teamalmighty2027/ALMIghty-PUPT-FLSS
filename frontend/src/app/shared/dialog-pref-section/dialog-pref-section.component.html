@@ -1,13 +1,16 @@
 <div class="dialog-pref-section-container">
-  <h3> 
-    Select Chosen Section
-  </h3>
+  <h3>Select Chosen Section</h3>
 
-  <mat-button-toggle-group name="fontStyle" aria-label="Font Style">
+  <mat-button-toggle-group [(ngModel)]="selectedSection">
     @for (section of sectionList; track section) {
       <mat-button-toggle value="{{section}}">
         {{ section }}  
       </mat-button-toggle>  
     }
   </mat-button-toggle-group>
+
+  <div class="dialog-actions">
+    <button mat-button (click)="cancel()">Cancel</button>
+    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="!selectedSection">Add</button>
+  </div>
 </div>
