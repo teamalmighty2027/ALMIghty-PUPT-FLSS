@@ -29,6 +29,7 @@ import { CookieService } from 'ngx-cookie-service';
 import { Program, Course, PreferredDay, Sections } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
+import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
 
 interface TableData extends Course {
   preferredDays: PreferredDay[];
@@ -77,7 +78,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   programs = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
-  selectedSection = signal<Sections | undefined>(undefined);
+  selectedSection = signal<number | undefined>(undefined);
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
       ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
@@ -237,8 +238,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           next: (programsResponse) => {
             if (!programsResponse) return;
 
-            console.log(programsResponse);
-
             const allCoursesMap = new Map<string, Course>();
             programsResponse.programs.forEach((program) =>
               this.populateUniqueCourses(program, allCoursesMap),
@@ -317,10 +316,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public selectProgram(program: Program): void {
     this.selectedProgram.set(program);
     this.searchState.set('courseList');
-
-    // TODO: Find a way to fit, year level fetching (auto) and section selection UI
-    // this.selectedSection.set(undefined);
-    // this.selectedYearLevel.set(null);
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -420,7 +415,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Course Management
    */
   public addCourseToTable(course: Course): void {
-    if (this.isCourseAlreadyAdded(course)) return;
+    if (this.isCourseAlreadyAdded(course)) {
+      this.willSelectAnotherSection(course);
+      this.showSnackBar('You already selected this course.');
+      return;
+    }
 
     const newCourse: TableData = {
       ...course,
@@ -508,9 +507,38 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const isAdded = this.allSelectedCourses().some(      
       (subject) => subject.course_id === course.course_id,
     );
-    if (isAdded) this.showSnackBar('You already selected this course.');
     return isAdded;
   }
+
+  private willSelectAnotherSection(course: Course): boolean {
+    const isAdded = this.allSelectedCourses().some(      
+      (subject) => subject.course_id === course.course_id, 
+    );
+
+    if (!isAdded) return false;
+
+    console.log("Will find program");
+
+    const program = this.selectedProgram()?.year_levels;
+      
+    // TODO: Refactor this for better iteration
+    for (var year in program) {
+      if (Number(year) == course.year_level) {
+        // Open dialog if the section number is > 1
+        if (program[Number(year)].section_name <= 1) {
+          console.log("Year: ", year);
+          console.log(program[Number(year)].section_name);
+          return false;
+        }
+        break;
+      }
+    }
+    console.log("Will add another section");
+
+    const addAnotherSection = this.dialog.open(DialogPrefSectionComponent)
+    return true;
+  }
+
 
   /**
    * Dialog Management
@@ -665,13 +693,30 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.selectedYearLevel.set(year);
   }
 
+  // Sets the year level and section and returns it as combined String
   public getYearSection(course: Course): String {
     if (this.selectedYearLevel() === null) {
-      this.selectedYearLevel.set(course.year_level) 
+      this.selectedYearLevel.set(course.year_level);
+    }
+
+    if (this.selectedSection() === undefined) {
+      const program = this.selectedProgram()?.year_levels;
+      
+      // TODO: Refactor this for better iteration
+      for (var year in program) {
+        if (Number(year) == course.year_level) {
+          // Open dialog if the section number is > 1
+          if (program[Number(year)].section_name > 1) {
+            const addAnotherSection = this.dialog.open(DialogPrefSectionComponent)            
+          } else {
+            this.selectedSection.set(1); 
+          }
+        }
+      }
     }
 
     return this.selectedYearLevel()
       + "-" + 
-      this.selectedSection()?.section_name;
+      this.selectedSection();
   }
 }
