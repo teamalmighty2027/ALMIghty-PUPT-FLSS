@@ -26,7 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { CookieService } from 'ngx-cookie-service';
-import { Program, Course, PreferredDay, Sections } from '../../../models/preferences.model';
+import { Program, Course, PreferredDay } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -78,7 +78,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   programs = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
-  selectedSection = signal<number | undefined>(undefined);
+  selectedSection = signal<string | undefined>(undefined);
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
       ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
@@ -285,6 +285,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lec_hours: course.lec_hours,
       lab_hours: course.lab_hours,
       units: course.units,
+      year_level: this.selectedYearLevel(),
+      section_name: this.selectedSection(),
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
         start_time: this.formatTimeForPayload(prefDay.start_time),
@@ -295,8 +297,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: this.selectedProgram(),
-      year_section: this.getYearSection(course),
-      year_level: this.selectedYearLevel()
+      year_section: this.getYearSection(course)
     }));
   }
 
@@ -415,8 +416,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Course Management
    */
   public addCourseToTable(course: Course): void {
+    this.willSelectAnotherSection(course);
     if (this.isCourseAlreadyAdded(course)) {
-      this.willSelectAnotherSection(course);
       this.showSnackBar('You already selected this course.');
       return;
     }
@@ -510,27 +511,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return isAdded;
   }
 
-  private willSelectAnotherSection(course: Course): boolean {
-    const isAdded = this.allSelectedCourses().some(      
-      (subject) => subject.course_id === course.course_id, 
-    );
+  private willSelectAnotherSection(course: Course): boolean {  
+    const yearLevels = this.selectedProgram()?.year_levels;
 
-    if (!isAdded) return false;
-
-    console.log("Will find program");
-
-    const program = this.selectedProgram()?.year_levels;
-      
-    // TODO: Refactor this for better iteration
-    for (var year in program) {
-      if (Number(year) == course.year_level) {
-        // Open dialog if the section number is > 1
-        if (program[Number(year)].section_name <= 1) {
-          console.log("Year: ", year);
-          console.log(program[Number(year)].section_name);
-          return false;
-        }
-        break;
+    if (course.year_level != null) { 
+      const targetYear = yearLevels?.[course.year_level];
+      if (targetYear && Number(targetYear.section_name) <= 1) {
+        console.log("Year: ", course.year_level);
+        console.log(targetYear.section_name);
+        return false;
       }
     }
     console.log("Will add another section");
@@ -700,17 +689,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     if (this.selectedSection() === undefined) {
-      const program = this.selectedProgram()?.year_levels;
-      
-      // TODO: Refactor this for better iteration
-      for (var year in program) {
-        if (Number(year) == course.year_level) {
-          // Open dialog if the section number is > 1
-          if (program[Number(year)].section_name > 1) {
-            const addAnotherSection = this.dialog.open(DialogPrefSectionComponent)            
-          } else {
-            this.selectedSection.set(1); 
-          }
+      const yearLevels = this.selectedProgram()?.year_levels;
+
+      if (course.year_level != null) { 
+        const targetYear = yearLevels?.[course.year_level];
+
+        if (targetYear && Number(targetYear.section_name) > 1) {
+          const addAnotherSection = this.dialog.open(DialogPrefSectionComponent);
+        } else {
+          this.selectedSection.set('1'); 
         }
       }
     }
