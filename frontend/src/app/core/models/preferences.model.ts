@@ -45,6 +45,11 @@ export interface YearLevel {
   section_name: String
 }
 
+export interface Section {
+  section_id: number;
+  section_name: string;
+}
+
 export interface Program {
   program_id: number;
   program_code: string;

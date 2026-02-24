@@ -506,7 +506,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
-      (subject) => subject.course_id === course.course_id,
+      (subject) => subject.course_id === course.course_id &&
+        subject.section_name == course.section_name,
     );
     return isAdded;
   }
@@ -514,17 +515,34 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private willSelectAnotherSection(course: Course): boolean {  
     const yearLevels = this.selectedProgram()?.year_levels;
 
-    if (course.year_level != null) { 
-      const targetYear = yearLevels?.[course.year_level];
-      if (targetYear && Number(targetYear.section_name) <= 1) {
-        console.log("Year: ", course.year_level);
-        console.log(targetYear.section_name);
-        return false;
-      }
+    if (course.year_level == null) { 
+      return false;
     }
+
+    const targetYear = yearLevels?.[course.year_level - 1];
+
+    if (targetYear == undefined) {
+      return false;
+    }
+
+    if (targetYear && Number(targetYear.section_name) <= 1) {
+      return false;
+    }
+    
     console.log("Will add another section");
 
-    const addAnotherSection = this.dialog.open(DialogPrefSectionComponent)
+    const dialogRef = this.dialog.open(
+      DialogPrefSectionComponent, {
+        data: {
+          sectionMax: Number(targetYear.section_name)
+        }
+      }
+    );
+
+    console.log("adding");
+
+    dialogRef.afterClosed().subscribe();
+
     return true;
   }
 

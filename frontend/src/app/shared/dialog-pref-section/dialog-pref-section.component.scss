@@ -1,0 +1,12 @@
+@use "../../../styles/mixins";
+
+.dialog-pref-section-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+  padding: var(--spacing-lg);
+  height: 100%;
+}

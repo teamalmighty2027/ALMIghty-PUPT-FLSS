@@ -1,1 +1,13 @@
-<p> This where section selection happens </p>
+<div class="dialog-pref-section-container">
+  <h3> 
+    Select Chosen Section
+  </h3>
+
+  <mat-button-toggle-group name="fontStyle" aria-label="Font Style">
+    @for (section of sectionList; track section) {
+      <mat-button-toggle value="{{section}}">
+        {{ section }}  
+      </mat-button-toggle>  
+    }
+  </mat-button-toggle-group>
+</div>
