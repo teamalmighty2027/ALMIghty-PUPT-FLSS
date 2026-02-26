@@ -26,6 +26,7 @@ class PreferenceController extends Controller
             'faculty_id'                  => 'required|exists:faculty,id',
             'active_semester_id'          => 'required|exists:active_semesters,active_semester_id',
             'course_assignment_id'        => 'required|exists:course_assignments,course_assignment_id',
+            'section_id'                  => 'required|exists:sections_per_program_year,sections_per_program_year_id',
             'preferred_days'              => 'required|array',
             'preferred_days.*.day'        => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'preferred_days.*.start_time' => 'required|date_format:H:i:s',
@@ -35,7 +36,7 @@ class PreferenceController extends Controller
         $facultyId          = $validatedData['faculty_id'];
         $activeSemesterId   = $validatedData['active_semester_id'];
         $courseAssignmentId = $validatedData['course_assignment_id'];
-
+        $sectionsPerProgramYearId = $validatedData['section_id'];
         $preferenceSetting  = PreferencesSetting::where('faculty_id', $facultyId)->first();
         $globalDeadline     = $preferenceSetting->global_deadline;
         $individualDeadline = $preferenceSetting->individual_deadline;
@@ -49,12 +50,13 @@ class PreferenceController extends Controller
             ], 403);
         }
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId) {
+        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $sectionsPerProgramYearId) {
             $preference = Preference::updateOrCreate(
                 [
                     'faculty_id'           => $facultyId,
                     'active_semester_id'   => $activeSemesterId,
                     'course_assignment_id' => $courseAssignmentId,
+                    'sections_per_program_year_id' => $sectionsPerProgramYearId,
                 ],
                 []
             );
