@@ -19,8 +19,8 @@ return new class extends Migration
             $table->unsignedBigInteger('room_id')->nullable();
             
             // Justification & Files
-            $table->text('reason')->nullable();
             $table->string('file_path')->nullable();
+            $table->text('reasoning')->nullable();
             
             // Status & Admin
             $table->tinyInteger('is_approved')->nullable();
