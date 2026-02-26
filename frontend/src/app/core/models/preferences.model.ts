@@ -45,6 +45,7 @@ export interface YearLevel {
   section_name: String
 }
 
+// TODO: Use this interface for section details
 export interface Section {
   section_id: number;
   section_name: string;

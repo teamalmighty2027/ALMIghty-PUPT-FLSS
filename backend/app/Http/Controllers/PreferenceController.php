@@ -376,7 +376,7 @@ class PreferenceController extends Controller
                 ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
                 ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
                 ->whereIn('course_assignments.course_assignment_id', $courseAssignmentIds)
-                ->select('course_assignments.course_assignment_id', 'programs.program_id', 'programs.program_code')
+                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title')
                 ->get()
                 ->keyBy('course_assignment_id');
         }
@@ -398,8 +398,12 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'program_id'   => $program->program_id ?? null,
-                    'program_code' => $program->program_code ?? null,
+                ],
+                'program_details'      => [
+                  'program_id'    => $program->program_id ?? null,
+                  'program_code'  => $program->program_code ?? null,
+                  'program_title' => $program->program_title ?? null,
+                  'year_levels'   => [],
                 ],
                 'lec_hours'            => is_numeric($preference->courseAssignment->course->lec_hours) ? (int) $preference->courseAssignment->course->lec_hours : 0,
                 'lab_hours'            => is_numeric($preference->courseAssignment->course->lab_hours) ? (int) $preference->courseAssignment->course->lab_hours : 0,

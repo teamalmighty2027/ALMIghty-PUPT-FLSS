@@ -296,7 +296,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       pre_req: course.course_details.pre_req ?? null,
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
-      program_details: this.selectedProgram(),
+      program_details: course.program_details ?? undefined,
       year_section: this.getYearSection(course)
     }));
   }
