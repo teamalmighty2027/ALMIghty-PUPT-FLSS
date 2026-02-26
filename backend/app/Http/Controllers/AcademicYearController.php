@@ -819,7 +819,8 @@ class AcademicYearController extends Controller
                 'co.units',
                 'co.tuition_hours',
                 'ca.course_assignment_id',
-                'sppy.section_name'
+                'sppy.section_name',
+                'sppy.sections_per_program_year_id'
             )
             ->join('programs as p', 'pylc.program_id', '=', 'p.program_id')
             ->join('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
@@ -889,6 +890,7 @@ class AcademicYearController extends Controller
                     'year_level' => $row->year_level,
                     'curriculum_id' => $row->curriculum_id,
                     'curriculum_year' => $row->curriculum_year,
+                    'section_id' => $row->sections_per_program_year_id,
                     'section_name' => $row->section_name,
                     'semester' => [
                         'semester' => $activeSemester->semester_id,

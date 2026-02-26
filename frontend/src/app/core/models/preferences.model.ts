@@ -17,6 +17,7 @@ export interface Course {
   tuition_hours: number;
   preferred_days?: PreferredDay[];
   year_level: number | null;
+  section_id: number | null;
   section_name: string | undefined;
 }
 export interface ActiveSemester {
@@ -42,6 +43,7 @@ export interface YearLevel {
   curriculum_id: number;
   curriculum_year: string;
   semester: SemesterDetails;
+  section_id: number;
   section_name: String
 }
 

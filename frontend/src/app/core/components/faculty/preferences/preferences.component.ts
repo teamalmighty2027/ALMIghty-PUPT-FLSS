@@ -286,6 +286,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours,
       units: course.units,
       year_level: this.selectedYearLevel(),
+      section_id: course.section_id,
       section_name: this.selectedSection(),
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
@@ -315,6 +316,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Program and Course Selection
    */
   public selectProgram(program: Program): void {
+    this.selectedYearLevel.set(null);
     this.selectedProgram.set(program);
     this.searchState.set('courseList');
     this.uniqueCourses.set(new Map<string, Course>());
@@ -420,6 +422,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     if (!shouldProceed) return;
     
     course.section_name = this.selectedSection() ?? "1";
+    course.section_id = this.selectedProgram()?.year_levels.find(
+      yl => yl.year_level === course.year_level)?.section_id ?? null;
     
     if (this.isCourseAlreadyAdded(course)) {
       this.showSnackBar('You already selected this course.');
@@ -441,7 +445,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
     this.selectedYearLevel.set(null);
     this.showSnackBar(
-      `${course.course_code} ${course.section_name} successfully added to your preferences.`,
+      `${course.course_code} successfully added to your preferences.`,
     );
   }
 
@@ -560,6 +564,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           facultyId: this.facultyId(),
           activeSemesterId: this.activeSemesterId(),
           courseAssignmentId: element.course_assignment_id,
+          section_id: element.section_id,
           allSelectedCourses: this.allSelectedCourses(),
         },
         disableClose: true,

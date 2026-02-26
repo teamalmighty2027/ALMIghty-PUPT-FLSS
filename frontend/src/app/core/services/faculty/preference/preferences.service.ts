@@ -137,6 +137,7 @@ export class PreferencesService {
     faculty_id: number;
     active_semester_id: number;
     course_assignment_id: number;
+    section_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
     const url = `${this.baseUrl}/submit-preferences`;
