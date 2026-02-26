@@ -24,8 +24,12 @@ return new class extends Migration
             $table->time('start_time');
             $table->time('end_time');
             $table->unsignedBigInteger('room_id')->nullable();
-            $table->text('reasoning')->nullable();
+            
+            // Justification & Files
             $table->string('file_path')->nullable();
+            $table->text('reasoning')->nullable();
+            
+            // Status & Admin
             $table->tinyInteger('is_approved')->nullable();
             $table->text('admin_remarks')->nullable();
             $table->timestamps();
