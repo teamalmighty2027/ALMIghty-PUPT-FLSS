@@ -73,32 +73,46 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function getMyAppeals(Request $request)
     {
-        // Fetch appeals AND eagerly load the linked schedule to prevent slow queries
-        $schedules = DB::table('schedules')
-            ->where('faculty_id', $request->user()->id)
-            ->get();
-        $appeals = DB::table('appeals')->whereIn('schedule_id', $schedules)->get();
+        $user = $request->user();
+        
+        // 1. Get the current user's faculty profile
+        $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
 
-        // Map the data so the frontend still gets the 'original' fields it expects
+        if (!$faculty) {
+            return response()->json([], 200); // Return empty if not a faculty
+        }
+
+        // 2. Fetch appeals that belong to this faculty's schedules
+        $appeals = Appeal::select('appeals.*', 'rooms.room_code as appeal_room_code')
+            ->join('schedules', 'appeals.schedule_id', '=', 'schedules.schedule_id')
+            ->leftJoin('rooms', 'appeals.room_id', '=', 'rooms.room_id') // Join rooms to get the new room code
+            ->where('schedules.faculty_id', $faculty->id)
+            ->orderBy('appeals.created_at', 'desc')
+            ->get();
+
+        // 3. Map the data cleanly for the frontend
         $formattedAppeals = $appeals->map(function ($appeal) {
             return [
-                'appeal_id'           => $appeal->id,
+                'appeal_id'           => $appeal->appeal_id, // Make sure this matches your primary key
                 'schedule_id'         => $appeal->schedule_id,
                 
-                // Fetch dynamically from the relation instead of the appeals table!
-                'original_day'        => $schedules->day,
-                'original_start_time' => $schedules->start_time,
-                'original_end_time'   => $schedules->end_time,
-                // (Adjust the room fetch based on how your schedule table stores it)
-                'original_room'       => $schedules->room_id, 
+                // Original Snapshot Data
+                'original_day'        => $appeal->original_day,
+                'original_start_time' => $appeal->original_start_time,
+                'original_end_time'   => $appeal->original_end_time,
+                'original_room'       => $appeal->original_room_code, 
 
+                // New Appeal Data
                 'appeal_day'          => $appeal->day,
                 'appeal_start_time'   => $appeal->start_time,
                 'appeal_end_time'     => $appeal->end_time,
-                'appeal_room'         => $appeal->room,
-                'reasoning'           => $appeal->reason,
+                'appeal_room'         => $appeal->appeal_room_code, // Use the joined room code
+                
+                // Meta Data
+                'reasoning'           => $appeal->reasoning,
                 'file_path'           => $appeal->file_path,
                 'is_approved'         => $appeal->is_approved,
+                'admin_remarks'       => $appeal->admin_remarks,
                 'created_at'          => $appeal->created_at,
             ];
         });
@@ -230,14 +244,15 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function denyAppeal(Request $request, int $id): JsonResponse
     {
-        $request->validate([
+        // ADD $validated = here!
+        $validated = $request->validate([
             'admin_remarks' => 'nullable|string',
         ]);
 
         $appeal = Appeal::findOrFail($id);
 
         $appeal->update([
-            'is_approved'   => 0,                           
+            'is_approved'   => 0,                             
             'admin_remarks' => $validated['admin_remarks'] ?? null,
         ]);
 

@@ -95,6 +95,11 @@
           </div>
         </div>
 
+        <div *ngIf="appeal.adminRemarks" class="your-existing-card-class">
+          <h4 class="your-existing-header-class">ADMIN REMARKS</h4>
+          <p>{{ appeal.adminRemarks }}</p>
+        </div>
+
         <!-- Cancel button — only for pending -->
         <div class="card-actions" *ngIf="appeal.status === 'Pending'">
           <button mat-stroked-button color="warn"

@@ -58,7 +58,6 @@
                   <button
                     mat-icon-button
                     class="appeals-status-button"
-                    [ngClass]="getAppealStatusClass(day, i)"
                     (click)="onViewMyAppeals(day, i)"
                     [matTooltip]="getAppealStatusTooltip(day, i)"
                     aria-label="View My Appeals">

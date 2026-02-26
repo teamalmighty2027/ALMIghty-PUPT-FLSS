@@ -22,6 +22,7 @@ export interface AppealResponse {
   file_path: string | null;
   reasoning: string | null;
   is_approved: 'pending' | 'approved' | 'denied';
+  admin_remarks: string | null;
   created_at: string;
 }
 
