@@ -198,16 +198,14 @@ $day-colors: (
     &:hover { background-color: rgba(0,0,0,0.06); }
   }
 
-  // My Appeals history button — colour changes based on status
+  // My Appeals history button
   .appeals-status-button {
+    color: var(--secondary-text); // Matches the flag icon color
     width: 36px;
     height: 36px;
 
     mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
 
-    &.no-appeal      { color: var(--secondary-text); opacity: 0.5; }
-    &.appeal-pending  { color: #f59e0b; }
-    &.appeal-approved { color: #16a34a; }
-    &.appeal-denied   { color: #dc2626; }
+    &:hover { background-color: rgba(0,0,0,0.06); } // Matches the flag hover effect
   }
 }

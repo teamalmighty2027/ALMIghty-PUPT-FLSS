@@ -21,6 +21,7 @@ interface AppealView {
   appealRoom:       string;
   reasoning:        string | null;
   filePath:         string | null;
+  adminRemarks:     string | null;
 }
 
 @Component({
@@ -92,6 +93,7 @@ export class DialogMyAppealsComponent implements OnInit {
           appealRoom:        a.appeal_room ?? '—',
           reasoning:         a.reasoning,
           filePath:          a.file_path,
+          adminRemarks:      a.admin_remarks,
         }));
         this.isLoading = false;
       },

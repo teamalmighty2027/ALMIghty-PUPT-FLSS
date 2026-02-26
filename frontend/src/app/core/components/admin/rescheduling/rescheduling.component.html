@@ -84,7 +84,8 @@
               <button
                 mat-button
                 class="edit-button sec-ripple"
-                (click)="openEditDialog(element)"
+                (click)="openEditModal(element)"
+                [disabled]="element.appealVerification !== 'Pending'" 
               >
                 <div class="button-content">
                   <mat-icon>visibility</mat-icon>
