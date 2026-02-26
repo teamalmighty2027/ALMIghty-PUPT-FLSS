@@ -419,6 +419,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
     
+    course.section_name = this.selectedSection() ?? "1";
+    
     if (this.isCourseAlreadyAdded(course)) {
       this.showSnackBar('You already selected this course.');
       return;
@@ -439,7 +441,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
     this.selectedYearLevel.set(null);
     this.showSnackBar(
-      `${course.course_code} successfully added to your preferences.`,
+      `${course.course_code} ${course.section_name} successfully added to your preferences.`,
     );
   }
 
@@ -451,6 +453,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  // TODO: Refactor function to detect if course_assignment_id has duplicate
+  // This may occur when the same course with the same section
   private removeSubmittedCourse(course: TableData) {
     const { course_assignment_id } = course;
     if (!this.facultyId() || !this.activeSemesterId()) {
@@ -472,7 +476,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.allSelectedCourses.update((courses) =>
-            courses.filter((c) => c.course_id !== course.course_id),
+            courses.filter((c) => !(c.course_id === course.course_id 
+              && c.section_name === course.section_name)),
           );
           this.isRemoving.update((value) => {
             const updatedValue = { ...value };
@@ -499,17 +504,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
-      courses.filter((c) => c.course_id !== course.course_id),
-    );
-    this.showSnackBar(
-      `${course.course_code} has been removed from your preferences.`,
-    );
+      courses.filter((c) => !(c.course_id === course.course_id 
+        && c.section_name === course.section_name),
+    ));
   }
 
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
-      (subject) => subject.course_id === course.course_id &&
-        subject.section_name == course.section_name,
+      (subject) => subject.course_id === course.course_id 
+      && subject.section_name === course.section_name,
     );
     return isAdded;
   }
@@ -566,7 +569,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .subscribe((result) => {
         if (result) {
           const courseIndex = this.allSelectedCourses().findIndex(
-            (c) => c.course_id === element.course_id,
+            (c) => c.course_id === element.course_id 
+              && c.section_name === element.section_name,
           );
 
           if (courseIndex !== -1) {
