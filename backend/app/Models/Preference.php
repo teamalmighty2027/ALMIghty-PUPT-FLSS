@@ -50,4 +50,9 @@ class Preference extends Model
     public function preferenceDays() {
         return $this->hasMany(PreferenceDay::class, 'preference_id');
     }
+
+    public function section()
+    {
+        return $this->belongsTo(SectionsPerProgramYear::class, 'sections_per_program_year_id');
+    }
 }

@@ -269,6 +269,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
 
+      console.log('Active Semester Data:', activeSemester);
+
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
@@ -300,7 +302,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: course.program_details ?? undefined,
-      year_section: this.getYearSection(course, course.program_details),
+      year_section:  `Year-${course.course_details.section_name}`
     }));
   }
 
@@ -423,7 +425,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
     
-    course.section_name = this.selectedSection() ?? "1";
+    course.section_name = this.selectedSection();
     course.section_id = this.selectedSectionId() ?? null;
     
     if (this.isCourseAlreadyAdded(course)) {
@@ -725,9 +727,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   // Sets the year and section from the backend response
   public getYearSection(course: Course, selectedProgram: Program): String {
+    console.log("Course Data: ", course);
+
     var year = selectedProgram.year_levels.find(
       yl => yl.year_level === course.year_level
     )?.year_level.toString() ?? '';
+
     var section = course.section_name ? `${course.section_name}` : '';
 
     if (section === undefined || section === "null" || section === "") {

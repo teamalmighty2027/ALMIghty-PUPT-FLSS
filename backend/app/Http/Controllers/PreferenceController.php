@@ -353,7 +353,7 @@ class PreferenceController extends Controller
                 'preferenceSetting',
                 'preferences' => function ($query) use ($activeSemester) {
                     $query->where('active_semester_id', $activeSemester->active_semester_id)
-                        ->with(['courseAssignment.course', 'preferenceDays']);
+                        ->with(['courseAssignment.course', 'preferenceDays', 'section']);
                 },
             ])
             ->first();
@@ -394,23 +394,14 @@ class PreferenceController extends Controller
 
             $program = $programDetailsByCourseAssignment->get($preference->course_assignment_id);
 
-            // Fetching of section details based on the sections_per_program_year_id in the preferences table
-            $sectionDetails = null;
-            if ($preference->sections_per_program_year_id) {
-                $sectionDetails = DB::table('sections_per_program_year')
-                    ->where('sections_per_program_year_id', $preference->sections_per_program_year_id)
-                    ->select('sections_per_program_year_id', 'section_name')
-                    ->first();
-            }
-
             return [
                 'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
                 'course_details'       => [
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'section_id'   => $sectionDetails ? $sectionDetails->sections_per_program_year_id : null,
-                    'section_name' => $sectionDetails ? $sectionDetails->section_name : null,
+                    'section_id'   => $preference->sections_per_program_year_id ?? null,
+                    'section_name' => $preference->section ? $preference->section->section_name : null
                 ],
                 'program_details'      => [
                     'program_id'    => $program->program_id ?? null,
