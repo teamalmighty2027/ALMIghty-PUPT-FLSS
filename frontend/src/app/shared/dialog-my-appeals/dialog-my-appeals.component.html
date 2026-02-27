@@ -1,0 +1,122 @@
+<div class="dialog-container">
+
+  <!-- Header -->
+  <div class="dialog-header">
+    <h2 mat-dialog-title>My Appeals</h2>
+    <button mat-icon-button (click)="onClose()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+
+    <!-- Loading -->
+    <div class="loading-wrapper" *ngIf="isLoading">
+      <mat-icon class="spin">refresh</mat-icon>
+      <span>Loading appeals...</span>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" *ngIf="!isLoading && appeals.length === 0">
+      <mat-icon>inbox</mat-icon>
+      <p>You have no appeals for this schedule.</p>
+    </div>
+
+    <!-- Appeals list -->
+    <div class="appeals-list" *ngIf="!isLoading && appeals.length > 0">
+      <div class="appeal-card" *ngFor="let appeal of appeals">
+
+        <!-- Card Header: status badge + date -->
+        <div class="card-header">
+          <span class="status-badge"
+            [ngClass]="{
+              'status-pending':  appeal.status === 'Pending',
+              'status-approved': appeal.status === 'Approved',
+              'status-denied':   appeal.status === 'Denied'
+            }">
+            <mat-icon class="status-icon">
+              {{ appeal.status === 'Approved' ? 'check_circle' :
+                 appeal.status === 'Denied'   ? 'cancel' : 'hourglass_empty' }}
+            </mat-icon>
+            {{ appeal.status }}
+          </span>
+          <span class="submitted-date">Submitted: {{ appeal.createdAt }}</span>
+        </div>
+
+        <!-- Original Schedule -->
+        <div class="info-section">
+          <div class="section-label">ORIGINAL SCHEDULE</div>
+          <div class="info-row">
+            <span class="label">Day:</span>
+            <span class="value">{{ appeal.originalDay || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Time:</span>
+            <span class="value">{{ appeal.originalStartTime }} – {{ appeal.originalEndTime }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Room:</span>
+            <span class="value">{{ appeal.originalRoom || '—' }}</span>
+          </div>
+        </div>
+
+        <!-- Requested Schedule -->
+        <div class="info-section requested">
+          <div class="section-label">REQUESTED SCHEDULE</div>
+          <div class="info-row">
+            <span class="label">Day:</span>
+            <span class="value">{{ appeal.appealDay || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Time:</span>
+            <span class="value">{{ appeal.appealStartTime }} – {{ appeal.appealEndTime }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Room:</span>
+            <span class="value">{{ appeal.appealRoom || '—' }}</span>
+          </div>
+        </div>
+
+        <!-- Reason -->
+        <div class="info-section">
+          <div class="section-label">REASON</div>
+          <p class="reason-text">{{ appeal.reasoning || '—' }}</p>
+        </div>
+
+        <!-- PDF Document -->
+        <div class="info-section" *ngIf="appeal.filePath">
+          <div class="section-label">APPEAL DOCUMENT</div>
+          <div class="doc-row">
+            <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
+            <span class="doc-name">{{ appeal.filePath }}</span>
+            <a mat-icon-button [href]="getFileUrl(appeal.filePath)" target="_blank" rel="noopener">
+              <mat-icon>open_in_new</mat-icon>
+            </a>
+          </div>
+        </div>
+
+        <div *ngIf="appeal.adminRemarks" class="your-existing-card-class">
+          <h4 class="your-existing-header-class">ADMIN REMARKS</h4>
+          <p>{{ appeal.adminRemarks }}</p>
+        </div>
+
+        <!-- Cancel button — only for pending -->
+        <div class="card-actions" *ngIf="appeal.status === 'Pending'">
+          <button mat-stroked-button color="warn"
+            [disabled]="cancellingId === appeal.appealId"
+            (click)="onCancel(appeal)">
+            <mat-icon>cancel</mat-icon>
+            {{ cancellingId === appeal.appealId ? 'Cancelling...' : 'Cancel Appeal' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onClose()">Close</button>
+  </mat-dialog-actions>
+
+</div>

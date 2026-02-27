@@ -125,11 +125,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   }
 
   private mapAppeal(a: AppealResponse): ReschedulingAppeal {
-    // MySQL returns 1/0/null for tinyint, not true/false/null
-    const approved = a.is_approved;
-    let status = 'Pending';
-    if (approved === true  || (approved as any) === 1)  status = 'Approved';
-    if (approved === false || (approved as any) === 0)  status = 'Denied';
+    // Cast to 'any' to bypass the strict string interface warning
+    const approved: any = a.is_approved;
+    
+    // NEW LOGIC:
+    let status = 'Pending'; // Default state
+    // We check for numbers (1, 0) or their string equivalents just in case
+    if (approved === true || approved === 1 || approved === '1') status = 'Approved';
+    if (approved === false || approved === 0 || approved === '0') status = 'Denied';
 
     const origStart = this.to12Hour(a.original_start_time);
     const origEnd   = this.to12Hour(a.original_end_time);

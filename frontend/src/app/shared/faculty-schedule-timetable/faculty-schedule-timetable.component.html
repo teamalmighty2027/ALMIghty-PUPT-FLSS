@@ -38,15 +38,34 @@
               <div>
                 {{ getBlockProperty(day, i, 'roomCode') }}
               </div>
-              <div class="time">{{ getFormattedTime(day, i) }}</div>
-              <button
-                mat-icon-button
-                class="edit-button"
-                (click)="onEditScheduleBlock(day, i)"
-                matTooltip="Appeal Schedule"
-                aria-label="Appeal Schedule Block">
-                <mat-icon>flag</mat-icon>
-              </button>
+              <!-- Time + action buttons sticky at bottom -->
+              <div class="time-actions">
+                <div class="time">{{ getFormattedTime(day, i) }}</div>
+
+                <!-- ── Block Action Buttons ── -->
+                <div class="block-actions">
+                  <!-- Flag / Appeal button -->
+                  <button
+                    mat-icon-button
+                    class="edit-button"
+                    (click)="onEditScheduleBlock(day, i)"
+                    matTooltip="File an Appeal"
+                    aria-label="Appeal Schedule Block">
+                    <mat-icon class="block-icon">flag</mat-icon>
+                  </button>
+
+                  <!-- My Appeals history button -->
+                  <button
+                    mat-icon-button
+                    class="appeals-status-button"
+                    (click)="onViewMyAppeals(day, i)"
+                    [matTooltip]="getAppealStatusTooltip(day, i)"
+                    aria-label="View My Appeals">
+                    <mat-icon class="block-icon">history</mat-icon>
+                  </button>
+                </div>
+              </div>
+
             </div>
             }
           </td>
