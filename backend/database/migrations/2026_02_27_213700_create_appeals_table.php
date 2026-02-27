@@ -33,6 +33,16 @@ return new class extends Migration
             $table->tinyInteger('is_approved')->nullable();
             $table->text('admin_remarks')->nullable();
             $table->timestamps();
+
+            $table->index('schedule_id', 'appeals_schedule_id_index');
+            $table->index('room_id', 'appeals_room_id_index');
+            $table->index('day', 'appeals_day_index');
+            $table->index('start_time', 'appeals_start_time_index');
+            $table->index('end_time', 'appeals_end_time_index');
+            $table->index('file_path', 'appeals_file_path_index');
+
+            // Foreign key
+            $table->foreign('schedule_id')->references('schedule_id')->on('schedules')->onDelete('cascade');
         });
     }
 
