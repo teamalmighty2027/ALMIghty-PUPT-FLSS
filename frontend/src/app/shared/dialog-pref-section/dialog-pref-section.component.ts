@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Section } from '../../core/models/preferences.model';
 
 @Component({
   selector: 'app-dialog-pref-section',
@@ -14,22 +15,15 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 })
 export class DialogPrefSectionComponent implements OnInit {
   sectionList: number[] = [];
-  selectedSection: number | null = null;
+  selectedSection: Section | null = null;
 
   constructor(
     private dialogRef: MatDialogRef<DialogPrefSectionComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { sectionMax: number }
+    @Inject(MAT_DIALOG_DATA) public data: { sectionMax: number, sections: Section[] }
   ) {}
 
   ngOnInit(): void {
-    this.generateList();
     this.dialogRef.backdropClick().subscribe(() => this.dialogRef.close(0));
-  }
-
-  private generateList() {
-    this.sectionList = Array.from(
-      { length: this.data.sectionMax }, (_, i) => i + 1
-    );
   }
 
   confirm() {

@@ -267,6 +267,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
 
+      console.log('Active Semester:', activeSemester.courses);
+
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
@@ -286,8 +288,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours,
       units: course.units,
       year_level: this.selectedYearLevel(),
-      section_id: course.section_id,
-      section_name: this.selectedSection(),
+      section_id: course.section_id ?? null,
+      section_name: course.section_name ?? null,
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
         start_time: this.formatTimeForPayload(prefDay.start_time),
@@ -298,7 +300,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: course.program_details ?? undefined,
-      year_section: this.getYearSection(course)
+      year_section: this.getYearSection(course, course.program_details),
     }));
   }
 
@@ -439,7 +441,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram() ?? undefined,
-      year_section: this.getYearSection(course)
+      year_section: this.formatYearSection(course)
     };
 
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
@@ -530,15 +532,21 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const targetYear = yearLevels?.[course.year_level - 1];
     if (!targetYear) return true;
 
+    console.log('Program: ', this.selectedProgram());
+    console.log('Target Year Level:', targetYear.year_level);
+
     // If only one or no section, set it and continue
-    const maxSections = Number(targetYear.section_name);
+    const maxSections = Number(targetYear.sections.length);
     if (isNaN(maxSections) || maxSections <= 1) {
       this.selectedSection.set(Number(targetYear.section_name).toString());
       return true;
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
-      data: { sectionMax: maxSections },
+      data: { 
+        sectionMax: maxSections,
+        sections: targetYear.sections
+      },
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -706,8 +714,22 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.selectedYearLevel.set(year);
   }
 
+  // Sets the year and section from the backend response
+  public getYearSection(course: Course, selectedProgram: Program): String {
+    var year = selectedProgram.year_levels.find(
+      yl => yl.year_level === course.year_level
+    )?.year_level.toString() ?? '';
+    var section = course.section_name ? `${course.section_name}` : '';
+
+    if (section === undefined || section === "null" || section === "") {
+      section = "1";
+    }
+
+    return [year, section].filter(Boolean).join(' - ');
+  }
+
   // Sets the year level and section and returns it as combined String
-  public getYearSection(course: Course): String {
+  public formatYearSection(course: Course): String {
     if (this.selectedYearLevel() === null) {
       this.selectedYearLevel.set(course.year_level);
     }

@@ -43,11 +43,11 @@ export interface YearLevel {
   curriculum_id: number;
   curriculum_year: string;
   semester: SemesterDetails;
+  sections: Section[];
   section_id: number;
   section_name: String
 }
 
-// TODO: Use this interface for section details
 export interface Section {
   section_id: number;
   section_name: string;
