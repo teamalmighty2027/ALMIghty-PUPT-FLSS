@@ -799,6 +799,20 @@ class AcademicYearController extends Controller
             return response()->json(['error' => 'No active semester found'], 404);
         }
 
+        // Get all sections for the active academic year, grouped by program and year_level
+        $allSections = DB::table('sections_per_program_year')
+            ->where('academic_year_id', $activeSemester->academic_year_id)
+            ->get();
+
+        // Group sections by program_id and year_level
+        $sectionsGrouped = [];
+        foreach ($allSections as $section) {
+            $sectionsGrouped[$section->program_id][$section->year_level][] = [
+                'section_id' => $section->sections_per_program_year_id,
+                'section_name' => $section->section_name,
+            ];
+        }
+
         // Fetch courses for each program and year level matching the curriculum_id in the current academic year
         $assignedCourses = DB::table('program_year_level_curricula as pylc')
             ->select(
@@ -818,9 +832,7 @@ class AcademicYearController extends Controller
                 'co.lab_hours',
                 'co.units',
                 'co.tuition_hours',
-                'ca.course_assignment_id',
-                'sppy.section_name',
-                'sppy.sections_per_program_year_id'
+                'ca.course_assignment_id'
             )
             ->join('programs as p', 'pylc.program_id', '=', 'p.program_id')
             ->join('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
@@ -841,11 +853,9 @@ class AcademicYearController extends Controller
                 $join->on('ca.semester_id', '=', 's.semester_id')
                     ->on('ca.curricula_program_id', '=', 'cp.curricula_program_id');
             })
-            ->leftJoin('section_courses as sc', function ($join) {
-                $join->on('ca.course_assignment_id', '=', 'sc.course_assignment_id');
-            })
             ->leftJoin('sections_per_program_year as sppy', function ($join) {
-                $join->on('sc.sections_per_program_year_id', '=', 'sppy.sections_per_program_year_id');
+                $join->on('p.program_id', '=', 'sppy.program_id')
+                    ->on('pylc.year_level', '=', 'sppy.year_level');
             })            
             ->leftJoin('courses as co', 'ca.course_id', '=', 'co.course_id')
             ->where('pylc.academic_year_id', $activeSemester->academic_year_id) // Match the active academic year
@@ -862,7 +872,6 @@ class AcademicYearController extends Controller
             'programs' => [],
         ];
 
-        // Build the response based on fetched data
         foreach ($assignedCourses as $row) {
             $programIndex = array_search($row->program_id, array_column($response['programs'], 'program_id'));
 
@@ -886,12 +895,13 @@ class AcademicYearController extends Controller
             }
 
             if ($yearLevelIndex === false) {
+                // Attach all sections for this program and year_level
+                $sections = $sectionsGrouped[$row->program_id][$row->year_level] ?? [];
                 $response['programs'][$programIndex]['year_levels'][] = [
                     'year_level' => $row->year_level,
                     'curriculum_id' => $row->curriculum_id,
                     'curriculum_year' => $row->curriculum_year,
-                    'section_id' => $row->sections_per_program_year_id,
-                    'section_name' => $row->section_name,
+                    'sections' => $sections,
                     'semester' => [
                         'semester' => $activeSemester->semester_id,
                         'courses' => [],
