@@ -54,7 +54,7 @@ export class ReschedulingService {
     reason: string,
     appealDetails: { day: string; startTime: string; endTime: string; roomCode: string; }
   ): Observable<any> {
-    const url = `${this.baseUrl}/submit-rescheduling-appeal`;
+    const url = `${this.baseUrl}/rescheduling-appeals`;
     if (!scheduleId || !reason || !appealDetails) {
       return throwError(() => new Error('Invalid parameters provided.'));
     }
