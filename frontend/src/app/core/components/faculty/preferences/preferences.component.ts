@@ -26,7 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { CookieService } from 'ngx-cookie-service';
-import { Program, Course, PreferredDay } from '../../../models/preferences.model';
+import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -78,7 +78,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   programs = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
+  // TODO: Refactor to use Section object
   selectedSection = signal<string | undefined>(undefined);
+  selectedSectionId = signal<number | undefined>(undefined);
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
       ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
@@ -267,8 +269,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
 
-      console.log('Active Semester:', activeSemester.courses);
-
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
@@ -424,8 +424,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     if (!shouldProceed) return;
     
     course.section_name = this.selectedSection() ?? "1";
-    course.section_id = this.selectedProgram()?.year_levels.find(
-      yl => yl.year_level === course.year_level)?.section_id ?? null;
+    course.section_id = this.selectedSectionId() ?? null;
     
     if (this.isCourseAlreadyAdded(course)) {
       this.showSnackBar('You already selected this course.');
@@ -532,13 +531,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const targetYear = yearLevels?.[course.year_level - 1];
     if (!targetYear) return true;
 
-    console.log('Program: ', this.selectedProgram());
-    console.log('Target Year Level:', targetYear.year_level);
-
     // If only one or no section, set it and continue
     const maxSections = Number(targetYear.sections.length);
     if (isNaN(maxSections) || maxSections <= 1) {
-      this.selectedSection.set(Number(targetYear.section_name).toString());
+      for (let section of targetYear.sections) {
+        if (section.section_name === "1") {
+          this.selectedSectionId.set(section.section_id);
+          this.selectedSection.set(section.section_name);
+          break;
+        }
+      }
       return true;
     }
 
@@ -554,7 +556,14 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    this.selectedSection.set(result.toString());
+    for (let section of targetYear.sections) {
+      if (section.section_id === Number(result)) {
+        this.selectedSectionId.set(section.section_id);
+        this.selectedSection.set(section.section_name);        
+        break;
+      }
+    }
+
     return true;
   }
 

@@ -203,7 +203,7 @@ export class DialogDayTimeComponent implements OnInit {
       faculty_id: parseInt(this.data.facultyId),
       active_semester_id: this.data.activeSemesterId,
       course_assignment_id: this.data.courseAssignmentId,
-      section_id: this.data.section_id,
+      sections_per_program_year_id: this.data.section_id,
       preferred_days: selectedDays,
     };
 

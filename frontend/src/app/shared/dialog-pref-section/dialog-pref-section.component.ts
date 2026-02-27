@@ -23,7 +23,7 @@ export class DialogPrefSectionComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.dialogRef.backdropClick().subscribe(() => this.dialogRef.close(0));
+    this.dialogRef.backdropClick().subscribe(() => this.dialogRef.close(null));
   }
 
   confirm() {
@@ -33,6 +33,6 @@ export class DialogPrefSectionComponent implements OnInit {
   }
 
   cancel() {
-    this.dialogRef.close(1);
+    this.dialogRef.close(null);
   }
 }

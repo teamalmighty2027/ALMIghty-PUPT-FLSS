@@ -26,7 +26,7 @@ class PreferenceController extends Controller
             'faculty_id'                  => 'required|exists:faculty,id',
             'active_semester_id'          => 'required|exists:active_semesters,active_semester_id',
             'course_assignment_id'        => 'required|exists:course_assignments,course_assignment_id',
-            'section_id'                  => 'required|exists:sections_per_program_year,sections_per_program_year_id',
+            'sections_per_program_year_id'=> 'required|exists:sections_per_program_year,sections_per_program_year_id',
             'preferred_days'              => 'required|array',
             'preferred_days.*.day'        => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'preferred_days.*.start_time' => 'required|date_format:H:i:s',
@@ -36,7 +36,7 @@ class PreferenceController extends Controller
         $facultyId          = $validatedData['faculty_id'];
         $activeSemesterId   = $validatedData['active_semester_id'];
         $courseAssignmentId = $validatedData['course_assignment_id'];
-        $sectionsPerProgramYearId = $validatedData['section_id'];
+        $sectionsPerProgramYearId = $validatedData['sections_per_program_year_id'];
         $preferenceSetting  = PreferencesSetting::where('faculty_id', $facultyId)->first();
         $globalDeadline     = $preferenceSetting->global_deadline;
         $individualDeadline = $preferenceSetting->individual_deadline;

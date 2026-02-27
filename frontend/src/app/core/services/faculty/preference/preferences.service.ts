@@ -137,10 +137,10 @@ export class PreferencesService {
     faculty_id: number;
     active_semester_id: number;
     course_assignment_id: number;
-    section_id: number;
+    sections_per_program_year_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
-    console.log(preference.section_id); 
+    console.log("Submitting: ", preference.sections_per_program_year_id); 
 
     const url = `${this.baseUrl}/submit-preferences`;
     return this.http.post(url, preference).pipe(
