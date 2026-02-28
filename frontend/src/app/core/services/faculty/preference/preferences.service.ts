@@ -140,8 +140,6 @@ export class PreferencesService {
     sections_per_program_year_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
-    console.log("Submitting: ", preference.sections_per_program_year_id); 
-
     const url = `${this.baseUrl}/submit-preferences`;
     return this.http.post(url, preference).pipe(
       tap(() => this.clearCaches(preference.faculty_id.toString())),

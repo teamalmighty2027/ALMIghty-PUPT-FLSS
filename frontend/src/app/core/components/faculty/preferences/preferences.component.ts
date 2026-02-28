@@ -254,6 +254,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Prepare class properties based on preferencesResponse
+   */
   private processPreferencesResponse(preferencesResponse: any) {
     const facultyPreference = preferencesResponse.preferences;
     if (facultyPreference) {
@@ -269,8 +272,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
 
-      console.log('Active Semester Data:', activeSemester);
-
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
@@ -280,6 +281,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Map API response to TableData format to reflect in the table
+   */
   private mapPreferencesToTableData(courses: any[]): TableData[] {
     return courses.map((course) => ({
       course_id: course.course_details.course_id,
@@ -306,6 +310,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }));
   }
 
+  /**
+   * Handle errors during data loading and show error messages to the user
+   */
   private handleDataLoadingError(error: any) {
     const errorMessage = error.url.includes('/offered-courses-sem')
       ? 'Error loading programs.'
@@ -328,6 +335,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.clearSearch();
   }
 
+  /**
+   * Populate course selection sidebar with unique courses
+   */
   private populateUniqueCourses(
     program: Program,
     coursesMap: Map<string, Course>,
@@ -339,6 +349,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Revert sidebar to program selection and clear actions
+   */
   public backToProgramSelection(): void {
     this.searchState.set('programSelection');
     this.selectedProgram.set(undefined);
@@ -346,6 +359,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.clearSearch();
   }
 
+  /**
+   * Apply filter button to show courses based on selected year level
+   */
   public filteredCourses = computed(() => {
     const yearLevel = this.selectedYearLevel();
     const program = this.selectedProgram();
@@ -392,6 +408,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Event handler for search input changes
+   */
   public onSearchInput(query: string): void {
     // Prevent searchbar activation when program not selected
     if (this.searchState() == "programSelection") {
@@ -414,6 +433,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Clears search query and resets search state
+   */
   public clearSearch(): void {
     this.searchQuerySubject.next('');
   }
@@ -452,6 +474,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * General function to remove a course based on isSubmitted attribute
+   */
   public removeCourse(course: TableData): void {
     if (course.isSubmitted) {
       this.removeSubmittedCourse(course);
@@ -460,8 +485,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
-  // TODO: Refactor function to detect if course_assignment_id has duplicate
-  // This may occur when the same course with the same section
+  /**
+   * Remove course from table and send backend signal to delete preference.
+   */
   private removeSubmittedCourse(course: TableData) {
     const { course_assignment_id } = course;
     if (!this.facultyId() || !this.activeSemesterId()) {
@@ -509,6 +535,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Remove course from table
+   */
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
       courses.filter((c) => !(c.course_id === course.course_id 
@@ -516,6 +545,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     ));
   }
 
+  /**
+   * Checks if the course is already added based on course_id and section_name
+   */
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
       (subject) => subject.course_id === course.course_id 
@@ -524,6 +556,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return isAdded;
   }
 
+  /**
+   * Asynchronous function that activates a dialog for section selection
+   * if the course has multiple sections.
+   */
   private async willSelectAnotherSection(course: Course): Promise<boolean> {  
     const yearLevels = this.selectedProgram()?.year_levels;
     if (course.year_level == null) {
@@ -558,13 +594,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    for (let section of targetYear.sections) {
-      if (section.section_id === Number(result)) {
-        this.selectedSectionId.set(section.section_id);
-        this.selectedSection.set(section.section_name);        
-        break;
-      }
-    }
+    this.selectedSection.set(result.section_name);
+    this.selectedSectionId.set(result.section_id);
 
     return true;
   }
@@ -614,6 +645,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Opens the preferences dialog in view-only mode
+   */
   public openViewPreferencesDialog(): void {
     this.dialog.open(DialogPrefComponent, {
       maxWidth: '90vw',
@@ -628,6 +662,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the request access dialog
+   */
   public openRequestAccessDialog(): void {
     this.dialog
       .open(DialogRequestAccessComponent, {

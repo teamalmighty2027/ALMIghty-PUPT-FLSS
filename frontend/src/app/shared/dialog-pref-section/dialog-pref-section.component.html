@@ -3,7 +3,7 @@
 
   <mat-button-toggle-group [(ngModel)]="selectedSection">
     @for (section of data.sections; track section.section_id) {
-      <mat-button-toggle value="{{section.section_id}}">
+      <mat-button-toggle [value]="section">
         {{ section.section_name }}  
       </mat-button-toggle>  
     }
