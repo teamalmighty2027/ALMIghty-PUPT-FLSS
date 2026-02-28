@@ -294,8 +294,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours,
       units: course.units,
       year_level: course.course_details.year_level,
-      section_id: course.section_id ?? null,
-      section_name: course.section_name ?? null,
+      section_id: course.course_details.section_id ?? null,
+      section_name: course.course_details.section_name ?? null,
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
         start_time: this.formatTimeForPayload(prefDay.start_time),
@@ -490,6 +490,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   private removeSubmittedCourse(course: TableData) {
     const { course_assignment_id } = course;
+    const { section_id } = course;
     if (!this.facultyId() || !this.activeSemesterId()) {
       this.showSnackBar('Error: Missing faculty or semester information.');
       return;
@@ -505,6 +506,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         course_assignment_id,
         this.facultyId()!,
         this.activeSemesterId()!,
+        section_id ?? 0
       )
       .subscribe({
         next: () => {
@@ -573,7 +575,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const maxSections = Number(targetYear.sections.length);
     if (isNaN(maxSections) || maxSections <= 1) {
       const firstSection = targetYear.sections[0];
-      
+
       if (firstSection) {
         this.selectedSectionId.set(firstSection.section_id);
         this.selectedSection.set(firstSection.section_name);

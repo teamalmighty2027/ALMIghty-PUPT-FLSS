@@ -58,7 +58,6 @@ class PreferenceController extends Controller
                     'course_assignment_id' => $courseAssignmentId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
                 ],
-                []
             );
 
             // Check if preferred days have changed
@@ -631,6 +630,7 @@ class PreferenceController extends Controller
     {
         $facultyId        = $request->query('faculty_id');
         $activeSemesterId = $request->query('active_semester_id');
+        $sectionsPerProgramYearId = $request->query('sections_per_program_year_id');
 
         if (! $facultyId) {
             return response()->json(['message' => 'Faculty ID is required.'], 400);
@@ -654,6 +654,7 @@ class PreferenceController extends Controller
         $preference = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
             ->where('course_assignment_id', $preference_id)
+            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
             ->first();
 
         if (! $preference) {
