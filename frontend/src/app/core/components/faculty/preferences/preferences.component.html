@@ -223,7 +223,7 @@
               Program
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.program_details.program_code || '—' }}
+              {{ element.program_details?.program_code || '—' }}
             </td>
           </ng-container> 
           

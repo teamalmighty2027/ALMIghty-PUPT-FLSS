@@ -14,12 +14,11 @@ import { Section } from '../../core/models/preferences.model';
   styleUrls: ['./dialog-pref-section.component.scss']
 })
 export class DialogPrefSectionComponent implements OnInit {
-  sectionList: number[] = [];
   selectedSection: Section | null = null;
 
   constructor(
     private dialogRef: MatDialogRef<DialogPrefSectionComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: { sectionMax: number, sections: Section[] }
+    @Inject(MAT_DIALOG_DATA) public data: {sections: Section[]}
   ) {}
 
   ngOnInit(): void {

@@ -45,7 +45,7 @@ export interface YearLevel {
   semester: SemesterDetails;
   sections: Section[];
   section_id: number;
-  section_name: String
+  section_name: string;
 }
 
 export interface Section {

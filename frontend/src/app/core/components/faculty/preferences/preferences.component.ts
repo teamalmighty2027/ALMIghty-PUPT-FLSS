@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, concat, firstValueFrom } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -26,7 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { CookieService } from 'ngx-cookie-service';
-import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
+import { Program, Course, PreferredDay } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -553,7 +553,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
       (subject) => subject.course_id === course.course_id 
-      && subject.section_name === course.section_name,
+      && subject.section_id === course.section_id,
     );
     return isAdded;
   }
@@ -585,7 +585,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
       data: { 
-        sectionMax: maxSections,
         sections: targetYear.sections
       },
     });
@@ -626,7 +625,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         if (result) {
           const courseIndex = this.allSelectedCourses().findIndex(
             (c) => c.course_id === element.course_id 
-              && c.section_name === element.section_name,
+              && c.section_id === element.section_id,
           );
 
           if (courseIndex !== -1) {
