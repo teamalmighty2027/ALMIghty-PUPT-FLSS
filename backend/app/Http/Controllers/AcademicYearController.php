@@ -921,7 +921,7 @@ class AcademicYearController extends Controller
                     'lab_hours' => $row->lab_hours,
                     'units' => $row->units,
                     'tuition_hours' => $row->tuition_hours,
-                    'year_level' => $yearLevelIndex + 1
+                    'year_level' => $row->year_level,
                 ];
             }
         }

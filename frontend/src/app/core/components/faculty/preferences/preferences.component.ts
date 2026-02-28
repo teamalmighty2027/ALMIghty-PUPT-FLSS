@@ -289,7 +289,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lec_hours: course.lec_hours,
       lab_hours: course.lab_hours,
       units: course.units,
-      year_level: this.selectedYearLevel(),
+      year_level: course.course_details.year_level,
       section_id: course.section_id ?? null,
       section_name: course.section_name ?? null,
       preferredDays: course.preferred_days.map((prefDay: any) => ({
@@ -302,7 +302,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: course.program_details ?? undefined,
-      year_section:  `Year-${course.course_details.section_name}`
+      year_section:  `${course.course_details.year_level}-${course.course_details.section_name}`
     }));
   }
 
@@ -723,23 +723,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
-  }
-
-  // Sets the year and section from the backend response
-  public getYearSection(course: Course, selectedProgram: Program): String {
-    console.log("Course Data: ", course);
-
-    var year = selectedProgram.year_levels.find(
-      yl => yl.year_level === course.year_level
-    )?.year_level.toString() ?? '';
-
-    var section = course.section_name ? `${course.section_name}` : '';
-
-    if (section === undefined || section === "null" || section === "") {
-      section = "1";
-    }
-
-    return [year, section].filter(Boolean).join(' - ');
   }
 
   // Sets the year level and section and returns it as combined String
