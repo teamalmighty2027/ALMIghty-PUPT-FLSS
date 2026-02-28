@@ -853,12 +853,8 @@ class AcademicYearController extends Controller
                 $join->on('ca.semester_id', '=', 's.semester_id')
                     ->on('ca.curricula_program_id', '=', 'cp.curricula_program_id');
             })
-            ->leftJoin('sections_per_program_year as sppy', function ($join) {
-                $join->on('p.program_id', '=', 'sppy.program_id')
-                    ->on('pylc.year_level', '=', 'sppy.year_level');
-            })            
             ->leftJoin('courses as co', 'ca.course_id', '=', 'co.course_id')
-            ->where('pylc.academic_year_id', $activeSemester->academic_year_id) // Match the active academic year
+            ->where('pylc.academic_year_id', $activeSemester->academic_year_id)
             ->orderBy('p.program_id')
             ->orderBy('pylc.year_level')
             ->orderBy('s.semester')

@@ -572,12 +572,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     // If only one or no section, set it and continue
     const maxSections = Number(targetYear.sections.length);
     if (isNaN(maxSections) || maxSections <= 1) {
-      for (let section of targetYear.sections) {
-        if (section.section_name === "1") {
-          this.selectedSectionId.set(section.section_id);
-          this.selectedSection.set(section.section_name);
-          break;
-        }
+      const firstSection = targetYear.sections[0];
+      
+      if (firstSection) {
+        this.selectedSectionId.set(firstSection.section_id);
+        this.selectedSection.set(firstSection.section_name);
       }
       return true;
     }
