@@ -485,7 +485,7 @@ class PreferenceController extends Controller
                 \DB::raw("CONCAT(academic_years.year_start, '-', academic_years.year_end) as academic_year"),
                 'semesters.semester_id',
                 'semesters.semester as semester_number',
-                'active_semesters.active_semester_id',   // needed for mapping
+                'active_semesters.active_semester_id',
                 'active_semesters.start_date',
                 'active_semesters.end_date'
             )
@@ -572,7 +572,7 @@ class PreferenceController extends Controller
             if (! empty($pref->sections_per_program_year_id)) {
                 $section = DB::table('sections_per_program_year')
                     ->where('sections_per_program_year_id', $pref->sections_per_program_year_id)
-                    ->select('sections_per_program_year_id', 'section_name')
+                    ->select('sections_per_program_year_id', 'section_name', 'year_level')
                     ->first();
             }
 
@@ -586,6 +586,7 @@ class PreferenceController extends Controller
                     'program_code' => $program->program_code ?? null,
                     'section_id'   => $section->sections_per_program_year_id ?? null,
                     'section_name' => $section->section_name ?? null,
+                    'year_level'   => $section->year_level ?? null,
                 ],
                 'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
