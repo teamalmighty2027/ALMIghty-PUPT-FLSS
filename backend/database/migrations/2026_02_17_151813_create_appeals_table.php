@@ -8,6 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('appeals')) {
+            Schema::dropIfExists('appeals');
+        }
         Schema::create('appeals', function (Blueprint $table) {
             $table->id('appeal_id');
             $table->unsignedBigInteger('schedule_id');

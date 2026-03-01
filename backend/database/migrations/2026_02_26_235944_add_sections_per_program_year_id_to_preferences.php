@@ -17,7 +17,11 @@ return new class extends Migration
                   ->references('sections_per_program_year_id')
                   ->on('sections_per_program_year')
                   ->onDelete('set null');
-            $table->dropUnique('unique_preference');
+                  
+            // If unique index already exists, drop it 
+            if (Schema::hasIndex('preferences', 'unique_preference')) {
+                $table->dropUnique('unique_preference');
+            }
             $table->unique(
                 ['faculty_id', 'active_semester_id', 'course_assignment_id', 'sections_per_program_year_id'],
                 'unique_preference'
