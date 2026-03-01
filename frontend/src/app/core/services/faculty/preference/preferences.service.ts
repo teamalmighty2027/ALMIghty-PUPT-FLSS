@@ -137,6 +137,7 @@ export class PreferencesService {
     faculty_id: number;
     active_semester_id: number;
     course_assignment_id: number;
+    sections_per_program_year_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
     const url = `${this.baseUrl}/submit-preferences`;
@@ -155,11 +156,13 @@ export class PreferencesService {
   deletePreference(
     preferenceId: number,
     facultyId: string,
-    activeSemesterId: number
+    activeSemesterId: number,
+    sectionId: number
   ): Observable<any> {
     const params = new HttpParams()
       .set('faculty_id', facultyId)
-      .set('active_semester_id', activeSemesterId.toString());
+      .set('active_semester_id', activeSemesterId.toString())
+      .set('sections_per_program_year_id', sectionId.toString());
 
     const url = `${this.baseUrl}/delete-preferences/${preferenceId}`;
     return this.http.delete(url, { params }).pipe(

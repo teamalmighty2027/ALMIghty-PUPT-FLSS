@@ -23,6 +23,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 interface Course {
   course_code: string;
@@ -31,7 +32,8 @@ interface Course {
   lab_hours: number;
   units: number;
   preferred_days: { day: string; start_time: string; end_time: string }[];
-  program_code?: string | null;
+  year_section: string;
+  program_code: string | null;
 }
 
 interface DialogPrefData {
@@ -90,6 +92,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   constructor(
     private preferencesService: PreferencesService,
     public dialogRef: MatDialogRef<DialogPrefComponent>,
+    private snackBar: MatSnackBar,
     @Inject(MAT_DIALOG_DATA) public data: DialogPrefData,
     private sanitizer: DomSanitizer,
     private reportHeaderService: ReportHeaderService,
@@ -106,7 +109,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       },
       (error) => {
           console.error('Error fetching academic years:', error);
-    });
+          this.showSnackbar('Failed to load academic years for history view.');
+      }
+    );
   }
 
   // Load faculty preferences from the service
@@ -139,9 +144,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
-              program_code: course.course_details?.program_code ??
-                course.program_code ??
-                null,
+              year_section: `${course.course_details.year_level}-${course.course_details.section_name}`,
+              program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
             }));
           }
 
@@ -152,6 +156,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         },
         (error) => {
           console.error('Error loading faculty preferences:', error);
+          this.showSnackbar('Failed to load faculty preferences. Please try again later.');
           this.isLoading = false;
         }
       );
@@ -188,7 +193,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
-  // TODO: after clicking the new acad year, the old one disappears
   onAcademicYearChange(event?: any) {    
     let yearObj: any = null;
 
@@ -257,7 +261,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours ?? 0,
       units: course.units ?? 0,
       preferred_days: course.preferred_days ?? course.preferredDays ?? [],
-      program_code: course.course_details?.program_code ?? course.program_code ?? null,
+      year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.course_details?.section_name ?? 'N/A'}`,
+      program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
     }));
 
     this.isLoading = false;
@@ -270,6 +275,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
     } else {
       console.error('generateFacultyPDF did not return a Blob.');
+      this.showSnackbar('Failed to generate PDF preview.');
     }
   }
 
@@ -325,6 +331,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             const courseData = courses.map((course: Course, index: number) => [
               (index + 1).toString(),
               course.program_code || 'N/A',
+              course.year_section || 'N/A',
               course.course_code || 'N/A',
               course.course_title || 'N/A',
               course.lec_hours.toString(),
@@ -338,6 +345,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               [
                 '#',
                 'Program Code',
+                'Year & Section',
                 'Course Code',
                 'Course Title',
                 'Lec',
@@ -368,12 +376,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               columnStyles: {
                 0: { cellWidth: 10 },
                 1: { cellWidth: 20 },
-                2: { cellWidth: 30 },
-                3: { cellWidth: 50 },
-                4: { cellWidth: 13 },
+                2: { cellWidth: 20 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 40 },
                 5: { cellWidth: 13 },
                 6: { cellWidth: 13 },
-                7: { cellWidth: 50 },
+                7: { cellWidth: 13 },
+                8: { cellWidth: 40 },
+                
               },
               margin: { left: 10, right: 10 },
             };
@@ -418,6 +428,16 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       console.error('Failed to generate PDF:', error);
       throw error;
     }
+  }
+
+  /** Helper Methods:
+   * Displays a snackbar with the given message.
+   */
+  private showSnackbar(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 3000,
+      panelClass: ['error-snackbar']
+    });
   }
 
   /**

@@ -102,7 +102,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
-    this.setupFesrHealthCheck();
+    // this.setupFesrHealthCheck();
   }
 
   ngOnDestroy() {

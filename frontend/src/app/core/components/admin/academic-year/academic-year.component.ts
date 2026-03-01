@@ -272,11 +272,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
   onManageCurriculum(program: Program) {
     const fields: DialogFieldConfig[] = [];
 
-    console.log('Fetched Program ID:', program.program_id);
-
     this.curriculumService.getCurricula().subscribe((curricula) => {
-      console.log(curricula);
-
       const curriculumOptions = curricula.map((curriculum) => ({
         year: curriculum.curriculum_year,
         id: curriculum.curriculum_id,

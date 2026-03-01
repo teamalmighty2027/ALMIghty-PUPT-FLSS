@@ -26,6 +26,7 @@ class PreferenceController extends Controller
             'faculty_id'                  => 'required|exists:faculty,id',
             'active_semester_id'          => 'required|exists:active_semesters,active_semester_id',
             'course_assignment_id'        => 'required|exists:course_assignments,course_assignment_id',
+            'sections_per_program_year_id'=> 'required|exists:sections_per_program_year,sections_per_program_year_id',
             'preferred_days'              => 'required|array',
             'preferred_days.*.day'        => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'preferred_days.*.start_time' => 'required|date_format:H:i:s',
@@ -35,7 +36,7 @@ class PreferenceController extends Controller
         $facultyId          = $validatedData['faculty_id'];
         $activeSemesterId   = $validatedData['active_semester_id'];
         $courseAssignmentId = $validatedData['course_assignment_id'];
-
+        $sectionsPerProgramYearId = $validatedData['sections_per_program_year_id'];
         $preferenceSetting  = PreferencesSetting::where('faculty_id', $facultyId)->first();
         $globalDeadline     = $preferenceSetting->global_deadline;
         $individualDeadline = $preferenceSetting->individual_deadline;
@@ -49,14 +50,14 @@ class PreferenceController extends Controller
             ], 403);
         }
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId) {
+        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $sectionsPerProgramYearId) {
             $preference = Preference::updateOrCreate(
                 [
                     'faculty_id'           => $facultyId,
                     'active_semester_id'   => $activeSemesterId,
                     'course_assignment_id' => $courseAssignmentId,
+                    'sections_per_program_year_id' => $sectionsPerProgramYearId,
                 ],
-                []
             );
 
             // Check if preferred days have changed
@@ -351,7 +352,7 @@ class PreferenceController extends Controller
                 'preferenceSetting',
                 'preferences' => function ($query) use ($activeSemester) {
                     $query->where('active_semester_id', $activeSemester->active_semester_id)
-                        ->with(['courseAssignment.course', 'preferenceDays']);
+                        ->with(['courseAssignment.course', 'preferenceDays', 'section']);
                 },
             ])
             ->first();
@@ -370,13 +371,16 @@ class PreferenceController extends Controller
 
         // PRELOAD program details for all course_assignment_ids
         $courseAssignmentIds = $faculty->preferences->pluck('course_assignment_id')->filter()->unique()->toArray();
+        $sectionsPerProgramYearIds = $faculty->preferences->pluck('sections_per_program_year_id')->filter()->unique()->toArray();
         $programDetailsByCourseAssignment = collect();
         if (!empty($courseAssignmentIds)) {
             $programDetailsByCourseAssignment = DB::table('course_assignments')
                 ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
                 ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
+                ->join('sections_per_program_year', 'sections_per_program_year.program_id', '=', 'programs.program_id')
+                ->whereIn('sections_per_program_year.sections_per_program_year_id', $sectionsPerProgramYearIds)
                 ->whereIn('course_assignments.course_assignment_id', $courseAssignmentIds)
-                ->select('course_assignments.course_assignment_id', 'programs.program_id', 'programs.program_code')
+                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title', 'sections_per_program_year.year_level')
                 ->get()
                 ->keyBy('course_assignment_id');
         }
@@ -398,8 +402,15 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'program_id'   => $program->program_id ?? null,
-                    'program_code' => $program->program_code ?? null,
+                    'year_level'   => $program->year_level  ?? null,
+                    'section_id'   => $preference->sections_per_program_year_id ?? null,
+                    'section_name' => $preference->section ? $preference->section->section_name : null
+                ],
+                'program_details'      => [
+                    'program_id'    => $program->program_id ?? null,
+                    'program_code'  => $program->program_code ?? null,
+                    'program_title' => $program->program_title ?? null,
+                    'year_levels'   => [],
                 ],
                 'lec_hours'            => is_numeric($preference->courseAssignment->course->lec_hours) ? (int) $preference->courseAssignment->course->lec_hours : 0,
                 'lab_hours'            => is_numeric($preference->courseAssignment->course->lab_hours) ? (int) $preference->courseAssignment->course->lab_hours : 0,
@@ -473,7 +484,7 @@ class PreferenceController extends Controller
                 \DB::raw("CONCAT(academic_years.year_start, '-', academic_years.year_end) as academic_year"),
                 'semesters.semester_id',
                 'semesters.semester as semester_number',
-                'active_semesters.active_semester_id',   // needed for mapping
+                'active_semesters.active_semester_id',
                 'active_semesters.start_date',
                 'active_semesters.end_date'
             )
@@ -555,6 +566,15 @@ class PreferenceController extends Controller
                     ->first();
             }
 
+            // Fetch section details for this preference (if available)
+            $section = null;
+            if (! empty($pref->sections_per_program_year_id)) {
+                $section = DB::table('sections_per_program_year')
+                    ->where('sections_per_program_year_id', $pref->sections_per_program_year_id)
+                    ->select('sections_per_program_year_id', 'section_name', 'year_level')
+                    ->first();
+            }
+
             $preferencePayload = [
                 'course_assignment_id' => $pref->course_assignment_id ?? 'N/A',
                 'course_details'       => [
@@ -563,6 +583,9 @@ class PreferenceController extends Controller
                     'course_title' => $course->course_title ?? null,
                     'program_id'   => $program->program_id ?? null,
                     'program_code' => $program->program_code ?? null,
+                    'section_id'   => $section->sections_per_program_year_id ?? null,
+                    'section_name' => $section->section_name ?? null,
+                    'year_level'   => $section->year_level ?? null,
                 ],
                 'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
@@ -607,6 +630,7 @@ class PreferenceController extends Controller
     {
         $facultyId        = $request->query('faculty_id');
         $activeSemesterId = $request->query('active_semester_id');
+        $sectionsPerProgramYearId = $request->query('sections_per_program_year_id');
 
         if (! $facultyId) {
             return response()->json(['message' => 'Faculty ID is required.'], 400);
@@ -630,6 +654,7 @@ class PreferenceController extends Controller
         $preference = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
             ->where('course_assignment_id', $preference_id)
+            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
             ->first();
 
         if (! $preference) {

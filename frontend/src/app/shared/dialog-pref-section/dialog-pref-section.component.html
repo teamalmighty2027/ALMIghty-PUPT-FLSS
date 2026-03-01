@@ -1,0 +1,16 @@
+<div class="dialog-pref-section-container">
+  <h3>Select Chosen Section</h3>
+
+  <mat-button-toggle-group [(ngModel)]="selectedSection">
+    @for (section of data.sections; track section.section_id) {
+      <mat-button-toggle [value]="section">
+        {{ section.section_name }}  
+      </mat-button-toggle>  
+    }
+  </mat-button-toggle-group>
+
+  <div class="dialog-actions">
+    <button mat-button (click)="cancel()">Cancel</button>
+    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="!selectedSection">Add</button>
+  </div>
+</div>
