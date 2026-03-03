@@ -172,6 +172,27 @@
             </div>
           </div>
         </div>
+        } @else if (showProgramSelection() && showPossiblePrograms()) {
+        <div id="programs_list">
+          <h3 class="cards-label">
+            <span mat-symbol="school"></span>Possible Programs for this Course
+          </h3>
+          <div class="programs-scroll-container">
+            <div [@cardEntranceAnimation]="possiblePrograms().length">
+              @for (program of possiblePrograms(); track program.program_id) {
+              <div
+                class="program-card pop"
+                (click)="selectPossibleProgram(program)"
+                matRipple>
+                <div class="program-info">
+                  <span class="program-code">{{ program.program_code }}</span>
+                  <span class="program-title">{{ program.program_title }}</span>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
         }
       </div>
 

@@ -71,13 +71,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   showProgramSelection = computed(
     () => this.searchState() === 'programSelection',
   );
+  showPossiblePrograms = signal(false);
 
   // Data
   academicYear = signal('');
   semesterLabel = signal('');
   programs = signal<Program[]>([]);
+  possiblePrograms = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
+  selectedCourse = signal<Course | null>(null);
   // TODO: Refactor to use Section object
   selectedSection = signal<string | undefined>(undefined);
   selectedSectionId = signal<number | undefined>(undefined);
@@ -349,6 +352,36 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  private populatePossiblePrograms(course: Course): void {
+    const possiblePrograms: Program[] = [];
+    this.selectedCourse.set(course);
+    this.searchState.set('programSelection');
+
+    this.programs().forEach((program) => {
+      const matchingYearLevel = program.year_levels.find(
+        (yl) => yl.year_level === course.year_level,
+      );
+      if (matchingYearLevel) {
+        const hasCourse = matchingYearLevel.semester.courses.some(
+          (c) => c.course_code === course.course_code,
+        );
+        if (hasCourse) {
+          possiblePrograms.push(program);
+        }
+      }
+    });
+
+    this.showPossiblePrograms.set(true);
+    this.possiblePrograms.set(possiblePrograms);
+  }
+
+  public selectPossibleProgram(program: Program): void {
+    this.selectedProgram.set(program);
+    this.showPossiblePrograms.set(false);
+    this.searchState.set('searchResults');
+    this.addCourseToTable(this.selectedCourse()!);
+  }
+
   /**
    * Revert sidebar to program selection and clear actions
    */
@@ -412,12 +445,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Event handler for search input changes
    */
   public onSearchInput(query: string): void {
-    // Prevent searchbar activation when program not selected
-    if (this.searchState() == "programSelection") {
-      this.showSnackBar("Choose a program first!");
-      return;
-    }
-
     this.searchQuerySubject.next(query);
   }
 
@@ -446,6 +473,13 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public async addCourseToTable(course: Course): Promise<void> {
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
+
+    if (this.selectedProgram() === undefined) {
+      this.populatePossiblePrograms(course);
+      return;
+    }
+
+    console.log('Selected Course:', course);
     
     course.section_name = this.selectedSection();
     course.section_id = this.selectedSectionId() ?? null;
@@ -463,12 +497,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         end_time: '',
       })),
       isSubmitted: false,
-      program_details: this.selectedProgram() ?? undefined,
+      program_details: this.selectedProgram(),
       year_section: this.formatYearSection(course)
     };
 
+    // Reset selections after adding course to table
+    this.selectedProgram.set(undefined);
+    this.selectedCourse.set(null);
+    this.selectedSection.set(undefined);
+    this.selectedSectionId.set(undefined);
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
-    this.selectedYearLevel.set(null);
     this.showSnackBar(
       `${course.course_code} successfully added to your preferences.`,
     );
@@ -764,16 +802,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   // Sets the year level and section and returns it as combined String
   public formatYearSection(course: Course): String {
-    if (this.selectedYearLevel() === null) {
-      this.selectedYearLevel.set(course.year_level);
-    }
-
-    if (this.selectedSection() === undefined) {
-      this.selectedSection.set(course.section_name);
-    }
-
-    return this.selectedYearLevel()
-      + "-" + 
-      this.selectedSection();
+    return course.year_level + "-" + course.section_name;
   }
 }

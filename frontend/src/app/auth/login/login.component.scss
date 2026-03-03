@@ -158,6 +158,25 @@
     }
   }
 
+  #privacyNotice {
+    p {
+      font-size: var(--font-size-md);
+      color: var(--neutral-base);
+      text-align: center;
+      margin-top: var(--spacing-sm);
+
+      a {
+        color: var(--primary-one);
+        text-decoration: none;
+        transition: color 0.3s ease;
+
+        &:hover {
+          color: var(--primary-two);
+        }
+      }
+    }
+  }
+
   /* Login Buttons Section */
   .buttons-section {
     width: 100%;
