@@ -175,7 +175,12 @@
         } @else if (showProgramSelection() && showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>Possible Programs for this Course
+            <span
+              class="arrow_back"
+              mat-symbol="arrow_back"
+              (click)="backToCourseList()">
+            </span>
+            Possible Programs for this Course
           </h3>
           <div class="programs-scroll-container">
             <div [@cardEntranceAnimation]="possiblePrograms().length">

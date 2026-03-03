@@ -352,6 +352,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** 
+   * Populate possible programs based on selected course
+   */
   private populatePossiblePrograms(course: Course): void {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
@@ -375,6 +378,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.possiblePrograms.set(possiblePrograms);
   }
 
+  /** 
+   * Event handler when user selects a program from possible programs list
+   */
   public selectPossibleProgram(program: Program): void {
     this.selectedProgram.set(program);
     this.showPossiblePrograms.set(false);
@@ -390,6 +396,19 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.selectedProgram.set(undefined);
     this.selectedYearLevel.set(null);    
     this.clearSearch();
+  }
+
+  /** 
+  * Revert sidebar to course list and optionally clear year level filter
+  */
+  public backToCourseList(): void {
+    this.selectedYearLevel.set(null);
+    if (this.searchState() === 'programSelection') {
+      this.searchState.set('searchResults');
+    } else {
+      // Insert course list without program list iteration
+      this.clearSearch();
+    }
   }
 
   /**
