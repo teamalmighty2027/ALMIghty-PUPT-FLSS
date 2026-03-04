@@ -54,7 +54,7 @@
             <button mat-icon-button matSuffix (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
-            } @if (!showProgramSelection() && !searchQuery()) {
+            } @if (showCourseSelection() && !searchQuery()) {
             <button
               mat-icon-button
               matSuffix
@@ -123,35 +123,35 @@
             >No results found for "{{ searchQuery() }}"</span
           >
         </div>
-        } @if (showProgramSelection() && !searchQuery()) {
+        } 
+        
+        
+        @if (showCourseSelection() && !searchQuery()) {
         <div id="programs_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>Select a Program
+            <span mat-symbol="school"></span>Select a Course
           </h3>
           <div class="programs-scroll-container">
-            <div [@cardEntranceAnimation]="programs().length">
-              @for (program of programs(); track program.program_id) {
+            <div [@cardEntranceAnimation]="courses().length">
+              @for (course of courses(); track course.course_id) {
               <div
-                class="program-card pop"
-                (click)="selectProgram(program)"
+                class="course-card pop"
+                (click)="addCourseToTable(course)"
                 matRipple>
-                <div class="program-info">
-                  <span class="program-code">{{ program.program_code }}</span>
-                  <span class="program-title">{{ program.program_title }}</span>
+                <div class="course-info">
+                  <span class="course-code">{{ course.course_code }}</span>
+                  <span class="course-title">{{ course.course_title }}</span>
                 </div>
               </div>
               }
             </div>
           </div>
         </div>
-        } @else if (!showProgramSelection() && !searchQuery()) {
+        } @else if (!showCourseSelection() && !searchQuery() && !showPossiblePrograms()) {
         <div id="courses_list">
           <h3 class="cards-label">
-            <span
-              class="arrow_back"
-              mat-symbol="arrow_back"
-              (click)="backToProgramSelection()"></span>
-            Select {{ selectedProgram()?.program_code }} Courses
+            <span mat-symbol="school"></span>
+            Select Courses
           </h3>
           <div class="courses-scroll-container">
             <div [@cardEntranceAnimation]="filteredCourses().length">
@@ -172,13 +172,13 @@
             </div>
           </div>
         </div>
-        } @else if (showProgramSelection() && showPossiblePrograms()) {
+        } @else if (!showCourseSelection() && showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
             <span
               class="arrow_back"
               mat-symbol="arrow_back"
-              (click)="backToCourseList()">
+              (click)="backToCourseSelection()">
             </span>
             Possible Programs for this Course
           </h3>

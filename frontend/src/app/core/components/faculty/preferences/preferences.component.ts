@@ -66,10 +66,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   // UI State
   isLoading = signal(true);
   searchState = signal<
-    'programSelection' | 'courseList' | 'searchResults' | 'noResults'
-  >('programSelection');
-  showProgramSelection = computed(
-    () => this.searchState() === 'programSelection',
+    'programSelection' | 'courseSelection' | 'searchResults' | 'noResults'
+  >('courseSelection');
+  showCourseSelection = computed(
+    () => this.searchState() === 'courseSelection',
   );
   showPossiblePrograms = signal(false);
 
@@ -77,6 +77,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   academicYear = signal('');
   semesterLabel = signal('');
   programs = signal<Program[]>([]);
+  courses = signal<Course[]>([]);
   possiblePrograms = signal<Program[]>([]);
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
@@ -84,6 +85,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   // TODO: Refactor to use Section object
   selectedSection = signal<string | undefined>(undefined);
   selectedSectionId = signal<number | undefined>(undefined);
+
+  // Temporary hardcoded year level as four
   dynamicYearLevels = computed(() =>
     this.selectedProgram()
       ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
@@ -105,7 +108,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private searchQuerySubject = new Subject<string>();
   searchQuery = signal('');
   uniqueCourses = signal(new Map<string, Course>());
-  allCourses = signal<Course[]>([]);
   filteredSearchResults = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const selectedProgram = this.selectedProgram();
@@ -119,7 +121,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.populateUniqueCourses(selectedProgram, programCoursesMap);
       coursesToFilter = Array.from(programCoursesMap.values());
     } else {
-      coursesToFilter = this.allCourses();
+      coursesToFilter = this.courses();
     }
 
     const filteredCourses = coursesToFilter.filter(
@@ -250,7 +252,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
             this.programs.set(programsResponse.programs);
             this.activeSemesterId.set(programsResponse.active_semester_id);
-            this.allCourses.set([...allCoursesMap.values()]);
+            this.courses.set([...allCoursesMap.values()]);
+            
+            // Sort courses alphabetically by course code for better UX in course selection
+            this.courses.set(
+              this.courses().sort((a, b) => a.course_code.localeCompare(b.course_code))
+            );
           },
           error: (error) => this.handleDataLoadingError(error),
         }),
@@ -332,7 +339,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public selectProgram(program: Program): void {
     this.selectedYearLevel.set(null);
     this.selectedProgram.set(program);
-    this.searchState.set('courseList');
+    this.searchState.set('courseSelection');
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -358,23 +365,23 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private populatePossiblePrograms(course: Course): void {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
-    this.searchState.set('programSelection');
+    this.searchState.set('courseSelection');
 
     this.programs().forEach((program) => {
-      const matchingYearLevel = program.year_levels.find(
-        (yl) => yl.year_level === course.year_level,
-      );
-      if (matchingYearLevel) {
-        const hasCourse = matchingYearLevel.semester.courses.some(
-          (c) => c.course_code === course.course_code,
-        );
-        if (hasCourse) {
-          possiblePrograms.push(program);
+      program.year_levels.find(
+        (yearLevel) => {
+          var hasCourse = yearLevel.semester.courses.some(
+            (c) => c.course_code === course.course_code,
+          );
+          if (hasCourse) {
+            possiblePrograms.push(program);
+          }
         }
-      }
+      );
     });
 
     this.showPossiblePrograms.set(true);
+    this.searchState.set('programSelection');
     this.possiblePrograms.set(possiblePrograms);
   }
 
@@ -384,26 +391,29 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public selectPossibleProgram(program: Program): void {
     this.selectedProgram.set(program);
     this.showPossiblePrograms.set(false);
-    this.searchState.set('searchResults');
-    this.addCourseToTable(this.selectedCourse()!);
-  }
 
-  /**
-   * Revert sidebar to program selection and clear actions
-   */
-  public backToProgramSelection(): void {
-    this.searchState.set('programSelection');
-    this.selectedProgram.set(undefined);
-    this.selectedYearLevel.set(null);    
-    this.clearSearch();
+    program.year_levels.forEach((yearLevel) => {
+      yearLevel.semester.courses.forEach((course) => {
+        if (course.course_code === this.selectedCourse()!.course_code) {
+          this.selectedCourse.set(course);
+          this.addCourseToTable(course);
+        }
+      });
+    });
+
+    if (this.searchQuery() !== '') {
+      this.searchState.set('searchResults');
+    } else {
+      this.searchState.set('courseSelection');
+    }
   }
 
   /** 
   * Revert sidebar to course list and optionally clear year level filter
   */
-  public backToCourseList(): void {
+  public backToCourseSelection(): void {
     this.selectedYearLevel.set(null);
-    if (this.searchState() === 'programSelection') {
+    if (this.searchState() === 'courseSelection') {
       this.searchState.set('searchResults');
     } else {
       // Insert course list without program list iteration
@@ -453,7 +463,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
             );
           } else {
             this.searchState.set(
-              this.selectedProgram() ? 'courseList' : 'programSelection',
+            'courseSelection'
             );
           }
         }),
@@ -474,7 +484,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       );
     } else {
       this.searchState.set(
-        this.selectedProgram() ? 'courseList' : 'programSelection',
+        this.selectedProgram() ? 'courseSelection' : 'courseSelection',
       );
     }
   }
@@ -490,13 +500,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Course Management
    */
   public async addCourseToTable(course: Course): Promise<void> {
-    const shouldProceed = await this.willSelectAnotherSection(course);
-    if (!shouldProceed) return;
-
+    console.log('Attempting to add course:', course);
+    
     if (this.selectedProgram() === undefined) {
+      console.log('No program selected, populating possible programs for course:', course);
       this.populatePossiblePrograms(course);
       return;
     }
+
+    const shouldProceed = await this.willSelectAnotherSection(course);
+    if (!shouldProceed) return;
 
     console.log('Selected Course:', course);
     
@@ -754,9 +767,24 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /* 
+   * Unused Functions for Program Selection Flow - may be used in the future
+   */
+
   /**
+   * Revert sidebar to program selection and clear actions
+   */
+  public backToProgramSelection(): void {
+    this.searchState.set('courseSelection');
+    this.selectedProgram.set(undefined);
+    this.selectedYearLevel.set(null);    
+    this.clearSearch();
+  }
+
+  /*
    * Utility Functions
    */
+
   private readonly SNACK_BAR_CONFIG = {
     duration: 3000,
     horizontalPosition: 'center' as const,
