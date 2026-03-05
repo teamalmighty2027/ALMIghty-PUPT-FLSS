@@ -70,6 +70,21 @@ export class AcademicYearService {
       );
   }
 
+  updateAcademicYear(academicYearId: number): Observable<any> {
+    return this.http
+      .request('PUT', `${this.baseUrl}/update-academic-year`, {
+        body: { academic_year_id: academicYearId },
+      })
+      .pipe(
+        catchError((error: HttpErrorResponse) => {
+          if (error.error?.status === 'error') {
+            return throwError(() => new Error(error.error.message));
+          }
+          return this.handleError(error);
+        })
+      );
+  }
+
   /**
    * Get active academic year and semester details.
    */

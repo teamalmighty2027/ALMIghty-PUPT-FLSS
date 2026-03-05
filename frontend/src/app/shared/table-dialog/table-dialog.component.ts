@@ -635,6 +635,10 @@ export class TableDialogComponent {
     this.dialogRef.close({ deletedYear: year });
   }
 
+  onUpdateYear(year: string): void {
+    this.dialogRef.close({ updatedYear: year });
+  }
+
   isSelectOption(
     option: string | number | SelectOption
   ): option is SelectOption {

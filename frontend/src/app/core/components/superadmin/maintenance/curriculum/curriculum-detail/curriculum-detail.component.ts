@@ -236,11 +236,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
               ...course,
               pre_req:
                 course.prerequisites
-                  ?.map((p) => `${p.course_code} - ${p.course_title}`)
+                  ?.map((p) => `${p.course_code}`)
                   .join(', ') || 'None',
               co_req:
                 course.corequisites
-                  ?.map((c) => `${c.course_code} - ${c.course_title}`)
+                  ?.map((c) => `${c.course_code}`)
                   .join(', ') || 'None',
             })),
           }));
@@ -882,11 +882,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   // ===========================
   populateCourseRequisites(course: Course): Course {
     const pre_req = course.prerequisites?.length
-      ? course.prerequisites.map((p) => `${p.course_code} - ${p.course_title}`)
+      ? course.prerequisites.map((p) => `${p.course_code}`)
       : ['None'];
 
     const co_req = course.corequisites?.length
-      ? course.corequisites.map((c) => `${c.course_code} - ${c.course_title}`)
+      ? course.corequisites.map((c) => `${c.course_code}`)
       : ['None'];
 
     return {

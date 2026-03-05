@@ -21,15 +21,22 @@
 
 .table-dialog-content {
   .academic-year-list {
-    @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-smx));
     width: 100%;
     font-size: var(--font-size-md);
 
     .academic-year-item {
       @include mixins.flex-layout($justify: space-between);
+      padding: var(--spacing-xxs) 0;
       width: inherit;
 
       .delete-acad-item {
+        color: var(--primary-text);
+        @include mixins.flex-layout;
+        cursor: pointer;
+      }
+
+      .update-acad-item {
         color: var(--primary-text);
         @include mixins.flex-layout;
         cursor: pointer;
