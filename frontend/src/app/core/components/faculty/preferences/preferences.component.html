@@ -123,10 +123,7 @@
             >No results found for "{{ searchQuery() }}"</span
           >
         </div>
-        } 
-        
-        
-        @if (showCourseSelection() && !searchQuery()) {
+        } @if (showCourseSelection() && !searchQuery() && selectedYearLevel() === null) {
         <div id="programs_list">
           <h3 class="cards-label">
             <span mat-symbol="school"></span>Select a Course
@@ -134,6 +131,28 @@
           <div class="programs-scroll-container">
             <div [@cardEntranceAnimation]="courses().length">
               @for (course of courses(); track course.course_id) {
+              <div
+                class="course-card pop"
+                (click)="addCourseToTable(course)"
+                matRipple>
+                <div class="course-info">
+                  <span class="course-code">{{ course.course_code }}</span>
+                  <span class="course-title">{{ course.course_title }}</span>
+                </div>
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+        } @else if (showCourseSelection() && !searchQuery() && selectedYearLevel() !== null) {
+        <div id="courses_list">
+          <h3 class="cards-label">
+            <span mat-symbol="school"></span>
+            Year Level {{ selectedYearLevel() }} Courses
+          </h3>
+          <div class="courses-scroll-container">
+            <div [@cardEntranceAnimation]="filteredCourses().length">
+              @for (course of filteredCourses(); track course.course_id) {
               <div
                 class="course-card pop"
                 (click)="addCourseToTable(course)"

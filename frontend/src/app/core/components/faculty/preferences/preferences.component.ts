@@ -88,11 +88,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   // Temporary hardcoded year level as four
   dynamicYearLevels = computed(() =>
-    this.selectedProgram()
-      ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
-      : [],
+    this.selectedProgram() === undefined
+      ? this.programs()[0]!.year_levels.map((yl) => yl.year_level)
+      : this.selectedProgram()!.year_levels.map((yl) => yl.year_level),
   );
-
+  
   // Faculty Info
   facultyId = signal<string>('');
   facultyName = signal<string>('');
@@ -380,6 +380,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       );
     });
 
+    if (possiblePrograms.length === 1) {
+      this.selectPossibleProgram(possiblePrograms[0]);
+      return;
+    }
+
     this.showPossiblePrograms.set(true);
     this.searchState.set('programSelection');
     this.possiblePrograms.set(possiblePrograms);
@@ -427,11 +432,16 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public filteredCourses = computed(() => {
     const yearLevel = this.selectedYearLevel();
     const program = this.selectedProgram();
+    const courses = this.courses();
 
     if (!program) {
-      return [];
+      if (yearLevel === null) {
+        return courses;
+      }
+      return courses.filter((course) => course.year_level === yearLevel);
     }
 
+    // Retain Program Selection Flow filter process
     if (yearLevel === null) {
       return Array.from(this.uniqueCourses().values());
     } else {
@@ -845,6 +855,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
+    console.log('Year level filter applied:', this.selectedYearLevel());
+    this.filteredCourses(); // Trigger recomputation of filtered courses
   }
 
   // Sets the year level and section and returns it as combined String
