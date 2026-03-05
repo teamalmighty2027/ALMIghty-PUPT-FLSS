@@ -206,6 +206,7 @@ class AcademicYearController extends Controller
             DB::rollback();
 
             return response()->json([
+                'status' => 'error',
                 'message' => 'An error occurred: ' . $e->getMessage(),
             ], 500);
         }
@@ -228,6 +229,7 @@ class AcademicYearController extends Controller
 
         if (!$academicYear) {
             return response()->json([
+                'status' => 'error',
                 'message' => "Academic Year with ID {$academicYearId} not found.",
             ], 404);
         }
@@ -254,8 +256,15 @@ class AcademicYearController extends Controller
             $latestCurriculumId = $latestCurriculum->curriculum_id;
 
             // Step 3: Update academic_year_curricula to the latest curriculum
-            AcademicYearCurricula::where('academic_year_id', $academicYearId)
+            $updatedRows = AcademicYearCurricula::where('academic_year_id', $academicYearId)
                 ->update(['curriculum_id' => $latestCurriculumId]);
+
+            if ($updatedRows === 0) {
+                AcademicYearCurricula::create([
+                    'academic_year_id' => $academicYearId,
+                    'curriculum_id' => $latestCurriculumId,
+                ]);
+            }
 
             // Step 4: Ensure 3 active_semesters exist (create if missing, preserve is_active state)
             for ($semesterId = 1; $semesterId <= 3; $semesterId++) {
@@ -302,17 +311,16 @@ class AcademicYearController extends Controller
             DB::commit();
 
             return response()->json([
+                'status' => 'success',
                 'message' => "Academic Year ID: {$academicYearId} updated successfully with the latest curriculum.",
-                'academic_year_id' => $academicYearId,
-                'curriculum_id' => $latestCurriculumId,
-                'curriculum_year' => $latestCurriculum->curriculum_year,
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
-                'message' => 'An error occurred: ' . $e->getMessage(),
+                'status' => 'error',
+                'message' => 'An error occurred: Academic Year could not be updated',
             ], 500);
         }
     }

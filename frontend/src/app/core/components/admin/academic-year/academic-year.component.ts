@@ -721,6 +721,14 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             }
           } else if (result && result.updatedYear) {
             const updatedYearId = this.academicYearMap[result.updatedYear];
+
+            if (updatedYearId == null) {
+              this.snackBar.open('Selected academic year could not be found.',
+                'Close',{ duration: 3000, }
+              );
+              return;
+            }
+
             this.academicYearService
               .updateAcademicYear(updatedYearId)
               .subscribe(
