@@ -216,33 +216,21 @@ class AcademicYearController extends Controller
      */
     public function updateAcademicYear(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'year_start' => 'required|numeric|min:1900|max:2100',
-            'year_end' => 'required|numeric|min:1900|max:2100',
+        // Validate the incoming request
+        $request->validate([
+            'academic_year_id' => 'required|integer',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Invalid year format. Years must be between 1900 and 2100.',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $yearStart = $request->input('year_start');
-        $yearEnd = $request->input('year_end');
+        $academicYearId = $request->input('academic_year_id');
 
         // Find the academic year
-        $academicYear = AcademicYear::where('year_start', $yearStart)
-            ->where('year_end', $yearEnd)
-            ->first();
+        $academicYear = AcademicYear::find($academicYearId);
 
         if (!$academicYear) {
             return response()->json([
-                'message' => "Academic Year {$yearStart}-{$yearEnd} not found.",
+                'message' => "Academic Year with ID {$academicYearId} not found.",
             ], 404);
         }
-
-        $academicYearId = $academicYear->academic_year_id;
 
         DB::beginTransaction();
 
@@ -314,7 +302,7 @@ class AcademicYearController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => "Academic Year {$yearStart}-{$yearEnd} updated successfully with the latest curriculum.",
+                'message' => "Academic Year ID: {$academicYearId} updated successfully with the latest curriculum.",
                 'academic_year_id' => $academicYearId,
                 'curriculum_id' => $latestCurriculumId,
                 'curriculum_year' => $latestCurriculum->curriculum_year,

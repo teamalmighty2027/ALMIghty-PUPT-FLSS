@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/get-academic-years', [AcademicYearController::class, 'getAcademicYears']);
     Route::post('/add-academic-year', [AcademicYearController::class, 'addAcademicYear']);
     Route::delete('/delete-academic-year', [AcademicYearController::class, 'deleteAcademicYear']);
+    Route::put('/update-academic-year', [AcademicYearController::class, 'updateAcademicYear']);
     Route::get('/get-active-year-semester', [AcademicYearController::class, 'getActiveAcademicYearAndSemester']);
     Route::post('/set-active-year-semester', [AcademicYearController::class, 'setActiveAcademicYearAndSemester']);
     Route::post('/fetch-ay-prog-details', [AcademicYearController::class, 'getProgramDetailsByAcademicYear']);
