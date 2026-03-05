@@ -256,7 +256,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
             
             // Sort courses alphabetically by course code for better UX in course selection
             this.courses.set(
-              this.courses().sort((a, b) => a.course_code.localeCompare(b.course_code))
+              [...this.courses()].sort((a, b) => a.course_code.localeCompare(b.course_code))
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -368,16 +368,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.searchState.set('courseSelection');
 
     this.programs().forEach((program) => {
-      program.year_levels.find(
-        (yearLevel) => {
-          var hasCourse = yearLevel.semester.courses.some(
-            (c) => c.course_code === course.course_code,
-          );
-          if (hasCourse) {
-            possiblePrograms.push(program);
-          }
-        }
+      const hasCourseInProgram = program.year_levels.some((yearLevel) =>
+        yearLevel.semester.courses.some(
+          (c) => c.course_code === course.course_code,
+        ),
       );
+
+      if (hasCourseInProgram) {
+        possiblePrograms.push(program);
+      }
     });
 
     if (possiblePrograms.length === 1) {
@@ -393,18 +392,25 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /** 
    * Event handler when user selects a program from possible programs list
    */
-  public selectPossibleProgram(program: Program): void {
+  public async selectPossibleProgram(program: Program): Promise<void> {
     this.selectedProgram.set(program);
     this.showPossiblePrograms.set(false);
+    let courseAdded = false;
 
-    program.year_levels.forEach((yearLevel) => {
-      yearLevel.semester.courses.forEach((course) => {
+    for (const yearLevel of program.year_levels) {
+      for (const course of yearLevel.semester.courses) {
         if (course.course_code === this.selectedCourse()!.course_code) {
           this.selectedCourse.set(course);
-          this.addCourseToTable(course);
+          await this.addCourseToTable(course);
+          courseAdded = true;
+          break;
         }
-      });
-    });
+      }
+
+      if (courseAdded) {
+        break;
+      }
+    }
 
     if (this.searchQuery() !== '') {
       this.searchState.set('searchResults');
@@ -509,19 +515,14 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /**
    * Course Management
    */
-  public async addCourseToTable(course: Course): Promise<void> {
-    console.log('Attempting to add course:', course);
-    
+  public async addCourseToTable(course: Course): Promise<void> {    
     if (this.selectedProgram() === undefined) {
-      console.log('No program selected, populating possible programs for course:', course);
       this.populatePossiblePrograms(course);
       return;
     }
 
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
-
-    console.log('Selected Course:', course);
     
     course.section_name = this.selectedSection();
     course.section_id = this.selectedSectionId() ?? null;
@@ -540,7 +541,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram(),
-      year_section: this.formatYearSection(course)
+      year_section: `${course.year_level}-${course.section_name}`
     };
 
     // Reset selections after adding course to table
@@ -855,12 +856,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
-    console.log('Year level filter applied:', this.selectedYearLevel());
-    this.filteredCourses(); // Trigger recomputation of filtered courses
-  }
-
-  // Sets the year level and section and returns it as combined String
-  public formatYearSection(course: Course): String {
-    return course.year_level + "-" + course.section_name;
+    // Trigger recomputation of filtered courses
+    this.filteredCourses(); 
   }
 }
