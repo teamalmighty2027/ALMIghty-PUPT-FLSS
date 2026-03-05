@@ -212,6 +212,124 @@ class AcademicYearController extends Controller
     }
 
     /**
+     * Update an academic year's curriculum to the latest active curriculum
+     */
+    public function updateAcademicYear(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'year_start' => 'required|numeric|min:1900|max:2100',
+            'year_end' => 'required|numeric|min:1900|max:2100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Invalid year format. Years must be between 1900 and 2100.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $yearStart = $request->input('year_start');
+        $yearEnd = $request->input('year_end');
+
+        // Find the academic year
+        $academicYear = AcademicYear::where('year_start', $yearStart)
+            ->where('year_end', $yearEnd)
+            ->first();
+
+        if (!$academicYear) {
+            return response()->json([
+                'message' => "Academic Year {$yearStart}-{$yearEnd} not found.",
+            ], 404);
+        }
+
+        $academicYearId = $academicYear->academic_year_id;
+
+        DB::beginTransaction();
+
+        try {
+            // Step 1: Check if there are any active programs
+            $activePrograms = Program::where('status', 'active')->get();
+
+            if ($activePrograms->isEmpty()) {
+                throw new \Exception('Cannot update an academic year—no active programs are found.');
+            }
+
+            // Step 2: Get the latest active curriculum
+            $latestCurriculum = Curriculum::where('status', 'active')
+                ->orderBy('curriculum_year', 'desc')
+                ->first();
+
+            if (!$latestCurriculum) {
+                throw new \Exception('No active curriculum found.');
+            }
+
+            $latestCurriculumId = $latestCurriculum->curriculum_id;
+
+            // Step 3: Update academic_year_curricula to the latest curriculum
+            AcademicYearCurricula::where('academic_year_id', $academicYearId)
+                ->update(['curriculum_id' => $latestCurriculumId]);
+
+            // Step 4: Ensure 3 active_semesters exist (create if missing, preserve is_active state)
+            for ($semesterId = 1; $semesterId <= 3; $semesterId++) {
+                ActiveSemester::firstOrCreate([
+                    'academic_year_id' => $academicYearId,
+                    'semester_id' => $semesterId,
+                ], [
+                    'is_active' => 0,
+                ]);
+            }
+
+            // Step 5: Update program_year_level_curricula to the latest curriculum for all existing year levels
+            foreach ($activePrograms as $program) {
+                $numberOfYears = $program->number_of_years;
+
+                for ($yearLevel = 1; $yearLevel <= $numberOfYears; $yearLevel++) {
+                    ProgramYearLevelCurricula::updateOrCreate(
+                        [
+                            'academic_year_id' => $academicYearId,
+                            'program_id' => $program->program_id,
+                            'year_level' => $yearLevel,
+                        ],
+                        [
+                            'curriculum_id' => $latestCurriculumId,
+                        ]
+                    );
+                }
+            }
+
+            // Step 6: Ensure at least 1 section exists per program year level (create if missing)
+            foreach ($activePrograms as $program) {
+                $numberOfYears = $program->number_of_years;
+
+                for ($yearLevel = 1; $yearLevel <= $numberOfYears; $yearLevel++) {
+                    SectionsPerProgramYear::firstOrCreate([
+                        'academic_year_id' => $academicYearId,
+                        'program_id' => $program->program_id,
+                        'year_level' => $yearLevel,
+                        'section_name' => '1',
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Academic Year {$yearStart}-{$yearEnd} updated successfully with the latest curriculum.",
+                'academic_year_id' => $academicYearId,
+                'curriculum_id' => $latestCurriculumId,
+                'curriculum_year' => $latestCurriculum->curriculum_year,
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'message' => 'An error occurred: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Delete an academic year
      */
     public function deleteAcademicYear(Request $request)
