@@ -65,8 +65,12 @@
     .status-badge {
       padding: var(--spacing-xxs) var(--spacing-sm);
       border-radius: var(--border-radius-xl);
+      font-weight: 600;
+      display: inline-block;
+      min-width: 8rem;
     }
 
+    // Existing Status Styles
     .status-active {
       color: var(--green-primary);
       background-color: var(--green-fade);
@@ -76,12 +80,26 @@
       color: var(--primary-text-lighter);
       background-color: var(--primary-one-fade);
     }
+
+  
+    .badge-added {
+      color: #ffffff;
+      background-color: #3ad645;
+    }
+
+    .badge-updated {
+      color: #ffffff;
+      background-color: #cebd2a;
+    }
+
+    .badge-deleted {
+      color: #ffffff;
+      background-color: #db2424;
+    }
   }
 
   .action-buttons {
     @include mixins.flex-layout($direction: row, $align: flex-start);
-    /* Note: For smaller screens in media query, changed the direction to 
-      COLUMN for better viewing.*/
 
     .view-button {
       color: var(--neutral-button-lighter);

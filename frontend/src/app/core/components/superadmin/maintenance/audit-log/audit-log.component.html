@@ -1,0 +1,27 @@
+<div class="audit-log-container">
+  @if (isLoading) {
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
+  } @else {
+    <div class="audit-log-header-container" [@fadeAnimation]>
+      <app-table-header
+        [inputFields]="headerInputFields"
+        (inputChange)="onInputChange($event)"
+      ></app-table-header>
+    </div>
+
+    <div class="audit-log-table-container" [@fadeAnimation]>
+      @if (logs$ | async; as logs) {
+        <app-table-generic
+          [columns]="columns"
+          [data]="logs"
+          [tableName]="'audit_log'"
+          [displayedColumns]="displayedColumns"
+          [showDeleteButton]="false"
+          [disableEdit]="true"
+        ></app-table-generic>
+      }
+    </div>
+  }
+</div>
