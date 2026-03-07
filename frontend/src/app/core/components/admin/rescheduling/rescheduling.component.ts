@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -10,12 +10,12 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 
-// ── Local view model ───────────────────────────────────────────
 interface ReschedulingAppeal {
   id: number;
   rawAppealId: number;
@@ -27,7 +27,7 @@ interface ReschedulingAppeal {
   originalStartTime?: string;
   originalEndTime?: string;
   originalRoom?: string;
-  appealVerification: string;   // 'Pending' | 'Approved' | 'Denied'
+  appealVerification: string;
   preferredDay?: string;
   preferredStartTime?: string;
   preferredEndTime?: string;
@@ -51,6 +51,7 @@ interface ReschedulingAppeal {
     MatFormFieldModule,
     MatSelectModule,
     MatInputModule,
+    MatDialogModule,
     LoadingComponent,
     TableHeaderComponent,
   ],
@@ -70,8 +71,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   headerInputFields: any[] = [];
 
   selectedAppeal: ReschedulingAppeal | null = null;
-  showModal = false;
   adminRemarks = '';
+
+  // Get reference to the ng-template in HTML
+  @ViewChild('appealDialog') appealDialog!: TemplateRef<any>;
 
   displayedColumns: string[] = [
     'index', 'facultyName', 'programCode',
@@ -84,7 +87,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
 
-  constructor(private reschedulingService: ReschedulingService) {}
+  constructor(
+    private reschedulingService: ReschedulingService,
+    private dialog: MatDialog
+  ) {}
 
   ngOnInit(): void {
     this.generateTimeOptions();
@@ -107,13 +113,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     }
   }
 
-  /**
-   * Converts "08:00:00" or "08:00" (DB time format) → "8:00 AM"
-   * Also handles already-converted "8:00 AM" strings safely.
-   */
   private to12Hour(time: string | null | undefined): string {
     if (!time) return '—';
-    // Already 12-hour format
     if (time.includes('AM') || time.includes('PM')) return time;
     const [hourStr, minuteStr] = time.split(':');
     let hours = parseInt(hourStr, 10);
@@ -125,7 +126,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   }
 
   private mapAppeal(a: AppealResponse): ReschedulingAppeal {
-    // MySQL returns 1/0/null for tinyint, not true/false/null
     const approved = a.is_approved;
     let status = 'Pending';
     if (approved === true  || (approved as any) === 1)  status = 'Approved';
@@ -178,15 +178,22 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     return i + 1 + pageIndex * pageSize;
   }
 
-  // ── Modal ──────────────────────────────────────────────────────
-  openEditModal(appeal: ReschedulingAppeal): void {
+  openEditDialog(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
     this.adminRemarks = '';
-    this.showModal = true;
+    
+    this.dialog.open(this.appealDialog, {
+      width: '55%',           
+      maxWidth: '1000px',     
+      maxHeight: '90vh',      
+      height: 'auto',        
+      disableClose: true,
+      panelClass: 'custom-dialog-container'
+    });
   }
 
-  closeModal(): void {
-    this.showModal = false;
+  closeDialog(): void {
+    this.dialog.closeAll();
     this.selectedAppeal = null;
     this.adminRemarks = '';
   }
@@ -198,14 +205,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     this.selectedAppeal.preferredEndTime   = undefined;
     this.selectedAppeal.room               = undefined;
     this.adminRemarks = '';
-  }
-
-  isDaySelected(day: string): boolean {
-    return this.selectedAppeal?.preferredDay === day;
-  }
-
-  selectDay(day: string): void {
-    if (this.selectedAppeal) this.selectedAppeal.preferredDay = day;
   }
 
   // ── Approve ────────────────────────────────────────────────────
@@ -224,7 +223,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
-        this.closeModal();
+        this.closeDialog();
       },
       error: (err) => console.error('Failed to approve appeal:', err),
     });
@@ -240,7 +239,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Denied');
-        this.closeModal();
+        this.closeDialog();
       },
       error: (err) => console.error('Failed to deny appeal:', err),
     });
@@ -261,13 +260,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     this.dataSource.filter = event?.value?.trim().toLowerCase() ?? '';
   }
 
-  // Build full URL for uploaded appeal PDF
   getFileUrl(filePath: string | null | undefined): string {
     if (!filePath) return "#";
     return `http://127.0.0.1:8000/storage/${filePath}`;
-  }
-
-  assignSchedule(): void {
-    this.approveAppeal();
   }
 }

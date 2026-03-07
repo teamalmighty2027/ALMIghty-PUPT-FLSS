@@ -1,12 +1,10 @@
 <div class="rescheduling-container">
-  <!--Display while loading-->
   @if (isLoading) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
   </div>
   } @else {
 
-  <!--Rescheduling Header-->
   <div class="rescheduling-header-container" [@fadeAnimation]>
     <app-table-header
       [inputFields]="headerInputFields"
@@ -21,11 +19,9 @@
     ></app-table-header>
   </div>
 
-  <!--Rescheduling Table-->
   <div class="rescheduling-table-container" [@fadeAnimation]>
     <div class="table-container">
       <table mat-table [dataSource]="dataSource" class="custom-table">
-        <!-- Index Column -->
         <ng-container matColumnDef="index">
           <th mat-header-cell *matHeaderCellDef class="custom-header index">
             #
@@ -35,7 +31,6 @@
           </td>
         </ng-container>
 
-        <!-- Faculty Name Column -->
         <ng-container matColumnDef="facultyName">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Faculty Name
@@ -45,7 +40,6 @@
           </td>
         </ng-container>
 
-        <!-- Program / Course Column -->
         <ng-container matColumnDef="programCode">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Program / Course
@@ -55,7 +49,6 @@
           </td>
         </ng-container>
 
-        <!-- Original Schedule Column -->
         <ng-container matColumnDef="originalSchedule">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Original Schedule
@@ -65,7 +58,6 @@
           </td>
         </ng-container>
 
-        <!-- Appeal Verification Column -->
         <ng-container matColumnDef="appealVerification">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Appeal Verification
@@ -83,7 +75,6 @@
           </td>
         </ng-container>
 
-        <!-- Action Column -->
         <ng-container matColumnDef="action">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Action
@@ -93,7 +84,7 @@
               <button
                 mat-button
                 class="edit-button sec-ripple"
-                (click)="openEditModal(element)"
+                (click)="openEditDialog(element)"
               >
                 <div class="button-content">
                   <mat-icon>visibility</mat-icon>
@@ -107,7 +98,6 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
-        <!-- No Data Row -->
         <tr *matNoDataRow>
           <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
             <div class="flex-cell">
@@ -120,7 +110,6 @@
         </tr>
       </table>
 
-      <!-- Table Paginator -->
       <mat-paginator
         class="custom-paginator"
         [length]="dataSource.data.length"
@@ -135,161 +124,140 @@
   }
 </div>
 
-<!-- ─────────────────────────────────────────────────────────────
-     ADMIN REVIEW MODAL
-     Mirrors the appeal-dialog layout so the admin sees exactly
-     what the faculty member submitted.
-     ───────────────────────────────────────────────────────────── -->
-<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
-  <div class="modal-content" (click)="$event.stopPropagation()">
+<ng-template #appealDialog>
+  <div class="dialog-content-wrapper">
 
-    <!-- Modal Header -->
     <div class="modal-header">
       <h2 class="modal-title">Review Appeal</h2>
-      <button class="modal-close-btn" (click)="closeModal()">
+      <button class="modal-close-btn" (click)="closeDialog()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
-    <!-- ── Full-width: Current Schedule ── -->
-    <div class="modal-top">
-      <div class="schedule-summary">
-        <div class="section-label">CURRENT SCHEDULE</div>
-        <div class="current-schedule-grid">
-          <div class="info-row">
-            <span class="label">Course:</span>
-            <span class="value">{{ selectedAppeal?.programCode }} - {{ selectedAppeal?.courseTitle }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Faculty:</span>
-            <span class="value">{{ selectedAppeal?.facultyName }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Day:</span>
-            <span class="value">{{ selectedAppeal?.originalDay }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Time:</span>
-            <span class="value">{{ selectedAppeal?.originalStartTime }} – {{ selectedAppeal?.originalEndTime }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Room:</span>
-            <span class="value">{{ selectedAppeal?.originalRoom || '—' }}</span>
+    <div class="modal-scrollable-content">
+      
+      <div class="modal-top">
+        <div class="schedule-summary">
+          <div class="section-label">CURRENT SCHEDULE</div>
+          <div class="current-schedule-grid">
+            <div class="info-row">
+              <span class="label">Course:</span>
+              <span class="value">{{ selectedAppeal?.programCode }} - {{ selectedAppeal?.courseTitle }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Faculty:</span>
+              <span class="value">{{ selectedAppeal?.facultyName }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Day:</span>
+              <span class="value">{{ selectedAppeal?.originalDay }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Time:</span>
+              <span class="value">{{ selectedAppeal?.originalStartTime }} – {{ selectedAppeal?.originalEndTime }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Room:</span>
+              <span class="value">{{ selectedAppeal?.originalRoom || '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="modal-body">
+      <div class="modal-body">
 
-      <!-- ── LEFT PANEL: Requested Schedule + Reason + File ── -->
-      <div class="modal-left">
+        <div class="modal-left">
 
-        <!-- Faculty's Requested Schedule -->
-        <div class="schedule-summary requested-schedule">
-          <div class="section-label">REQUESTED SCHEDULE</div>
-          <div class="info-row">
-            <span class="label">Day:</span>
-            <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
+          <div class="schedule-summary requested-schedule">
+            <div class="section-label">REQUESTED SCHEDULE</div>
+            <div class="info-row">
+              <span class="label">Day:</span>
+              <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Time:</span>
+              <span class="value">
+                {{ selectedAppeal?.preferredStartTime || '—' }}
+                <ng-container *ngIf="selectedAppeal?.preferredEndTime">
+                  – {{ selectedAppeal?.preferredEndTime }}
+                </ng-container>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="label">Room:</span>
+              <span class="value">{{ selectedAppeal?.room || '—' }}</span>
+            </div>
           </div>
-          <div class="info-row">
-            <span class="label">Time:</span>
-            <span class="value">
-              {{ selectedAppeal?.preferredStartTime || '—' }}
-              <ng-container *ngIf="selectedAppeal?.preferredEndTime">
-                – {{ selectedAppeal?.preferredEndTime }}
-              </ng-container>
-            </span>
+
+          <div class="reason-section">
+            <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE</div>
+            <p class="reason-text">{{ selectedAppeal?.reasoning || '—' }}</p>
           </div>
-          <div class="info-row">
-            <span class="label">Room:</span>
-            <span class="value">{{ selectedAppeal?.room || '—' }}</span>
+
+          <div class="document-section" *ngIf="selectedAppeal?.filePath">
+            <div class="section-label">APPEAL DOCUMENT</div>
+            <div class="doc-row">
+              <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
+              <span class="doc-name">{{ selectedAppeal?.filePath }}</span>
+              <a
+                mat-icon-button
+                class="doc-view-btn"
+                [href]="getFileUrl(selectedAppeal?.filePath)"
+                target="_blank"
+                rel="noopener">
+                <mat-icon>open_in_new</mat-icon>
+              </a>
+            </div>
           </div>
+
         </div>
 
-        <!-- Reason for Change -->
-        <div class="reason-section">
-          <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE</div>
-          <p class="reason-text">{{ selectedAppeal?.reasoning || '—' }}</p>
-        </div>
+        <div class="modal-right">
 
-        <!-- Uploaded PDF Document -->
-        <div class="document-section" *ngIf="selectedAppeal?.filePath">
-          <div class="section-label">APPEAL DOCUMENT</div>
-          <div class="doc-row">
-            <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
-            <span class="doc-name">{{ selectedAppeal?.filePath }}</span>
-            <a
-              mat-icon-button
-              class="doc-view-btn"
-              [href]="getFileUrl(selectedAppeal?.filePath)"
-              target="_blank"
-              rel="noopener">
-              <mat-icon>open_in_new</mat-icon>
-            </a>
-          </div>
-        </div>
+          <div class="edit-mode-section">
+            <div class="suggested-label">
+              <span>NEW SCHEDULE</span>
+            </div>
 
-      </div>
-
-      <!-- ── RIGHT PANEL: Admin sets new schedule ── -->
-      <div class="modal-right">
-
-        <div class="edit-mode-section">
-          <div class="suggested-label">
-            <span>NEW SCHEDULE</span>
-          </div>
-
-          <!-- Day Selection -->
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Day</mat-label>
-            <mat-select [(ngModel)]="selectedAppeal!.preferredDay">
-              <mat-option *ngFor="let day of daysOfWeek" [value]="day">
-                {{ day }}
-              </mat-option>
-            </mat-select>
-            <mat-icon matPrefix>today</mat-icon>
-          </mat-form-field>
-
-          <!-- Time Row -->
-          <div class="time-row">
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Start Time</mat-label>
-              <mat-select [(ngModel)]="selectedAppeal!.preferredStartTime">
-                <mat-option *ngFor="let time of timeOptions" [value]="time">
-                  {{ time }}
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Day</mat-label>
+              <mat-select [(ngModel)]="selectedAppeal!.preferredDay">
+                <mat-option *ngFor="let day of daysOfWeek" [value]="day">
+                  {{ day }}
                 </mat-option>
               </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
+              <mat-icon matPrefix>today</mat-icon>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>End Time</mat-label>
-              <mat-select [(ngModel)]="selectedAppeal!.preferredEndTime">
-                <mat-option *ngFor="let time of timeOptions" [value]="time">
-                  {{ time }}
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
+            <div class="time-row">
+              <mat-form-field appearance="outline" class="time-field">
+                <mat-label>Start Time</mat-label>
+                <mat-select [(ngModel)]="selectedAppeal!.preferredStartTime">
+                  <mat-option *ngFor="let time of timeOptions" [value]="time">
+                    {{ time }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matPrefix>schedule</mat-icon>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="time-field">
+                <mat-label>End Time</mat-label>
+                <mat-select [(ngModel)]="selectedAppeal!.preferredEndTime">
+                  <mat-option *ngFor="let time of timeOptions" [value]="time">
+                    {{ time }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matPrefix>schedule</mat-icon>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Room</mat-label>
+              <input matInput [(ngModel)]="selectedAppeal!.room" placeholder="Enter room code" />
+              <mat-icon matPrefix>meeting_room</mat-icon>
             </mat-form-field>
-          </div>
 
-          <!-- Room -->
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Room</mat-label>
-            <input matInput [(ngModel)]="selectedAppeal!.room" placeholder="Enter room code" />
-            <mat-icon matPrefix>meeting_room</mat-icon>
-          </mat-form-field>
-
-        </div><!-- /edit-mode-section -->
-
-      </div><!-- /modal-right -->
-    </div><!-- /modal-body -->
-
-    <!-- ── Full-width Admin Remarks + Actions ── -->
-    <div class="modal-footer">
-
-      <div class="reason-section">
+          </div></div></div><div class="admin-remarks-section">
         <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
         <mat-form-field appearance="outline" class="full-width">
           <textarea
@@ -300,12 +268,13 @@
           ></textarea>
         </mat-form-field>
       </div>
-
+    
+    </div><div class="modal-footer">
       <div class="modal-actions">
         <button mat-button class="btn-clear" (click)="clearAll()">
           Clear All
         </button>
-        <button mat-button class="btn-cancel" (click)="closeModal()">
+        <button mat-button class="btn-cancel" (click)="closeDialog()">
           Cancel
         </button>
         <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
@@ -315,8 +284,6 @@
           Approve
         </button>
       </div>
+    </div>
 
-    </div><!-- /modal-footer -->
-
-  </div><!-- /modal-content -->
-</div><!-- /modal-overlay -->
+  </div></ng-template>
