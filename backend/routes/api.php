@@ -265,38 +265,30 @@ Route::middleware('auth:sanctum')->group(function () {
 | External/Integration Routes
 |----------------------------
  */
-Route::prefix('external')->group(function () {
+Route::prefix('v1')->group(function () {
 
     /**
-     * E-Class Record System (ECRS)
+     * Faculty Attendance System (FAS)
      */
-    Route::prefix('ecrs')->middleware(['check.hmac:ecrs'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/pupt-faculty-schedules', [ExternalController::class, 'ECRSFacultySchedules']);
-        });
+    Route::middleware(['check.hmac:fas'])->group(function () {
+        Route::get('/faculty/schedules', [ExternalController::class, 'facultySchedules']);
     });
 
     /**
      * Faculty Academic Requirements Management System (FARMS)
      */
-    Route::prefix('farms')->middleware(['check.hmac:farms'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/course-schedules', [ExternalController::class, 'FARMSCourseSchedules']);
-            Route::get('/course-files', [ExternalController::class, 'FARMSCourseFiles']);
-        });
+    Route::middleware(['check.hmac:frss'])->group(function () {
+        Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
+        Route::get('/course/files', [ExternalController::class, 'courseFiles']);
     });
 
     /**
      * Biometric Synchronization System (BioSync)
+     * Deprecated Route
      */
-    Route::prefix('biosync')->middleware(['check.hmac:biosync'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/computer-laboratory-schedules', [ExternalController::class, 'BIOSYNCComputerLabSchedules']);
-        });
-    });
+    // Route::middleware(['check.hmac:biosync'])->group(function () {
+    //     Route::get('/computer-laboratory-schedules', [ExternalController::class, 'labSchedules']);
+    // });
 });
 
 /**
