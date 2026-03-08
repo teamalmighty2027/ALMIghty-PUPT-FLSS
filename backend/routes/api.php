@@ -26,6 +26,7 @@ use App\Http\Controllers\SemesterController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuditLogController;
 
 /*
 |----------------------------
@@ -93,6 +94,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admins', [AccountController::class, 'storeAdmin']);
     Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
     Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
+
+    // Audit Logs (Super Admin Only)
+    Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);});
 
     /**
      * Buildings

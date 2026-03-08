@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Building;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -26,6 +27,17 @@ class BuildingController extends Controller
         }
 
         $building = Building::create($request->all());
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Building Created
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'Building',
+            modelId: $building->getKey(), // Use getKey() to automatically get the primary key (building_id)
+            data: $building->toArray(),
+            description: "Created building: {$building->building_name} with {$building->floor_levels} floor(s)"
+        );
+
         return response()->json($building, 201);
     }
 
@@ -64,7 +76,50 @@ class BuildingController extends Controller
             }
         }
 
-        $building->update($request->all());
+        // ═══════════════════════════════════════════════════════
+        // SAVE OLD DATA FOR DETAILED CHANGE TRACKING
+        // ═══════════════════════════════════════════════════════
+        $oldData = $building->toArray();
+        
+        // Fill the model with new data to check what is "dirty" (changed)
+        $building->fill($request->all());
+
+        if (!$building->isDirty()) {
+            return response()->json([
+                'message' => 'No changes detected.',
+                'success' => true,
+                'data' => $building,
+            ], 200);
+        }
+
+        $changes = [];
+
+        // Check for Building Name changes
+        if ($building->isDirty('building_name')) {
+            $changes[] = "Name: {$oldData['building_name']} → {$building->building_name}";
+        }
+
+        // Check for Floor Level changes
+        if ($building->isDirty('floor_levels')) {
+            $changes[] = "Floors: {$oldData['floor_levels']} → {$building->floor_levels}";
+        }
+
+        // Save the changes to the database
+        $building->save();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Building Updated
+        // ═══════════════════════════════════════════════════════
+        $changesSummary = implode(', ', $changes);
+
+        AuditLogger::logUpdate(
+            model: 'Building',
+            modelId: $building->getKey(),
+            oldData: $oldData,
+            newData: $building->toArray(),
+            description: "Updated building: {$building->building_name} - {$changesSummary}"
+        );
+
         return response()->json([
             'message' => 'Building updated successfully.',
             'success' => true,
@@ -83,7 +138,24 @@ class BuildingController extends Controller
             ], 400);
         }
 
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $buildingData = $building->toArray();
+        $buildingName = $building->building_name;
+
         $building->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Building Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Building',
+            modelId: $id,
+            data: $buildingData,
+            description: "Deleted building: {$buildingName}"
+        );
+
         return response()->json([
             'message' => 'Building deleted successfully.',
             'success' => true,

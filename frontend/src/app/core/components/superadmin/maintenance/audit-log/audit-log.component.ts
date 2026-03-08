@@ -1,24 +1,19 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, BehaviorSubject } from 'rxjs';
 import { takeUntil, finalize } from 'rxjs/operators';
+import { MatDialog } from '@angular/material/dialog';
 
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
-import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
-
 import { AuditEntry, AuditLogService } from '../../../../services/superadmin/audit-log/audit-log.service';
 import { fadeAnimation } from '../../../../animations/animations';
+import { AuditLogDetailsComponent } from './audit-log-details/audit-log-details.component';
 
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [
-    CommonModule,
-    TableGenericComponent,
-    TableHeaderComponent,
-    LoadingComponent,
-  ],
+  imports: [CommonModule, TableGenericComponent, LoadingComponent],
   templateUrl: './audit-log.component.html',
   styleUrls: ['./audit-log.component.scss'],
   animations: [fadeAnimation],
@@ -27,37 +22,30 @@ import { fadeAnimation } from '../../../../animations/animations';
 export class AuditLogComponent implements OnInit, OnDestroy {
   isLoading = true;
   private destroy$ = new Subject<void>();
-  private allLogs: AuditEntry[] = [];
   private logsSubject = new BehaviorSubject<AuditEntry[]>([]);
   logs$ = this.logsSubject.asObservable();
 
-  columns = [
-    { key: 'id', label: '#' },
-    { key: 'date_time', label: 'Date & Time' },
-    { key: 'faculty_name', label: 'Faculty Name' },
-    { key: 'action_type', label: 'Action Type' },
-    { key: 'component', label: 'Component' },
-    { key: 'changes_summary', label: 'Changes Summary' },
-  ];
+  @ViewChild('actionBadgeTemplate', { static: true }) actionBadgeTemplate!: TemplateRef<any>;
 
-  displayedColumns: string[] = ['id', 'date_time', 'faculty_name', 'action_type', 'component', 'changes_summary'];
-
-  headerInputFields: InputField[] = [
-    { type: 'text', label: 'Search Faculty', key: 'search' },
-  ];
+  columns: any[] = [];
+  displayedColumns: string[] = ['id', 'date_time', 'role', 'user', 'action_type', 'changes_summary'];
 
   constructor(
     private cdr: ChangeDetectorRef,
-    private auditService: AuditLogService
+    private auditService: AuditLogService,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit() {
+    this.columns = [
+      { key: 'id', label: '#' },
+      { key: 'date_time', label: 'Date & Time' },
+      { key: 'role', label: 'Role' },
+      { key: 'user', label: 'User' },
+      { key: 'action_type', label: 'Action Type', template: this.actionBadgeTemplate },
+      { key: 'changes_summary', label: 'Changes Summary' },
+    ];
     this.fetchLogs();
-  }
-
-  ngOnDestroy() {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   fetchLogs() {
@@ -70,20 +58,18 @@ export class AuditLogComponent implements OnInit, OnDestroy {
           this.cdr.markForCheck();
         })
       )
-      .subscribe((logs: AuditEntry[]) => {
-        this.allLogs = logs;
-        this.logsSubject.next(this.allLogs);
+      .subscribe({
+        next: (logs) => this.logsSubject.next(logs),
+        error: (err) => console.error('Failed to load audit logs:', err)
       });
   }
 
-  onInputChange(values: { [key: string]: any }) {
-    if (values['search'] !== undefined) {
-      const term = values['search'].trim().toLowerCase();
-      const filtered = this.allLogs.filter((log: AuditEntry) => 
-        log.faculty_name.toLowerCase().includes(term) ||
-        log.changes_summary.toLowerCase().includes(term)
-      );
-      this.logsSubject.next(filtered);
-    }
+  onViewDetails(log: AuditEntry) {
+    this.dialog.open(AuditLogDetailsComponent, { width: '800px', data: log });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }

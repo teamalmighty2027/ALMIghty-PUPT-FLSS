@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Building;
 use App\Models\Room;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
 class RoomController extends Controller
@@ -28,9 +29,9 @@ class RoomController extends Controller
             return [
                 'room_id' => $room->room_id,
                 'room_code' => $room->room_code,
-                'building_name' => $room->building->building_name,
+                'building_name' => $room->building->building_name ?? 'N/A',
                 'floor_level' => $room->floor_level,
-                'room_type' => $room->room_type,
+                'room_type' => $room->room_type, // Assuming this is an accessor or relation
                 'capacity' => $room->capacity,
                 'status' => $room->status,
             ];
@@ -55,6 +56,17 @@ class RoomController extends Controller
         // Create a new room
         $room = Room::create($validated);
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Created
+        // ═══════════════════════════════════════════════════════
+        $room->load('building'); // Load building for better description
+        AuditLogger::logCreate(
+            model: 'Room',
+            modelId: $room->room_id,
+            data: $room->toArray(),
+            description: "Created room: {$room->room_code} in {$room->building->building_name}, Capacity: {$room->capacity}"
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Room added successfully.',
@@ -67,6 +79,16 @@ class RoomController extends Controller
     {
         $room = Room::findOrFail($id);
 
+        // 1. SAVE OLD DATA
+        $oldData = [
+            'room_code'    => $room->room_code,
+            'building_id'  => $room->building_id,
+            'floor_level'  => $room->floor_level,
+            'room_type_id' => $room->room_type_id,
+            'capacity'     => $room->capacity,
+            'status'       => $room->status,
+        ];
+
         // Validate the incoming request data
         $validated = $request->validate([
             'room_code' => 'required|string|max:255|unique:rooms,room_code,' . $id . ',room_id',
@@ -77,8 +99,61 @@ class RoomController extends Controller
             'status' => 'required|string|max:255',
         ]);
 
-        // Update the room
-        $room->update($validated);
+        // 2. APPLY CHANGES
+        if (isset($validated['room_code'])) $room->room_code = $validated['room_code'];
+        if (isset($validated['building_id'])) $room->building_id = $validated['building_id'];
+        if (isset($validated['floor_level'])) $room->floor_level = $validated['floor_level'];
+        if (isset($validated['room_type_id'])) $room->room_type_id = $validated['room_type_id'];
+        if (isset($validated['capacity'])) $room->capacity = $validated['capacity'];
+        if (isset($validated['status'])) $room->status = $validated['status'];
+
+        // Get Names for Logs
+        $buildingsMap = \App\Models\Building::pluck('building_name', 'building_id')->toArray();
+        $roomTypesMap = \App\Models\RoomType::pluck('type_name', 'room_type_id')->toArray();
+
+        // 3. TRACK CHANGES
+        $changes = [];
+        if ($oldData['room_code'] != $room->room_code) {
+            $changes[] = "Code: {$oldData['room_code']} → {$room->room_code}";
+        }
+        if ($oldData['building_id'] != $room->building_id) {
+            $oldB = $buildingsMap[$oldData['building_id']] ?? "ID {$oldData['building_id']}";
+            $newB = $buildingsMap[$room->building_id] ?? "ID {$room->building_id}";
+            $changes[] = "Building: {$oldB} → {$newB}";
+        }
+        if ($oldData['floor_level'] != $room->floor_level) {
+            $changes[] = "Floor: {$oldData['floor_level']} → {$room->floor_level}";
+        }
+        if ($oldData['room_type_id'] != $room->room_type_id) {
+            $oldT = $roomTypesMap[$oldData['room_type_id']] ?? "ID {$oldData['room_type_id']}";
+            $newT = $roomTypesMap[$room->room_type_id] ?? "ID {$room->room_type_id}";
+            $changes[] = "Type: {$oldT} → {$newT}";
+        }
+        if ($oldData['capacity'] != $room->capacity) {
+            $changes[] = "Capacity: {$oldData['capacity']} → {$room->capacity}";
+        }
+        if ($oldData['status'] != $room->status) {
+            $changes[] = "Status: {$oldData['status']} → {$room->status}";
+        }
+
+        if (empty($changes)) {
+            return response()->json(['message' => 'No changes detected'], 422);
+        }
+
+        // 4. SAVE AND LOG
+        $room->save();
+        $changesSummary = implode(', ', $changes);
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Updated
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logUpdate(
+            model: 'Room',
+            modelId: $room->room_id,
+            oldData: $oldData,
+            newData: $room->toArray(),
+            description: "Updated room: {$room->room_code} - {$changesSummary}"
+        );
 
         return response()->json([
             'success' => true,
@@ -100,8 +175,23 @@ class RoomController extends Controller
             ], 400);
         }
 
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $roomData = $room->toArray();
+
         // Delete the room
         $room->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Room',
+            modelId: $roomData['room_id'],
+            data: $roomData,
+            description: "Deleted room: {$roomData['room_code']}"
+        );
 
         return response()->json([
             'success' => true,

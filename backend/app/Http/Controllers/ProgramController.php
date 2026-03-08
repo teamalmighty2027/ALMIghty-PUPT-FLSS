@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Program;
 use App\Models\Curriculum;
 use App\Models\ProgramYearLevelCurricula;
+use App\Services\AuditLogger;
 
 class ProgramController extends Controller
 {
@@ -68,6 +69,16 @@ class ProgramController extends Controller
     
         // Create the new program
         $program = Program::create($validatedData);
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Program Created
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'Program',
+            modelId: $program->program_id,
+            data: $program->toArray(),
+            description: "Created program: {$program->program_code} - {$program->program_title}"
+        );
     
         // Refetch the program with relationships
         $program = Program::with(['curricula', 'yearLevels'])->find($program->program_id);
@@ -86,6 +97,17 @@ class ProgramController extends Controller
     public function updateProgram(Request $request, $id)
     {
         $program = Program::findOrFail($id);
+
+        // ═══════════════════════════════════════════════════════
+        // SAVE OLD DATA FOR DETAILED CHANGE TRACKING
+        // ═══════════════════════════════════════════════════════
+        $oldData = [
+            'program_code'    => $program->program_code,
+            'program_title'   => $program->program_title,
+            'program_info'    => $program->program_info,
+            'status'          => $program->status,
+            'number_of_years' => $program->number_of_years,
+        ];
     
         $validatedData = $request->validate([
             'program_code' => 'required|string|max:10|unique:programs,program_code,' . $program->program_id . ',program_id',
@@ -94,9 +116,50 @@ class ProgramController extends Controller
             'status' => 'required|in:Active,Inactive',
             'number_of_years' => 'required|integer|min:1',
         ]);
+
+        // Manually assign to check dirtiness
+        if (isset($validatedData['program_code'])) $program->program_code = $validatedData['program_code'];
+        if (isset($validatedData['program_title'])) $program->program_title = $validatedData['program_title'];
+        if (isset($validatedData['program_info'])) $program->program_info = $validatedData['program_info'];
+        if (isset($validatedData['status'])) $program->status = $validatedData['status'];
+        if (isset($validatedData['number_of_years'])) $program->number_of_years = $validatedData['number_of_years'];
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: DETAILED CHANGE TRACKING
+        // ═══════════════════════════════════════════════════════
+        $changes = [];
+
+        if ($oldData['program_code'] != $program->program_code) {
+            $changes[] = "Code: {$oldData['program_code']} → {$program->program_code}";
+        }
+        if ($oldData['program_title'] != $program->program_title) {
+            $changes[] = "Title: {$oldData['program_title']} → {$program->program_title}";
+        }
+        if ($oldData['program_info'] != $program->program_info) {
+            $changes[] = "Info: {$oldData['program_info']} → {$program->program_info}";
+        }
+        if ($oldData['status'] != $program->status) {
+            $changes[] = "Status: {$oldData['status']} → {$program->status}";
+        }
+        if ($oldData['number_of_years'] != $program->number_of_years) {
+            $changes[] = "Years: {$oldData['number_of_years']} → {$program->number_of_years}";
+        }
+
+        if (empty($changes)) {
+            return response()->json(['message' => 'No changes detected'], 422);
+        }
+
+        $program->save();
     
-        $program->update($validatedData);
-    
+        $changesSummary = implode(', ', $changes);
+        AuditLogger::logUpdate(
+            model: 'Program',
+            modelId: $program->program_id,
+            oldData: $oldData,
+            newData: $program->toArray(),
+            description: "Updated program: {$program->program_code} - {$changesSummary}"
+        );
+
         $program = Program::with(['curricula', 'yearLevels'])->find($program->program_id);
     
         return response()->json($program, 200);
@@ -117,7 +180,25 @@ class ProgramController extends Controller
     
         // Proceed to delete the program
         $program = Program::findOrFail($id);
+
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $originalData = $program->toArray();
+        $programCode = $program->program_code;
+        $programTitle = $program->program_title;
+
         $program->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Program Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Program',
+            modelId: $id,
+            data: $originalData,
+            description: "Deleted program: {$programCode} - {$programTitle}"
+        );
     
         return response()->json([
             'message' => 'Program deleted successfully.',

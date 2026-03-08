@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Course;
 use App\Models\CourseAssignment;
 use App\Models\CourseRequirement;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -33,8 +34,8 @@ class CourseController extends Controller
                 'semester_id' => 'nullable|integer|exists:semesters,semester_id',
                 'year_level_id' => 'nullable|integer|exists:year_levels,year_level_id',
                 'curricula_program_id' => 'nullable|integer|exists:curricula_program,curricula_program_id',
-                'requirements' => 'array',  // Expect an array of requirements
-                'requirements.*.requirement_type' => 'nullable|in:pre,co',  // Pre or co-requisites
+                'requirements' => 'array',
+                'requirements.*.requirement_type' => 'nullable|in:pre,co',
                 'requirements.*.required_course_id' => 'nullable|integer|exists:courses,course_id',
             ]);
     
@@ -63,12 +64,25 @@ class CourseController extends Controller
                     if (!empty($requirement['requirement_type']) && !empty($requirement['required_course_id'])) {
                         CourseRequirement::create([
                             'course_id' => $course->course_id,
-                            'requirement_type' => $requirement['requirement_type'],  // 'pre' or 'co'
+                            'requirement_type' => $requirement['requirement_type'],
                             'required_course_id' => $requirement['required_course_id'],
                         ]);
                     }
                 }
             }
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Course Created
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logCreate(
+                model: 'Course',
+                modelId: $course->course_id,
+                data: array_merge(
+                    $course->toArray(),
+                    ['requirements_count' => count($validatedData['requirements'] ?? [])]
+                ),
+                description: "Created course: {$course->course_code} - {$course->course_title}"
+            );
     
             DB::commit();
     
@@ -89,10 +103,21 @@ class CourseController extends Controller
         DB::beginTransaction();
 
         try {
-            // Find the course by ID, or fail
             $course = Course::findOrFail($id);
 
-            // Validate the incoming request data without the global unique check for course_code
+            // ═══════════════════════════════════════════════════════
+            // SAVE OLD DATA FOR DETAILED CHANGE TRACKING
+            // ═══════════════════════════════════════════════════════
+            $oldData = [
+                'course_code'   => $course->course_code,
+                'course_title'  => $course->course_title,
+                'lec_hours'     => $course->lec_hours,
+                'lab_hours'     => $course->lab_hours,
+                'units'         => $course->units,
+                'tuition_hours' => $course->tuition_hours,
+            ];
+
+            // Validate the incoming request data
             $validatedData = $request->validate([
                 'course_code' => 'required|string',
                 'course_title' => 'required|string',
@@ -108,19 +133,17 @@ class CourseController extends Controller
                 'requirements.*.required_course_id' => 'nullable|integer|exists:courses,course_id',
             ]);
 
-            // Update the course with validated data
-            $course->update([
-                'course_code' => $validatedData['course_code'],
-                'course_title' => $validatedData['course_title'],
-                'lec_hours' => $validatedData['lec_hours'],
-                'lab_hours' => $validatedData['lab_hours'],
-                'units' => $validatedData['units'],
-                'tuition_hours' => $validatedData['tuition_hours'],
-            ]);
+            // Apply updates manually to check differences
+            if (isset($validatedData['course_code'])) $course->course_code = $validatedData['course_code'];
+            if (isset($validatedData['course_title'])) $course->course_title = $validatedData['course_title'];
+            if (isset($validatedData['lec_hours'])) $course->lec_hours = $validatedData['lec_hours'];
+            if (isset($validatedData['lab_hours'])) $course->lab_hours = $validatedData['lab_hours'];
+            if (isset($validatedData['units'])) $course->units = $validatedData['units'];
+            if (isset($validatedData['tuition_hours'])) $course->tuition_hours = $validatedData['tuition_hours'];
 
-            // Handle course assignments if a semester, year level, and curricula_program_id are provided
+            // Handle course assignments
+            $assignmentChanged = false;
             if (!empty($validatedData['semester_id']) && !empty($validatedData['curricula_program_id'])) {
-                // Check if the assignment should be changed (i.e., if the semester or curricula_program_id are being updated)
                 $shouldUpdateAssignment = CourseAssignment::where([
                     ['course_id', '=', $course->course_id],
                     ['curricula_program_id', '=', $validatedData['curricula_program_id']],
@@ -128,28 +151,26 @@ class CourseController extends Controller
                 ])->doesntExist();
 
                 if ($shouldUpdateAssignment) {
-                    // Delete existing assignments for the course and program in the given semester
                     CourseAssignment::where([
                         ['course_id', $course->course_id],
                         ['curricula_program_id', $validatedData['curricula_program_id']],
                         ['semester_id', $validatedData['semester_id']],
                     ])->delete();
 
-                    // Add new assignment
                     CourseAssignment::create([
                         'curricula_program_id' => $validatedData['curricula_program_id'],
                         'semester_id' => $validatedData['semester_id'],
                         'course_id' => $course->course_id,
                     ]);
+                    $assignmentChanged = true;
                 }
             }
 
             // Handle course requirements
+            $requirementsChanged = false;
             if (isset($validatedData['requirements'])) {
-                // Delete existing requirements
                 CourseRequirement::where('course_id', $course->course_id)->delete();
 
-                // Add new requirements
                 foreach ($validatedData['requirements'] as $requirement) {
                     if (!empty($requirement['requirement_type']) && !empty($requirement['required_course_id'])) {
                         CourseRequirement::create([
@@ -157,11 +178,59 @@ class CourseController extends Controller
                             'requirement_type' => $requirement['requirement_type'],
                             'required_course_id' => $requirement['required_course_id'],
                         ]);
+                        $requirementsChanged = true;
                     }
                 }
             }
 
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: DETAILED CHANGE TRACKING
+            // ═══════════════════════════════════════════════════════
+            $changes = [];
+
+            if ($oldData['course_code'] != $course->course_code) {
+                $changes[] = "Code: {$oldData['course_code']} → {$course->course_code}";
+            }
+            if ($oldData['course_title'] != $course->course_title) {
+                $changes[] = "Title: {$oldData['course_title']} → {$course->course_title}";
+            }
+            if ($oldData['lec_hours'] != $course->lec_hours) {
+                $changes[] = "Lec Hours: {$oldData['lec_hours']} → {$course->lec_hours}";
+            }
+            if ($oldData['lab_hours'] != $course->lab_hours) {
+                $changes[] = "Lab Hours: {$oldData['lab_hours']} → {$course->lab_hours}";
+            }
+            if ($oldData['units'] != $course->units) {
+                $changes[] = "Units: {$oldData['units']} → {$course->units}";
+            }
+            if ($oldData['tuition_hours'] != $course->tuition_hours) {
+                $changes[] = "Tuition Hours: {$oldData['tuition_hours']} → {$course->tuition_hours}";
+            }
+            if ($assignmentChanged) {
+                $changes[] = "Semester/Program assignment updated";
+            }
+            if ($requirementsChanged) {
+                $changes[] = "Prerequisites/Corequisites updated";
+            }
+
+            // Stop if nothing was actually changed
+            if (empty($changes)) {
+                DB::rollBack();
+                return response()->json(['message' => 'No changes detected'], 422);
+            }
+
+            $course->save();
             DB::commit();
+
+            // Log the changes
+            $changesSummary = implode(', ', $changes);
+            AuditLogger::logUpdate(
+                model: 'Course',
+                modelId: $course->course_id,
+                oldData: $oldData,
+                newData: $course->toArray(),
+                description: "Updated course: {$course->course_code} - {$changesSummary}"
+            );
 
             return response()->json([
                 'message' => 'Course updated successfully',
@@ -181,6 +250,13 @@ class CourseController extends Controller
         try {
             $course = Course::findOrFail($id);
 
+            // ═══════════════════════════════════════════════════════
+            // SAVE DATA FOR AUDIT BEFORE DELETION
+            // ═══════════════════════════════════════════════════════
+            $courseData = $course->toArray();
+            $courseCode = $course->course_code;
+            $courseTitle = $course->course_title;
+
             // Delete associated course assignments
             CourseAssignment::where('course_id', $course->course_id)->delete();
 
@@ -189,6 +265,16 @@ class CourseController extends Controller
 
             // Delete the course
             $course->delete();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Course Deleted
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logDelete(
+                model: 'Course',
+                modelId: $id,
+                data: $courseData,
+                description: "Deleted course: {$courseCode} - {$courseTitle}"
+            );
 
             DB::commit();
 

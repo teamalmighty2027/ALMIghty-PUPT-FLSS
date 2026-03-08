@@ -3,17 +3,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Logo;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-
-/**
- * Handles operations for managing university and government logos.
- *
- * This controller manages the upload, retrieval, and deletion of logos used in the system.
- * It supports two types of logos: university and government logos.
- */
 
 class LogoController extends Controller
 {
@@ -24,11 +18,6 @@ class LogoController extends Controller
     private const STORAGE_DISK              = 'logos';
     private const STORAGE_PATH              = '';
 
-    /**
-     * Retrieve all logos stored in the system.
-     *
-     * @return JsonResponse Array of all logos with their URLs
-     */
     public function index(): JsonResponse
     {
         $logos = Logo::all()->map(function ($logo) {
@@ -36,19 +25,8 @@ class LogoController extends Controller
         });
 
         return response()->json($logos);
-
     }
 
-    /**
-     * Upload a new logo or replace an existing one.
-     *
-     * Validates and stores the uploaded logo file. If a logo of the same type
-     * already exists, it will be replaced with the new one.
-     *
-     * @param Request $request Contains 'type' (university|government) and 'logo' (file) fields
-     * @return JsonResponse The newly created/updated logo with its URL
-     * @throws ValidationException When file validation fails
-     */
     public function upload(Request $request): JsonResponse
     {
         $validator = $this->createValidator($request);
@@ -73,18 +51,20 @@ class LogoController extends Controller
             'file_size' => $file->getSize(),
         ]);
 
-        return response()->json($this->addUrlToLogo($logo->toArray()), 201);
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Logo Uploaded
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logUpdate(
+            model: 'Logo',
+            modelId: 0,
+            oldData: [],
+            newData: $logo->toArray(),
+            description: "Uploaded new {$type} logo"
+        );
 
+        return response()->json($this->addUrlToLogo($logo->toArray()), 201);
     }
 
-    /**
-     * Serve the actual image file for a logo.
-     *
-     * Returns the image with appropriate headers for caching and CORS.
-     *
-     * @param string $type The logo type (university|government)
-     * @return JsonResponse|Response The image file or 404 if not found
-     */
     public function getImage(string $type): JsonResponse | \Illuminate\Http\Response
     {
         $logo = Logo::where('type', $type)->first();
@@ -104,12 +84,6 @@ class LogoController extends Controller
             ->header('Cache-Control', 'public, max-age=3600');
     }
 
-    /**
-     * Retrieve details of a specific logo type.
-     *
-     * @param string $type The logo type (university|government)
-     * @return JsonResponse Logo details including URL
-     */
     public function show(string $type): JsonResponse
     {
         $logo = Logo::where('type', $type)->first();
@@ -119,17 +93,8 @@ class LogoController extends Controller
         }
 
         return response()->json($this->addUrlToLogo($logo->toArray()));
-
     }
 
-    /**
-     * Delete a specific logo from storage.
-     *
-     * Removes both the database record and the stored file.
-     *
-     * @param string $type The logo type to delete (university|government)
-     * @return JsonResponse Success/failure message
-     */
     public function delete(string $type): JsonResponse
     {
         $logo = Logo::where('type', $type)->first();
@@ -139,8 +104,19 @@ class LogoController extends Controller
         }
 
         $fileDeleted = Storage::disk(self::STORAGE_DISK)->delete($logo->file_path);
+        $originalData = $logo->toArray();
 
         $logo->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Logo Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Logo',
+            modelId: 0,
+            data: $originalData,
+            description: "Deleted {$type} logo"
+        );
 
         return response()->json([
             'message'      => 'Logo deleted successfully',
@@ -148,18 +124,6 @@ class LogoController extends Controller
         ]);
     }
 
-    /**
-     * Create a validator for logo upload requests.
-     *
-     * Validates:
-     * - Logo type (must be university or government)
-     * - File presence and type (must be JPG/PNG)
-     * - File size (max 1MB)
-     * - Filename length
-     *
-     * @param Request $request The request to validate
-     * @return \Illuminate\Validation\Validator
-     */
     private function createValidator(Request $request): \Illuminate\Validation\Validator
     {
         return Validator::make($request->all(), [
@@ -189,12 +153,6 @@ class LogoController extends Controller
         ]);
     }
 
-    /**
-     * Delete an existing logo of the specified type.
-     *
-     * @param string $type The logo type to delete
-     * @return void
-     */
     private function deleteExistingLogo(string $type): void
     {
         $existingLogo = Logo::where('type', $type)->first();
@@ -204,14 +162,6 @@ class LogoController extends Controller
         }
     }
 
-    /**
-     * Sanitize the uploaded file name.
-     *
-     * Removes special characters and truncates to maximum allowed length.
-     *
-     * @param UploadedFile $file The uploaded file
-     * @return string Sanitized filename
-     */
     private function sanitizeFileName($file): string
     {
         $originalName   = $file->getClientOriginalName();
@@ -227,12 +177,6 @@ class LogoController extends Controller
         return $sanitizedName . '.' . $extension;
     }
 
-    /**
-     * Add a public URL to a logo array.
-     *
-     * @param array $logo The logo array to enhance
-     * @return array Logo array with added URL
-     */
     private function addUrlToLogo(array $logo): array
     {
         $logo['url'] = env('APP_ENV') === 'production'
@@ -242,11 +186,6 @@ class LogoController extends Controller
         return $logo;
     }
 
-    /**
-     * Generate a standard 404 not found response.
-     *
-     * @return JsonResponse
-     */
     private function notFoundResponse(): JsonResponse
     {
         return response()->json(['message' => 'Logo not found'], 404);

@@ -10,6 +10,7 @@ use App\Models\Curriculum;
 use App\Models\Program;
 use App\Models\Semester;
 use App\Models\YearLevel;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +36,7 @@ class CurriculumController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($request) {
+        $curriculum = DB::transaction(function () use ($request) {
             // Step 1: Create the new curriculum
             $curriculum = Curriculum::create([
                 'curriculum_year' => $request->curriculum_year,
@@ -68,7 +69,19 @@ class CurriculumController extends Controller
                     }
                 }
             }
+
+            return $curriculum;
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Full Curriculum Generation Created
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'Curriculum',
+            modelId: $curriculum->curriculum_id,
+            data: $curriculum->toArray(),
+            description: "Generated full curriculum structure for year: {$curriculum->curriculum_year}"
+        );
 
         return response()->json([
             'status' => 'success',
@@ -93,13 +106,27 @@ class CurriculumController extends Controller
             return response()->json([
                 'status' => 'fail',
                 'message' => "Curriculum {$request->curriculum_year} is currently used in an academic year and cannot be deleted.",
-            ]); // Note: We're returning a 200 OK status here
+            ]);
         }
 
-        DB::transaction(function () use ($request, $curriculum) {
-            // Delete related records...
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $originalData = $curriculum->toArray();
+
+        DB::transaction(function () use ($curriculum) {
             $curriculum->delete();
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Curriculum Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Curriculum',
+            modelId: $originalData['curriculum_id'],
+            data: $originalData,
+            description: "Deleted curriculum year: {$originalData['curriculum_year']} and all related structures"
+        );
 
         return response()->json([
             'status' => 'success',
@@ -185,6 +212,19 @@ class CurriculumController extends Controller
 
             return $newCurriculum;
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Curriculum Copied
+        // ═══════════════════════════════════════════════════════
+        $originalCurriculum = Curriculum::find($request->curriculum_id);
+        AuditLogger::logCreate(
+            model: 'Curriculum',
+            modelId: $newCurriculum->curriculum_id,
+            data: $newCurriculum->toArray(),
+            description: "Duplicated curriculum {$originalCurriculum->curriculum_year} to new year: {$newCurriculum->curriculum_year}"
+        );
+
+        return $newCurriculum;
     }
 
     // List all curricula
@@ -213,6 +253,16 @@ class CurriculumController extends Controller
         // Create a new curriculum if it doesn't exist
         $curriculum = Curriculum::create($validatedData);
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Curriculum Created (Basic)
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'Curriculum',
+            modelId: $curriculum->curriculum_id,
+            data: $curriculum->toArray(),
+            description: "Created basic curriculum record for year: {$curriculum->curriculum_year}"
+        );
+
         return response()->json([
             'message' => 'Curriculum created successfully',
             'curriculum' => $curriculum,
@@ -229,26 +279,95 @@ class CurriculumController extends Controller
     // Update a curriculum
     public function update(Request $request, $id)
     {
-        $curriculum = Curriculum::findOrFail($id);
+        try {
+            $curriculum = Curriculum::findOrFail($id);
 
-        $validatedData = $request->validate([
-            'curriculum_year' => 'required|string|size:4',
-            'status' => 'required|in:Active,Inactive',
-        ]);
+            // ═══════════════════════════════════════════════════════
+            // SAVE OLD DATA FOR DETAILED CHANGE TRACKING
+            // ═══════════════════════════════════════════════════════
+            $oldData = [
+                'curriculum_year' => $curriculum->curriculum_year,
+                'status'          => $curriculum->status,
+            ];
 
-        $curriculum->update($validatedData);
+            $validatedData = $request->validate([
+                'curriculum_year' => 'required|string|size:4|unique:curricula,curriculum_year,' . $id . ',curriculum_id',
+                'status'          => 'required|in:Active,Inactive',
+            ]);
 
-        return response()->json([
-            'message' => 'Curriculum updated successfully',
-            'curriculum' => $curriculum,
-        ], 200);
+            // Update the record
+            $curriculum->update([
+                'curriculum_year' => $validatedData['curriculum_year'],
+                'status'          => $validatedData['status'],
+            ]);
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: DETAILED CHANGE TRACKING
+            // ═══════════════════════════════════════════════════════
+            $changes = [];
+
+            if ($oldData['curriculum_year'] != $curriculum->curriculum_year) {
+                $changes[] = "Year: {$oldData['curriculum_year']} → {$curriculum->curriculum_year}";
+            }
+
+            if ($oldData['status'] != $curriculum->status) {
+                $changes[] = "Status: {$oldData['status']} → {$curriculum->status}";
+            }
+
+            if (count($changes) > 0) {
+                $changesSummary = implode(', ', $changes);
+                
+                AuditLogger::logUpdate(
+                    model: 'Curriculum',
+                    modelId: $curriculum->curriculum_id,
+                    oldData: $oldData,
+                    newData: [
+                        'curriculum_year' => $curriculum->curriculum_year,
+                        'status'          => $curriculum->status,
+                    ],
+                    description: "Updated Curriculum - {$changesSummary}"
+                );
+            } else {
+                return response()->json(['message' => 'No changes detected'], 422);
+            }
+
+            return response()->json([
+                'message' => 'Curriculum updated successfully',
+                'curriculum' => $curriculum,
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Curriculum update failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'message' => 'Failed to update curriculum',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+            ], 500);
+        }
     }
 
     // Delete a curriculum
     public function destroy($id)
     {
         $curriculum = Curriculum::findOrFail($id);
+        
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $originalData = $curriculum->toArray();
+        $curriculumYear = $curriculum->curriculum_year;
+
         $curriculum->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Curriculum Deleted (Basic)
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Curriculum',
+            modelId: $id,
+            data: $originalData,
+            description: "Deleted basic curriculum record for year: {$curriculumYear}"
+        );
 
         return response()->json([
             'message' => 'Curriculum deleted successfully',
@@ -300,6 +419,16 @@ class CurriculumController extends Controller
                 ->delete();
         });
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Removed Program from Curriculum
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'CurriculaProgram',
+            modelId: 0, // This is a pivot action
+            data: ['curriculum_year' => $curriculum->curriculum_year, 'program_code' => $program->program_code],
+            description: "Removed program '{$program->program_code}' from curriculum '{$curriculum->curriculum_year}'"
+        );
+
         return response()->json([
             'status' => 'success',
             'message' => 'Program removed from curriculum successfully.',
@@ -324,8 +453,10 @@ class CurriculumController extends Controller
             'program_id' => 'required|integer|exists:programs,program_id',
         ]);
 
-        $newCurriculaProgram = DB::transaction(function () use ($request) {
-            $curriculum = Curriculum::where('curriculum_year', $request->curriculum_year)->firstOrFail();
+        $programCode = Program::find($request->program_id)->program_code;
+        $curriculum = Curriculum::where('curriculum_year', $request->curriculum_year)->firstOrFail();
+
+        $newCurriculaProgram = DB::transaction(function () use ($request, $curriculum) {
 
             // Check if the program is already associated
             $exists = CurriculaProgram::where('curriculum_id', $curriculum->curriculum_id)
@@ -348,7 +479,7 @@ class CurriculumController extends Controller
                         'year' => $year,
                     ]);
 
-                    // Generate semesters for each year level (assuming two semesters per year)
+                    // Generate semesters for each year level (assuming three semesters per year)
                     for ($semester = 1; $semester <= 3; $semester++) {
                         Semester::create([
                             'year_level_id' => $yearLevel->year_level_id,
@@ -369,6 +500,16 @@ class CurriculumController extends Controller
                 ->where('curricula_program_id', $newCurriculaProgram->curricula_program_id)
                 ->first();
 
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Added Program to Curriculum
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logCreate(
+                model: 'CurriculaProgram',
+                modelId: $newCurriculaProgram->curricula_program_id,
+                data: $curriculaProgramWithDetails->toArray(),
+                description: "Added program '{$programCode}' to curriculum '{$curriculum->curriculum_year}' and generated corresponding year levels and semesters."
+            );
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Program added to curriculum successfully.',
@@ -381,5 +522,4 @@ class CurriculumController extends Controller
             'message' => 'Program is already associated with this curriculum year.',
         ], 400);
     }
-
 }

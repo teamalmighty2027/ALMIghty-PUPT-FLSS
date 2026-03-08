@@ -4,24 +4,23 @@
       <app-loading></app-loading>
     </div>
   } @else {
-    <div class="audit-log-header-container" [@fadeAnimation]>
-      <app-table-header
-        [inputFields]="headerInputFields"
-        (inputChange)="onInputChange($event)"
-      ></app-table-header>
-    </div>
-
     <div class="audit-log-table-container" [@fadeAnimation]>
-      @if (logs$ | async; as logs) {
-        <app-table-generic
-          [columns]="columns"
-          [data]="logs"
-          [tableName]="'audit_log'"
-          [displayedColumns]="displayedColumns"
-          [showDeleteButton]="false"
-          [disableEdit]="true"
-        ></app-table-generic>
-      }
+      
+      <ng-template #actionBadgeTemplate let-element>
+        <span class="action-badge" [ngClass]="element.action_type.toLowerCase()">
+          {{ element.action_type | uppercase }}
+        </span>
+      </ng-template>
+
+      <app-table-generic
+        [data]="(logs$ | async) || []"
+        [columns]="columns"
+        [displayedColumns]="displayedColumns"
+        [showViewButton]="true"
+        [showEditButton]="false"  [showDeleteButton]="false"
+        (view)="onViewDetails($event)"> 
+      </app-table-generic>
+      
     </div>
   }
 </div>

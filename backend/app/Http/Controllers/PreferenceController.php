@@ -10,6 +10,7 @@ use App\Models\Preference;
 use App\Models\PreferenceDay;
 use App\Models\PreferencesSetting;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,14 +51,27 @@ class PreferenceController extends Controller
             ], 403);
         }
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $sectionsPerProgramYearId) {
+        $preferenceRecord = null;
+        $isUpdate = false;
+
+        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
+            
+            $existingPreference = Preference::where([
+                'faculty_id' => $facultyId,
+                'active_semester_id' => $activeSemesterId,
+                'course_assignment_id' => $courseAssignmentId,
+                'sections_per_program_year_id' => $sectionsPerProgramYearId,
+            ])->first();
+
+            $isUpdate = $existingPreference ? true : false;
+
             $preference = Preference::updateOrCreate(
                 [
-                    'faculty_id'           => $facultyId,
-                    'active_semester_id'   => $activeSemesterId,
-                    'course_assignment_id' => $courseAssignmentId,
+                    'faculty_id'                   => $facultyId,
+                    'active_semester_id'           => $activeSemesterId,
+                    'course_assignment_id'         => $courseAssignmentId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
-                ],
+                ]
             );
 
             // Check if preferred days have changed
@@ -91,7 +105,34 @@ class PreferenceController extends Controller
                     ]);
                 }
             }
+
+            $preferenceRecord = $preference;
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Preference Submitted/Updated
+        // ═══════════════════════════════════════════════════════
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+        if ($isUpdate) {
+            AuditLogger::logUpdate(
+                model: 'Preference',
+                modelId: $preferenceRecord->preferences_id,
+                oldData: [], // Days comparison is too complex for basic Old/New array, stick to description
+                newData: ['days' => $validatedData['preferred_days']],
+                description: "Updated schedule preference for {$facultyName} (Course Assignment ID: {$courseAssignmentId})"
+            );
+        } else {
+            AuditLogger::logCreate(
+                model: 'Preference',
+                modelId: $preferenceRecord->preferences_id,
+                data: $validatedData,
+                description: "Submitted new schedule preference for {$facultyName}"
+            );
+        }
 
         return response()->json([
             'message' => 'Preference submitted successfully',
@@ -105,6 +146,7 @@ class PreferenceController extends Controller
      */
     public function getUniqueFacultyPreferences()
     {
+        // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
             ->where('is_active', 1)
             ->first();
@@ -199,8 +241,6 @@ class PreferenceController extends Controller
                 ],
             ];
         })
-        // Sort by 'has_request' first (descending),
-        // and then by 'faculty_name' alphabetically
             ->sort(function ($a, $b) {
                 if ($a['has_request'] !== $b['has_request']) {
                     return $b['has_request'] <=> $a['has_request'];
@@ -221,6 +261,7 @@ class PreferenceController extends Controller
      */
     public function getAllFacultyPreferences()
     {
+        // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
             ->where('is_active', 1)
             ->first();
@@ -257,7 +298,6 @@ class PreferenceController extends Controller
                             ];
                         })->values()->toArray();
 
-                    // Fetch all courses with the same course code OR course title that are active
                     $submittedCourse = DB::table('course_assignments')
                         ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
                         ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
@@ -323,7 +363,6 @@ class PreferenceController extends Controller
                 ],
             ];
         })
-        // Sort faculty with 'has_request' set to 1 at the top
             ->sortByDesc('has_request')
             ->sortBy('faculty_name')
             ->values();
@@ -338,6 +377,7 @@ class PreferenceController extends Controller
      */
     public function getFacultyPreferencesById($faculty_id)
     {
+        // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
             ->where('is_active', 1)
             ->first();
@@ -369,7 +409,6 @@ class PreferenceController extends Controller
             ->where('semester_id', $activeSemester->semester_id)
             ->value('is_published') ?? 0;
 
-        // PRELOAD program details for all course_assignment_ids
         $courseAssignmentIds = $faculty->preferences->pluck('course_assignment_id')->filter()->unique()->toArray();
         $sectionsPerProgramYearIds = $faculty->preferences->pluck('sections_per_program_year_id')->filter()->unique()->toArray();
         $programDetailsByCourseAssignment = collect();
@@ -455,12 +494,12 @@ class PreferenceController extends Controller
     **/
     public function getPreferencesHistoryByFacultyId($faculty_id)
     {
+        // ... Keep exactly as is ...
         $faculty = Faculty::find($faculty_id);
         if (! $faculty) {
             return response()->json(['error' => 'Faculty not found'], 404);
         }
 
-        // Load all preferences for this faculty with related data
         $preferences = Preference::with(['preferenceDays', 'courseAssignment.course'])
             ->where('faculty_id', $faculty_id)
             ->get();
@@ -471,12 +510,10 @@ class PreferenceController extends Controller
             ], 200, [], JSON_PRETTY_PRINT);
         }
 
-        // Preload all active semesters with their AY/semester relations, keyed by active_semester_id
         $activeSemesterMap = ActiveSemester::with(['academicYear', 'semester'])
             ->get()
             ->keyBy('active_semester_id');
 
-        // Preload all academic years/semesters and capture active_semester_id for lookup
         $academicYears = AcademicYear::join('active_semesters', 'academic_years.academic_year_id', '=', 'active_semesters.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
             ->select(
@@ -492,7 +529,6 @@ class PreferenceController extends Controller
             ->orderBy('semesters.semester')
             ->get();
 
-        // Index by academic_year_id + semester_id for quick lookup
         $aySemIndex = [];
         foreach ($academicYears as $as) {
             if ($as->academic_year_id && $as->semester_id) {
@@ -513,7 +549,6 @@ class PreferenceController extends Controller
             $academicYearStart = (int) $as->academicYear->year_start;
             $semesterId        = (int) $as->semester_id;
 
-            // Initialize academic year bucket with three semesters
             if (! isset($grouped[$academicYearId])) {
                 $grouped[$academicYearId] = [
                     'academic_year_id' => $academicYearId,
@@ -542,7 +577,6 @@ class PreferenceController extends Controller
                 ];
             }
 
-            // Prepare preference payload
             $preferenceDays = $pref->preferenceDays
                 ->map(fn($day) => [
                     'day'        => $day->preferred_day,
@@ -555,7 +589,6 @@ class PreferenceController extends Controller
 
             $course = $pref->courseAssignment->course ?? null;
 
-            // Fetch program details for this course_assignment (if available)
             $program = null;
             if (! empty($pref->course_assignment_id)) {
                 $program = DB::table('course_assignments')
@@ -566,7 +599,6 @@ class PreferenceController extends Controller
                     ->first();
             }
 
-            // Fetch section details for this preference (if available)
             $section = null;
             if (! empty($pref->sections_per_program_year_id)) {
                 $section = DB::table('sections_per_program_year')
@@ -595,13 +627,11 @@ class PreferenceController extends Controller
                 'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
             ];
 
-            // Push into the correct semester
             if (isset($grouped[$academicYearId]['semesters'][$semesterId])) {
                 $grouped[$academicYearId]['semesters'][$semesterId]['preferences'][] = $preferencePayload;
             }
         }
 
-        // Normalize to arrays and sort: academic years desc by year_start, semesters asc by semester_id
         $result = collect($grouped)
             ->sortByDesc('year_start')
             ->map(function ($year) {
@@ -661,11 +691,30 @@ class PreferenceController extends Controller
             return response()->json(['message' => 'Preference not found.'], 404);
         }
 
+        // ═══════════════════════════════════════════════════════
+        // SAVE DATA FOR AUDIT BEFORE DELETION
+        // ═══════════════════════════════════════════════════════
+        $originalData = $preference->toArray();
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
         // Delete related preference days
         PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
 
         // Delete the preference
         $preference->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Preference Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'Preference',
+            modelId: $originalData['preferences_id'],
+            data: $originalData,
+            description: "Deleted a schedule preference for {$facultyName} (Course Assignment ID: {$preference_id})"
+        );
 
         return response()->json(['message' => 'Preference deleted successfully.'], 200);
     }
@@ -705,11 +754,28 @@ class PreferenceController extends Controller
             return response()->json(['message' => 'No preferences found for this faculty in the active semester.'], 404);
         }
 
+        $deletedCount = $preferences->count();
+
         // Delete related preference days and then the preferences
         foreach ($preferences as $preference) {
             PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
             $preference->delete();
         }
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: ALL Preferences Deleted
+        // ═══════════════════════════════════════════════════════
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+        AuditLogger::logDelete(
+            model: 'Preference',
+            modelId: 0,
+            data: ['faculty_id' => $facultyId, 'active_semester_id' => $activeSemesterId],
+            description: "Cleared ALL schedule preferences ({$deletedCount} total) for {$facultyName} in Active Semester {$activeSemesterId}"
+        );
 
         return response()->json(['message' => 'All preferences for this faculty in the active semester deleted successfully.'], 200);
     }
@@ -779,13 +845,6 @@ class PreferenceController extends Controller
                 }
             }
 
-            Log::info('Global Deadline (before email):', [
-                'deadline'  => $global_deadline,
-                'days_left' => $startDate && $global_deadline
-                ? $startDate->diffInDays($global_deadline)
-                : 'Start date or deadline not set',
-            ]);
-
             // Clear all faculty schedule publications for the active semester
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
@@ -798,6 +857,18 @@ class PreferenceController extends Controller
                     ]);
             }
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Global Settings Updated
+        // ═══════════════════════════════════════════════════════
+        $statusText = $validated['status'] ? 'Enabled' : 'Disabled';
+        AuditLogger::logUpdate(
+            model: 'PreferencesSetting',
+            modelId: 0,
+            oldData: [],
+            newData: ['status' => $statusText, 'deadline' => $validated['global_deadline']],
+            description: "Updated GLOBAL Preference Submission Status to: {$statusText} (Deadline: {$validated['global_deadline']})"
+        );
 
         return response()->json([
             'message'             => 'All preferences settings updated successfully',
@@ -827,6 +898,9 @@ class PreferenceController extends Controller
         $individual_deadline   = $status && $validated['individual_deadline'] ? Carbon::parse($validated['individual_deadline'])->endOfDay() : null;
         $individual_start_date = $status && $validated['individual_start_date'] ? Carbon::parse($validated['individual_start_date'])->startOfDay() : null;
         $sendEmail             = $validated['send_email'];
+
+        $oldSettings = PreferencesSetting::where('faculty_id', $faculty_id)->first();
+        $oldData = $oldSettings ? $oldSettings->toArray() : [];
 
         DB::transaction(function () use ($validated, $faculty_id, $status, $individual_deadline, $individual_start_date, $sendEmail) {
             // Current date and start date
@@ -873,18 +947,10 @@ class PreferenceController extends Controller
                 }
             }
 
-            Log::info('Individual Deadline (before email):', [
-                'deadline'  => $individual_deadline,
-                'days_left' => $startDate && $individual_deadline
-                ? $startDate->diffInDays($individual_deadline)
-                : 'Start date or deadline not set',
-            ]);
-
             // Clear schedule publications for the specific faculty in the active semester
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
                 DB::table('faculty_schedule_publication')
-                // ->where('faculty_id', $faculty_id)
                     ->where('academic_year_id', $activeSemester->academic_year_id)
                     ->where('semester_id', $activeSemester->semester_id)
                     ->update([
@@ -893,6 +959,25 @@ class PreferenceController extends Controller
                     ]);
             }
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Individual Setting Updated
+        // ═══════════════════════════════════════════════════════
+        $facultyUser = User::whereHas('faculty', function($q) use ($faculty_id) {
+            $q->where('id', $faculty_id);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$faculty_id}";
+
+        $statusText = $validated['status'] ? 'Enabled' : 'Disabled';
+        $deadlineText = $validated['individual_deadline'] ?? 'None';
+        
+        AuditLogger::logUpdate(
+            model: 'PreferencesSetting',
+            modelId: $faculty_id,
+            oldData: $oldData,
+            newData: ['is_enabled' => $statusText, 'individual_deadline' => $deadlineText],
+            description: "Updated INDIVIDUAL Submission Status for {$facultyName} to: {$statusText} (Deadline: {$deadlineText})"
+        );
 
         return response()->json([
             'message'               => 'Preference setting updated successfully for faculty',
@@ -938,6 +1023,22 @@ class PreferenceController extends Controller
             );
         }
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Request Access
+        // ═══════════════════════════════════════════════════════
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+        AuditLogger::logUpdate(
+            model: 'PreferencesSetting',
+            modelId: $facultyId,
+            oldData: ['has_request' => 0],
+            newData: ['has_request' => 1],
+            description: "{$facultyName} requested system access to submit preferences."
+        );
+
         return response()->json([
             'message'     => 'Access request submitted successfully.',
             'has_request' => 1,
@@ -965,6 +1066,22 @@ class PreferenceController extends Controller
 
         $preferenceSetting->has_request = 0;
         $preferenceSetting->save();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Cancel Access Request
+        // ═══════════════════════════════════════════════════════
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+        AuditLogger::logUpdate(
+            model: 'PreferencesSetting',
+            modelId: $facultyId,
+            oldData: ['has_request' => 1],
+            newData: ['has_request' => 0],
+            description: "{$facultyName} cancelled their request for preference submission access."
+        );
 
         return response()->json([
             'message'     => 'Access request cancelled successfully.',

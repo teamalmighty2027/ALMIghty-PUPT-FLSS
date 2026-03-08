@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RoomType;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -51,6 +52,16 @@ class RoomTypeController extends Controller
 
         $roomType = RoomType::create($request->all());
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Type Created
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'RoomType',
+            modelId: $roomType->room_type_id,
+            data: $roomType->toArray(),
+            description: "Created Room Type: {$roomType->type_name}"
+        );
+
         return response()->json([
             'success' => true,
             'message' => 'Room type created successfully',
@@ -68,6 +79,9 @@ class RoomTypeController extends Controller
             ], 404);
         }
 
+        // 1. Save Old Data
+        $oldData = $roomType->toArray();
+
         $validator = Validator::make($request->all(), [
             'type_name' => 'required|string|max:191|unique:room_types,type_name,' . $id . ',room_type_id',
         ]);
@@ -80,7 +94,35 @@ class RoomTypeController extends Controller
             ], 422);
         }
 
-        $roomType->update($request->all());
+        // 2. Apply Change
+        $roomType->type_name = $request->input('type_name');
+
+        // 3. Track Change
+        $changes = [];
+        if ($oldData['type_name'] != $roomType->type_name) {
+            $changes[] = "Name: {$oldData['type_name']} → {$roomType->type_name}";
+        }
+
+        if (empty($changes)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No changes detected',
+            ], 422);
+        }
+
+        // 4. Save and Log
+        $roomType->save();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Type Updated
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logUpdate(
+            model: 'RoomType',
+            modelId: $roomType->room_type_id,
+            oldData: $oldData,
+            newData: $roomType->toArray(),
+            description: "Updated Room Type - " . implode(', ', $changes)
+        );
 
         return response()->json([
             'success' => true,
@@ -106,7 +148,21 @@ class RoomTypeController extends Controller
             ], 422);
         }
 
+        // Save data before deletion
+        $originalData = $roomType->toArray();
+        $typeName = $roomType->type_name;
+
         $roomType->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Room Type Deleted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'RoomType',
+            modelId: $id,
+            data: $originalData,
+            description: "Deleted Room Type: {$typeName}"
+        );
 
         return response()->json([
             'success' => true,
