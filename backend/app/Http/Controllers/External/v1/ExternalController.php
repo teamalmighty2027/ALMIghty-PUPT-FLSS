@@ -12,11 +12,11 @@ class ExternalController extends Controller
 {
 
     /**
-     * For: E-Class Record System (ECRS)
-     * Retrieves faculty schedules for ECRS integration.
+     * For: Faculty Attendance System
+     * Retrieves faculty schedules for FAS integration.
      * Returns faculty details with their assigned schedules for the current active semester.
      */
-    public function ECRSFacultySchedules()
+    public function facultySchedules()
     {
         // Step 1: Retrieve the current active semester with academic year details
         $activeSemester = DB::table('active_semesters')
@@ -244,10 +244,10 @@ class ExternalController extends Controller
     }
 
     /**
-     * For: Faculty and Room Management System (FARMS)
+     * For: Faculty Reportorial Requirements System
      * Retrieves course schedules for FARMS integration.
      */
-    public function FARMSCourseSchedules()
+    public function courseSchedules()
     {
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
@@ -360,10 +360,10 @@ class ExternalController extends Controller
     }
 
     /**
-     * For: Faculty and Room Management System (FARMS)
+     * For: Faculty Reportorial Requirements System (FRRS)
      * Retrieves course files for FARMS integration.
      */
-    public function FARMSCourseFiles()
+    public function courseFiles()
     {
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
@@ -457,6 +457,7 @@ class ExternalController extends Controller
      * For: Biometric Synchronization System (BioSync)
      * Retrieves computer laboratory schedules for BioSync integration.
      * Returns schedules for rooms with room_type "Computer Laboratory" for the current active semester.
+     * (Deprecated)
      */
 
     /**
@@ -464,7 +465,7 @@ class ExternalController extends Controller
      */
     private const COMPUTER_LABORATORY_ID = 3;
 
-    public function BioSyncComputerLabSchedules()
+    public function labSchedules()
     {
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
