@@ -30,6 +30,7 @@ class SchedulesTableSeeder extends Seeder
                 'end_time' => $record['end_time'] === 'NULL' ? null : $record['end_time'],
                 'faculty_id' => $record['faculty_id'] === 'NULL' ? null : $record['faculty_id'],
                 'room_id' => $record['room_id'] === 'NULL' ? null : $record['room_id'],
+                'is_published' => $record['is_published'],
                 'created_at' => $record['created_at'],
                 'updated_at' => $record['updated_at'],
             ];

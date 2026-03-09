@@ -62,6 +62,8 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::post('/addAdmins', [AccountController::class, 'storeAdmin']);
     Route::put('/updateAdmins/{admin}', [AccountController::class, 'updateAdmin']);
     Route::delete('/deleteAdmins/{admin}', [AccountController::class, 'destroyAdmin']);
+
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
 });
 
 /*
@@ -94,10 +96,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admins', [AccountController::class, 'storeAdmin']);
     Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
     Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
-
-    // Audit Logs (Super Admin Only)
-    Route::middleware(['auth:sanctum'])->group(function () {
-    Route::get('/audit-logs', [AuditLogController::class, 'index']);});
 
     /**
      * Buildings
