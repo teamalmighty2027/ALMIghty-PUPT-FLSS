@@ -10,6 +10,30 @@ use Illuminate\Support\Facades\Log;
 
 class ExternalController extends Controller
 {
+    /**
+     * API Health Check Endpoint
+      * Checks database connectivity and returns a simple health status.
+     */
+    public function healthCheck()
+    {
+        try {
+            DB::connection()->getPdo();
+
+            return response()->json([
+                'status' => 'healthy',
+                'timestamp' => now()->toIso8601String(),
+                'database' => 'connected',
+            ], 200);
+        } catch (Throwable $e) {
+            Log::error('API Health Check Failed: ' . $e->getMessage());
+
+            return response()->json([
+                'status' => 'unhealthy',
+                'timestamp' => now()->toIso8601String(),
+                'database' => 'disconnected',
+            ], 503);
+        }
+    }
 
     /**
      * For: Faculty Attendance System

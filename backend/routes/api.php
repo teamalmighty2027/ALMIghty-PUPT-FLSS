@@ -268,6 +268,11 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('v1')->group(function () {
 
     /**
+     * Health Check Route
+     */
+    Route::get('/health', [ExternalController::class, 'healthCheck']);
+
+    /**
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
