@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\Schedule;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -202,6 +203,20 @@ class ScheduleController extends Controller
             ],
         ];
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Course Duplicated
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'SectionCourse',
+            modelId: $newSectionCourseId,
+            data: [
+                'section_course_id' => $newSectionCourseId,
+                'course_code' => $course->course_code,
+                'is_copy' => 1
+            ],
+            description: "Duplicated course: {$course->course_code} (copy)"
+        );
+
         return response()->json([
             'message' => 'Course duplicated successfully',
             'course' => $response,
@@ -238,11 +253,29 @@ class ScheduleController extends Controller
             return response()->json(['message' => 'Cannot remove original course'], 400);
         }
 
+        // Fetch info for logging
+        $courseInfo = DB::table('section_courses')
+            ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
+            ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
+            ->where('section_courses.section_course_id', $sectionCourseId)
+            ->select('courses.course_code')
+            ->first();
+
         // Delete the schedule(s) associated with this section_course
         DB::table('schedules')->where('section_course_id', $sectionCourseId)->delete();
 
         // Delete the section_course
         DB::table('section_courses')->where('section_course_id', $sectionCourseId)->delete();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Duplicate Course Removed
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logDelete(
+            model: 'SectionCourse',
+            modelId: $sectionCourseId,
+            data: (array)$sectionCourse,
+            description: "Removed duplicate course: " . ($courseInfo->course_code ?? "Unknown")
+        );
 
         return response()->json(['message' => 'Copied course removed successfully'], 200);
     }
@@ -277,26 +310,84 @@ class ScheduleController extends Controller
         try {
             $schedule = Schedule::where('schedule_id', $request->schedule_id)
                 ->with(['faculty.user' => function ($query) {
-                    $query->select('id', 'email', 'first_name', 'last_name')
+                    $query->select('id', 'email', 'first_name', 'last_name', 'middle_name', 'suffix_name')
                         ->where('status', 'Active');
                 }])
                 ->with(['room' => function ($query) {
                     $query->select('room_id', 'room_code', 'status')
-                        ->where('status', 'Active');
+                        ->where('status', 'Available');
                 }])
                 ->first();
 
-            $previousFacultyId = $schedule->faculty_id;
-            $newFacultyId = $request->input('faculty_id');
+            // 1. SAVE OLD DATA
+            $oldData = [
+                'faculty_id' => $schedule->faculty_id,
+                'room_id'    => $schedule->room_id,
+                'day'        => $schedule->day,
+                'start_time' => $schedule->start_time,
+                'end_time'   => $schedule->end_time,
+            ];
 
-            $schedule->faculty_id = $newFacultyId;
+            // 2. APPLY UPDATES
+            $schedule->faculty_id = $request->input('faculty_id');
             $schedule->room_id = $request->input('room_id');
             $schedule->day = $request->input('day');
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
-            $schedule->save();
+            
+            // 3. TRACK HUMAN READABLE CHANGES
+            $changes = [];
 
+            if ($oldData['faculty_id'] != $schedule->faculty_id) {
+                // Fetch actual names
+                $oldFacName = $oldData['faculty_id'] ? \App\Models\User::whereHas('faculty', fn($q) => $q->where('id', $oldData['faculty_id']))->first()->formatted_name ?? "ID {$oldData['faculty_id']}" : "None";
+                $newFacName = $schedule->faculty_id ? \App\Models\User::whereHas('faculty', fn($q) => $q->where('id', $schedule->faculty_id))->first()->formatted_name ?? "ID {$schedule->faculty_id}" : "None";
+                
+                $changes[] = "Faculty: {$oldFacName} → {$newFacName}";
+            }
+
+            if ($oldData['room_id'] != $schedule->room_id) {
+                // Fetch actual room codes
+                $oldRoom = $oldData['room_id'] ? \App\Models\Room::find($oldData['room_id'])->room_code ?? "ID {$oldData['room_id']}" : "None";
+                $newRoom = $schedule->room_id ? \App\Models\Room::find($schedule->room_id)->room_code ?? "ID {$schedule->room_id}" : "None";
+                
+                $changes[] = "Room: {$oldRoom} → {$newRoom}";
+            }
+
+            if ($oldData['day'] != $schedule->day) {
+                $oldDay = $oldData['day'] ?: "None";
+                $newDay = $schedule->day ?: "None";
+                $changes[] = "Day: {$oldDay} → {$newDay}";
+            }
+
+            if ($oldData['start_time'] != $schedule->start_time || $oldData['end_time'] != $schedule->end_time) {
+                $oldTime = ($oldData['start_time'] && $oldData['end_time']) ? "{$oldData['start_time']} - {$oldData['end_time']}" : "None";
+                $newTime = ($schedule->start_time && $schedule->end_time) ? "{$schedule->start_time} - {$schedule->end_time}" : "None";
+                $changes[] = "Time: {$oldTime} → {$newTime}";
+            }
+
+            if (empty($changes)) {
+                DB::rollBack();
+                return response()->json(['message' => 'No changes detected'], 422);
+            }
+
+            $schedule->save();
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Schedule Assigned/Updated
+            // ═══════════════════════════════════════════════════════
+            $courseInfo = $schedule->sectionCourse->courseAssignment->course ?? null;
+            $courseCode = $courseInfo ? $courseInfo->course_code : "Schedule #{$schedule->schedule_id}";
+            $changesSummary = implode(', ', $changes);
+
+            AuditLogger::logUpdate(
+                model: 'Schedule',
+                modelId: $schedule->schedule_id,
+                oldData: $oldData,
+                newData: $schedule->toArray(),
+                description: "Updated {$courseCode} Schedule - {$changesSummary}"
+            );
 
             $schedule->load(['faculty.user', 'room']);
 
@@ -583,6 +674,26 @@ class ScheduleController extends Controller
                 // Dispatch external service job
                 ProcessExternalScheduleChange::dispatch('toggleAllSchedules', $validated['is_published']);
 
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: All Schedules Published/Unpublished
+                // ═══════════════════════════════════════════════════════
+                AuditLogger::log(
+                    action: 'update',
+                    description: sprintf(
+                        "%s all faculty schedules (%d faculty) for %s",
+                        $validated['is_published'] ? 'Published' : 'Unpublished',
+                        $facultiesWithSchedules->count(),
+                        "Academic Year {$activeSemester->academic_year_id}, Semester {$activeSemester->semester_id}"
+                    ),
+                    model: 'FacultySchedulePublication',
+                    metadata: [
+                        'faculty_count' => $facultiesWithSchedules->count(),
+                        'is_published' => $validated['is_published'],
+                        'academic_year_id' => $activeSemester->academic_year_id,
+                        'semester_id' => $activeSemester->semester_id
+                    ]
+                );
+
                 return response()->json([
                     'message' => 'Faculty schedule publications updated successfully',
                     'updated_count' => $facultiesWithSchedules->count(),
@@ -655,6 +766,7 @@ class ScheduleController extends Controller
 
                 // Update preferences settings
                 DB::table('preferences_settings')
+                    ->where('faculty_id', $validated['faculty_id'])
                     ->update([
                         'is_enabled' => 0,
                         'global_start_date' => null,
@@ -665,6 +777,32 @@ class ScheduleController extends Controller
                     ]);
 
                 ProcessExternalScheduleChange::dispatch('toggleSingleSchedule', $validated['is_published'], $validated['faculty_id']);
+
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: Single Faculty Schedule Published/Unpublished
+                // ═══════════════════════════════════════════════════════
+                $facultyUser = DB::table('faculty')
+                    ->join('users', 'faculty.user_id', '=', 'users.id')
+                    ->where('faculty.id', $validated['faculty_id'])
+                    ->select('users.first_name', 'users.last_name', 'users.email')
+                    ->first();
+
+                $facultyName = $facultyUser ? "{$facultyUser->first_name} {$facultyUser->last_name}" : "Faculty ID {$validated['faculty_id']}";
+
+                AuditLogger::log(
+                    action: 'update',
+                    description: sprintf(
+                        "%s schedule for %s",
+                        $validated['is_published'] ? 'Published' : 'Unpublished',
+                        $facultyName
+                    ),
+                    model: 'FacultySchedulePublication',
+                    modelId: $validated['faculty_id'],
+                    metadata: [
+                        'faculty_id' => $validated['faculty_id'],
+                        'is_published' => $validated['is_published']
+                    ]
+                );
 
                 return response()->json([
                     'message' => 'Publication status updated successfully for the faculty',
