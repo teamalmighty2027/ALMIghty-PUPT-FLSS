@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('audit_logs', function (Blueprint $table) {
-            $table->id();
+            $table->id('audit_log_id');
             
             // User Information (Point-in-time snapshot)
             $table->unsignedBigInteger('user_id')->nullable()->index();
