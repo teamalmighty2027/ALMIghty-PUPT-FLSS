@@ -18,7 +18,7 @@ import { slideTextAnimation } from '../../core/animations/animations';
   animations: [slideTextAnimation],
 })
 export class DialogRedirectComponent implements OnInit {
-  checkingFesr: boolean;
+  checkingIDP: boolean;
   redirecting: boolean;
 
   constructor(
@@ -26,18 +26,18 @@ export class DialogRedirectComponent implements OnInit {
     private authService: AuthService,
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
-    this.checkingFesr = data.checkingFesr;
+    this.checkingIDP = data.checkingIDP;
     this.redirecting = false;
   }
 
   ngOnInit(): void {
-    if (!this.checkingFesr) {
+    if (!this.checkingIDP) {
       this.initiateRedirection();
     }
   }
 
-  updateState(checkingFesr: boolean, redirecting: boolean): void {
-    this.checkingFesr = checkingFesr;
+  updateState(checkingIDP: boolean, redirecting: boolean): void {
+    this.checkingIDP = checkingIDP;
     this.redirecting = redirecting;
     if (this.redirecting) {
       this.initiateRedirection();
@@ -47,12 +47,12 @@ export class DialogRedirectComponent implements OnInit {
   initiateRedirection(): void {
     setTimeout(() => {
       this.dialogRef.close();
-      this.authService.initiateFesrLogin();
+      this.authService.initiateIdpLogin();
     }, 2000);
   }
 
   get currentTextState(): 'connecting' | 'redirecting' {
-    if (this.checkingFesr) return 'connecting';
+    if (this.checkingIDP) return 'connecting';
     if (this.redirecting) return 'redirecting';
 
     return 'connecting';

@@ -45,7 +45,6 @@ Route::middleware('auth:sanctum')->group(function () {
  * (Identity ) IDP Callback Routes
  */
 Route::prefix('auth')->group(function () {
-    Route::post('/redirect', [AuthController::class, 'redirectToIDP']);
     Route::post('/callback' , [AuthController::class, 'callbackToIDP']);
 });
 

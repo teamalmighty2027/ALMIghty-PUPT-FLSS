@@ -48,7 +48,7 @@ export class AuthService {
   ) {}
 
   // ==============================
-  // OAuth-based FESR auth methods
+  // OAuth-based FESR auth methods (Deprecated)
   // ==============================
   checkFesrHealth(): Observable<boolean> {
     return this.fesrHealthService.checkHealth();
@@ -163,6 +163,36 @@ export class AuthService {
       faculty_data: facultyData,
       fesr_token: fesrToken,
     });
+  }
+
+  // ==============================
+  // IDP auth methods 
+  // ==============================
+
+  checkIdpHealth(): Observable<boolean> {
+    return this.http.get(`${environmentOAuth.idpUrl}/api/health`).pipe(
+      map((response: any) => response.status === 'ok'),
+      catchError((error) => { 
+        console.error('Error checking IDP health:', error);
+        return [false];
+      }),
+    );
+  }
+
+  // NOTE: This url is a placeholder
+  initiateIdpLogin(): void {
+    window.location.href = `${environmentOAuth.idpUrl}/auth/redirect`;
+  }
+
+  // NOTE: Placeholder method
+  handleIdpCallback(): Observable<any> {
+    const payload = {};
+
+    return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
+      tap((response: any) => {
+        console.log('IDP callback response:', response);
+      }),
+    );
   }
 
   // ==============================
