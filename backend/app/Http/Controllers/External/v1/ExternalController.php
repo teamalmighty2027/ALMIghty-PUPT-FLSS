@@ -509,7 +509,7 @@ class ExternalController extends Controller
             ->whereNotNull('schedules.end_time')
             ->select(
                 'schedules.schedule_id as course_schedule_id',
-                'faculty.fesr_user_id as user_login_id',
+                'faculty.id as user_login_id',
                 'programs.program_title as program',
                 'courses.course_code',
                 'courses.course_title as course_subjects',
@@ -639,7 +639,7 @@ class ExternalController extends Controller
             })
             ->where('faculty_schedule_publication.is_published', '=', 1)
             ->select(
-                'faculty.fesr_user_id as user_login_id',
+                'faculty.id as user_login_id',
                 'current_schedules.schedule_id as course_schedule_id',
                 'courses.course_title as subject',
                 DB::raw("'" . $this->formatSemesterLabel($activeSemester->semester) . "' as semester"),
