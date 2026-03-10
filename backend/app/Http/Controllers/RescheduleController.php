@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Appeal;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,16 @@ class RescheduleController extends Controller
             'is_approved' => null,
         ]);
 
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Appeal Submitted
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logCreate(
+            model: 'Appeal',
+            modelId: $appeal->appeal_id,
+            data: $appeal->toArray(),
+            description: "Submitted rescheduling appeal for Schedule ID: {$appeal->schedule_id}"
+        );
+
         return response()->json([
             'message' => 'Appeal submitted successfully.',
             'appeal'  => $appeal,
@@ -64,43 +75,20 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     //  ADMIN — Fetch all appeals
     //  GET /api/rescheduling-appeals
-    //
-    //  Join chain (based on actual DB schema):
-    //  appeals
-    //    → schedules                (appeals.schedule_id)
-    //    → section_courses          (schedules.section_course_id)
-    //    → course_assignments       (section_courses.course_assignment_id)
-    //    → courses                  (course_assignments.course_id)
-    //    → sections_per_program_year(section_courses.sections_per_program_year_id)
-    //    → programs                 (sections_per_program_year.program_id)
-    //    → faculty                  (schedules.faculty_id → faculty.id)
-    //    → users                    (faculty.user_id → users.id)
-    //    → rooms sr (original)      (schedules.room_id)
-    //    → rooms ar (appeal)        (appeals.room_id)
     // ─────────────────────────────────────────────────────────
     public function getAllAppeals(): JsonResponse
     {
         $appeals = DB::table('appeals as a')
-            ->join('schedules as s',
-                'a.schedule_id', '=', 's.schedule_id')
-            ->join('section_courses as sc',
-                's.section_course_id', '=', 'sc.section_course_id')
-            ->join('course_assignments as ca',
-                'sc.course_assignment_id', '=', 'ca.course_assignment_id')
-            ->join('courses as c',
-                'ca.course_id', '=', 'c.course_id')
-            ->join('sections_per_program_year as spy',
-                'sc.sections_per_program_year_id', '=', 'spy.sections_per_program_year_id')
-            ->join('programs as p',
-                'spy.program_id', '=', 'p.program_id')
-            ->join('faculty as f',
-                's.faculty_id', '=', 'f.id')
-            ->join('users as u',
-                'f.user_id', '=', 'u.id')
-            ->leftJoin('rooms as sr',
-                's.room_id', '=', 'sr.room_id')
-            ->leftJoin('rooms as ar',
-                'a.room_id', '=', 'ar.room_id')
+            ->join('schedules as s', 'a.schedule_id', '=', 's.schedule_id')
+            ->join('section_courses as sc', 's.section_course_id', '=', 'sc.section_course_id')
+            ->join('course_assignments as ca', 'sc.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->join('courses as c', 'ca.course_id', '=', 'c.course_id')
+            ->join('sections_per_program_year as spy', 'sc.sections_per_program_year_id', '=', 'spy.sections_per_program_year_id')
+            ->join('programs as p', 'spy.program_id', '=', 'p.program_id')
+            ->join('faculty as f', 's.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->leftJoin('rooms as sr', 's.room_id', '=', 'sr.room_id')
+            ->leftJoin('rooms as ar', 'a.room_id', '=', 'ar.room_id')
             ->select([
                 'a.appeal_id',
                 'a.schedule_id',
@@ -147,6 +135,10 @@ class RescheduleController extends Controller
         }
 
         $appeal = Appeal::findOrFail($id);
+        $oldAppealData = $appeal->toArray();
+
+        $schedule = Schedule::findOrFail($appeal->schedule_id);
+        $oldScheduleData = $schedule->toArray();
 
         $roomId = $appeal->room_id;
         if (!empty($validated['room'])) {
@@ -154,7 +146,7 @@ class RescheduleController extends Controller
             $roomId = $room?->room_id ?? $roomId;
         }
 
-        DB::transaction(function () use ($appeal, $validated, $roomId) {
+        DB::transaction(function () use ($appeal, $schedule, $validated, $roomId) {
             $appeal->update([
                 'is_approved' => true,
                 'day'         => $validated['day'],
@@ -163,14 +155,32 @@ class RescheduleController extends Controller
                 'room_id'     => $roomId,
             ]);
 
-            Schedule::where('schedule_id', $appeal->schedule_id)
-                ->update([
-                    'day'        => $validated['day'],
-                    'start_time' => $validated['start_time'],
-                    'end_time'   => $validated['end_time'],
-                    'room_id'    => $roomId,
-                ]);
+            $schedule->update([
+                'day'        => $validated['day'],
+                'start_time' => $validated['start_time'],
+                'end_time'   => $validated['end_time'],
+                'room_id'    => $roomId,
+            ]);
         });
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Appeal Approved and Schedule Updated
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logUpdate(
+            model: 'Appeal',
+            modelId: $appeal->appeal_id,
+            oldData: $oldAppealData,
+            newData: $appeal->toArray(),
+            description: "Approved Appeal #{$appeal->appeal_id}"
+        );
+
+        AuditLogger::logUpdate(
+            model: 'Schedule',
+            modelId: $schedule->schedule_id,
+            oldData: $oldScheduleData,
+            newData: $schedule->toArray(),
+            description: "Rescheduled via Appeal: Moved Schedule #{$schedule->schedule_id} to {$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
+        );
 
         return response()->json([
             'message' => 'Appeal approved and schedule updated.',
@@ -189,7 +199,20 @@ class RescheduleController extends Controller
         ]);
 
         $appeal = Appeal::findOrFail($id);
+        $oldData = $appeal->toArray();
+        
         $appeal->update(['is_approved' => false]);
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Appeal Denied
+        // ═══════════════════════════════════════════════════════
+        AuditLogger::logUpdate(
+            model: 'Appeal',
+            modelId: $appeal->appeal_id,
+            oldData: $oldData,
+            newData: $appeal->toArray(),
+            description: "Denied Rescheduling Appeal #{$appeal->appeal_id}"
+        );
 
         return response()->json([
             'message' => 'Appeal denied.',

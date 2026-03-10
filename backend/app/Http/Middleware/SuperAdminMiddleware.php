@@ -9,7 +9,7 @@ class SuperAdminMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        if (auth()->check() && auth()->user()->role === 'superadmin') {
+        if (auth('sanctum')->check() && auth('sanctum')->user()->role === 'superadmin') {
             return $next($request);
         }
 

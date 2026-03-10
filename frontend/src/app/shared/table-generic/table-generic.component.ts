@@ -12,6 +12,7 @@ import { DialogGenericComponent } from '../dialog-generic/dialog-generic.compone
 
 @Component({
   selector: 'app-table-generic',
+  standalone: true, // Ensure standalone is true if using imports array
   imports: [
     CommonModule,
     MatTableModule,
@@ -42,6 +43,8 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Input() showDeleteButton: boolean = true;
   @Input() isHeaderSticky: boolean = true;
   @Input() disableEdit: boolean = false;
+  @Input() customActions: any[] = [];
+  @Input() showEditButton: boolean = true;
 
   @Input() showTableHeading: boolean = false;
   @Input() tableHeadingTitle: string = '';
@@ -70,14 +73,14 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    if (this.paginator) {
-      this.dataSource.paginator = this.paginator;
-      this.paginator.page.subscribe(() => {
+    // FIX: Using setTimeout to wait for the view to fully initialize
+    setTimeout(() => {
+      if (this.paginator) {
         this.dataSource.paginator = this.paginator;
-      });
-    } else {
-      console.error('Paginator is not defined');
-    }
+      } else {
+        console.error('Paginator is not defined');
+      }
+    });
   }
 
   getIndex(index: number): number {
@@ -107,8 +110,7 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
     const dialogRef = this.dialog.open(DialogGenericComponent, {
       data: {
         title: 'Confirm Delete',
-        content:
-          'Are you sure you want to delete this? This action cannot be undone.',
+        content: 'Are you sure you want to delete this? This action cannot be undone.',
         actionText: 'Delete',
         cancelText: 'Cancel',
         action: 'delete',

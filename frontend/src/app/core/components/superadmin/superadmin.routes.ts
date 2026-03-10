@@ -112,6 +112,14 @@ export const SUPERADMIN_ROUTES: Routes = [
           ),
         data: { pageTitle: 'Logos' },
       },
+      {
+        path: 'audit-log',
+        loadComponent: () =>
+          import('./maintenance/audit-log/audit-log.component').then(
+            (m) => m.AuditLogComponent,
+          ),
+        data: { pageTitle: 'Audit Log' },
+      },
       { path: '**', redirectTo: 'admin' },
     ],
   },

@@ -1,0 +1,29 @@
+@use "../../../../../../styles/mixins";
+
+.audit-log-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  height: 100%;
+}
+
+.audit-log-table-container {
+  flex: 1;
+  overflow: auto;
+  border-radius: var(--border-radius-md);
+}
+
+.action-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  display: inline-block;
+
+  &.login { background-color: #dbeafe; color: #1e40af; }
+  &.logout { background-color: #f3f4f6; color: #374151; }
+  &.create { background-color: #dcfce7; color: #166534; }
+  &.update { background-color: #fef08a; color: #854d0e; }
+  &.delete { background-color: #fee2e2; color: #991b1b; }
+}

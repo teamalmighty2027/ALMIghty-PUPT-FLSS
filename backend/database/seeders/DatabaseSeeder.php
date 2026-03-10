@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             SectionsPerProgramYearTableSeeder::class,
             SectionCoursesTableSeeder::class,
             SchedulesTableSeeder::class,
-            ApiKeysTableSeeder::class,
+            // ApiKeysTableSeeder::class, 
         ]);
     }
 }

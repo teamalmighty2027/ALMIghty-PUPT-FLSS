@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AuditLogger;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -70,6 +71,15 @@ class AuthController extends Controller
         Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
         Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
+        // Let Laravel know exactly who is logging in for this request
+        // so the AuditLogger can automatically grab their Name, Role, and ID!
+        \Illuminate\Support\Facades\Auth::setUser($user);
+
+        // ══════════════════════════════════════════════════════════
+        // ← LOG LOGIN ACTION
+        // ══════════════════════════════════════════════════════════
+        AuditLogger::logLogin($loginUserData['email']);
+
         return response()->json([
             'message'    => 'Login successful.',
             'token'      => $token,
@@ -81,6 +91,11 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         if ($request->user()) {
+            // ══════════════════════════════════════════════════════════
+            // ← LOG LOGOUT ACTION (before revoking token)
+            // ══════════════════════════════════════════════════════════
+            AuditLogger::logLogout();
+
             // Revoke the token that was used to authenticate the current request
             $request->user()->currentAccessToken()->delete();
 
@@ -111,9 +126,22 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $oldPassword = $user->password; // Store for audit
+
         // Update password
         $user->password = $request->password;
         $user->save();
+
+        // ══════════════════════════════════════════════════════════
+        // ← LOG PASSWORD CHANGE
+        // ══════════════════════════════════════════════════════════
+        AuditLogger::log(
+            action: 'update',
+            description: "User {$user->email} changed their password",
+            model: 'User',
+            modelId: $user->id,
+            metadata: ['action_type' => 'password_change']
+        );
 
         return response()->json([
             'message' => 'Your password has been changed successfully.',

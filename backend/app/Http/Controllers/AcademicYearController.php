@@ -9,6 +9,7 @@ use App\Models\Curriculum;
 use App\Models\Program;
 use App\Models\ProgramYearLevelCurricula;
 use App\Models\SectionsPerProgramYear;
+use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -24,7 +25,6 @@ class AcademicYearController extends Controller
      */
     public function getAcademicYears()
     {
-        // Fetch academic years and their corresponding semesters
         $academicYears = AcademicYear::join('active_semesters', 'academic_years.academic_year_id', '=', 'active_semesters.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
             ->select(
@@ -77,7 +77,6 @@ class AcademicYearController extends Controller
      */
     public function addAcademicYear(Request $request)
     {
-        // Validate basic input requirements
         $validator = Validator::make($request->all(), [
             'year_start' => 'required|numeric|min:1900|max:2100',
             'year_end' => 'required|numeric|min:1900|max:2100',
@@ -118,7 +117,6 @@ class AcademicYearController extends Controller
             ], 422);
         }
 
-        // Start a transaction to ensure atomicity
         DB::beginTransaction();
 
         try {
@@ -136,7 +134,6 @@ class AcademicYearController extends Controller
             $academicYear->is_active = 0;
             $academicYear->save();
 
-            // Get the newly created academic_year_id
             $newAcademicYearId = $academicYear->academic_year_id;
 
             // Step 3: Get the latest active curriculum
@@ -161,7 +158,7 @@ class AcademicYearController extends Controller
                 $activeSemester = new ActiveSemester();
                 $activeSemester->academic_year_id = $newAcademicYearId;
                 $activeSemester->semester_id = $semesterId;
-                $activeSemester->is_active = 0; // Default value
+                $activeSemester->is_active = 0;
                 $activeSemester->save();
             }
 
@@ -193,8 +190,17 @@ class AcademicYearController extends Controller
                 }
             }
 
-            // Commit the transaction
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Academic Year Created
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logCreate(
+                model: 'AcademicYear',
+                modelId: $newAcademicYearId,
+                data: ['year_start' => $yearStart, 'year_end' => $yearEnd, 'curriculum_id' => $latestCurriculumId],
+                description: "Created new Academic Year: {$yearStart}-{$yearEnd} and initialized default structures."
+            );
 
             return response()->json([
                 'message' => 'Academic year added successfully with related data.',
@@ -202,9 +208,7 @@ class AcademicYearController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            // Rollback the transaction in case of any error
             DB::rollback();
-
             return response()->json([
                 'status' => 'error',
                 'message' => 'An error occurred: ' . $e->getMessage(),
@@ -217,14 +221,11 @@ class AcademicYearController extends Controller
      */
     public function updateAcademicYear(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
 
         $academicYearId = $request->input('academic_year_id');
-
-        // Find the academic year
         $academicYear = AcademicYear::find($academicYearId);
 
         if (!$academicYear) {
@@ -233,6 +234,10 @@ class AcademicYearController extends Controller
                 'message' => "Academic Year with ID {$academicYearId} not found.",
             ], 404);
         }
+
+        // Get old data for audit log
+        $oldCurriculaRecord = AcademicYearCurricula::where('academic_year_id', $academicYearId)->first();
+        $oldCurriculumId = $oldCurriculaRecord ? $oldCurriculaRecord->curriculum_id : null;
 
         DB::beginTransaction();
 
@@ -254,6 +259,11 @@ class AcademicYearController extends Controller
             }
 
             $latestCurriculumId = $latestCurriculum->curriculum_id;
+
+            if ($oldCurriculumId == $latestCurriculumId) {
+                DB::rollBack();
+                return response()->json(['message' => 'No changes detected. Academic Year already uses the latest curriculum.'], 200);
+            }
 
             // Step 3: Update academic_year_curricula to the latest curriculum
             $updatedRows = AcademicYearCurricula::where('academic_year_id', $academicYearId)
@@ -310,6 +320,20 @@ class AcademicYearController extends Controller
 
             DB::commit();
 
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Academic Year Updated (Human Readable)
+            // ═══════════════════════════════════════════════════════
+            $oldCurriculumYear = $oldCurriculumId ? Curriculum::find($oldCurriculumId)->curriculum_year : 'None';
+            
+            $changes = ["Curriculum: {$oldCurriculumYear} → {$latestCurriculum->curriculum_year}"];
+            AuditLogger::logUpdate(
+                model: 'AcademicYear',
+                modelId: $academicYearId,
+                oldData: ['curriculum_id' => $oldCurriculumId],
+                newData: ['curriculum_id' => $latestCurriculumId],
+                description: "Updated Academic Year {$academicYear->year_start}-{$academicYear->year_end} - " . implode(', ', $changes)
+            );
+
             return response()->json([
                 'status' => 'success',
                 'message' => "Academic Year ID: {$academicYearId} updated successfully with the latest curriculum.",
@@ -330,7 +354,6 @@ class AcademicYearController extends Controller
      */
     public function deleteAcademicYear(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
@@ -351,42 +374,35 @@ class AcademicYearController extends Controller
                 })
                 ->exists();
 
-            if ($hasSchedules) {
-                // Get the academic year details for the error message
-                $academicYear = AcademicYear::find($academicYearId);
-                $yearRange = $academicYear ? "{$academicYear->year_start}-{$academicYear->year_end}" : 'Unknown';
+            $academicYear = AcademicYear::find($academicYearId);
+            $yearRange = $academicYear ? "{$academicYear->year_start}-{$academicYear->year_end}" : 'Unknown';
 
+            if ($hasSchedules) {
                 return response()->json([
                     'status' => 'error',
                     'message' => "Cannot delete A.Y. {$yearRange} as it has assigned schedules.",
                 ], 422);
             }
 
-            // Start the transaction
             DB::beginTransaction();
 
-            // Step 1: Remove Year Levels associated with this academic year
-            ProgramYearLevelCurricula::where('academic_year_id', $academicYearId)
-                ->delete();
+            ProgramYearLevelCurricula::where('academic_year_id', $academicYearId)->delete();
+            SectionsPerProgramYear::where('academic_year_id', $academicYearId)->delete();
+            ActiveSemester::where('academic_year_id', $academicYearId)->delete();
+            AcademicYearCurricula::where('academic_year_id', $academicYearId)->delete();
+            AcademicYear::where('academic_year_id', $academicYearId)->delete();
 
-            // Step 2: Remove Sections associated with this academic year
-            SectionsPerProgramYear::where('academic_year_id', $academicYearId)
-                ->delete();
-
-            // Step 3: Remove Active Semesters associated with this academic year
-            ActiveSemester::where('academic_year_id', $academicYearId)
-                ->delete();
-
-            // Step 4: Remove Academic Year Curricula
-            AcademicYearCurricula::where('academic_year_id', $academicYearId)
-                ->delete();
-
-            // Step 5: Remove the academic year itself
-            AcademicYear::where('academic_year_id', $academicYearId)
-                ->delete();
-
-            // Commit the transaction after everything is deleted
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Academic Year Deleted
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logDelete(
+                model: 'AcademicYear',
+                modelId: $academicYearId,
+                data: ['year_range' => $yearRange],
+                description: "Deleted Academic Year: {$yearRange} and all its dependencies."
+            );
 
             return response()->json([
                 'status' => 'success',
@@ -394,7 +410,6 @@ class AcademicYearController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            // Rollback the transaction if any error occurs
             DB::rollBack();
 
             return response()->json([
@@ -447,7 +462,6 @@ class AcademicYearController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer|exists:academic_years,academic_year_id',
             'semester_id' => 'required|integer|exists:semesters,semester_id',
@@ -455,16 +469,26 @@ class AcademicYearController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
         ]);
 
+        // 1. GET OLD DATA FOR TRACKING
+        $currentlyActive = ActiveSemester::with('academicYear')
+            ->where('is_active', 1)->first();
+        $semesterLabel = $currentlyActive ? $currentlyActive->semester->label : null;
+
+        $oldActiveString = $currentlyActive
+            ? "A.Y. {$currentlyActive->academicYear->year_start}-{$currentlyActive->academicYear->year_end}
+            Term {$semesterLabel}" : "None";
+
         DB::beginTransaction();
 
         try {
-            // Deactivate all current active semesters
-            ActiveSemester::query()->update(['is_active' => 0]);
+            $newAyModel = AcademicYear::find($academicYearId);
+            $newActiveString = $newAyModel
+                ? "A.Y. {$newAyModel->year_start}-{$newAyModel->year_end}"
+                : "None";
 
-            // Deactivate all academic years
+            ActiveSemester::query()->update(['is_active' => 0]);
             DB::table('academic_years')->update(['is_active' => 0]);
 
-            // Reset preferences settings for all faculty
             DB::table('preferences_settings')->update([
                 'is_enabled' => 0,
                 'global_deadline' => null,
@@ -473,7 +497,6 @@ class AcademicYearController extends Controller
                 'individual_start_date' => null,
             ]);
 
-            // Update the given academic year and semester to active in ActiveSemester
             ActiveSemester::where('academic_year_id', $academicYearId)
                 ->where('semester_id', $semesterId)
                 ->update([
@@ -482,12 +505,24 @@ class AcademicYearController extends Controller
                     'end_date' => $endDate,
                 ]);
 
-            // Activate the selected academic year
             DB::table('academic_years')
                 ->where('academic_year_id', $academicYearId)
                 ->update(['is_active' => 1]);
 
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Active Semester Set
+            // ═══════════════════════════════════════════════════════
+            $changes = ["Active Term: {$oldActiveString} → {$newActiveString}"];
+            
+            AuditLogger::logUpdate(
+                model: 'ActiveSemester',
+                modelId: $academicYearId,
+                oldData: ['active_term' => $oldActiveString],
+                newData: ['active_term' => $newActiveString],
+                description: "System State Changed - " . implode(', ', $changes)
+            );
 
             return response()->json([
                 'message' => 'Active academic year and semester updated successfully',
@@ -496,10 +531,7 @@ class AcademicYearController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to update active academic year and semester',
-                'error' => $e->getMessage(),
-            ], 500);
+            return response()->json(['message' => 'Failed to update active academic year and semester', 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -508,7 +540,6 @@ class AcademicYearController extends Controller
      */
     public function getProgramDetailsByAcademicYear(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
@@ -530,12 +561,11 @@ class AcademicYearController extends Controller
                     'program_year_level_curricula.curriculum_id',
                     'curricula.curriculum_year'
                 )
-                    ->join('curricula', 'program_year_level_curricula.curriculum_id', '=', 'curricula.curriculum_id') // Join with curricula table to get curriculum_year
+                    ->join('curricula', 'program_year_level_curricula.curriculum_id', '=', 'curricula.curriculum_id')
                     ->where('program_year_level_curricula.academic_year_id', $academicYearId)
                     ->where('program_year_level_curricula.program_id', $program->program_id)
                     ->get();
 
-                // For each year level, fetch the corresponding number of sections
                 foreach ($yearLevels as $yearLevel) {
                     $sectionsCount = SectionsPerProgramYear::where('academic_year_id', $academicYearId)
                         ->where('program_id', $program->program_id)
@@ -545,7 +575,6 @@ class AcademicYearController extends Controller
                     $yearLevel->number_of_sections = $sectionsCount;
                 }
 
-                // Attach year levels and section data to the program
                 $program->year_levels = $yearLevels;
             }
 
@@ -612,7 +641,6 @@ class AcademicYearController extends Controller
                 $programIndex = count($response) - 1;
             }
 
-            // Check if year level already exists under the program
             $yearLevelIndex = array_search($row->year_level, array_column($response[$programIndex]['year_levels'], 'year_level'));
 
             if ($yearLevelIndex === false) {
@@ -623,12 +651,9 @@ class AcademicYearController extends Controller
                     'sections' => [],
                 ];
                 $yearLevelIndex = count($response[$programIndex]['year_levels']) - 1;
-
-                // Increment the year level count for the program
                 $response[$programIndex]['year_level_count']++;
             }
 
-            // Add sections under the year level
             $response[$programIndex]['year_levels'][$yearLevelIndex]['sections'][] = [
                 'section_id' => $row->section_id,
                 'section_name' => $row->section_name,
@@ -643,7 +668,6 @@ class AcademicYearController extends Controller
      */
     public function updateYearLevelCurricula(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',
@@ -656,23 +680,36 @@ class AcademicYearController extends Controller
         $programId = $request->input('program_id');
         $yearLevels = $request->input('year_levels');
 
+        $changes = [];
+        $programCode = Program::find($programId)->program_code ?? 'Unknown';
+        
+        // Create a map of ID => Year to make logs human-readable (e.g., ID 1 => "2022")
+        $curriculaMap = Curriculum::pluck('curriculum_year', 'curriculum_id')->toArray();
+
+        DB::beginTransaction();
         try {
             foreach ($yearLevels as $yearLevelData) {
                 $yearLevel = $yearLevelData['year_level'];
                 $curriculumId = $yearLevelData['curriculum_id'];
 
-                // Update or find the program year level curricula record
                 $programYearLevel = ProgramYearLevelCurricula::where('academic_year_id', $academicYearId)
                     ->where('program_id', $programId)
                     ->where('year_level', $yearLevel)
                     ->first();
 
+                $oldCurriculumId = $programYearLevel ? $programYearLevel->curriculum_id : null;
+
+                if ($oldCurriculumId != $curriculumId) {
+                    $oldYear = $oldCurriculumId && isset($curriculaMap[$oldCurriculumId]) ? $curriculaMap[$oldCurriculumId] : 'None';
+                    $newYear = isset($curriculaMap[$curriculumId]) ? $curriculaMap[$curriculumId] : $curriculumId;
+                    
+                    $changes[] = "Year {$yearLevel} Curriculum: {$oldYear} → {$newYear}";
+                }
+
                 if ($programYearLevel) {
-                    // Update the curriculum_id for the specific year level
                     $programYearLevel->curriculum_id = $curriculumId;
                     $programYearLevel->save();
                 } else {
-                    // If no matching record is found, create a new one (optional)
                     ProgramYearLevelCurricula::create([
                         'academic_year_id' => $academicYearId,
                         'program_id' => $programId,
@@ -682,8 +719,27 @@ class AcademicYearController extends Controller
                 }
             }
 
+            if (empty($changes)) {
+                DB::rollBack();
+                return response()->json(['message' => 'No changes detected'], 200);
+            }
+
+            DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Curriculum Update per Year Level
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logUpdate(
+                model: 'ProgramYearLevelCurricula',
+                modelId: $programId,
+                oldData: [],
+                newData: ['updated_year_levels' => count($yearLevels)],
+                description: "Updated {$programCode} Curricula - " . implode(', ', $changes)
+            );
+
             return response()->json(['message' => 'Year levels updated successfully'], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['message' => 'An error occurred: ' . $e->getMessage()], 500);
         }
     }
@@ -693,7 +749,6 @@ class AcademicYearController extends Controller
      */
     public function updateSections(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',
@@ -732,12 +787,9 @@ class AcademicYearController extends Controller
                 ->orderBy('section_name')
                 ->get();
 
-            // If reducing sections, check if any sections being removed have schedules
             if ($requestedSections < $existingSections->count()) {
-                // Get sections that would be removed (the last N sections)
                 $sectionsToRemove = $existingSections->slice($requestedSections);
 
-                // Check if any of these sections have schedules
                 foreach ($sectionsToRemove as $section) {
                     if ($sectionsWithSchedules->contains('sections_per_program_year_id', $section->sections_per_program_year_id)) {
                         return response()->json([
@@ -755,9 +807,9 @@ class AcademicYearController extends Controller
                 ->get();
 
             $currentSectionCount = $existingSections->count();
+            $programCode = Program::find($programId)->program_code ?? 'Unknown';
 
             if ($currentSectionCount == $requestedSections) {
-                // No changes needed
                 return response()->json([
                     'message' => 'The number of sections is already correct. No changes were made.',
                 ], 200);
@@ -767,7 +819,6 @@ class AcademicYearController extends Controller
             if ($requestedSections > $currentSectionCount) {
                 $sectionsToAdd = $requestedSections - $currentSectionCount;
 
-                // Generate new section names and add them
                 for ($i = 1; $i <= $sectionsToAdd; $i++) {
                     $newSection = new SectionsPerProgramYear();
                     $newSection->academic_year_id = $academicYearId;
@@ -777,6 +828,17 @@ class AcademicYearController extends Controller
                     $newSection->save();
                 }
 
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: Sections Added
+                // ═══════════════════════════════════════════════════════
+                AuditLogger::logUpdate(
+                    model: 'SectionsPerProgramYear',
+                    modelId: $programId,
+                    oldData: ['sections' => $currentSectionCount],
+                    newData: ['sections' => $requestedSections],
+                    description: "Updated {$programCode} Year {$yearLevel} - Sections Count: {$currentSectionCount} → {$requestedSections}"
+                );
+
                 return response()->json([
                     'message' => $sectionsToAdd . ' sections were added successfully.',
                 ], 201);
@@ -785,17 +847,27 @@ class AcademicYearController extends Controller
                 // Step 3: If the user requests fewer sections, delete the extra ones
                 $sectionsToDelete = $currentSectionCount - $requestedSections;
 
-                // Get the extra sections to delete
                 $sectionsToRemove = SectionsPerProgramYear::where('academic_year_id', $academicYearId)
                     ->where('program_id', $programId)
                     ->where('year_level', $yearLevel)
-                    ->orderBy('sections_per_program_year_id', 'desc') // Remove the latest added sections
+                    ->orderBy('sections_per_program_year_id', 'desc')
                     ->take($sectionsToDelete)
                     ->get();
 
                 foreach ($sectionsToRemove as $section) {
                     $section->delete();
                 }
+
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: Sections Removed
+                // ═══════════════════════════════════════════════════════
+                AuditLogger::logUpdate(
+                    model: 'SectionsPerProgramYear',
+                    modelId: $programId,
+                    oldData: ['sections' => $currentSectionCount],
+                    newData: ['sections' => $requestedSections],
+                    description: "Updated {$programCode} Year {$yearLevel} - Sections Count: {$currentSectionCount} → {$requestedSections}"
+                );
 
                 return response()->json([
                     'message' => $sectionsToDelete . ' sections were removed successfully.',
@@ -814,7 +886,6 @@ class AcademicYearController extends Controller
      */
     public function removeProgramFromAcademicYear(Request $request)
     {
-        // Validate the incoming request
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',
@@ -881,8 +952,17 @@ class AcademicYearController extends Controller
                 ->where('program_id', $programId)
                 ->delete();
 
-            // Commit the transaction after everything is deleted
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Program removed from A.Y.
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logDelete(
+                model: 'ProgramYearLevelCurricula',
+                modelId: $programId,
+                data: ['program_code' => $programCode, 'academic_year_id' => $academicYearId],
+                description: "Removed program \"{$programCode}\" entirely from Academic Year configuration."
+            );
 
             return response()->json([
                 'status' => 'success',
@@ -890,7 +970,6 @@ class AcademicYearController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            // Rollback the transaction if any error occurs
             DB::rollBack();
 
             return response()->json([
@@ -913,12 +992,10 @@ class AcademicYearController extends Controller
             return response()->json(['error' => 'No active semester found'], 404);
         }
 
-        // Get all sections for the active academic year, grouped by program and year_level
         $allSections = DB::table('sections_per_program_year')
             ->where('academic_year_id', $activeSemester->academic_year_id)
             ->get();
 
-        // Group sections by program_id and year_level
         $sectionsGrouped = [];
         foreach ($allSections as $section) {
             $sectionsGrouped[$section->program_id][$section->year_level][] = [
@@ -927,7 +1004,6 @@ class AcademicYearController extends Controller
             ];
         }
 
-        // Fetch courses for each program and year level matching the curriculum_id in the current academic year
         $assignedCourses = DB::table('program_year_level_curricula as pylc')
             ->select(
                 'p.program_id',
@@ -974,7 +1050,6 @@ class AcademicYearController extends Controller
             ->orderBy('s.semester')
             ->get();
 
-        // Response structure
         $response = [
             'active_semester_id' => $activeSemester->active_semester_id,
             'academic_year_id' => $activeSemester->academic_year_id,
@@ -995,7 +1070,6 @@ class AcademicYearController extends Controller
                 $programIndex = count($response['programs']) - 1;
             }
 
-            // Group by year_level and curriculum_id
             $yearLevelIndex = false;
             foreach ($response['programs'][$programIndex]['year_levels'] as $index => $yearLevel) {
                 if ($yearLevel['year_level'] == $row->year_level && $yearLevel['curriculum_id'] == $row->curriculum_id) {
@@ -1005,7 +1079,6 @@ class AcademicYearController extends Controller
             }
 
             if ($yearLevelIndex === false) {
-                // Attach all sections for this program and year_level
                 $sections = $sectionsGrouped[$row->program_id][$row->year_level] ?? [];
                 $response['programs'][$programIndex]['year_levels'][] = [
                     'year_level' => $row->year_level,
@@ -1020,7 +1093,6 @@ class AcademicYearController extends Controller
                 $yearLevelIndex = count($response['programs'][$programIndex]['year_levels']) - 1;
             }
 
-            // Add the courses for the corresponding curriculum
             if ($row->course_id !== null) {
                 $response['programs'][$programIndex]['year_levels'][$yearLevelIndex]['semester']['courses'][] = [
                     'course_assignment_id' => $row->course_assignment_id,
@@ -1038,5 +1110,4 @@ class AcademicYearController extends Controller
 
         return response()->json($response);
     }
-
 }
