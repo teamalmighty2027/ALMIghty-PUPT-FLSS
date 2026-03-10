@@ -42,6 +42,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
 
+/**
+ * (Identity ) IDP Callback Routes
+ */
+Route::prefix('auth')->group(function () {
+    Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+});
+
+
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
@@ -268,38 +276,35 @@ Route::middleware('auth:sanctum')->group(function () {
 | External/Integration Routes
 |----------------------------
  */
-Route::prefix('external')->group(function () {
+Route::prefix('v1')->group(function () {
 
     /**
-     * E-Class Record System (ECRS)
+     * Health Check Route
      */
-    Route::prefix('ecrs')->middleware(['check.hmac:ecrs'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/pupt-faculty-schedules', [ExternalController::class, 'ECRSFacultySchedules']);
-        });
+    Route::get('/health', [ExternalController::class, 'healthCheck']);
+
+    /**
+     * Faculty Attendance System (FAS)
+     */
+    Route::middleware(['check.hmac:fas'])->group(function () {
+        Route::get('/faculty/schedules', [ExternalController::class, 'partTimeFacultySchedules']);
     });
 
     /**
-     * Faculty Academic Requirements Management System (FARMS)
+     * Faculty Reportorial Requirements System (FRRS)
      */
-    Route::prefix('farms')->middleware(['check.hmac:farms'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/course-schedules', [ExternalController::class, 'FARMSCourseSchedules']);
-            Route::get('/course-files', [ExternalController::class, 'FARMSCourseFiles']);
-        });
+    Route::middleware(['check.hmac:frrs'])->group(function () {
+        Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
+        Route::get('/course/files', [ExternalController::class, 'courseFiles']);
     });
 
     /**
      * Biometric Synchronization System (BioSync)
+     * Deprecated Route
      */
-    Route::prefix('biosync')->middleware(['check.hmac:biosync'])->group(function () {
-        // Version 1
-        Route::prefix('v1')->group(function () {
-            Route::get('/computer-laboratory-schedules', [ExternalController::class, 'BIOSYNCComputerLabSchedules']);
-        });
-    });
+    // Route::middleware(['check.hmac:biosync'])->group(function () {
+    //     Route::get('/computer-laboratory-schedules', [ExternalController::class, 'labSchedules']);
+    // });
 });
 
 /**

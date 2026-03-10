@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { map, tap, switchMap, finalize, catchError } from 'rxjs/operators';
 
 import { CookieService } from 'ngx-cookie-service';
@@ -48,7 +48,7 @@ export class AuthService {
   ) {}
 
   // ==============================
-  // OAuth-based FESR auth methods
+  // OAuth-based FESR auth methods (Deprecated)
   // ==============================
   checkFesrHealth(): Observable<boolean> {
     return this.fesrHealthService.checkHealth();
@@ -163,6 +163,36 @@ export class AuthService {
       faculty_data: facultyData,
       fesr_token: fesrToken,
     });
+  }
+
+  // ==============================
+  // IDP auth methods 
+  // ==============================
+
+  checkIdpHealth(): Observable<boolean> {
+    return this.http.get(`${environmentOAuth.idpUrl}/api/health`).pipe(
+      map((response: any) => response.status === 'ok'),
+      catchError((error) => { 
+        console.error('Error checking IDP health:', error);
+        return of(false);
+      }),
+    );
+  }
+
+  // NOTE: This url is a placeholder
+  initiateIdpLogin(): void {
+    window.location.href = `${environmentOAuth.idpUrl}/auth/redirect`;
+  }
+
+  // NOTE: Placeholder method
+  handleIdpCallback(params: any): Observable<any> {
+    const payload = {params};
+
+    return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
+      tap((response: any) => {
+        console.log('IDP callback response:', response);
+      }),
+    );
   }
 
   // ==============================

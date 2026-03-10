@@ -8,6 +8,11 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Firebase\JWT\ExpiredException;
+use Firebase\JWT\SignatureInvalidException;
+use Exception;
 
 class AuthController extends Controller
 {
@@ -141,5 +146,102 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Your password has been changed successfully.',
         ]);
+    }
+
+    //
+    // Authentication functions related to IDP System
+    //
+
+    /**
+     * Handles the callback from the IDP after successful authentication
+     * Draft implementation based on the expected JWT structure and validation requirements
+     */  
+    public function handleIdpCallback(Request $request)
+    {
+        $request->validate([
+            'idp_token' => 'required|string'
+        ]);
+
+        $idpToken = $request->input('idp_token');
+        
+        // Fetch these from your .env file
+        $publicKey = env('PUPT_IDP_PUBLIC_KEY'); 
+        $expectedAudience = env('PUPT_IDP_CLIENT_ID');
+
+        try {
+            // 1. Decode and Verify the Signature (RS256)
+            $decodedToken = JWT::decode($idpToken, new Key($publicKey, 'RS256')); 
+
+            // 2. Verify the Issuer
+            if ($decodedToken->iss !== 'unified-access-idp') {
+                return response()->json([
+                    'message' => 'Invalid token issuer.'
+                ], 401);
+            }
+
+            // 3. Verify the Audience (Handling the array format shown in the image)
+            $tokenAudiences = is_array($decodedToken->aud) ? $decodedToken->aud : [$decodedToken->aud];
+            if (!in_array($expectedAudience, $tokenAudiences)) {
+                return response()->json([
+                    'message' => 'Invalid token audience.'
+                ], 401);
+            }
+
+            // 4. Extract Custom Claims
+            $idpUserId = $decodedToken->userId;
+            $email = $decodedToken->email;
+            $firstName = $decodedToken->firstName;
+            $lastName = $decodedToken->lastName;
+            $roles = $decodedToken->roles; 
+            // Array like ["idp:admin"]
+
+            // 5. Match or Create the User in your PUPT-FLSS database
+            $user = User::firstOrCreate(
+                // The unique identifier from the IDP
+                ['idp_id' => $idpUserId], 
+                [
+                    // Data to fill if the user is being created for the first time
+                    'name' => trim($firstName . ' ' . $lastName),
+                    'email' => $email,
+                    'auth_provider' => 'unified-access-idp', // Placeholder
+                ]
+            );
+
+            // Optional: Update the user's name/email in FLSS in case it changed on the IDP
+            // $user->update([
+            //     'name' => trim($firstName . ' ' . $lastName),
+            //     'email' => $email,
+            // ]);
+
+            // 6. Generate the local Sanctum token
+            $user->tokens()->delete();
+            $localToken = $user->createToken('flss_angular_client')->plainTextToken;
+
+            // 7. Return the token and user data to AngularJS
+            return response()->json([
+                'message' => 'Authentication successful',
+                'access_token' => $localToken,
+                'token_type' => 'Bearer',
+                'user' => [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'roles' => $roles
+                ]
+            ], 200);
+
+        } catch (ExpiredException $e) {
+            return response()->json([
+                'message' => 'IDP session has expired. Please log in again.'
+            ], 401);
+        } catch (SignatureInvalidException $e) {
+            return response()->json([
+                'message' => 'Token signature verification failed.'
+            ], 401);
+        } catch (Exception $e) {
+            Log::error('Error handling IDP callback: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Authentication failed.'
+            ], 401);
+        }    
     }
 }

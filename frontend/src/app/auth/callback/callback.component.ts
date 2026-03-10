@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { Subject, finalize, timer } from 'rxjs';
-import { switchMap, takeUntil } from 'rxjs/operators';
+import { map, switchMap, takeUntil } from 'rxjs/operators';
 
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
@@ -43,52 +43,63 @@ export class CallbackComponent implements OnInit, OnDestroy {
     this.route.queryParams
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe((params) => {
-        const { code, state, error } = params;
+        // const { code, state, error } = params;
 
-        // Store the original state if available
-        if (state) {
-          try {
-            const decodedState = JSON.parse(atob(state));
-            if (decodedState.originalParams) {
-              this.originalOAuthParams = decodedState.originalParams;
-            }
-          } catch (e) {
-            console.debug(
-              'State is not a complex object, continuing with simple state validation'
-            );
-          }
-        }
+        // // Store the original state if available
+        // if (state) {
+        //   try {
+        //     const decodedState = JSON.parse(atob(state));
+        //     if (decodedState.originalParams) {
+        //       this.originalOAuthParams = decodedState.originalParams;
+        //     }
+        //   } catch (e) {
+        //     console.debug(
+        //       'State is not a complex object, continuing with simple state validation'
+        //     );
+        //   }
+        // }
 
-        if (error === 'access_denied') {
-          this.loadingText = 'Processing';
-          this.showAccessDeniedDialog();
-          return;
-        }
+        // if (error === 'access_denied') {
+        //   this.loadingText = 'Processing';
+        //   this.showAccessDeniedDialog();
+        //   return;
+        // }
 
-        if (error) {
-          this.handleError(error);
-          return;
-        }
+        // if (error) {
+        //   this.handleError(error);
+        //   return;
+        // }
 
-        if (!code || !state) {
-          this.handleError('Missing required parameters');
-          return;
-        }
+        // if (!code || !state) {
+        //   this.handleError('Missing required parameters');
+        //   return;
+        // }
 
-        this.loadingText = 'Almost there! Finishing your login';
+        // this.loadingText = 'Almost there! Finishing your login';
         const minimumDelay = timer(3000);
 
         this.authService
-          .handleCallback(code, state)
+          .handleIdpCallback(params)
           .pipe(
             switchMap((response) =>
-              minimumDelay.pipe(finalize(() => response))
+              minimumDelay.pipe(map(() => response))
             ),
             takeUntil(this.unsubscribe$)
           )
           .subscribe({
             next: (response) => {
-              this.router.navigate(['/faculty/home']);
+              // Redirect based on user role
+              const role = response.user.roles[0]
+
+              if (role === 'ROLE_FACULTY') {
+                this.router.navigate(['/faculty/home']);
+              } else if (role === 'ROLE_ADMIN') {
+                this.router.navigate(['/admin']);
+              } else if (role === 'ROLE_SUPERADMIN') {
+                this.router.navigate(['/superadmin']);
+              } else {
+                this.handleError('Unknown user role');
+              }
             },
             error: (error) => {
               console.error('OAuth callback error:', error);
