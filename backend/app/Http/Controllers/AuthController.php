@@ -114,4 +114,28 @@ class AuthController extends Controller
             'message' => 'Your password has been changed successfully.',
         ]);
     }
+
+    //
+    // Authentication functions related to IDP System
+    //
+
+    /**
+     * Redirects user to the IDP login page (if applicable)
+     */
+    public function redirectToIDP()
+    {
+        // This function can be used to generate the URL for redirecting to the IDP login page
+        $idpLoginUrl = config('services.idp.login_url');
+        return response()->json(['idp_login_url' => $idpLoginUrl]);
+    }
+
+    /**
+     * Handles the callback from the IDP after successful authentication
+     */
+    public function callbackToIDP(Request $request)
+    {
+        // This function can be used to handle the callback from the IDP after successful authentication
+        // The actual implementation would depend on the IDP's response format and requirements
+        return response()->json(['message' => 'IDP callback received.']);
+    }
 }

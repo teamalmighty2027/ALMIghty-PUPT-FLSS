@@ -41,6 +41,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
 
+/**
+ * (Identity ) IDP Callback Routes
+ */
+Route::prefix('auth')->group(function () {
+    Route::post('/redirect', [AuthController::class, 'redirectToIDP']);
+    Route::post('/callback' , [AuthController::class, 'callbackToIDP']);
+});
+
+
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
