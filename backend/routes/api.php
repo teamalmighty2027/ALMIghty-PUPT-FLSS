@@ -288,7 +288,7 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
-     * Faculty Academic Requirements Management System (FARMS)
+     * Faculty Reportorial Requirements System (FRRS)
      */
     Route::middleware(['check.hmac:frrs'])->group(function () {
         Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);

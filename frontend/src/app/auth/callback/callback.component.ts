@@ -89,7 +89,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
           .subscribe({
             next: (response) => {
               // Redirect based on user role
-              const role = response.roles[0]
+              const role = response.user.roles[0]
 
               if (role === 'ROLE_FACULTY') {
                 this.router.navigate(['/faculty/home']);

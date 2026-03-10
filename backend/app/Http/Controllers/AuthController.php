@@ -179,11 +179,11 @@ class AuthController extends Controller
                 ]
             );
 
-            // Update the user's name/email in FLSS in case it changed on the IDP
-            $user->update([
-                'name' => trim($firstName . ' ' . $lastName),
-                'email' => $email,
-            ]);
+            // Optional: Update the user's name/email in FLSS in case it changed on the IDP
+            // $user->update([
+            //     'name' => trim($firstName . ' ' . $lastName),
+            //     'email' => $email,
+            // ]);
 
             // 6. Generate the local Sanctum token
             $user->tokens()->delete();
@@ -210,8 +210,9 @@ class AuthController extends Controller
                 'message' => 'Token signature verification failed.'
             ], 401);
         } catch (Exception $e) {
+            Log::error('Error handling IDP callback: ' . $e->getMessage());
             return response()->json([
-                'message' => 'Authentication failed.', 'error' => $e->getMessage()
+                'message' => 'Authentication failed.'
             ], 401);
         }    
     }

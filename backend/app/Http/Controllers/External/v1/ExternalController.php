@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ExternalController extends Controller
 {
@@ -206,7 +207,7 @@ class ExternalController extends Controller
         }
 
         // Step 4.1: Sort the faculties by faculty_name
-        $faculties = collect($faculties)->sortBy('faculty_name')->values()->all();
+        $faculties = collect($faculties)->sortBy('last_name')->values()->all();
 
         // Step 5: Structure the response
         return response()->json([
@@ -448,7 +449,7 @@ class ExternalController extends Controller
 
     /**
      * For: Faculty Reportorial Requirements System
-     * Retrieves course schedules for FARMS integration.
+     * Retrieves course schedules for FRRS integration.
      */
     public function courseSchedules()
     {
@@ -520,7 +521,7 @@ class ExternalController extends Controller
                 'schedules.start_time',
                 'schedules.end_time'
             )
-            ->orderBy('faculty.fesr_user_id')
+            ->orderBy('faculty.id')
             ->orderBy('section_courses.section_course_id')
             ->orderBy('schedules.day')
             ->orderBy('schedules.start_time')
@@ -564,7 +565,7 @@ class ExternalController extends Controller
 
     /**
      * For: Faculty Reportorial Requirements System (FRRS)
-     * Retrieves course files for FARMS integration.
+     * Retrieves course files for FRRS integration.
      */
     public function courseFiles()
     {
@@ -647,7 +648,7 @@ class ExternalController extends Controller
             )
             ->whereNotNull('current_schedules.schedule_id')
             ->distinct()
-            ->orderBy('faculty.fesr_user_id')
+            ->orderBy('faculty.id')
             ->orderBy('current_schedules.schedule_id')
             ->get();
 

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { map, tap, switchMap, finalize, catchError } from 'rxjs/operators';
 
 import { CookieService } from 'ngx-cookie-service';
@@ -174,7 +174,7 @@ export class AuthService {
       map((response: any) => response.status === 'ok'),
       catchError((error) => { 
         console.error('Error checking IDP health:', error);
-        return [false];
+        return of(false);
       }),
     );
   }
