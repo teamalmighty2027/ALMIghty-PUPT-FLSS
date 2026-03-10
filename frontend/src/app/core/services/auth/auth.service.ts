@@ -185,8 +185,8 @@ export class AuthService {
   }
 
   // NOTE: Placeholder method
-  handleIdpCallback(): Observable<any> {
-    const payload = {};
+  handleIdpCallback(params: any): Observable<any> {
+    const payload = {params};
 
     return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
       tap((response: any) => {
