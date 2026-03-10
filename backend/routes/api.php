@@ -284,13 +284,13 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
-        Route::get('/faculty/schedules', [ExternalController::class, 'facultySchedules']);
+        Route::get('/faculty/schedules', [ExternalController::class, 'partTimeFacultySchedules']);
     });
 
     /**
      * Faculty Academic Requirements Management System (FARMS)
      */
-    Route::middleware(['check.hmac:frss'])->group(function () {
+    Route::middleware(['check.hmac:frrs'])->group(function () {
         Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
         Route::get('/course/files', [ExternalController::class, 'courseFiles']);
     });
