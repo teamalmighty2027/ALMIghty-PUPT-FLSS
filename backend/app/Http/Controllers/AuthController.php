@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\ExpiredException;
@@ -179,11 +180,12 @@ class AuthController extends Controller
             // 'redirect_uri'  => 'https://your-app.com/callback' 
         ];
 
-        $idpUrl = 'https://internal-idp.local/auth/token';
+        Log::info('Received IDP callback with payload: ', $payload);
+        $idpUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/token';
 
-        $publicKey = env('IDP_PUBLIC_KEY');
+        // $publicKey = env('IDP_PUBLIC_KEY');
 
-        $ch = curl_init($idp_url);
+        $ch = curl_init($idpUrl);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); 
         curl_setopt($ch, CURLOPT_POST, true); 

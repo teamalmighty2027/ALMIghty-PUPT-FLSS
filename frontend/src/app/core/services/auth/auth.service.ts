@@ -189,18 +189,34 @@ export class AuthService {
 
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
-    const { code, client_id, client_secret } = params;
+    const { code } = params;
     const payload = {
       code,
-      client_id,
-      client_secret,
-    }
+      client_id: environmentOAuth.clientId,
+      client_secret: environmentOAuth.clientSecret,
+    };
 
     return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
       tap((response: any) => {
         console.log('IDP callback response:', response);
       }),
     );
+  }
+
+  /**
+   * Calls the session route and confirms whether the token is still valid
+   * (Placeholder)
+   */
+  checkIdpSession() {
+      this.http.get(`${environmentOAuth.idpUrl}/auth/session`).subscribe({
+        next: (response) => {
+          console.log('IDP session valid:', response);
+        },
+        error: (error) => {
+          console.error('IDP session invalid:', error);
+        }
+      });
+
   }
 
   // ==============================
