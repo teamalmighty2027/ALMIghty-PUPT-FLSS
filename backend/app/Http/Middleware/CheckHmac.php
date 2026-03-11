@@ -24,40 +24,25 @@ class CheckHmac
      *
      * @param  Request  $request
      * @param  Closure  $next
-     * @param  string  $system System identifier for API key configuration
+     * @param  string  ...$systems  Captures comma-separated systems as an array
      * @return Response|mixed
      */
-    public function handle(Request $request, Closure $next, string $system)
+    public function handle(Request $request, Closure $next, ...$systems)
     {
         try {
-            // Validate system parameter
-            if (!$this->validateSystem($system)) {
-                return $this->errorResponse('Invalid system configuration', 500);
-            }
-
-            // Get API key configuration
-            $apiKeyRecord = $this->getApiKeyRecord($system);
-            if (!$apiKeyRecord) {
-                return $this->errorResponse('API key configuration error', 500);
-            }
-
-            // Validate request headers
             $validationResponse = $this->validateRequestHeaders($request);
             if ($validationResponse) {
                 return $validationResponse;
             }
-
-            // Get headers
+            
             $signature = $request->header('X-HMAC-Signature');
             $timestamp = $request->header('X-HMAC-Timestamp');
             $nonce = $request->header('X-HMAC-Nonce');
 
-            // Validate timestamp
             if (!$this->isTimestampValid($timestamp)) {
                 return $this->errorResponse('HMAC timestamp expired', 401);
             }
 
-            // Validate nonce if provided
             if ($nonce) {
                 $nonceValidation = $this->validateNonce($nonce);
                 if ($nonceValidation) {
@@ -65,18 +50,29 @@ class CheckHmac
                 }
             }
 
-            if (!$this->isSignatureValid($request, $signature, $timestamp, $nonce, $apiKeyRecord->key)) {
-                return $this->errorResponse('Invalid HMAC signature', 403);
+            foreach ($systems as $system) {
+                if (!$this->validateSystem($system)) {
+                    continue; 
+                }
+
+                $apiKeyRecord = $this->getApiKeyRecord($system);
+                if (!$apiKeyRecord) {
+                    continue; 
+                }
+
+                // If the signature matches this system's key, let them in!
+                if ($this->isSignatureValid($request, $signature, $timestamp, $nonce, $apiKeyRecord->key)) {
+                    $request->attributes->add(['client_system' => $system]);
+                    return $next($request);
+                }
             }
 
-            $request->attributes->add(['client_system' => $system]);
-
-            return $next($request);
+            return $this->errorResponse('Invalid HMAC signature or unauthorized system', 403);
 
         } catch (\Exception $e) {
             Log::error('HMAC middleware: Unexpected error', [
                 'error' => $e->getMessage(),
-                'system' => $system ?? 'unknown',
+                'systems' => implode(', ', $systems),
                 'path' => $request->path(),
             ]);
             return $this->errorResponse('Internal server error', 500);

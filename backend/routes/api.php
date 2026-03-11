@@ -299,19 +299,11 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
-     * Dental Management System (DMS)
+     * Dental Management System (DMS), Accreditation System (Accred)
      */
-    Route::middleware(['check.hmac:dms'])->group(function () {
-        Route::get('/faculties/profile', [ExternalController::class, 'facultyList']);
-    });
-
-    /** 
-     * Accreditation System (Accred)
-     */
-    Route::middleware(['check.hmac:accred'])->group(function () {
+    Route::middleware(['check.hmac:dms,accred'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
-
 
     /**
      * Biometric Synchronization System (BioSync)
