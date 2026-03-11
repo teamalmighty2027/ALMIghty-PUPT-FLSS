@@ -4,6 +4,7 @@ namespace App\Http\Controllers\External\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -654,6 +655,65 @@ class ExternalController extends Controller
 
         return response()->json([
             'courses_files' => $courseFiles,
+        ]);
+    }
+
+    /**
+     * For: Dental Management System (DMS)
+     * For: Accreditation System (Accred) 
+     * Returns a list of all faculty members with their details
+     */
+    public function facultyList(Request $request)
+    {
+        // Identify which system is making the request
+        $clientSystem = $request->attributes->get('client_system');
+
+        $faculties = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
+            ->select(
+                'users.id as user_id',
+                'users.code as faculty_code',
+                'users.last_name',
+                'users.first_name',
+                'users.middle_name',
+                'users.suffix_name',
+                'faculty_type.faculty_type',
+                'users.email',
+                'users.status'
+            )
+            ->orderBy('users.last_name')
+            ->orderBy('users.first_name')
+            ->get();
+
+        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem) {
+            // Base data
+            $data = [
+                'faculty_id'    => $faculty->user_id,
+                'first_name'    => $faculty->first_name,
+                'last_name'     => $faculty->last_name,
+                'suffix_name'   => $faculty->suffix_name ?? null,
+                'faculty_code'  => $faculty->faculty_code,
+                'faculty_type'  => $faculty->faculty_type,
+                'email'         => $faculty->email,
+                'status'        => $faculty->status
+            ];
+
+            // Conditionally append sensitive data for DMS
+            // TODO: Faculty Profile Data is unavailable in the current database
+            if ($clientSystem === 'dms') {
+                $data['profile'] = [
+                   'birthday'  => 'N/A',
+                   'gender'    => 'N/A'
+                ];
+            }
+
+            return $data;
+        });
+
+        return response()->json([
+            'system' => $clientSystem,
+            'faculties' => $formattedFaculties,
         ]);
     }
 
