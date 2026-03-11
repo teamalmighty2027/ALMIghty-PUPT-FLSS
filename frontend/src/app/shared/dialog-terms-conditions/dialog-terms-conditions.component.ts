@@ -1,0 +1,47 @@
+import { Component } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatDialogRef } from '@angular/material/dialog';
+import { Router } from '@angular/router'; // Added Router
+import { AuthService } from '../../core/services/auth/auth.service';
+
+@Component({
+  selector: 'app-dialog-terms-conditions',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './dialog-terms-conditions.component.html',
+  styleUrl: './dialog-terms-conditions.component.scss'
+})
+export class DialogTermsConditionsComponent {
+  isAccepted: boolean = false;
+
+  constructor(
+    public dialogRef: MatDialogRef<DialogTermsConditionsComponent>,
+    private router: Router,
+    private authService: AuthService
+
+  ) {}
+
+  /**
+   * Closes the dialog and redirects the user to the login page
+   */
+  onCancel(): void {
+    this.dialogRef.close(false);
+    console.log('User declined the terms and conditions. Redirecting to login page.');
+    this.authService.logout().subscribe({
+          next: () => {
+            this.authService.clearCookies();
+            this.router.navigate(['/login']);
+          },
+          error: () => {
+
+          },
+        });
+  }
+
+  onContinue(): void {
+    if (this.isAccepted) {
+      this.dialogRef.close(true);
+    }
+  }
+}

@@ -1,21 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { Router, NavigationEnd } from '@angular/router';
-import { MainComponent } from './faculty-main.component';
+import { FacultyMainComponent } from './faculty-main.component';
 import { MatIconModule } from '@angular/material/icon';
 import { of } from 'rxjs';
 
-describe('MainComponent', () => {
-  let component: MainComponent;
-  let fixture: ComponentFixture<MainComponent>;
+describe('FacultyMainComponent', () => {
+  let component: FacultyMainComponent;
+  let fixture: ComponentFixture<FacultyMainComponent>;
   let router: Router;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MainComponent, MatIconModule, RouterTestingModule],
+      imports: [FacultyMainComponent, MatIconModule, RouterTestingModule],
     }).compileComponents();
 
-    fixture = TestBed.createComponent(MainComponent);
+    fixture = TestBed.createComponent(FacultyMainComponent);
     component = fixture.componentInstance;
     router = TestBed.inject(Router);
 

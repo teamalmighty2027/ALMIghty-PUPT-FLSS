@@ -20,6 +20,7 @@ import { FesrHealthService } from '../../../../services/health/fesr-health.servi
 import { FacultyTypeService, FacultyType } from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { DialogTermsConditionsComponent } from '../../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
 interface Column {
   key: string;
