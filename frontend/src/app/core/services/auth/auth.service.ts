@@ -179,14 +179,23 @@ export class AuthService {
     );
   }
 
-  // NOTE: This url is a placeholder
+  // Call the IDP's authorization endpoint to initiate login
   initiateIdpLogin(): void {
-    window.location.href = `${environmentOAuth.idpUrl}/auth/redirect`;
+    const clientId = environmentOAuth.clientId;
+    const clientSecret = environmentOAuth.clientSecret;
+
+    window.location.href = `${environmentOAuth.idpUrl}/auth/authorize
+      ?client_id=${clientId}&client_secret=${clientSecret}`;
   }
 
-  // NOTE: Placeholder method
+  // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
-    const payload = {params};
+    const { code, client_id, client_secret } = params;
+    const payload = {
+      code,
+      client_id,
+      client_secret,
+    }
 
     return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
       tap((response: any) => {

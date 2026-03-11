@@ -88,8 +88,12 @@ export class CallbackComponent implements OnInit, OnDestroy {
           )
           .subscribe({
             next: (response) => {
+              // TODO: Store user data and token in AuthService (Placeholder)
+              this.authService.setSanctumToken(response.data.token, response.data.expires_in);
+              
+              // This is a placholder implementation before the token is decoded
               // Redirect based on user role
-              const role = response.user.roles[0]
+              const role = response.data;
 
               if (role === 'ROLE_FACULTY') {
                 this.router.navigate(['/faculty/home']);
