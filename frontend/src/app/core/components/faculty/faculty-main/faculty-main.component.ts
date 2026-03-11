@@ -19,6 +19,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { CookieService } from 'ngx-cookie-service';
 
 import { slideUpDown } from '../../../animations/animations';
+import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
 @Component({
   selector: 'app-faculty-main',
@@ -80,6 +81,8 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadFacultyInfo();
+    this.dialog.open(DialogTermsConditionsComponent);
+    console.log('Terms and Conditions dialog opened on FacultyComponent initialization.');
   }
 
   ngAfterViewInit() {
