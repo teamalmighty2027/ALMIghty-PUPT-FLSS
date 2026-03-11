@@ -74,6 +74,7 @@ class ExternalController extends Controller
 
         if (! $hasPublishedSchedules) {
             return response()->json([
+                'status' => 'unpublished',
                 'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
                 $activeSemester->year_start . "-" . $activeSemester->year_end .
                 ", " . $this->formatSemesterLabel($activeSemester->semester) .
@@ -253,6 +254,7 @@ class ExternalController extends Controller
 
         if (! $hasPublishedSchedules) {
             return response()->json([
+                'status' => 'unpublished',
                 'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
                 $activeSemester->year_start . "-" . $activeSemester->year_end .
                 ", " . $this->formatSemesterLabel($activeSemester->semester) .
@@ -482,6 +484,7 @@ class ExternalController extends Controller
 
         if (! $hasPublishedSchedules) {
             return response()->json([
+                'status' => 'unpublished',
                 'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
                 $activeSemester->year_start . "-" . $activeSemester->year_end .
                 ", " . $this->formatSemesterLabel($activeSemester->semester) .
@@ -598,6 +601,7 @@ class ExternalController extends Controller
 
         if (! $hasPublishedSchedules) {
             return response()->json([
+                'status' => 'unpublished',
                 'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
                 $activeSemester->year_start . "-" . $activeSemester->year_end .
                 ", " . $this->formatSemesterLabel($activeSemester->semester) .
