@@ -198,6 +198,7 @@ export class AuthService {
 
     return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
       tap((response: any) => {
+        this.setIdpToken(response.data.access_token, response.data.refresh_token, response.data.expires_in);        
         console.log('IDP callback response:', response);
       }),
     );
@@ -303,6 +304,26 @@ export class AuthService {
   // ==============================
   getToken(): string {
     return this.cookieService.get('token');
+  }
+
+  private setIdpToken(access_token: string, refresh_token: string, expiresIn: number) {
+    const expiryDate = new Date();
+    expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
+  
+    this.cookieService.set('access_token', access_token, {
+      expires: expiryDate,
+      path: '/',
+      sameSite: 'Lax',
+      secure: false,
+    });
+
+    this.cookieService.set('refresh_token', refresh_token, {
+      expires: expiryDate,
+      path: '/',
+      sameSite: 'Lax',
+      secure: false,
+    });
+
   }
 
   private setToken(fesrToken: string, expiresIn: number): void {
