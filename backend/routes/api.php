@@ -301,7 +301,7 @@ Route::prefix('v1')->group(function () {
     /**
      * Dental Management System (DMS), Accreditation System (Accred)
      */
-    Route::middleware(['check.hmac:dms,accred'])->group(function () {
+    Route::middleware(['check.hmac:dms,accred,frrs'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 
