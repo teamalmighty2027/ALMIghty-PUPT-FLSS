@@ -170,8 +170,8 @@ export class AuthService {
   // ==============================
 
   checkIdpHealth(): Observable<boolean> {
-    return this.http.get(`${environmentOAuth.idpUrl}/api/health`).pipe(
-      map((response: any) => response.status === 'ok'),
+    return this.http.get(`${environmentOAuth.idpUrl}/auth/authorize`).pipe(
+      map((response: any) => response.error === 'no client id given'),
       catchError((error) => { 
         console.error('Error checking IDP health:', error);
         return of(false);
@@ -184,8 +184,7 @@ export class AuthService {
     const clientId = environmentOAuth.clientId;
     const clientSecret = environmentOAuth.clientSecret;
 
-    window.location.href = `${environmentOAuth.idpUrl}/auth/authorize
-      ?client_id=${clientId}&client_secret=${clientSecret}`;
+    window.location.href = `${environmentOAuth.idpUrl}/auth/authorize?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
