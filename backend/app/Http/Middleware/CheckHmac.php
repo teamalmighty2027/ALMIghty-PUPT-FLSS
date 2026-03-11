@@ -67,6 +67,11 @@ class CheckHmac
                 }
             }
 
+            Log::warning('HMAC middleware: Invalid signature attempt', [
+                'ip' => $request->ip(),
+                'path' => $request->path(),
+                'systems' => implode(', ', $systems),
+            ]);
             return $this->errorResponse('Invalid HMAC signature or unauthorized system', 403);
 
         } catch (\Exception $e) {
