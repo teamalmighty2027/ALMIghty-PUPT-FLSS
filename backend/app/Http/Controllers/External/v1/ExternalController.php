@@ -678,7 +678,9 @@ class ExternalController extends Controller
                 'users.first_name',
                 'users.middle_name',
                 'users.suffix_name',
-                'faculty_type.faculty_type'
+                'faculty_type.faculty_type',
+                'users.email',
+                'users.status'
             )
             ->orderBy('users.last_name')
             ->orderBy('users.first_name')
@@ -687,20 +689,24 @@ class ExternalController extends Controller
         $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem) {
             // Base data
             $data = [
-                'faculty_id' => $faculty->user_id,
-                'first_name' => $faculty->first_name,
-                'last_name' => $faculty->last_name,
-                'suffix_name' => $faculty->suffix_name ?? null,
-                'faculty_code' => $faculty->faculty_code,
-                'faculty_type' => $faculty->faculty_type,
+                'faculty_id'    => $faculty->user_id,
+                'first_name'    => $faculty->first_name,
+                'last_name'     => $faculty->last_name,
+                'suffix_name'   => $faculty->suffix_name ?? null,
+                'faculty_code'  => $faculty->faculty_code,
+                'faculty_type'  => $faculty->faculty_type,
+                'email'         => $faculty->email,
+                'status'        => $faculty->status
             ];
 
             // Conditionally append sensitive data for DMS
             // TODO: Faculty Profile Data is unavailable in the current database
-            // if ($clientSystem === 'dms') {
-            //     $data['birthday'] = $faculty->birthday;
-            //     $data['contact_number'] = $faculty->contact_number;
-            // }
+            if ($clientSystem === 'dms') {
+                $data['profile'] = [
+                   'birthday'  => 'N/A',
+                   'gender'    => 'N/A'
+                ];
+            }
 
             return $data;
         });
