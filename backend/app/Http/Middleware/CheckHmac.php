@@ -65,10 +65,11 @@ class CheckHmac
                 }
             }
 
-            // Validate HMAC signature
             if (!$this->isSignatureValid($request, $signature, $timestamp, $nonce, $apiKeyRecord->key)) {
                 return $this->errorResponse('Invalid HMAC signature', 403);
             }
+
+            $request->attributes->add(['client_system' => $system]);
 
             return $next($request);
 
