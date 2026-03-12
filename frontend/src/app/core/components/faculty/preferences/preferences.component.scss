@@ -318,6 +318,10 @@
             opacity: var(--opacity-semi-opaque);
           }
         }
+
+        .display-day-time {
+          text-align: justify;
+        }
       }
 
       &.title-cell {

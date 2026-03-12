@@ -510,6 +510,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Clears search query and resets search state
    */
   public clearSearch(): void {
+    this.selectedProgram.set(undefined);
     this.searchQuerySubject.next('');
   }
 
@@ -819,8 +820,13 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   public formatSelectedDaysAndTime(element: TableData): string {
-    const selectedDays = element.preferredDays
+    const dayOrder = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+
+    const sortedDays = element.preferredDays
       .filter((pd) => pd.start_time && pd.end_time)
+      .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day))
       .map(
         (pd) =>
           `${pd.day} (${this.formatTime(pd.start_time)} - ${this.formatTime(
@@ -829,7 +835,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       )
       .join('\n');
 
-    return selectedDays || 'Click to select day and time';
+    return sortedDays || 'Click to select day and time';
   }
 
   private formatTime(time: string): string {
