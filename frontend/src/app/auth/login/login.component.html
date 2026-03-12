@@ -96,7 +96,7 @@
       <button
         mat-flat-button
         class="login-button faculty"
-        (click)="handleFacultyLogin()">
+        (click)="openFacultyLoginDialog()">
         <span class="button-text">
           <span mat-symbol="group"></span>
           Faculty Login
@@ -111,6 +111,16 @@
         <span class="button-text">
           <span mat-symbol="admin_panel_settings"></span>
           Admin Login
+        </span>
+      </button>
+
+      <button
+        mat-flat-button
+        class="login-button ter-ripple global"
+        (click)="handleGlobalLogin()">
+        <span class="button-text">
+          <span mat-symbol="globe"></span>
+          Global Login
         </span>
       </button>
     </div>

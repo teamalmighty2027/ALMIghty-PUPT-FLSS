@@ -159,57 +159,80 @@ class AuthController extends Controller
      */  
     public function handleIdpCallback(Request $request)
     {
+        // --- STEP 1: VALIDATE THE INCOMING CODE ---
         $request->validate([
-            'client_id' => 'required|string',
+            'client_id'     => 'required|string',
             'client_secret' => 'required|string',
-            'code' => 'required|string',
+            'code'          => 'required|string',
         ]);
 
-        $clientId = $request->input('client_id');
-        $clientSecret = $request->input('client_secret');
-        $code = $request->input('code');
-
-        $publicKey = env('IDP_PUBLIC_KEY');
-              
-        // Placeholder return
+        // --- STEP 2: EXCHANGE CODE FOR TOKEN ---        
         $payload = [
-            'client_id'     => $clientId,
-            'client_secret' => $clientSecret,
-            'code'          => $code,
-            // 'grant_type'    => 'authorization_code',
-            // 'redirect_uri'  => 'https://your-app.com/callback' 
+            'client_id'     => $request->input('client_id'),
+            'client_secret' => $request->input('client_secret'),
+            'code'          => $request->input('code'),
         ];
 
-        Log::info('Received IDP callback with payload: ', $payload);
-        $idpUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/token';
+        Log::info('Exchanging code for token with payload: ', $payload);
 
-        // $publicKey = env('IDP_PUBLIC_KEY');
+        $tokenUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/token';
 
-        $ch = curl_init($idpUrl);
-
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); 
-        curl_setopt($ch, CURLOPT_POST, true); 
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        $ch1 = curl_init($tokenUrl);
+        curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true); 
+        curl_setopt($ch1, CURLOPT_POST, true); 
+        curl_setopt($ch1, CURLOPT_POSTFIELDS, http_build_query($payload));
+        curl_setopt($ch1, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/x-www-form-urlencoded',
             'Accept: application/json'
         ]);
 
-        $response = curl_exec($ch);
+        $tokenResponse = curl_exec($ch1);
+        $curlErrorNo1 = curl_errno($ch1);
+        curl_close($ch1); 
 
-        // Error handling
-        if (curl_errno($ch)) {
-            Log::error('cURL error while communicating with IDP: ' . curl_error($ch));
-            return response()->json([
-                'message' => 'Failed to communicate with the Identity Provider.',
-            ], 500);
-        } else {
-            $responseData = json_decode($response, true);
-            return response()->json([
-                'message' => 'IDP callback handled successfully.',
-                'data' => $responseData,
-            ]);
+        if ($curlErrorNo1) {
+            return response()->json(['message' => 'Failed to connect to token endpoint.'], 500);
         }
-        
-        curl_close($ch);
+
+        Log::info('IDP Token Response: ', ['response' => $tokenResponse]);
+        $tokenData = json_decode($tokenResponse, true);
+
+        // Check if the IDP actually gave us an access token
+        if (!isset($tokenData['access_token'])) {
+            Log::error('IDP Token Error: ', (array) $tokenData);
+            return response()->json(['message' => 'Failed to retrieve access token from IDP.'], 401);
+        }
+
+        $accessToken = $tokenData['access_token'];
+
+        // --- STEP 3: FETCH USER DATA FROM /ME ---
+        // Assuming this is the correct base URL based on your previous snippet
+        $meUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/me'; 
+
+        $ch2 = curl_init($meUrl);
+        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true); 
+        // We don't set POST to true here, so cURL defaults to a GET request
+        curl_setopt($ch2, CURLOPT_HTTPHEADER, [
+            'Accept: application/json',
+            'Authorization: Bearer ' . $accessToken // THIS is how you pass the token!
+        ]);
+
+        $meResponse = curl_exec($ch2);
+        $curlErrorNo2 = curl_errno($ch2);
+        curl_close($ch2);
+
+        if ($curlErrorNo2) {
+            return response()->json(['message' => 'Failed to connect to /me endpoint.'], 500);
+        }
+
+        $userData = json_decode($meResponse, true);
+
+        // Success! You now have the user's verified identity data.
+        Log::info('Successfully fetched user data: ', (array) $userData);
+
+        return response()->json([
+            'message' => 'Authentication successful.',
+            'user'    => $userData,
+        ]);
     }
 }
