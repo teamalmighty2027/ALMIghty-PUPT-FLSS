@@ -234,7 +234,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         .getPreferencesByFacultyId(facultyId)
         .pipe(
           tap((resp) => this.processPreferencesResponse(resp)),
-          tap((resp) => console.log('Preferences Response:', resp)),
           switchMap((resp) =>
             resp.preferences.is_enabled === 1
               ? this.preferencesService.getPrograms()
@@ -518,7 +517,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Course Management
    */
   public async addCourseToTable(course: Course): Promise<void> {   
-    console.log('Attempting to add course:', course);
     
     if (this.selectedProgram() === undefined) {
       this.populatePossiblePrograms(course);
@@ -820,13 +818,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   public formatSelectedDaysAndTime(element: TableData): string {
-    const dayOrder = [
-      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-    ];
-
     const sortedDays = element.preferredDays
       .filter((pd) => pd.start_time && pd.end_time)
-      .sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day))
+      .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
       .map(
         (pd) =>
           `${pd.day} (${this.formatTime(pd.start_time)} - ${this.formatTime(
