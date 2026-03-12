@@ -234,6 +234,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         .getPreferencesByFacultyId(facultyId)
         .pipe(
           tap((resp) => this.processPreferencesResponse(resp)),
+          tap((resp) => console.log('Preferences Response:', resp)),
           switchMap((resp) =>
             resp.preferences.is_enabled === 1
               ? this.preferencesService.getPrograms()
@@ -515,7 +516,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /**
    * Course Management
    */
-  public async addCourseToTable(course: Course): Promise<void> {    
+  public async addCourseToTable(course: Course): Promise<void> {   
+    console.log('Attempting to add course:', course);
+    
     if (this.selectedProgram() === undefined) {
       this.populatePossiblePrograms(course);
       return;

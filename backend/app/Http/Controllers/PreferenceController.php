@@ -419,7 +419,7 @@ class PreferenceController extends Controller
                 ->join('sections_per_program_year', 'sections_per_program_year.program_id', '=', 'programs.program_id')
                 ->whereIn('sections_per_program_year.sections_per_program_year_id', $sectionsPerProgramYearIds)
                 ->whereIn('course_assignments.course_assignment_id', $courseAssignmentIds)
-                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title', 'sections_per_program_year.year_level')
+                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title')
                 ->get()
                 ->keyBy('course_assignment_id');
         }
@@ -441,7 +441,7 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'year_level'   => $program->year_level  ?? null,
+                    'year_level'   => $preference->section->year_level ?? null,
                     'section_id'   => $preference->sections_per_program_year_id ?? null,
                     'section_name' => $preference->section ? $preference->section->section_name : null
                 ],
