@@ -90,7 +90,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
             next: (response) => {
               // This is a placholder implementation before the token is decoded
               // Redirect based on user role
-              const role = response.data.scope;
+              const role = response.data.roles[0];
 
               if (role === 'ROLE_FACULTY') {
                 this.router.navigate(['/faculty/home']);

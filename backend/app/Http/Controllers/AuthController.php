@@ -9,10 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-use Firebase\JWT\ExpiredException;
-use Firebase\JWT\SignatureInvalidException;
+use Illuminate\Support\Facades\Http;
 use Exception;
 
 class AuthController extends Controller
@@ -166,66 +163,70 @@ class AuthController extends Controller
             'code'          => 'required|string',
         ]);
 
+        $baseUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/';
+
         // --- STEP 2: EXCHANGE CODE FOR TOKEN ---        
-        $payload = [
-            'client_id'     => $request->input('client_id'),
-            'client_secret' => $request->input('client_secret'),
-            'code'          => $request->input('code'),
-        ];
+        $tokenResponse = Http::withoutVerifying()->asJson()->post(
+            rtrim($baseUrl, '/') . '/auth/token',
+            [
+                'client_id'     => $request->input('client_id'),
+                'client_secret' => $request->input('client_secret'),
+                'code'          => $request->input('code'),
+            ]
+        );
 
-        Log::info('Exchanging code for token with payload: ', $payload);
+        Log::info('Token exchange response: ', ['status' => $tokenResponse->status(), 'body' => $tokenResponse->body()]);
+        if (!$tokenResponse->successful()) {
+            $errorBody = $tokenResponse->json();
+            $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                ? $errorBody['error']
+                : 'Token exchange failed.';
 
-        $tokenUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/token';
-
-        $ch1 = curl_init($tokenUrl);
-        curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true); 
-        curl_setopt($ch1, CURLOPT_POST, true); 
-        curl_setopt($ch1, CURLOPT_POSTFIELDS, http_build_query($payload));
-        curl_setopt($ch1, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded',
-            'Accept: application/json'
-        ]);
-
-        $tokenResponse = curl_exec($ch1);
-        $curlErrorNo1 = curl_errno($ch1);
-        curl_close($ch1); 
-
-        if ($curlErrorNo1) {
-            return response()->json(['message' => 'Failed to connect to token endpoint.'], 500);
+            return response()->json([
+                  'error'   => True,
+                  'message' => $errorMessage
+              ], 401);
         }
 
-        Log::info('IDP Token Response: ', ['response' => $tokenResponse]);
-        $tokenData = json_decode($tokenResponse, true);
+        $tokenData = $tokenResponse->json();
 
-        // Check if the IDP actually gave us an access token
-        if (!isset($tokenData['access_token'])) {
-            Log::error('IDP Token Error: ', (array) $tokenData);
-            return response()->json(['message' => 'Failed to retrieve access token from IDP.'], 401);
+        $accessToken = $tokenData['access_token'] ?? null;
+        $refreshToken = $tokenData['refresh_token'] ?? null;
+
+        if (!$accessToken) {
+            return response()->json([
+                'error'   => True,
+                'message' => 'Access token missing.'
+            ], 401);
         }
-
-        $accessToken = $tokenData['access_token'];
 
         // --- STEP 3: FETCH USER DATA FROM /ME ---
-        // Assuming this is the correct base URL based on your previous snippet
-        $meUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/auth/me'; 
+        $meResponse = Http::withoutVerifying()->withToken($accessToken)->get(
+            rtrim($baseUrl, '/') . '/api/v1/me'
+        );
 
-        $ch2 = curl_init($meUrl);
-        curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true); 
-        // We don't set POST to true here, so cURL defaults to a GET request
-        curl_setopt($ch2, CURLOPT_HTTPHEADER, [
-            'Accept: application/json',
-            'Authorization: Bearer ' . $accessToken // THIS is how you pass the token!
-        ]);
+        if (!$meResponse->successful()) {
+            $errorBody = $meResponse->json();
+            $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                ? $errorBody['error']
+                : 'Unable to fetch user information.';
 
-        $meResponse = curl_exec($ch2);
-        $curlErrorNo2 = curl_errno($ch2);
-        curl_close($ch2);
-
-        if ($curlErrorNo2) {
-            return response()->json(['message' => 'Failed to connect to /me endpoint.'], 500);
+            return response()->json([
+                'error'   => True,
+                'message' => $errorMessage
+            ], 401);
         }
 
-        $userData = json_decode($meResponse, true);
+        $userData = $meResponse->json();
+
+        $id = $userData['id'] ?? null;
+        $email = $userData['email'] ?? null;
+        $firstName = $userData['first_name'] ?? '';
+        $middleName = $userData['middle_name'] ?? '';
+        $lastName = $userData['last_name'] ?? '';
+        $roles = $userData['roles'] ?? [];
+
+        $user = null;
 
         // Success! You now have the user's verified identity data.
         Log::info('Successfully fetched user data: ', (array) $userData);
