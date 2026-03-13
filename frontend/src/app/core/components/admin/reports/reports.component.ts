@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 
+// Import Material Select and Form Field modules
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 
@@ -10,7 +13,16 @@ import { ReportsService } from '../../../services/admin/reports/reports.service'
 
 @Component({
   selector: 'app-reports',
-  imports: [CommonModule, MatTabsModule, RouterModule, MatSymbolDirective, FormsModule],
+  // Add the new modules to the imports array
+  imports: [
+    CommonModule, 
+    MatTabsModule, 
+    RouterModule, 
+    MatSymbolDirective, 
+    FormsModule, 
+    MatSelectModule, 
+    MatFormFieldModule
+  ],
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.scss',
   encapsulation: ViewEncapsulation.None,
@@ -50,11 +62,9 @@ export class ReportsComponent implements OnInit {
   loadTerms() {
     this.reportsService.getAllTermsForDropdown().subscribe((data) => {
       this.availableTerms = data;
-      // Find the default active one to set initially since we removed the "null" option
       const activeTerm = data.find(t => t.is_active === 1);
       if (activeTerm) {
          this.selectedTermId = activeTerm.active_semester_id;
-         // Broadcast the initial active term to child components
          this.onTermChange(); 
       }
     });
@@ -70,7 +80,6 @@ export class ReportsComponent implements OnInit {
     });
   }
 
-  // Helper method to format semester numbers into words
   getSemesterLabel(semesterNumber: number): string {
     switch (semesterNumber) {
       case 1:
