@@ -39,6 +39,10 @@ export class ReportsService {
     this.selectedTermSource.next(termId);
   }
 
+  getSelectedTerm(): number | null {
+    return this.selectedTermSource.value;
+  }
+
   getAllTermsForDropdown(): Observable<any[]> {
     return this.http
       .get<any[]>(`${this.baseUrl}/reports/terms`)

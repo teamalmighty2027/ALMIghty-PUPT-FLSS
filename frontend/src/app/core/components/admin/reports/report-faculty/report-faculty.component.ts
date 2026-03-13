@@ -13,6 +13,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
 import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
@@ -54,6 +56,8 @@ interface Faculty {
     MatTooltipModule,
     FormsModule,
     MatDialogModule,
+    MatSelectModule,
+    MatFormFieldModule,
     MatSymbolDirective,
   ],
   templateUrl: './report-faculty.component.html',
@@ -85,8 +89,11 @@ AfterViewChecked, OnDestroy {
   hasSchedulesForToggleAll = false;
   isToggleAllChecked = false;
   isLoading = true;
+  isTermsLoading = true;
   hasAnySchedules = false;
   sendEmail = true;
+  availableTerms: any[] = [];
+  selectedTermId: number | null = null;
 
   private searchInput$ = new Subject<string>();
 
@@ -102,15 +109,16 @@ AfterViewChecked, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Memory leak & Double-call fix applied here:
     this.reportsService.selectedTerm$
       .pipe(
-        takeUntil(this.destroy$),          // Kills listener when tab closes
-        filter(termId => termId !== null)  // Ignores the initial 'null' value
+        takeUntil(this.destroy$),
+        filter((termId) => termId !== null),
       )
       .subscribe((termId) => {
         this.fetchFacultyData(termId);
       });
+
+    this.loadTerms();
 
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
@@ -119,10 +127,56 @@ AfterViewChecked, OnDestroy {
       });
   }
 
-  // Add this new method right below ngOnInit
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  loadTerms() {
+    this.isTermsLoading = true;
+    this.reportsService.getAllTermsForDropdown().subscribe({
+      next: (data) => {
+        this.availableTerms = data;
+        const currentTermId = this.reportsService.getSelectedTerm();
+        const hasCurrentTerm = currentTermId !== null && data.some(
+          (term) => term.active_semester_id === currentTermId,
+        );
+
+        if (hasCurrentTerm) {
+          this.selectedTermId = currentTermId;
+        } else {
+          const activeTerm = data.find((term) => term.is_active === 1);
+          if (activeTerm) {
+            this.selectedTermId = activeTerm.active_semester_id;
+            this.onTermChange();
+          }
+        }
+
+        this.isTermsLoading = false;
+      },
+      error: (error) => {
+        this.isTermsLoading = false;
+        this.isLoading = false;
+        console.error('Error loading terms:', error);
+      },
+    });
+  }
+
+  onTermChange() {
+    this.reportsService.setSelectedTerm(this.selectedTermId);
+  }
+
+  getSemesterLabel(semesterNumber: number): string {
+    switch (semesterNumber) {
+      case 1:
+        return '1st Semester';
+      case 2:
+        return '2nd Semester';
+      case 3:
+        return 'Summer';
+      default:
+        return `Sem ${semesterNumber}`;
+    }
   }
 
   ngAfterViewInit() {

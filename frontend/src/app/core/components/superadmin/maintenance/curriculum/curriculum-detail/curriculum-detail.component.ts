@@ -91,9 +91,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     const curriculumYear = this.route.snapshot.paramMap.get('year');
-    if (curriculumYear) {
-      this.fetchCurriculum(curriculumYear);
-    }
+
+    if (curriculumYear) this.fetchCurriculum(curriculumYear);
   }
 
   ngOnDestroy() {
@@ -139,12 +138,13 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       })) || [])
     ];
 
-    // FIX: Set type to any[] to allow mixing 'All' (string) and numbers
     let yearLevelOptions: any[] = [{ key: 'All', label: 'All Year Levels' }];
+
     if (this.selectedProgram !== 'All') {
       const selectedProgramData = this.curriculum?.programs.find(
         (p) => p.curricula_program_id === Number(this.selectedProgram)
       );
+
       if (selectedProgramData) {
         yearLevelOptions = [
           { key: 'All', label: 'All Year Levels' },
@@ -154,6 +154,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           }))
         ];
       }
+
     } else {
       yearLevelOptions = [
         { key: 'All', label: 'All Year Levels' },
@@ -162,7 +163,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       ];
     }
 
-    // FIX: Set type to any[]
     const semesterOptions: any[] = [
       { key: 'All', label: 'All Semesters' },
       { key: 1, label: '1st Semester' },
@@ -179,6 +179,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
   updateCustomExportOptions() {
     let currentLabel = 'Export current view';
+
     if (this.selectedProgram !== 'All') {
       const selectedProg = this.curriculum?.programs.find(
         (p) => p.curricula_program_id === Number(this.selectedProgram)
@@ -214,6 +215,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
         for (const sem of semestersToProcess) {
           let heading = this.getSemesterDisplay(sem.semester);
+
           if (this.selectedProgram === 'All' || this.selectedYear === 'All') {
              heading = `${prog.name} - Year ${yl.year} - ${heading}`;
           }
@@ -296,7 +298,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
         
-        // NEW: Check for duplicates before updating
+        // Check for duplicates before updating
         if (this.isCourseDuplicate(result.course_code, course.course_id)) {
           this.snackBar.open(`Error: Course Code '${result.course_code}' is already used in this curriculum!`, 'Close', { duration: 4000 });
           return;
@@ -356,7 +358,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
         
-        // NEW: Check for duplicates before adding
+        // Check for duplicates before adding
         if (this.isCourseDuplicate(result.course_code)) {
           this.snackBar.open(`Error: Course Code '${result.course_code}' is already used in this curriculum!`, 'Close', { duration: 4000 });
           return;
@@ -449,6 +451,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         });
 
         dialogRef.afterClosed().subscribe((result) => {
+
           if (result) {
             let programsChanged = false;
             const programUpdates: Observable<any>[] = [];
@@ -468,6 +471,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
             if (programsChanged) {
               this.isManagingPrograms = true;
+
               forkJoin(programUpdates).pipe(
                 finalize(() => this.isManagingPrograms = false),
                 switchMap(() => this.curriculumService.getCurriculumByYear(curriculumYear))
@@ -565,6 +569,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
+
       if (exportAll) {
         this.curriculum.programs.forEach((program, index) => {
           this.addProgramToPDF(doc, program, index === 0, 'All', 'All');
@@ -580,6 +585,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       }
 
       const pdfBlob = doc.output('blob');
+      
       if (showPreview) {
         return pdfBlob;
       } else {
