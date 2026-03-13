@@ -688,6 +688,7 @@ export class ManagePreferencesComponent
                 return [
                   (index + 1).toString(),
                   course.course_details?.program_code || 'N/A',
+                  course.course_details?.year_level + '-' + course.course_details?.section_name || 'N/A',                
                   course.course_details?.course_code || 'N/A',
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
@@ -703,6 +704,7 @@ export class ManagePreferencesComponent
               [
                 '#',
                 'Program Code',
+                'Year & Section',
                 'Course Code',
                 'Course Title',
                 'Lec',
@@ -733,12 +735,13 @@ export class ManagePreferencesComponent
               columnStyles: {
                 0: { cellWidth: 10 },
                 1: { cellWidth: 20 },
-                2: { cellWidth: 30 },
-                3: { cellWidth: 50 },
-                4: { cellWidth: 13 },
+                2: { cellWidth: 20 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 40 },
                 5: { cellWidth: 13 },
                 6: { cellWidth: 13 },
-                7: { cellWidth: 55 },
+                7: { cellWidth: 13 },
+                8: { cellWidth: 40 },
               },
               margin: { left: 10, right: 10 },
             };
