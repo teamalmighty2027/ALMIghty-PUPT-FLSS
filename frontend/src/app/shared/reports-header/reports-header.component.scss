@@ -112,6 +112,22 @@
       text-wrap: nowrap;
     }
   }
+
+  .term-filter-container {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+    width: auto;
+
+    .term-filter-flex {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      white-space: nowrap;
+    }
+
+    .term-filter-dropdown {
+      width: 260px;
+    }
+  }
 }
 
 // ==============

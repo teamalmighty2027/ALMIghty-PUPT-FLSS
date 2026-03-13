@@ -112,13 +112,15 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     'action',
   ];
 
-  selectedTermId: number | null = null;
   dataSource = new MatTableDataSource<Program>();
   filteredData: Program[] = [];
   academicYear: string = '';
   semester: string = '';
   isLoading = true;
   hasAnySchedules = false;
+  isTermsLoading = true;
+  availableTerms: any[] = [];
+  selectedTermId: number | null = null;
 
   private searchInput$ = new Subject<string>();
 
@@ -143,6 +145,8 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         this.fetchProgramsData(termId);
       });
 
+    this.loadTerms();
+
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchQuery) => {
@@ -153,6 +157,40 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  loadTerms() {
+    this.isTermsLoading = true;
+    this.reportsService.getAllTermsForDropdown().subscribe({
+      next: (data) => {
+        this.availableTerms = data;
+        const currentTermId = this.reportsService.getSelectedTerm();
+        const hasCurrentTerm = currentTermId !== null && data.some(
+          (term) => term.active_semester_id === currentTermId,
+        );
+
+        if (hasCurrentTerm) {
+          this.selectedTermId = currentTermId;
+        } else {
+          const activeTerm = data.find((term) => term.is_active === 1);
+          if (activeTerm) {
+            this.selectedTermId = activeTerm.active_semester_id;
+            this.onTermChange();
+          }
+        }
+
+        this.isTermsLoading = false;
+      },
+      error: (error) => {
+        this.isTermsLoading = false;
+        this.isLoading = false;
+        console.error('Error loading terms:', error);
+      },
+    });
+  }
+
+  onTermChange() {
+    this.reportsService.setSelectedTerm(this.selectedTermId);
   }
 
   getSemesterLabel(semesterNumber: number): string {
