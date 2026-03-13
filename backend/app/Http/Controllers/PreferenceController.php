@@ -163,9 +163,10 @@ class PreferenceController extends Controller
                 $join->on('faculty.id', '=', 'preferences.faculty_id')
                     ->where('preferences.active_semester_id', $activeSemester->active_semester_id);
             })
+            ->leftJoin('sections_per_program_year', 'preferences.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
             ->leftJoin('course_assignments', 'preferences.course_assignment_id', '=', 'course_assignments.course_assignment_id')
             ->leftJoin('courses', 'course_assignments.course_id', '=', 'courses.course_id')
-            ->select('faculty.*', 'preferences.preferences_id', 'course_assignments.*', 'courses.*')
+            ->select('faculty.*', 'preferences.*', 'course_assignments.*', 'courses.*', 'sections_per_program_year.year_level as pref_year_level', 'sections_per_program_year.section_name as pref_section_name')
             ->get();
 
         $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester) {
@@ -199,6 +200,9 @@ class PreferenceController extends Controller
                             'course_id'    => $preference->course_id ?? 'N/A',
                             'course_code'  => $preference->course_code ?? null,
                             'course_title' => $preference->course_title ?? null,
+                            'year_level'   => $preference->pref_year_level ?? null,
+                            'section_id'   => $preference->sections_per_program_year_id ?? null,
+                            'section_name' => $preference->pref_section_name ?? null,
                             'program_id'   => $program_details->program_id ?? null,
                             'program_code' => $program_details->program_code ?? null,
                         ],
@@ -377,7 +381,6 @@ class PreferenceController extends Controller
      */
     public function getFacultyPreferencesById($faculty_id)
     {
-        // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
             ->where('is_active', 1)
             ->first();
@@ -441,7 +444,9 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'year_level'   => $preference->section?->year_level ?? null,
+                    'year_level'   => $preference->section?->year_level  ?? null,                    
+                ],
+                'section_details'     => [
                     'section_id'   => $preference->sections_per_program_year_id ?? null,
                     'section_name' => $preference->section?->section_name ?? null
                 ],
@@ -615,9 +620,11 @@ class PreferenceController extends Controller
                     'course_title' => $course->course_title ?? null,
                     'program_id'   => $program->program_id ?? null,
                     'program_code' => $program->program_code ?? null,
+                    'year_level'   => $section->year_level ?? null,
+                ],
+                'section_details'     => [
                     'section_id'   => $section->sections_per_program_year_id ?? null,
                     'section_name' => $section->section_name ?? null,
-                    'year_level'   => $section->year_level ?? null,
                 ],
                 'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,

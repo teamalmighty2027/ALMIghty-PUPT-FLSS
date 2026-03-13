@@ -84,7 +84,11 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnInit(): void {
     this.initializeUserData();
-    this.dialog.open(DialogTermsConditionsComponent);
+    
+    if (this.cookieService.get('termsAccepted') !== 'true') {
+      this.dialog.open(DialogTermsConditionsComponent);
+    }
+
     this.router.events
       .pipe(
         filter(
