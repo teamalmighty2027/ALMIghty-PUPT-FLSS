@@ -1,18 +1,16 @@
 <div class="reports-main" style="position: relative;">
 
-  <div class="term-filter-container" style="position: absolute; top: 12px; right: 180px; z-index: 10;">
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <span style="font-weight: 500; font-size: 14px;">Academic Term:</span>
+  <div class="term-filter-container term-filter-positioned">
+    <div class="term-filter-flex">
+      <span class="term-filter-label">Academic Term:</span>
       
-      <mat-form-field appearance="outline" style="width: 260px;" subscriptSizing="dynamic">
+      <mat-form-field appearance="outline" class="term-filter-dropdown" subscriptSizing="dynamic">
         <mat-select [(ngModel)]="selectedTermId" (selectionChange)="onTermChange()">
-          
           @for (term of availableTerms; track term.active_semester_id) {
             <mat-option [value]="term.active_semester_id">
               {{ term.year_start }}-{{ term.year_end }} ({{ getSemesterLabel(term.semester) }}){{ term.is_active === 1 ? ' - Active' : '' }}
             </mat-option>
           }
-
         </mat-select>
       </mat-form-field>
     </div>

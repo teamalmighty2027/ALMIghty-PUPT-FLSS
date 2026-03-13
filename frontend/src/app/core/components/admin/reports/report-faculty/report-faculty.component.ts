@@ -1,9 +1,9 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, takeUntil, filter } from 'rxjs/operators';
 
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
@@ -60,9 +60,8 @@ interface Faculty {
   styleUrl: './report-faculty.component.scss',
   animations: [fadeAnimation],
 })
-export class ReportFacultyComponent
-  implements OnInit, AfterViewInit, AfterViewChecked
-{
+export class ReportFacultyComponent implements OnInit, AfterViewInit, 
+AfterViewChecked, OnDestroy {
   inputFields: InputField[] = [
     {
       type: 'text',
@@ -93,6 +92,8 @@ export class ReportFacultyComponent
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
 
+  private destroy$ = new Subject<void>();
+
   constructor(
     private reportsService: ReportsService,
     public dialog: MatDialog,
@@ -101,16 +102,27 @@ export class ReportFacultyComponent
   ) {}
 
   ngOnInit(): void {
-    // Listen to changes from the dropdown
-    this.reportsService.selectedTerm$.subscribe((termId) => {
-      this.fetchFacultyData(termId);
-    });
+    // Memory leak & Double-call fix applied here:
+    this.reportsService.selectedTerm$
+      .pipe(
+        takeUntil(this.destroy$),          // Kills listener when tab closes
+        filter(termId => termId !== null)  // Ignores the initial 'null' value
+      )
+      .subscribe((termId) => {
+        this.fetchFacultyData(termId);
+      });
 
     this.searchInput$
-      .pipe(debounceTime(300), distinctUntilChanged())
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchQuery) => {
         this.performSearch(searchQuery);
       });
+  }
+
+  // Add this new method right below ngOnInit
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   ngAfterViewInit() {

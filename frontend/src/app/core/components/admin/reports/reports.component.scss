@@ -137,3 +137,29 @@
     @include mixins.flex-layout($gap: var(--spacing-xs));
   }
 }
+
+.reports-main-relative {
+  position: relative;
+}
+
+.term-filter-positioned {
+  position: absolute;
+  top: 12px;
+  right: 180px;
+  z-index: 10;
+}
+
+.term-filter-flex {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.term-filter-label {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.term-filter-dropdown {
+  width: 260px;
+}
