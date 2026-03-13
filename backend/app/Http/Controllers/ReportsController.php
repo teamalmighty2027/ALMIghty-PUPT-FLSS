@@ -186,7 +186,7 @@ class ReportsController extends Controller
     /**
      * Get Room Schedules Report
      */
-    public function getRoomSchedulesReport(Request $request) // <-- Added Request $request
+    public function getRoomSchedulesReport(Request $request)
     {
         // Step 1: Retrieve the requested semester or fallback to current active
         $requestedSemesterId = $request->query('active_semester_id');
@@ -203,7 +203,6 @@ class ReportsController extends Controller
                 'semesters.semester'
             );
 
-        // Check for the query parameter
         if ($requestedSemesterId && $requestedSemesterId !== 'null') {
             $activeSemesterQuery->where('active_semesters.active_semester_id', $requestedSemesterId);
         } else {
@@ -216,7 +215,7 @@ class ReportsController extends Controller
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
-        // Step 2: Prepare a subquery to get schedules for the current semester and academic year
+        // Step 2: Prepare a subquery to get schedules (USING ORIGINAL TEXT-BASED JOIN)
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
@@ -274,15 +273,10 @@ class ReportsController extends Controller
             )
             ->get();
 
-        // Step 3.1: Collect unique user_ids to fetch User models
         $userIds = $roomSchedules->pluck('user_id')->unique()->filter()->toArray();
-
-        // Step 3.2: Fetch User models
         $users = User::whereIn('id', $userIds)->get()->keyBy('id');
 
-        // Step 4: Group the data by room and structure schedules
         $rooms = [];
-
         foreach ($roomSchedules as $schedule) {
             if (!isset($rooms[$schedule->room_id])) {
                 $rooms[$schedule->room_id] = [
@@ -297,7 +291,6 @@ class ReportsController extends Controller
 
             if ($schedule->schedule_id) {
                 $facultyName = isset($users[$schedule->user_id]) ? $users[$schedule->user_id]->formatted_name : 'N/A';
-
                 $rooms[$schedule->room_id]['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
                     'day' => $schedule->day,
@@ -322,7 +315,6 @@ class ReportsController extends Controller
             }
         }
 
-        // Step 5: Structure the response
         return response()->json([
             'room_schedule_reports' => [
                 'academic_year_id' => $activeSemester->academic_year_id,
@@ -338,7 +330,7 @@ class ReportsController extends Controller
     /**
      * Get Program Schedules Report
      */
-    public function getProgramSchedulesReport(Request $request) // <-- Added Request $request
+    public function getProgramSchedulesReport(Request $request)
     {
         // Step 1: Retrieve the requested semester or fallback to current active
         $requestedSemesterId = $request->query('active_semester_id');
@@ -355,7 +347,6 @@ class ReportsController extends Controller
                 'semesters.semester'
             );
 
-        // Check for the query parameter
         if ($requestedSemesterId && $requestedSemesterId !== 'null') {
             $activeSemesterQuery->where('active_semesters.active_semester_id', $requestedSemesterId);
         } else {
@@ -368,14 +359,18 @@ class ReportsController extends Controller
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
-        // Step 2: Prepare a subquery to get schedules for the current semester and academic year
+        // Step 2: Prepare a subquery to get schedules (USING ORIGINAL TEXT-BASED JOIN)
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
             ->where('ca_semesters.semester', '=', $activeSemester->semester)
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->whereNotNull('schedules.day')
+            ->whereNotNull('schedules.faculty_id')
+            ->whereNotNull('schedules.room_id')
             ->select(
                 'schedules.schedule_id',
                 'schedules.faculty_id',
@@ -393,8 +388,7 @@ class ReportsController extends Controller
                 'courses.lab_hours as lab',
                 'courses.units',
                 'courses.tuition_hours'
-            )
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id');
+            );
 
         // Step 3: Join programs with current schedules
         $programSchedules = DB::table('programs')
@@ -427,15 +421,10 @@ class ReportsController extends Controller
             )
             ->get();
 
-        // Step 3.1: Collect unique user_ids to fetch User models
         $userIds = $programSchedules->pluck('user_id')->unique()->filter()->toArray();
-
-        // Step 3.2: Fetch User models
         $users = User::whereIn('id', $userIds)->get()->keyBy('id');
 
-        // Step 4: Group the data by program, year level, and section
         $programs = [];
-
         foreach ($programSchedules as $schedule) {
             if (!isset($programs[$schedule->program_id])) {
                 $programs[$schedule->program_id] = [
@@ -446,26 +435,22 @@ class ReportsController extends Controller
                 ];
             }
 
-            // Initialize year_level if not set
-            if (!isset($programs[$schedule->program_id]['year_levels'][$schedule->year_level])) {
-                $programs[$schedule->program_id]['year_levels'][$schedule->year_level] = [
-                    'year_level' => $schedule->year_level,
-                    'sections' => [],
-                ];
-            }
-
-            // Initialize section if not set
-            if (!isset($programs[$schedule->program_id]['year_levels'][$schedule->year_level]['sections'][$schedule->section_name])) {
-                $programs[$schedule->program_id]['year_levels'][$schedule->year_level]['sections'][$schedule->section_name] = [
-                    'section_name' => $schedule->section_name,
-                    'schedules' => [],
-                ];
-            }
-
-            // Check if the schedule has a valid schedule_id
             if ($schedule->schedule_id) {
-                $facultyName = isset($users[$schedule->user_id]) ? $users[$schedule->user_id]->formatted_name : 'N/A';
+                if (!isset($programs[$schedule->program_id]['year_levels'][$schedule->year_level])) {
+                    $programs[$schedule->program_id]['year_levels'][$schedule->year_level] = [
+                        'year_level' => $schedule->year_level,
+                        'sections' => [],
+                    ];
+                }
 
+                if (!isset($programs[$schedule->program_id]['year_levels'][$schedule->year_level]['sections'][$schedule->section_name])) {
+                    $programs[$schedule->program_id]['year_levels'][$schedule->year_level]['sections'][$schedule->section_name] = [
+                        'section_name' => $schedule->section_name,
+                        'schedules' => [],
+                    ];
+                }
+
+                $facultyName = isset($users[$schedule->user_id]) ? $users[$schedule->user_id]->formatted_name : 'N/A';
                 $programs[$schedule->program_id]['year_levels'][$schedule->year_level]['sections'][$schedule->section_name]['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
                     'day' => $schedule->day,
@@ -487,7 +472,6 @@ class ReportsController extends Controller
             }
         }
 
-        // Convert year_levels and sections from associative arrays to indexed arrays
         foreach ($programs as &$program) {
             $program['year_levels'] = array_values($program['year_levels']);
             foreach ($program['year_levels'] as &$yearLevel) {
@@ -495,7 +479,6 @@ class ReportsController extends Controller
             }
         }
 
-        // Step 5: Structure the response
         return response()->json([
             'programs_schedule_reports' => [
                 'academic_year_id' => $activeSemester->academic_year_id,
@@ -596,8 +579,8 @@ class ReportsController extends Controller
             ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
             ->leftJoin('rooms', 'rooms.room_id', '=', 'schedules.room_id')
             ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->join('faculty_schedule_publication', function ($join) use ($faculty_id, $activeSemester) {
-                $join->where('faculty_schedule_publication.faculty_id', '=', $faculty_id)
+            ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
+                $join->on('faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
                     ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
                     ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id);
             })
@@ -638,34 +621,27 @@ class ReportsController extends Controller
                 $trackedCourses[] = $schedule->course_assignment_id;
             }
 
-            // Only add the schedule details if it is published
-            if ($schedule->is_published == 1) {
-                $response['faculty_schedule']['schedules'][] = [
-                    'schedule_id' => $schedule->schedule_id,
-                    'day' => $schedule->day,
-                    'start_time' => $schedule->start_time,
-                    'end_time' => $schedule->end_time,
-                    'room_code' => $schedule->room_code,
-                    'program_code' => $schedule->program_code,
-                    'program_title' => $schedule->program_title,
-                    'year_level' => $schedule->year_level,
-                    'section_name' => $schedule->section_name,
-                    'course_details' => [
-                        'course_assignment_id' => $schedule->course_assignment_id,
-                        'course_title' => $schedule->course_title,
-                        'course_code' => $schedule->course_code,
-                        'lec' => $schedule->lec_hours,
-                        'lab' => $schedule->lab_hours,
-                        'units' => $schedule->units,
-                        'tuition_hours' => $schedule->tuition_hours,
-                    ],
-                ];
-            }
-        }
-
-        // Update the overall publication status
-        if ($response['faculty_schedule']['is_published'] == 0) {
-            $response['faculty_schedule']['schedules'] = [];
+            // Always add schedule details for admin reports
+            $response['faculty_schedule']['schedules'][] = [
+                'schedule_id' => $schedule->schedule_id,
+                'day' => $schedule->day,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+                'room_code' => $schedule->room_code,
+                'program_code' => $schedule->program_code,
+                'program_title' => $schedule->program_title,
+                'year_level' => $schedule->year_level,
+                'section_name' => $schedule->section_name,
+                'course_details' => [
+                    'course_assignment_id' => $schedule->course_assignment_id,
+                    'course_title' => $schedule->course_title,
+                    'course_code' => $schedule->course_code,
+                    'lec' => $schedule->lec_hours,
+                    'lab' => $schedule->lab_hours,
+                    'units' => $schedule->units,
+                    'tuition_hours' => $schedule->tuition_hours,
+                ],
+            ];
         }
 
         return response()->json($response);

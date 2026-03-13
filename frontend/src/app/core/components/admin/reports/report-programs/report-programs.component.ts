@@ -878,12 +878,16 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   hasSchedules(program: Program): boolean {
-    return program.year_levels.some((yearLevel) =>
-      yearLevel.sections.some(
-        (section) => section.schedules && section.schedules.length > 0,
-      ),
-    );
-  }
+  return program.year_levels.some((yearLevel) =>
+    yearLevel.sections.some(
+      (section) =>
+        section.schedules &&
+        section.schedules.some(
+          (s) => s.day && s.start_time && s.end_time
+        ),
+    ),
+  );
+}
 
   private calculateBoxHeight(
     doc: jsPDF,
