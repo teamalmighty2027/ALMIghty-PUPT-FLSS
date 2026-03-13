@@ -15,7 +15,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
-import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
+import { InputField } from '../../../../../shared/table-header/table-header.component';
+import { ReportsHeaderComponent } from "../../../../../shared/reports-header/reports-header.component";
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 
@@ -42,7 +43,6 @@ interface Room {
   selector: 'app-report-rooms',
   imports: [
     CommonModule,
-    TableHeaderComponent,
     LoadingComponent,
     MatTableModule,
     MatPaginatorModule,
@@ -54,7 +54,8 @@ interface Room {
     MatSelectModule,
     MatFormFieldModule,
     MatSymbolDirective,
-  ],
+    ReportsHeaderComponent
+],
   templateUrl: './report-rooms.component.html',
   styleUrls: ['./report-rooms.component.scss'],
   animations: [fadeAnimation],

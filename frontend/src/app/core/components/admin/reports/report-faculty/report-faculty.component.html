@@ -33,7 +33,7 @@
   <!-- Faculty Report Header-->
   <div class="report-header-container" [@fadeAnimation]>
     
-    <app-table-header
+    <app-reports-header
       [inputFields]="inputFields"
       [showExportButton]="true"
       [showAddButton]="false"
@@ -44,7 +44,7 @@
         !hasAnySchedules ? 'No schedules available for export' : ''
       "
     >
-    </app-table-header>
+    </app-reports-header>
   </div>
 
   <!-- Faculty List Report Table -->

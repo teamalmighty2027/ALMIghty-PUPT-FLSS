@@ -17,7 +17,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
-import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
+import { InputField } from '../../../../../shared/table-header/table-header.component';
+import { ReportsHeaderComponent } from "../../../../../shared/reports-header/reports-header.component";
 import { TableDialogComponent, DialogConfig, DialogFieldConfig } from '../../../../../shared/table-dialog/table-dialog.component';
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
@@ -85,10 +86,10 @@ interface Program {
     FormsModule,
     MatSelectModule,
     MatFormFieldModule,
-    TableHeaderComponent,
     LoadingComponent,
     MatSymbolDirective,
-  ],
+    ReportsHeaderComponent
+],
   templateUrl: './report-programs.component.html',
   styleUrls: ['./report-programs.component.scss'],
   animations: [fadeAnimation],

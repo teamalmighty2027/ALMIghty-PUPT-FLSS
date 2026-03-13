@@ -17,7 +17,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
-import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
+import { InputField } from '../../../../../shared/table-header/table-header.component';
+import { ReportsHeaderComponent } from "../../../../../shared/reports-header/reports-header.component";
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 import { DialogActionComponent } from '../../../../../shared/dialog-action/dialog-action.component';
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
@@ -46,7 +47,6 @@ interface Faculty {
   selector: 'app-report-faculty',
   imports: [
     CommonModule,
-    TableHeaderComponent,
     LoadingComponent,
     MatTableModule,
     MatPaginatorModule,
@@ -59,7 +59,8 @@ interface Faculty {
     MatSelectModule,
     MatFormFieldModule,
     MatSymbolDirective,
-  ],
+    ReportsHeaderComponent
+],
   templateUrl: './report-faculty.component.html',
   styleUrl: './report-faculty.component.scss',
   animations: [fadeAnimation],
