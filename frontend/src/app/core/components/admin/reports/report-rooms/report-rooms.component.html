@@ -1,9 +1,15 @@
 <div class="report-container">
+  <!--Display while loading-->
+  @if (isLoading || isTermsLoading) {
+  <div class="loading-wrapper">
+    <app-loading></app-loading>
+  </div>
+  } @else {
   <div class="term-filter-container term-filter-positioned">
     <div class="term-filter-flex">
       <span class="term-filter-label">Academic Term:</span>
       <mat-form-field
-        appearance="outline"
+        appearance="fill"
         class="term-filter-dropdown"
         subscriptSizing="dynamic"
       >
@@ -24,12 +30,6 @@
     </div>
   </div>
 
-  <!--Display while loading-->
-  @if (isLoading || isTermsLoading) {
-  <div class="loading-wrapper">
-    <app-loading></app-loading>
-  </div>
-  } @else {
   <!-- Rooms Report Header-->
   <div class="report-header-container" [@fadeAnimation]>
     <app-table-header
