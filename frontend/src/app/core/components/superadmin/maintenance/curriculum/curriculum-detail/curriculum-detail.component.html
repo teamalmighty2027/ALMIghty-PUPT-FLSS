@@ -4,7 +4,6 @@
     <app-loading></app-loading>
   </div>
   } @else {
-  <!-- Table Header -->
   <div class="curriculum-header-container" [@fadeAnimation]>
     <app-table-header
       [inputFields]="headerInputFields"
@@ -16,30 +15,37 @@
       (inputChange)="onInputChange($event)"
       (export)="onExport($event)"
       (add)="onManagePrograms()"
-      [selectedValues]="{ program: selectedProgram, yearLevel: selectedYear }"
+      [selectedValues]="{ program: selectedProgram, yearLevel: selectedYear, semester: selectedSemester }"
     ></app-table-header>
   </div>
 
   <div class="curriculum-semesters-container">
     <div class="scrollable-content">
-      @for (semester of selectedSemesters; track semester.semester; let i =
-      $index) {
-      <div class="semester-container" [@pageFloatUpAnimation]>
-        <app-table-generic
-          [columns]="columns"
-          [data]="semester.courses"
-          [tableName]="'course/s'"
-          [displayedColumns]="displayedColumns"
-          [showTableHeading]="true"
-          [tableHeadingTitle]="getSemesterDisplay(semester.semester)"
-          [tableHeadingButtonText]="'Add Course'"
-          [tableHeadingButtonIcon]="'add'"
-          (tableHeadingButtonClick)="onAddCourse(semester)"
-          (edit)="onEditCourse($event, semester)"
-          (delete)="onDeleteCourse($event)"
-        ></app-table-generic>
-      </div>
+      
+      @if (renderGroups.length === 0) {
+        <div style="text-align: center; padding: 3rem; color: #666; font-size: 16px; font-weight: 500;">
+           No courses found matching the selected filters.
+        </div>
+      } @else {
+        @for (group of renderGroups; track group.id; let i = $index) {
+        <div class="semester-container" [@pageFloatUpAnimation]>
+          <app-table-generic
+            [columns]="columns"
+            [data]="group.courses"
+            [tableName]="'course/s'"
+            [displayedColumns]="displayedColumns"
+            [showTableHeading]="true"
+            [tableHeadingTitle]="group.heading"
+            [tableHeadingButtonText]="'Add Course'"
+            [tableHeadingButtonIcon]="'add'"
+            (tableHeadingButtonClick)="onAddCourse(group)"
+            (edit)="onEditCourse($event, group)"
+            (delete)="onDeleteCourse($event, group)"
+          ></app-table-generic>
+        </div>
+        }
       }
+
     </div>
   </div>
   }
