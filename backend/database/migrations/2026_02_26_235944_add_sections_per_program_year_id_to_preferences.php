@@ -11,13 +11,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('preferences', function (Blueprint $table) {            
-            $table->unsignedBigInteger('sections_per_program_year_id')->nullable()->after('faculty_id');
+        // Check if the column already exists to avoid errors during migration
+        if (!Schema::hasColumn('preferences', 'sections_per_program_year_id')) {
+            Schema::table('preferences', function (Blueprint $table) {
+                $table->unsignedBigInteger('sections_per_program_year_id')->nullable()->after('faculty_id');
+            });
             $table->foreign('sections_per_program_year_id')
                   ->references('sections_per_program_year_id')
                   ->on('sections_per_program_year')
                   ->onDelete('set null');
-                  
+        }
+        
+        Schema::table('preferences', function (Blueprint $table) {                              
             // If unique index already exists, drop it 
             if (Schema::hasIndex('preferences', 'unique_preference')) {
                 $table->dropUnique('unique_preference');
