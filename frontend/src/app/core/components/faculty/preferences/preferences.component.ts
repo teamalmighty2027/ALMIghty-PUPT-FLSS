@@ -303,7 +303,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours,
       units: course.units,
       year_level: course.course_details.year_level,
-      section: course.section_details ?? null,
+      section: {
+        section_id: course.section_details?.section_id ?? null,
+        section_name: course.section_details?.section_name ?? '',
+      },
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
         start_time: this.formatTimeForPayload(prefDay.start_time),

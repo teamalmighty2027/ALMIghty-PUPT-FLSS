@@ -444,7 +444,7 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'year_level'   => $program->year_level  ?? null,                    
+                    'year_level'   => $preference->section?->year_level  ?? null,                    
                 ],
                 'section_details'     => [
                     'section_id'   => $preference->sections_per_program_year_id ?? null,
