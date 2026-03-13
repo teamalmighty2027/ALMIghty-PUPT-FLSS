@@ -422,7 +422,7 @@ class PreferenceController extends Controller
                 ->join('sections_per_program_year', 'sections_per_program_year.program_id', '=', 'programs.program_id')
                 ->whereIn('sections_per_program_year.sections_per_program_year_id', $sectionsPerProgramYearIds)
                 ->whereIn('course_assignments.course_assignment_id', $courseAssignmentIds)
-                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title', 'sections_per_program_year.year_level')
+                ->select('course_assignments.course_assignment_id','programs.program_id', 'programs.program_code', 'programs.program_title')
                 ->get()
                 ->keyBy('course_assignment_id');
         }
