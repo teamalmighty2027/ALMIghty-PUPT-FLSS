@@ -1,4 +1,30 @@
-<div class="header-container">
+<div class="header-wrapper">
+  @if (showTermFilter) {
+  <div class="term-filter-container">
+    <div class="term-filter-flex">
+      <span class="term-filter-label">Academic Term:</span>
+      <mat-form-field
+        appearance="fill"
+        class="term-filter-dropdown"
+        subscriptSizing="dynamic">
+        <mat-select
+          [(ngModel)]="selectedTermId"
+          (selectionChange)="onTermChange()"
+          [disabled]="isTermsLoading">
+          @for (term of availableTerms; track term.active_semester_id) {
+          <mat-option [value]="term.active_semester_id">
+            {{ term.year_start }}-{{ term.year_end }}
+            ({{ getSemesterLabel(term.semester) }})
+            {{ term.is_active === 1 ? ' - Active' : '' }}
+          </mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+    </div>
+  </div>
+  }
+
+  <div class="header-container">
   <!-- Search Input -->
   <form [formGroup]="form" class="input-container">
     @for (field of inputFields; track field.key) { @if (field.type === 'text') {
@@ -11,11 +37,13 @@
         maxlength="50"
         matInput
         [formControlName]="field.key"
-        [placeholder]="field.placeholder || ''" />
+        [placeholder]="field.placeholder || field.label"
+        title="{{ field.label }}"
+         />
       <mat-icon matPrefix>search</mat-icon>
       @if (form.get(field.key)?.value && form.get(field.key)?.value.length > 0)
       {
-      <button mat-icon-button matSuffix (click)="onClearSearch(field.key)">
+      <button type="button" mat-icon-button matSuffix (click)="onClearSearch(field.key)">
         <mat-icon>close</mat-icon>
       </button>
       }
@@ -101,4 +129,5 @@
     }
   </div>
   }
+  </div>
 </div>
