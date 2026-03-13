@@ -186,13 +186,14 @@ class ReportsController extends Controller
     /**
      * Get Room Schedules Report
      */
-    public function getRoomSchedulesReport()
+    public function getRoomSchedulesReport(Request $request) // <-- Added Request $request
     {
-        // Step 1: Retrieve the current active semester with academic year details
-        $activeSemester = DB::table('active_semesters')
+        // Step 1: Retrieve the requested semester or fallback to current active
+        $requestedSemesterId = $request->query('active_semester_id');
+
+        $activeSemesterQuery = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
             ->select(
                 'active_semesters.active_semester_id',
                 'active_semesters.semester_id',
@@ -200,8 +201,16 @@ class ReportsController extends Controller
                 'academic_years.year_start',
                 'academic_years.year_end',
                 'semesters.semester'
-            )
-            ->first();
+            );
+
+        // Check for the query parameter
+        if ($requestedSemesterId && $requestedSemesterId !== 'null') {
+            $activeSemesterQuery->where('active_semesters.active_semester_id', $requestedSemesterId);
+        } else {
+            $activeSemesterQuery->where('active_semesters.is_active', 1);
+        }
+
+        $activeSemester = $activeSemesterQuery->first();
 
         if (!$activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
@@ -329,13 +338,14 @@ class ReportsController extends Controller
     /**
      * Get Program Schedules Report
      */
-    public function getProgramSchedulesReport()
+    public function getProgramSchedulesReport(Request $request) // <-- Added Request $request
     {
-        // Step 1: Retrieve the current active semester with academic year details
-        $activeSemester = DB::table('active_semesters')
+        // Step 1: Retrieve the requested semester or fallback to current active
+        $requestedSemesterId = $request->query('active_semester_id');
+
+        $activeSemesterQuery = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
             ->select(
                 'active_semesters.active_semester_id',
                 'active_semesters.semester_id',
@@ -343,8 +353,16 @@ class ReportsController extends Controller
                 'academic_years.year_start',
                 'academic_years.year_end',
                 'semesters.semester'
-            )
-            ->first();
+            );
+
+        // Check for the query parameter
+        if ($requestedSemesterId && $requestedSemesterId !== 'null') {
+            $activeSemesterQuery->where('active_semesters.active_semester_id', $requestedSemesterId);
+        } else {
+            $activeSemesterQuery->where('active_semesters.is_active', 1);
+        }
+
+        $activeSemester = $activeSemesterQuery->first();
 
         if (!$activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
