@@ -77,7 +77,10 @@ export class AdminMainComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeUserData();
-    this.dialog.open(DialogTermsConditionsComponent);
+    
+    if (this.cookieService.get('termsAccepted') !== 'true') {
+      this.dialog.open(DialogTermsConditionsComponent);
+    }
 
     this.router.events
       .pipe(

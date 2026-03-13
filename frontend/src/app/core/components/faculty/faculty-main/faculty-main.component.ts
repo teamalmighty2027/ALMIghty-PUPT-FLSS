@@ -81,8 +81,9 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadFacultyInfo();
-    this.dialog.open(DialogTermsConditionsComponent);
-    console.log('Terms and Conditions dialog opened on FacultyComponent initialization.');
+    if (this.cookieService.get('termsAccepted') !== 'true') {
+      this.dialog.open(DialogTermsConditionsComponent);
+    }
   }
 
   ngAfterViewInit() {

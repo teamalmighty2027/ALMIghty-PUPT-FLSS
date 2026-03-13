@@ -4,13 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router'; // Added Router
 import { AuthService } from '../../core/services/auth/auth.service';
+import { CookieService } from 'ngx-cookie-service';
+import { fadeAnimation } from '../../core/animations/animations';
 
 @Component({
   selector: 'app-dialog-terms-conditions',
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './dialog-terms-conditions.component.html',
-  styleUrl: './dialog-terms-conditions.component.scss'
+  styleUrl: './dialog-terms-conditions.component.scss',
+  animations: [fadeAnimation],
 })
 export class DialogTermsConditionsComponent {
   isAccepted: boolean = false;
@@ -18,8 +21,8 @@ export class DialogTermsConditionsComponent {
   constructor(
     public dialogRef: MatDialogRef<DialogTermsConditionsComponent>,
     private router: Router,
-    private authService: AuthService
-
+    private authService: AuthService,
+    private cookieService: CookieService
   ) {}
 
   /**
@@ -42,6 +45,7 @@ export class DialogTermsConditionsComponent {
   onContinue(): void {
     if (this.isAccepted) {
       this.dialogRef.close(true);
+      this.cookieService.set('termsAccepted', 'true', 365);
     }
   }
 }
