@@ -101,7 +101,11 @@ export class ReportFacultyComponent
   ) {}
 
   ngOnInit(): void {
-    this.fetchFacultyData();
+    // Listen to changes from the dropdown
+    this.reportsService.selectedTerm$.subscribe((termId) => {
+      this.fetchFacultyData(termId);
+    });
+
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((searchQuery) => {
@@ -119,9 +123,9 @@ export class ReportFacultyComponent
     }
   }
 
-  fetchFacultyData(): void {
+  fetchFacultyData(termId: number | null = null): void {
     this.isLoading = true;
-    this.reportsService.getFacultySchedulesReport().subscribe({
+    this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
         const facultyData = response.faculty_schedule_reports.faculties.map(
           (faculty: any) => ({

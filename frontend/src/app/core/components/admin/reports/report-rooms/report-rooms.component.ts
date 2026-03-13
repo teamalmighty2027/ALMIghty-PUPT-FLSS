@@ -91,7 +91,11 @@ export class ReportRoomsComponent
   ) {}
 
   ngOnInit(): void {
-    this.fetchRoomData();
+    // Listen to changes from the dropdown
+    this.reportsService.selectedTerm$.subscribe((termId) => {
+      this.fetchRoomData(termId);
+    });
+
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((searchQuery) => {
@@ -109,9 +113,9 @@ export class ReportRoomsComponent
     }
   }
 
-  fetchRoomData(): void {
+  fetchRoomData(termId: number | null = null): void {
     this.isLoading = true;
-    this.reportsService.getRoomSchedulesReport().subscribe({
+    this.reportsService.getRoomSchedulesReport(termId).subscribe({
       next: (response) => {
         const rooms = response.room_schedule_reports.rooms.map((room: any) => ({
           roomId: room.room_id,

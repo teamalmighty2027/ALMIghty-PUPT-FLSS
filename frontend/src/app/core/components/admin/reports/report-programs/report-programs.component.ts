@@ -124,7 +124,11 @@ export class ReportProgramsComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.fetchProgramsData();
+    // Listen to changes from the dropdown
+    this.reportsService.selectedTerm$.subscribe((termId) => {
+      this.fetchProgramsData(termId);
+    });
+
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((searchQuery) => {
@@ -136,9 +140,9 @@ export class ReportProgramsComponent implements OnInit {
     this.dataSource.paginator = this.paginator;
   }
 
-  fetchProgramsData(): void {
+  fetchProgramsData(termId: number | null = null): void {
     this.isLoading = true;
-    this.reportsService.getProgramSchedulesReport().subscribe({
+    this.reportsService.getProgramSchedulesReport(termId).subscribe({
       next: (response) => {
         const programData: Program[] =
           response.programs_schedule_reports.programs.map((program: any) => ({

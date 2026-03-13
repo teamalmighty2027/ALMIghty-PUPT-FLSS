@@ -1,7 +1,27 @@
-<div class="reports-main">
+<div class="reports-main" style="position: relative;">
+
+  <div class="term-filter-container" style="position: absolute; top: 16px; right: 180px; z-index: 10;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <label for="term-select" style="font-weight: 500; font-size: 14px; margin: 0;">Academic Term:</label>
+      <select 
+        id="term-select" 
+        [(ngModel)]="selectedTermId" 
+        (change)="onTermChange()"
+        style="height: 36px; padding: 0 30px 0 12px; font-size: 14px; border-radius: 20px; border: 1px solid #ccc; outline: none; cursor: pointer; background-color: white;">
+        
+        @for (term of availableTerms; track term.active_semester_id) {
+          <option [ngValue]="term.active_semester_id">
+            {{ term.year_start }}-{{ term.year_end }} ({{ getSemesterLabel(term.semester) }}){{ term.is_active === 1 ? ' - Active' : '' }}
+          </option>
+        }
+      </select>
+    </div>
+  </div>
+
   <div class="reports-content">
     <router-outlet></router-outlet>
   </div>
+  
   <mat-tab-group
     [(selectedIndex)]="selectedTabIndex"
     animationDuration="250ms"
