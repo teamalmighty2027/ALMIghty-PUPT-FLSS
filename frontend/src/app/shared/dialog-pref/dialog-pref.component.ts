@@ -144,7 +144,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
-              year_section: `${course.course_details.year_level}-${course.course_details.section_name}`,
+              year_section: `${course.course_details.year_level}-${course.section_details.section_name}`,
               program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
             }));
           }
@@ -261,7 +261,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours ?? 0,
       units: course.units ?? 0,
       preferred_days: course.preferred_days ?? course.preferredDays ?? [],
-      year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.course_details?.section_name ?? 'N/A'}`,
+      year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.section_details?.section_name ?? 'N/A'}`,
       program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
     }));
 

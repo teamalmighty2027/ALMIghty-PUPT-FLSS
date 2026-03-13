@@ -381,7 +381,6 @@ class PreferenceController extends Controller
      */
     public function getFacultyPreferencesById($faculty_id)
     {
-        // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
             ->where('is_active', 1)
             ->first();
@@ -445,9 +444,11 @@ class PreferenceController extends Controller
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
                     'course_title' => $preference->courseAssignment->course->course_title ?? null,
-                    'year_level'   => $program->year_level  ?? null,
+                    'year_level'   => $program->year_level  ?? null,                    
+                ],
+                'section_details'     => [
                     'section_id'   => $preference->sections_per_program_year_id ?? null,
-                    'section_name' => $preference->section ? $preference->section->section_name : null
+                    'section_name' => $preference->section?->section_name ?? null
                 ],
                 'program_details'      => [
                     'program_id'    => $program->program_id ?? null,
@@ -619,9 +620,11 @@ class PreferenceController extends Controller
                     'course_title' => $course->course_title ?? null,
                     'program_id'   => $program->program_id ?? null,
                     'program_code' => $program->program_code ?? null,
+                    'year_level'   => $section->year_level ?? null,
+                ],
+                'section_details'     => [
                     'section_id'   => $section->sections_per_program_year_id ?? null,
                     'section_name' => $section->section_name ?? null,
-                    'year_level'   => $section->year_level ?? null,
                 ],
                 'lec_hours'      => $course && is_numeric($course->lec_hours) ? (int) $course->lec_hours : 0,
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
