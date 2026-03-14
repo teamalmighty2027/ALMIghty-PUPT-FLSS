@@ -638,7 +638,7 @@ AfterViewChecked, OnDestroy {
             item.course_details.course_code,
             item.course_details.course_title,
             `${item.program_code} ${item.year_level} - ${item.section_name}`,
-            item.room_code,
+            item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
             `${this.formatTime(item.start_time)} - ${this.formatTime(
               item.end_time,
             )}`,

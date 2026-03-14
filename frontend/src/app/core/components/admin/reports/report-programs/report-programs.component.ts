@@ -581,9 +581,11 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
             `For Academic Year ${this.academicYear}, ${this.semester}`,
           );
 
+          const subtitle = `For Academic Year ${this.academicYear}, ${this.semester}`
           this.drawScheduleTable(
             doc,
             section.schedules ?? [],
+            subtitle,
             currentY,
             margin,
             pageWidth,
@@ -641,9 +643,11 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
           `For Academic Year ${this.academicYear}, ${this.semester}`,
         );
 
+        const subtitle = `For Academic Year ${this.academicYear}, ${this.semester}`
         this.drawScheduleTable(
           doc,
           section.schedules ?? [],
+          subtitle,
           currentY,
           margin,
           pageWidth,
@@ -687,6 +691,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   drawScheduleTable(
     doc: jsPDF,
     scheduleData: any[],
+    subtitle: string,
     startY: number,
     margin: number,
     pageWidth: number,
@@ -731,7 +736,8 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         doc.getNumberOfPages() > 1
           ? 'Room Schedule (Continued)'
           : 'Room Schedule',
-        this.getAcademicYearSubtitle(scheduleData[0]),
+        subtitle,
+        // this.getAcademicYearSubtitle(scheduleData[0]),
       );
 
       days.forEach((day, index) => {
@@ -782,7 +788,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
           item.course_details.course_code,
           item.course_details.course_title,
           item.faculty_name,
-          item.room_code,
+          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
           `${this.formatTimeTo12Hour(
             item.start_time,
           )} - ${this.formatTimeTo12Hour(item.end_time)}`,

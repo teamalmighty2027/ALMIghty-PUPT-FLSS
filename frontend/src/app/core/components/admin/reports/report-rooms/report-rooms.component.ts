@@ -187,7 +187,7 @@ export class ReportRoomsComponent
       next: (response) => {
         const rooms = response.room_schedule_reports.rooms.map((room: any) => ({
           roomId: room.room_id,
-          roomCode: room.room_code,
+          roomCode: room.room_code && room.room_code.trim() !== '' ? room.room_code : 'TBA',
           location: room.location,
           floorLevel: room.floor_level,
           capacity: room.capacity,
@@ -332,6 +332,7 @@ export class ReportRoomsComponent
         doc.addPage();
       }
 
+      const subtitle = this.getAcademicYearSubtitle(room);
       let currentY = this.drawHeader(
         doc,
         topMargin,
@@ -339,12 +340,13 @@ export class ReportRoomsComponent
         margin,
         logoSize,
         `Room ${room.roomCode} Schedule`,
-        this.getAcademicYearSubtitle(room),
+        subtitle,
       );
 
       this.drawScheduleTable(
         doc,
         room.schedules ?? [],
+        subtitle,
         currentY,
         margin,
         pageWidth,
@@ -360,6 +362,7 @@ export class ReportRoomsComponent
     const margin = 10;
     const topMargin = 15;
     const logoSize = 22;
+    const subtitle = this.getAcademicYearSubtitle(room);
 
     if (room.schedules && room.schedules.length > 0) {
       let currentY = this.drawHeader(
@@ -369,9 +372,16 @@ export class ReportRoomsComponent
         margin,
         logoSize,
         `Room ${room.roomCode}`,
-        this.getAcademicYearSubtitle(room),
+        subtitle,
       );
-      this.drawScheduleTable(doc, room.schedules, currentY, margin, pageWidth);
+      this.drawScheduleTable(
+        doc, 
+        room.schedules, 
+        subtitle,
+        currentY,
+        margin, 
+        pageWidth
+      );
     }
 
     return doc.output('blob');
@@ -401,6 +411,7 @@ export class ReportRoomsComponent
   drawScheduleTable(
     doc: jsPDF,
     scheduleData: any[],
+    subtitle: string,
     startY: number,
     margin: number,
     pageWidth: number,
@@ -444,7 +455,8 @@ export class ReportRoomsComponent
         doc.getNumberOfPages() > 1
           ? 'Room Schedule (Continued)'
           : 'Room Schedule',
-        this.getAcademicYearSubtitle(scheduleData[0]),
+        subtitle,
+        // this.getAcademicYearSubtitle(scheduleData[0]),
       );
 
       days.forEach((day, index) => {
