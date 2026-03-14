@@ -210,6 +210,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Reports
      */
+    Route::get('/reports/terms', [ReportsController::class, 'getAllTermsForDropdown']);
     Route::get('/faculty-schedules-report', [ReportsController::class, 'getFacultySchedulesReport']);
     Route::get('/room-schedules-report', [ReportsController::class, 'getRoomSchedulesReport']);
     Route::get('/program-schedules-report', [ReportsController::class, 'getProgramSchedulesReport']);
@@ -217,6 +218,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+
+
 
     /**
      * Rooms

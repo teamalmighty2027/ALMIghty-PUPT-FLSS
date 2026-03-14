@@ -1,9 +1,9 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, takeUntil, filter } from 'rxjs/operators';
 
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
@@ -13,9 +13,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
-import { TableHeaderComponent, InputField } from '../../../../../shared/table-header/table-header.component';
+import { InputField } from '../../../../../shared/table-header/table-header.component';
+import { ReportsHeaderComponent } from "../../../../../shared/reports-header/reports-header.component";
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 import { DialogActionComponent } from '../../../../../shared/dialog-action/dialog-action.component';
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
@@ -44,7 +47,6 @@ interface Faculty {
   selector: 'app-report-faculty',
   imports: [
     CommonModule,
-    TableHeaderComponent,
     LoadingComponent,
     MatTableModule,
     MatPaginatorModule,
@@ -54,15 +56,17 @@ interface Faculty {
     MatTooltipModule,
     FormsModule,
     MatDialogModule,
+    MatSelectModule,
+    MatFormFieldModule,
     MatSymbolDirective,
-  ],
+    ReportsHeaderComponent
+],
   templateUrl: './report-faculty.component.html',
   styleUrl: './report-faculty.component.scss',
   animations: [fadeAnimation],
 })
-export class ReportFacultyComponent
-  implements OnInit, AfterViewInit, AfterViewChecked
-{
+export class ReportFacultyComponent implements OnInit, AfterViewInit, 
+AfterViewChecked, OnDestroy {
   inputFields: InputField[] = [
     {
       type: 'text',
@@ -86,12 +90,17 @@ export class ReportFacultyComponent
   hasSchedulesForToggleAll = false;
   isToggleAllChecked = false;
   isLoading = true;
+  isTermsLoading = true;
   hasAnySchedules = false;
   sendEmail = true;
+  availableTerms: any[] = [];
+  selectedTermId: number | null = null;
 
   private searchInput$ = new Subject<string>();
 
   @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     private reportsService: ReportsService,
@@ -101,12 +110,74 @@ export class ReportFacultyComponent
   ) {}
 
   ngOnInit(): void {
-    this.fetchFacultyData();
+    this.reportsService.selectedTerm$
+      .pipe(
+        takeUntil(this.destroy$),
+        filter((termId) => termId !== null),
+      )
+      .subscribe((termId) => {
+        this.fetchFacultyData(termId);
+      });
+
+    this.loadTerms();
+
     this.searchInput$
-      .pipe(debounceTime(300), distinctUntilChanged())
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchQuery) => {
         this.performSearch(searchQuery);
       });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  loadTerms() {
+    this.isTermsLoading = true;
+    this.reportsService.getAllTermsForDropdown().subscribe({
+      next: (data) => {
+        this.availableTerms = data;
+        const currentTermId = this.reportsService.getSelectedTerm();
+        const hasCurrentTerm = currentTermId !== null && data.some(
+          (term) => term.active_semester_id === currentTermId,
+        );
+
+        if (hasCurrentTerm) {
+          this.selectedTermId = currentTermId;
+        } else {
+          const activeTerm = data.find((term) => term.is_active === 1);
+          if (activeTerm) {
+            this.selectedTermId = activeTerm.active_semester_id;
+            this.onTermChange();
+          }
+        }
+
+        this.isTermsLoading = false;
+      },
+      error: (error) => {
+        this.isTermsLoading = false;
+        this.isLoading = false;
+        console.error('Error loading terms:', error);
+      },
+    });
+  }
+
+  onTermChange() {
+    this.reportsService.setSelectedTerm(this.selectedTermId);
+  }
+
+  getSemesterLabel(semesterNumber: number): string {
+    switch (semesterNumber) {
+      case 1:
+        return '1st Semester';
+      case 2:
+        return '2nd Semester';
+      case 3:
+        return 'Summer';
+      default:
+        return `Sem ${semesterNumber}`;
+    }
   }
 
   ngAfterViewInit() {
@@ -119,9 +190,9 @@ export class ReportFacultyComponent
     }
   }
 
-  fetchFacultyData(): void {
+  fetchFacultyData(termId: number | null = null): void {
     this.isLoading = true;
-    this.reportsService.getFacultySchedulesReport().subscribe({
+    this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
         const facultyData = response.faculty_schedule_reports.faculties.map(
           (faculty: any) => ({
@@ -567,7 +638,7 @@ export class ReportFacultyComponent
             item.course_details.course_code,
             item.course_details.course_title,
             `${item.program_code} ${item.year_level} - ${item.section_name}`,
-            item.room_code,
+            item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
             `${this.formatTime(item.start_time)} - ${this.formatTime(
               item.end_time,
             )}`,

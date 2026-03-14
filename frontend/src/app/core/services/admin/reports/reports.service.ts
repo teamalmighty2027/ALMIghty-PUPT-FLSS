@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, shareReplay } from 'rxjs/operators';
 
 import { environment } from '../../../../../environments/environment.dev';
@@ -12,17 +12,22 @@ import { environment } from '../../../../../environments/environment.dev';
 export class ReportsService {
   private baseUrl = environment.apiUrl;
 
+  // State management for the selected term
+  private selectedTermSource = new BehaviorSubject<number | null>(null);
+  selectedTerm$ = this.selectedTermSource.asObservable();
+
+  // Cache structure uses dictionaries to cache data per term
   private cache: {
-    facultySchedulesReport$: Observable<any> | null;
-    roomSchedulesReport$: Observable<any> | null;
-    programSchedulesReport$: Observable<any> | null;
+    facultySchedulesReport: { [termId: string]: Observable<any> };
+    roomSchedulesReport: { [termId: string]: Observable<any> };
+    programSchedulesReport: { [termId: string]: Observable<any> };
     singleFacultySchedule: { [facultyId: number]: Observable<any> };
     academicYearsHistory$: Observable<any[]> | null;
     facultyAcademicYearsHistory: { [facultyId: number]: Observable<any[]> };
   } = {
-    facultySchedulesReport$: null,
-    roomSchedulesReport$: null,
-    programSchedulesReport$: null,
+    facultySchedulesReport: {},
+    roomSchedulesReport: {},
+    programSchedulesReport: {},
     singleFacultySchedule: {},
     academicYearsHistory$: null,
     facultyAcademicYearsHistory: {},
@@ -30,48 +35,65 @@ export class ReportsService {
 
   constructor(private http: HttpClient) {}
 
-  /**
-   * Fetches the cached faculty schedules report or requests it if not cached
-   */
-  getFacultySchedulesReport(): Observable<any> {
-    if (!this.cache.facultySchedulesReport$) {
+  setSelectedTerm(termId: number | null) {
+    this.selectedTermSource.next(termId);
+  }
+
+  getSelectedTerm(): number | null {
+    return this.selectedTermSource.value;
+  }
+
+  getAllTermsForDropdown(): Observable<any[]> {
+    return this.http
+      .get<any[]>(`${this.baseUrl}/reports/terms`)
+      .pipe(catchError(this.handleError));
+  }
+
+  getFacultySchedulesReport(termId: number | null = null): Observable<any> {
+    const cacheKey = termId ? termId.toString() : 'default';
+
+    if (!this.cache.facultySchedulesReport[cacheKey]) {
       const url = `${this.baseUrl}/faculty-schedules-report`;
-      this.cache.facultySchedulesReport$ = this.http
-        .get(url)
+      let params = new HttpParams();
+      if (termId) params = params.set('active_semester_id', termId.toString());
+
+      this.cache.facultySchedulesReport[cacheKey] = this.http
+        .get(url, { params })
         .pipe(shareReplay(1), catchError(this.handleError));
     }
-    return this.cache.facultySchedulesReport$;
+    return this.cache.facultySchedulesReport[cacheKey];
   }
 
-  /**
-   * Fetches the cached room schedules report or requests it if not cached.
-   */
-  getRoomSchedulesReport(): Observable<any> {
-    if (!this.cache.roomSchedulesReport$) {
+  getRoomSchedulesReport(termId: number | null = null): Observable<any> {
+    const cacheKey = termId ? termId.toString() : 'default';
+
+    if (!this.cache.roomSchedulesReport[cacheKey]) {
       const url = `${this.baseUrl}/room-schedules-report`;
-      this.cache.roomSchedulesReport$ = this.http
-        .get(url)
+      let params = new HttpParams();
+      if (termId) params = params.set('active_semester_id', termId.toString());
+
+      this.cache.roomSchedulesReport[cacheKey] = this.http
+        .get(url, { params })
         .pipe(shareReplay(1), catchError(this.handleError));
     }
-    return this.cache.roomSchedulesReport$;
+    return this.cache.roomSchedulesReport[cacheKey];
   }
 
-  /**
-   * Fetches the cached program schedules report or requests it if not cached.
-   */
-  getProgramSchedulesReport(): Observable<any> {
-    if (!this.cache.programSchedulesReport$) {
+  getProgramSchedulesReport(termId: number | null = null): Observable<any> {
+    const cacheKey = termId ? termId.toString() : 'default';
+
+    if (!this.cache.programSchedulesReport[cacheKey]) {
       const url = `${this.baseUrl}/program-schedules-report`;
-      this.cache.programSchedulesReport$ = this.http
-        .get(url)
+      let params = new HttpParams();
+      if (termId) params = params.set('active_semester_id', termId.toString());
+
+      this.cache.programSchedulesReport[cacheKey] = this.http
+        .get(url, { params })
         .pipe(shareReplay(1), catchError(this.handleError));
     }
-    return this.cache.programSchedulesReport$;
+    return this.cache.programSchedulesReport[cacheKey];
   }
 
-  /**
-   * Fetches the schedule for a specific faculty member or requests it if not cached.
-   */
   getSingleFacultySchedule(faculty_id: number): Observable<any> {
     if (!this.cache.singleFacultySchedule[faculty_id]) {
       const url = `${this.baseUrl}/single-faculty-schedule/${faculty_id}`;
@@ -82,24 +104,12 @@ export class ReportsService {
     return this.cache.singleFacultySchedule[faculty_id];
   }
 
-  /**
-   * Fetches the schedule history for a single faculty based on
-   * the selected academic year and semester.
-   */
-  getFacultyScheduleHistory(
-    facultyId: number,
-    activeSemesterId: number
-  ): Observable<any> {
+  getFacultyScheduleHistory(facultyId: number, activeSemesterId: number): Observable<any> {
     const url = `${this.baseUrl}/faculty-schedule-history/${facultyId}`;
-    const params = {
-      active_semester_id: activeSemesterId.toString(),
-    };
+    const params = { active_semester_id: activeSemesterId.toString() };
     return this.http.get(url, { params }).pipe(catchError(this.handleError));
   }
 
-  /**
-   * Fetches the past academic years and semesters where the faculty had schedules.
-   */
   getFacultyAcademicYearsHistory(faculty_id: number): Observable<any[]> {
     if (!this.cache.facultyAcademicYearsHistory[faculty_id]) {
       const url = `${this.baseUrl}/faculty-academic-years-history/${faculty_id}`;
@@ -110,95 +120,48 @@ export class ReportsService {
     return this.cache.facultyAcademicYearsHistory[faculty_id];
   }
 
-  /**
-   * Toggles the publication status of all faculty schedules.
-   */
   togglePublishAllSchedules(is_published: number): Observable<any> {
-    const payload = { is_published };
     return this.http
-      .post(`${this.baseUrl}/toggle-all-schedule`, payload)
+      .post(`${this.baseUrl}/toggle-all-schedule`, { is_published })
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Sends the schedule email to all faculty members.
-   */
   sendAllSchedulesEmail(): Observable<any> {
-    const url = `${this.baseUrl}/email-all-faculty-schedule`;
-    return this.http.post(url, {}).pipe(catchError(this.handleError));
-  }
-
-  /**
-   * Toggles the publication status of a specific faculty member's schedule.
-   */
-  togglePublishSingleSchedule(
-    faculty_id: number,
-    is_published: number
-  ): Observable<any> {
-    const payload = { faculty_id, is_published };
     return this.http
-      .post(`${this.baseUrl}/toggle-single-schedule`, payload)
+      .post(`${this.baseUrl}/email-all-faculty-schedule`, {})
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Sends the schedule email to a specific faculty member.
-   */
+  togglePublishSingleSchedule(faculty_id: number, is_published: number): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/toggle-single-schedule`, { faculty_id, is_published })
+      .pipe(catchError(this.handleError));
+  }
+
   sendSingleFacultyScheduleEmail(faculty_id: number): Observable<any> {
-    const payload = { faculty_id };
     return this.http
-      .post(`${this.baseUrl}/email-single-faculty-schedule`, payload)
+      .post(`${this.baseUrl}/email-single-faculty-schedule`, { faculty_id })
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Clears a specified cache type or a single faculty cache by ID.
-   */
   clearCache(
-    cacheType:
-      | 'faculty'
-      | 'room'
-      | 'program'
-      | 'singleFaculty'
-      | 'academicYears'
-      | 'facultyAcademicYears',
+    cacheType: 'faculty' | 'room' | 'program' | 'singleFaculty' | 'academicYears' | 'facultyAcademicYears',
     faculty_id?: number
   ): void {
     switch (cacheType) {
-      case 'faculty':
-        this.cache.facultySchedulesReport$ = null;
-        break;
-      case 'room':
-        this.cache.roomSchedulesReport$ = null;
-        break;
-      case 'program':
-        this.cache.programSchedulesReport$ = null;
-        break;
-      case 'singleFaculty':
-        if (faculty_id !== undefined) {
-          delete this.cache.singleFacultySchedule[faculty_id];
-        }
-        break;
-      case 'academicYears':
-        this.cache.academicYearsHistory$ = null;
-        break;
-      case 'facultyAcademicYears':
-        if (faculty_id !== undefined) {
-          delete this.cache.facultyAcademicYearsHistory[faculty_id];
-        }
-        break;
-      default:
-        console.warn('Invalid cache type specified');
+      case 'faculty': this.cache.facultySchedulesReport = {}; break;
+      case 'room': this.cache.roomSchedulesReport = {}; break;
+      case 'program': this.cache.programSchedulesReport = {}; break;
+      case 'singleFaculty': if (faculty_id) delete this.cache.singleFacultySchedule[faculty_id]; break;
+      case 'academicYears': this.cache.academicYearsHistory$ = null; break;
+      case 'facultyAcademicYears': if (faculty_id) delete this.cache.facultyAcademicYearsHistory[faculty_id]; break;
     }
   }
 
-  /**
-   * Clears all caches.
-   */
   clearAllCaches(): void {
-    this.cache.facultySchedulesReport$ = null;
-    this.cache.roomSchedulesReport$ = null;
-    this.cache.programSchedulesReport$ = null;
+    this.cache.facultySchedulesReport = {};
+    this.cache.roomSchedulesReport = {};
+    this.cache.programSchedulesReport = {};
     this.cache.singleFacultySchedule = {};
     this.cache.academicYearsHistory$ = null;
     this.cache.facultyAcademicYearsHistory = {};
@@ -206,8 +169,6 @@ export class ReportsService {
 
   private handleError(error: HttpErrorResponse) {
     console.error('An error occurred:', error);
-    return throwError(
-      () => new Error('Something went wrong. Please try again later.')
-    );
+    return throwError(() => new Error('Something went wrong. Please try again later.'));
   }
 }
