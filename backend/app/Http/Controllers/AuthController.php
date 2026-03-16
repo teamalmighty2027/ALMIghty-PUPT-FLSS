@@ -6,11 +6,16 @@ use App\Services\AuditLogger;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Firebase\JWT\ExpiredException;
+use Firebase\JWT\SignatureInvalidException;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
@@ -69,9 +74,8 @@ class AuthController extends Controller
         Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
         Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
-        // Let Laravel know exactly who is logging in for this request
-        // so the AuditLogger can automatically grab their Name, Role, and ID!
-        \Illuminate\Support\Facades\Auth::setUser($user);
+        // AuditLogger automatically grabs their Name, Role, and ID
+        Auth::setUser($user);
 
         // ══════════════════════════════════════════════════════════
         // ← LOG LOGIN ACTION
@@ -152,88 +156,92 @@ class AuthController extends Controller
 
     /**
      * Handles the callback from the IDP after successful authentication
-     * Draft implementation of auth/token
+     * Draft implementation based on the expected JWT structure and validation requirements
      */  
     public function handleIdpCallback(Request $request)
     {
-        // --- STEP 1: VALIDATE THE INCOMING CODE ---
         $request->validate([
-            'client_id'     => 'required|string',
-            'client_secret' => 'required|string',
             'code'          => 'required|string',
         ]);
 
-        $baseUrl = 'https://identity-provider.isaxbsit2027.com/api/v1/';
+        $baseUrl = env('IDP_BASE_URL');
+        $code = $request->input('code');
+        $clientId = env('CLIENT_ID');
+        $clientSecret = env('CLIENT_SECRET');
 
-        // --- STEP 2: EXCHANGE CODE FOR TOKEN ---        
+        // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
         $tokenResponse = Http::withoutVerifying()->asJson()->post(
-            rtrim($baseUrl, '/') . '/auth/token',
+            rtrim($baseUrl, '/') . '/api/v1/auth/token',
             [
-                'client_id'     => $request->input('client_id'),
-                'client_secret' => $request->input('client_secret'),
-                'code'          => $request->input('code'),
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
+                'code'          => $code,
             ]
         );
+        
+        try {
+            if (!$tokenResponse->successful()) {
+                $errorBody = $tokenResponse->json();
+                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                    ? $errorBody['error']
+                    : 'Token exchange failed.';
+                
+                return response()->json([
+                    'message' => 'IDP session has expired. Please log in again.'
+                ], 401);
+            }   
 
-        Log::info('Token exchange response: ', ['status' => $tokenResponse->status(), 'body' => $tokenResponse->body()]);
-        if (!$tokenResponse->successful()) {
-            $errorBody = $tokenResponse->json();
-            $errorMessage = is_array($errorBody) && isset($errorBody['error'])
-                ? $errorBody['error']
-                : 'Token exchange failed.';
+            // --- STEP 2: Verify Token and Fetch User Data ---
+            $accessToken = $tokenResponse->json()['access_token'] ?? null;
+            $meResponse = Http::withoutVerifying()->withToken($accessToken)->get(
+                rtrim($baseUrl, '/') . '/api/v1/me'
+            );
+
+            if (!$meResponse->successful()) {
+                $errorBody = $meResponse->json();
+                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                    ? $errorBody['error']
+                    : 'Failed to fetch user data from IDP.';
+
+                return response()->json([
+                    'error'   => True,
+                    'message' => $errorMessage
+                ], 401);
+            }
+
+            $userData = $meResponse->json();
+
+            $id = $userData['id'] ?? null;
+            $email = $userData['email'] ?? null;
+            $firstName = $userData['first_name'] ?? '';
+            $middleName = $userData['middle_name'] ?? '';
+            $lastName = $userData['last_name'] ?? '';
+            $roles = $userData['roles'] ?? [];
+            $user = null;
+
+            Log::info('Fetched user data from IDP: ', is_array($userData) ? $userData : []);
 
             return response()->json([
-                  'error'   => True,
-                  'message' => $errorMessage
-              ], 401);
-        }
-
-        $tokenData = $tokenResponse->json();
-
-        $accessToken = $tokenData['access_token'] ?? null;
-        $refreshToken = $tokenData['refresh_token'] ?? null;
-
-        if (!$accessToken) {
+                'message' => 'IDP authentication successful.',
+                'token'   => [
+                    'access_token' => $accessToken,
+                    'refresh_token' => $tokenResponse['refresh_token'] ?? null, 
+                    'expires_in'   => $tokenResponse['expires_in'] ?? null, 
+                ],
+                'data'    => [
+                    'id'         => $id,
+                    'email'      => $email,
+                    'first_name' => $firstName,
+                    'middle_name'=> $middleName,
+                    'last_name'  => $lastName,
+                    'roles'      => $roles,
+                ],
+            ]);
+        } catch (Exception $e) {
+            Log::error('Error handling IDP callback: ' . $e->getMessage());
             return response()->json([
-                'error'   => True,
-                'message' => 'Access token missing.'
+                'message' => 'Authentication failed.'
             ], 401);
-        }
-
-        // --- STEP 3: FETCH USER DATA FROM /ME ---
-        $meResponse = Http::withoutVerifying()->withToken($accessToken)->get(
-            rtrim($baseUrl, '/') . '/api/v1/me'
-        );
-
-        if (!$meResponse->successful()) {
-            $errorBody = $meResponse->json();
-            $errorMessage = is_array($errorBody) && isset($errorBody['error'])
-                ? $errorBody['error']
-                : 'Unable to fetch user information.';
-
-            return response()->json([
-                'error'   => True,
-                'message' => $errorMessage
-            ], 401);
-        }
-
-        $userData = $meResponse->json();
-
-        $id = $userData['id'] ?? null;
-        $email = $userData['email'] ?? null;
-        $firstName = $userData['first_name'] ?? '';
-        $middleName = $userData['middle_name'] ?? '';
-        $lastName = $userData['last_name'] ?? '';
-        $roles = $userData['roles'] ?? [];
-
-        $user = null;
-
-        // Success! You now have the user's verified identity data.
-        Log::info('Successfully fetched user data: ', (array) $userData);
-
-        return response()->json([
-            'message' => 'Authentication successful.',
-            'user'    => $userData,
-        ]);
+        }    
     }
 }

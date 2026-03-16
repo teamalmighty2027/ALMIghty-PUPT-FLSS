@@ -184,16 +184,14 @@ export class AuthService {
     const clientId = environmentOAuth.clientId;
     const clientSecret = environmentOAuth.clientSecret;
 
-    window.location.href = `${environmentOAuth.idpUrl}/auth/authorize?client_id=${clientId}`;
+    window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
     const payload = {
-      code,
-      client_id: environmentOAuth.clientId,
-      client_secret: environmentOAuth.clientSecret,
+      code
     };
 
     return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
@@ -312,16 +310,10 @@ export class AuthService {
   
     this.cookieService.set('access_token', access_token, {
       expires: expiryDate,
-      path: '/',
-      sameSite: 'Lax',
-      secure: false,
     });
 
     this.cookieService.set('refresh_token', refresh_token, {
       expires: expiryDate,
-      path: '/',
-      sameSite: 'Lax',
-      secure: false,
     });
 
   }
