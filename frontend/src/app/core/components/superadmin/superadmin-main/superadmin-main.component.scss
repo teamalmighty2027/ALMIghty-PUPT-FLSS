@@ -1,12 +1,18 @@
 @use '../../../../../styles/mixins';
 @use '../../../../../styles/breakpoints' as bp;
 
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 * {
   @include mixins.reset-styles;
 }
 
 .sidenav-container {
-  height: 100%;
+  flex: 1;
   background-color: var(--main-bg);
 }
 
@@ -44,7 +50,7 @@
   .navbar-list {
     display: grid;
     grid-template-rows: 1fr auto;
-    min-height: calc(100vh - 15rem);
+    min-height: calc(100vh - 18rem);
 
     .navbar-group-one {
       @include mixins.flex-layout(
@@ -148,47 +154,23 @@
           }
         }
       }
-
-      .list-item {
-        span {
-          &.light-icon {
-            color: var(--primary-one) !important;
-          }
-
-          &.dark-icon {
-            color: var(--secondary-text) !important;
-          }
-        }
-      }
     }
   }
 }
 
 .sidenav-content {
-  @include mixins.flex-layout(
-    $direction: column,
-    $align: none,
-    $justify: none,
-    $gap: var(--spacing-xl)
-  );
-  padding: var(--spacing-2xl);
-  height: 100%;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 100%;
+  padding: var(--spacing-lg);
+  box-sizing: border-box;
 
-  // Toolbar
   .main-toolbar {
     position: sticky;
     top: 0;
     z-index: 3;
     background: none;
     padding: 0;
-
-    .toggle-button-container {
-      padding-right: var(--spacing-xxs);
-      .toggle-button {
-        @include mixins.flex-layout;
-        color: var(--gradient-light-end);
-      }
-    }
 
     .sidenav-header {
       @include mixins.flex-layout($align: stretch, $justify: space-between);
@@ -206,43 +188,28 @@
 
       .admin-panel {
         @include mixins.flex-layout($align: stretch, $gap: var(--spacing-sm));
-
         .admin-settings {
           @include mixins.flex-layout($gap: var(--spacing-sm));
-
           .panel-button {
             @include mixins.flex-layout;
             background-color: var(--neutral-option);
             border-radius: 50%;
             padding: var(--spacing-smx);
             cursor: pointer;
-
-            .light-icon {
-              color: var(--primary-one);
-              user-select: none;
-            }
-
-            .dark-icon {
-              color: var(--secondary-text);
-              user-select: none;
-            }
-          }
-
-          mat-icon {
-            color: var(--neutral-base);
           }
         }
-
         .admin-account {
           @include mixins.flex-layout(
             $direction: row-reverse,
             $gap: var(--spacing-sm)
           );
+          align-items: center;
           font-size: var(--font-size-smx);
           background-color: var(--neutral-option);
           border-radius: var(--border-radius-xl);
           padding: 0 var(--spacing-md) 0 var(--spacing-xs);
           margin: 2px 0;
+          height: 3.5rem;
 
           .account-text {
             text-align: left;
@@ -259,12 +226,15 @@
 
           .profile-dropdown {
             @include mixins.flex-layout;
+            flex-shrink: 0;
 
             .profile-icon {
-              width: 2.5rem;
-              height: 2.5rem;
+              width: 2.5rem !important;
+              height: 2.5rem !important;
+              object-fit: cover;
               border-radius: 50%;
               user-select: none;
+              display: block;
             }
           }
         }
@@ -273,33 +243,59 @@
   }
 
   .sidenav-main {
+    @include mixins.default-transition;
     @include mixins.hide-scrollbar;
-    height: inherit;
+    flex: 1;
+    background-color: var(--main-bg);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-lg);
+    width: 100%;
+    box-shadow: var(--shadow-level-0);
     overflow: auto;
+  }
+}
+
+// Full-Width Footer
+.admin-footer {
+  background-color: var(--main-bg);
+  padding: var(--spacing-lg) 0;
+  width: 100%;
+  @include mixins.flex-layout($direction: column, $align: center);
+
+  .footer-divider {
+    width: 95%;
+    height: 2px;
+    background-color: #800000;
+    opacity: 0.5;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .footer-content {
+    @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-xs));
+    text-align: center;
+
+    .footer-text {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+    }
+
+    .privacy-links {
+      @include mixins.flex-layout($gap: var(--spacing-sm), $justify: center);
+      
+      .privacyNotice {
+        color: #800000 !important;
+        text-decoration: none !important;
+        font-weight: 500;
+        &:hover { color: #b30000 !important; }
+      }
+      .separator { color: var(--neutral-option); }
+    }
   }
 }
 
 @media (max-width: bp.$breakpoint-md) {
   .sidenav-content {
-    @include mixins.flex-layout(
-      $direction: column,
-      $align: stretch,
-      $justify: flex-start
-    );
     padding: var(--spacing-md);
-
-    .main-toolbar {
-      .sidenav-header {
-        .title-container {
-          .page-title {
-            font-size: var(--font-size-2xl);
-          }
-        }
-      }
-    }
-
-    .sidenav-main {
-      padding: var(--spacing-md);
-    }
+    .sidenav-main { padding: var(--spacing-md); }
   }
 }

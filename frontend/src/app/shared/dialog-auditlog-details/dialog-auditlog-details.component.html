@@ -1,0 +1,57 @@
+<div class="audit-details-container">
+  <header class="dialog-header">
+    <div class="title-group">
+      <span mat-symbol="history" class="header-icon"></span>
+      <h2 class="dialog-title">Audit Log Details</h2>
+    </div>
+    <button mat-icon-button (click)="close()" class="close-button">
+      <span mat-symbol="close"></span>
+    </button>
+  </header>
+
+  <div class="dialog-content">
+    <section class="content-card primary-card">
+      <h3 class="card-label">Current Log Data</h3>
+      <div class="data-list">
+        <div class="data-item">
+          <span class="label">User:</span>
+          <span class="value">{{ data.user }}</span>
+        </div>
+        <div class="data-item">
+          <span class="label">Role:</span>
+          <span class="value accent-text">{{ data.role }}</span>
+        </div>
+        <div class="data-item">
+          <span class="label">Time:</span>
+          <span class="value">{{ data.date_time }}</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="mid-section">
+      <section class="content-card compact">
+        <h3 class="card-label">Action Type</h3>
+        <div class="badge-wrapper">
+          <span class="action-badge" [ngClass]="data.action_type.toLowerCase()">
+            {{ data.action_type }}
+          </span>
+        </div>
+      </section>
+
+      <section class="content-card compact">
+        <h3 class="card-label">System Metadata</h3>
+        <div class="metadata-row">
+          <span class="label">Log ID:</span>
+          <span class="value">#{{ data.id }}</span>
+        </div>
+      </section>
+    </div>
+
+    <section class="content-card summary-card">
+      <h3 class="card-label">Changes Summary</h3>
+      <div class="summary-box">
+        {{ data.changes_summary }}
+      </div>
+    </section>
+  </div>
+</div>

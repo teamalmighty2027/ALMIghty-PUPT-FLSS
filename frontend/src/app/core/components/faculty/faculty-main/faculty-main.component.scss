@@ -542,6 +542,50 @@
   animation-fill-mode: forwards;
 }
 
+// Footer Section
+.admin-footer {
+  margin-top: auto; 
+  padding: var(--spacing-lg) 0;
+  width: 100%;
+  @include mixins.flex-layout($direction: column, $align: center);
+
+  .footer-divider {
+    width: 100%; 
+    height: 2px;
+    background-color: #800000;
+    opacity: 0.5;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .footer-content {
+    @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-xs));
+    text-align: center;
+
+    .footer-text {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+    }
+
+    .privacy-links {
+      @include mixins.flex-layout($gap: var(--spacing-sm), $justify: center);
+      
+      .privacyNotice {
+        color: #800000 !important;
+        text-decoration: none !important;
+        font-weight: 500;
+        &:hover { color: #b30000 !important; }
+      }
+      .separator { color: var(--neutral-option); }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .admin-footer {
+    padding-bottom: 5rem;
+  }
+}
+
 // ==========================
 // KEYFRAMES FOR ANIMATIONS
 // ==========================

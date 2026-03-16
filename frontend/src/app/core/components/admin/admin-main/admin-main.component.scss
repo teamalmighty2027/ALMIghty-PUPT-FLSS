@@ -152,7 +152,8 @@
 }
 
 .sidenav-content {
-  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+  display: flex !important;
+  flex-direction: column !important;
   min-height: 100%;
   padding: var(--spacing-lg);
   box-sizing: border-box;
@@ -276,15 +277,20 @@
 
   // Footer Section
   .admin-footer {
-    margin-top: auto;
-    padding: var(--spacing-md) 0;
+    margin-top: auto; 
+    padding: var(--spacing-lg) 0;
     width: 100%;
 
+    padding-right: 16rem; 
+
+    @include mixins.flex-layout($direction: column, $align: center);
+
     .footer-divider {
-      height: 1px;
+      width: 100%; 
+      height: 2px;
       background-color: #800000;
-      margin-bottom: var(--spacing-md);
       opacity: 0.5;
+      margin-bottom: var(--spacing-md);
     }
 
     .footer-content {
@@ -294,33 +300,22 @@
       .footer-text {
         font-size: var(--font-size-sm);
         color: var(--neutral-base);
-        margin: 0;
       }
 
       .privacy-links {
-        @include mixins.flex-layout($gap: var(--spacing-sm));
-        font-size: var(--font-size-sm);
-
+        @include mixins.flex-layout($gap: var(--spacing-sm), $justify: center);
+        
         .privacyNotice {
-          color: #800000 !important; // Maroon red
-          text-decoration: none !important; // No underline
+          color: #800000 !important;
+          text-decoration: none !important;
           font-weight: 500;
-          transition: color 0.3s ease;
-
-          &:hover {
-            color: #b30000 !important;
-          }
+          &:hover { color: #b30000 !important; }
         }
 
-        .separator {
-          color: var(--neutral-option);
-        }
+        .separator { color: var(--neutral-option); }
 
-        // Dark mode link color shift
         :host-context(.dark-mode) & {
-          .privacyNotice {
-            color: #ff4d4d !important;
-          }
+          .privacyNotice { color: #ff4d4d !important; }
         }
       }
     }
@@ -345,6 +340,14 @@
     .sidenav-main {
       padding: var(--spacing-md);
     }
+    
+    // Reset the centering trick on mobile where the sidebar is hidden
+    .admin-footer {
+       width: 100%;
+       left: 0;
+       right: 0;
+       margin-left: 0;
+       margin-right: 0;
+    }
   }
 }
-
