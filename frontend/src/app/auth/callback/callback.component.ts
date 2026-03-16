@@ -88,15 +88,15 @@ export class CallbackComponent implements OnInit, OnDestroy {
           )
           .subscribe({
             next: (response) => {
-              // This is a placholder implementation before the token is decoded
               // Redirect based on user role
-              const role = response.data.roles[0];
+              const role = response.data.roles;
 
-              if (role === 'ROLE_FACULTY') {
+              if (role === 'faculty') {
+                console.log('Redirecting to faculty home');
                 this.router.navigate(['/faculty/home']);
-              } else if (role === 'ROLE_ADMIN') {
+              } else if (role === 'admin') {
                 this.router.navigate(['/admin']);
-              } else if (role === 'ROLE_SUPERADMIN') {
+              } else if (role === 'superadmin') {
                 this.router.navigate(['/superadmin']);
               } else {
                 this.handleError('Unknown user role');

@@ -190,14 +190,30 @@ export class AuthService {
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
-    const payload = {
-      code
-    };
+    const payload = { code };
 
-    return this.http.post(`${this.baseUrl}/auth/callback`, payload).pipe(
-      tap((response: any) => {
-        this.setIdpToken(response.data.access_token, response.data.refresh_token, response.data.expires_in);        
+    return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
+      switchMap((response) => {
+        // Extract token and user data from backend response
+        const token = response.token;
+        const user = response.data;
+
+        if (!token?.access_token) {
+          throw new Error('No access token received');
+        }
+
+        // Calculate expiry date
+        const expiresIn = token.expires_in || 3600; // fallback to 1 hour if not present
+        const expiryDate = new Date();
+        expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
+
+        // Set cookies for access token, refresh token, and user info
+        this.cookieService.set('access_token', token.access_token, expiryDate, '/');
+        this.cookieService.set('refresh_token', token.refresh_token, expiryDate, '/');        
+        this.setUserInfo(user, expiryDate.toISOString());
+
         console.log('IDP callback response:', response);
+        return of(response);
       }),
     );
   }
@@ -308,14 +324,8 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
   
-    this.cookieService.set('access_token', access_token, {
-      expires: expiryDate,
-    });
-
-    this.cookieService.set('refresh_token', refresh_token, {
-      expires: expiryDate,
-    });
-
+    this.cookieService.set('access_token', access_token, expiryDate, '/');
+    this.cookieService.set('refresh_token', refresh_token, expiryDate, '/');
   }
 
   private setToken(fesrToken: string, expiresIn: number): void {

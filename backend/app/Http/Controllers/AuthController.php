@@ -192,7 +192,8 @@ class AuthController extends Controller
             }   
 
             // --- STEP 2: Verify Token and Fetch User Data ---
-            $accessToken = $tokenResponse->json()['access_token'] ?? null;
+            $token = $tokenResponse->json() ?? null;
+            $accessToken = $token['access_token'] ?? null;
             $meResponse = Http::withoutVerifying()->withToken($accessToken)->get(
                 rtrim($baseUrl, '/') . '/api/v1/me'
             );
@@ -221,20 +222,30 @@ class AuthController extends Controller
 
             Log::info('Fetched user data from IDP: ', is_array($userData) ? $userData : []);
 
+            // Store the token and user info in cookies
+            Cookie::queue(Cookie::make('user_token', json_encode($token), 1440, null, null, true, true));
+            Cookie::queue(Cookie::make('access_token', $accessToken, 1440, '/'));
+            Cookie::queue(Cookie::make('refresh_token', $token['refresh_token'] ?? '', 1440, '/'));
+            Cookie::queue(Cookie::make('user_info', json_encode($userData), 1440, '/'));
+
+            // Temporarily check database for user with matching email, if not found create new user with default role
+            $user = User::where('email', $email)->first();
+
             return response()->json([
                 'message' => 'IDP authentication successful.',
                 'token'   => [
                     'access_token' => $accessToken,
-                    'refresh_token' => $tokenResponse['refresh_token'] ?? null, 
-                    'expires_in'   => $tokenResponse['expires_in'] ?? null, 
+                    'refresh_token' => $token['refresh_token'] ?? null, 
+                    'expires_in'   => $token['expires_in'] ?? null, 
                 ],
                 'data'    => [
                     'id'         => $id,
                     'email'      => $email,
+                    'name'       => trim($firstName . ' ' . $middleName . ' ' . $lastName),
                     'first_name' => $firstName,
                     'middle_name'=> $middleName,
                     'last_name'  => $lastName,
-                    'roles'      => $roles,
+                    'roles'      => $user ? $user->role : null,
                 ],
             ]);
         } catch (Exception $e) {
