@@ -1,9 +1,9 @@
-import { Component, OnInit, AfterViewInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { BehaviorSubject, Subject } from 'rxjs';
-import { filter, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { filter, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSlideToggleModule, MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -69,7 +69,7 @@ interface ToggleState {
   animations: [fadeAnimation],
 })
 export class ManagePreferencesComponent
-  implements OnInit, AfterViewInit, OnDestroy
+  implements OnInit, OnDestroy
 {
   inputFields: InputField[] = [
     {
@@ -118,7 +118,15 @@ export class ManagePreferencesComponent
   // Search Subject
   private searchSubject = new Subject<string>();
 
-  @ViewChild(MatPaginator) paginator?: MatPaginator;
+  paginator?: MatPaginator;
+
+  @ViewChild(MatPaginator)
+  set matPaginator(p: MatPaginator | undefined) {
+    this.paginator = p;
+    if (p) {
+      this.dataSource.paginator = p;
+    }
+  }
 
   // Add the destroy$ Subject property
   private destroy$ = new Subject<void>();
@@ -140,11 +148,6 @@ export class ManagePreferencesComponent
       .subscribe((searchValue) => {
         this.applyFilter(searchValue);
       });
-  }
-
-  ngAfterViewInit(): void {
-    this.dataSource.paginator = this.paginator ?? null;
-    this.applyFilter(this.currentFilter);
   }
 
   // Add ngOnDestroy lifecycle hook to clean up subscriptions
@@ -229,11 +232,11 @@ export class ManagePreferencesComponent
       );
     }
 
+    this.dataSource.data = this.filteredData;
+
     if (this.paginator) {
       this.paginator.firstPage();
     }
-
-    this.updateDisplayedData();
   }
 
   /**
@@ -254,13 +257,7 @@ export class ManagePreferencesComponent
    * Updates the data displayed in the table based on pagination.
    */
   updateDisplayedData(): void {
-    if (this.paginator) {
-      const startIndex = this.paginator.pageIndex * this.paginator.pageSize;
-      const endIndex = startIndex + this.paginator.pageSize;
-      this.dataSource.data = this.filteredData.slice(startIndex, endIndex);
-    } else {
-      this.dataSource.data = [...this.filteredData];
-    }
+    this.dataSource.data = [...this.filteredData];
   }
 
   /**
@@ -688,6 +685,7 @@ export class ManagePreferencesComponent
                 return [
                   (index + 1).toString(),
                   course.course_details?.program_code || 'N/A',
+                  course.course_details?.year_level + '-' + course.course_details?.section_name || 'N/A',                
                   course.course_details?.course_code || 'N/A',
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
@@ -703,6 +701,7 @@ export class ManagePreferencesComponent
               [
                 '#',
                 'Program Code',
+                'Year & Section',
                 'Course Code',
                 'Course Title',
                 'Lec',
@@ -733,12 +732,13 @@ export class ManagePreferencesComponent
               columnStyles: {
                 0: { cellWidth: 10 },
                 1: { cellWidth: 20 },
-                2: { cellWidth: 30 },
-                3: { cellWidth: 50 },
-                4: { cellWidth: 13 },
+                2: { cellWidth: 20 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 40 },
                 5: { cellWidth: 13 },
                 6: { cellWidth: 13 },
-                7: { cellWidth: 55 },
+                7: { cellWidth: 13 },
+                8: { cellWidth: 40 },
               },
               margin: { left: 10, right: 10 },
             };

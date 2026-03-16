@@ -1,13 +1,15 @@
 <div class="report-container">
   <!--Display while loading-->
-  @if (isLoading) {
+  @if (isLoading || isTermsLoading) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
   </div>
   } @else {
+    
   <!-- Rooms Report Header-->
   <div class="report-header-container" [@fadeAnimation]>
-    <app-table-header
+    <app-reports-header
+      [(selectedTermId)]="selectedTermId"
       [inputFields]="inputFields"
       [showExportButton]="true"
       [showAddButton]="false"
@@ -18,7 +20,7 @@
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)"
     >
-    </app-table-header>
+    </app-reports-header>
   </div>
 
   <!-- Rooms List Report Table -->

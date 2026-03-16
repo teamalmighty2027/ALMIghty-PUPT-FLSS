@@ -1,13 +1,15 @@
 <div class="report-container">
   <!--Display while loading-->
-  @if (isLoading) {
+  @if (isLoading || isTermsLoading) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
   </div>
   } @else {
   <!-- Faculty Report Header-->
   <div class="report-header-container" [@fadeAnimation]>
-    <app-table-header
+    
+    <app-reports-header
+      [(selectedTermId)]="selectedTermId"
       [inputFields]="inputFields"
       [showExportButton]="true"
       [showAddButton]="false"
@@ -18,7 +20,7 @@
         !hasAnySchedules ? 'No schedules available for export' : ''
       "
     >
-    </app-table-header>
+    </app-reports-header>
   </div>
 
   <!-- Faculty List Report Table -->

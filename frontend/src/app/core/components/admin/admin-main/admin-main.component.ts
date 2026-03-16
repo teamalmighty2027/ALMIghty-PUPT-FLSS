@@ -24,6 +24,7 @@ import { ThemeService } from '../../../services/theme/theme.service';
 import { CookieService } from 'ngx-cookie-service';
 
 import { slideInAnimation, fadeAnimation } from '../../../animations/animations';
+import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
 @Component({
   selector: 'app-admin-main',
@@ -76,6 +77,10 @@ export class AdminMainComponent implements OnInit {
 
   ngOnInit(): void {
     this.initializeUserData();
+    
+    if (this.cookieService.get('termsAccepted') !== 'true') {
+      this.dialog.open(DialogTermsConditionsComponent);
+    }
 
     this.router.events
       .pipe(

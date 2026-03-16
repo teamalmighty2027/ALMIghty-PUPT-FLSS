@@ -22,6 +22,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { CookieService } from 'ngx-cookie-service';
 import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-password/dialog-change-password.component';
+import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
 @Component({
   selector: 'app-superadmin-main',
@@ -83,6 +84,11 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
 
   ngOnInit(): void {
     this.initializeUserData();
+    
+    if (this.cookieService.get('termsAccepted') !== 'true') {
+      this.dialog.open(DialogTermsConditionsComponent);
+    }
+
     this.router.events
       .pipe(
         filter(

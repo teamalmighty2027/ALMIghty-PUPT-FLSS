@@ -1,7 +1,4 @@
-<!--Page Container-->
-
 <mat-sidenav-container class="sidenav-container" autosize="true">
-  <!--Side Nav Bar (Left Side)-->
   <mat-sidenav
     #drawer
     class="sidenav"
@@ -23,7 +20,6 @@
     </div>
     <mat-nav-list class="navbar-list">
       <div class="navbar-group-one">
-        <!--Overview-->
         <a
           mat-list-item
           class="list-item"
@@ -32,7 +28,6 @@
           <span mat-symbol="dashboard" matListItemIcon></span>
           <span matListItemTitle>Overview</span>
         </a>
-        <!--Faculty Preferences-->
         <a
           mat-list-item
           class="list-item"
@@ -41,7 +36,6 @@
           <span mat-symbol="groups" matListItemIcon></span>
           <span matListItemTitle>Faculty Preferences</span>
         </a>
-        <!--Academic Years-->
         <a
           mat-list-item
           class="list-item"
@@ -50,7 +44,6 @@
           <span mat-symbol="date_range" matListItemIcon></span>
           <span matListItemTitle>Academic Years</span>
         </a>
-        <!--Scheduling-->
         <a
           mat-list-item
           class="list-item"
@@ -59,7 +52,6 @@
           <span mat-symbol="schedule" matListItemIcon></span>
           <span matListItemTitle>Scheduling</span>
         </a>
-        <!--Reports-->
         <a
           mat-list-item
           class="list-item"
@@ -68,7 +60,6 @@
           <span mat-symbol="bar_chart" matListItemIcon></span>
           <span matListItemTitle>Official Reports</span>
         </a>
-        <!--Rescheduling-->
         <a
           mat-list-item
           class="list-item"
@@ -80,11 +71,9 @@
       </div>
       
 
-      <!-- Mobile Admin Controls -->
       @if (isHandset$ | async) {
       <div class="navbar-group-two">
         <div class="mobile-admin-settings">
-          <!-- Theme Toggle -->
           <a mat-list-item class="list-item" (click)="toggleTheme()">
             <span
               [mat-symbol]="
@@ -106,19 +95,16 @@
           </a>
         </div>
 
-        <!-- Logout -->
         <a mat-list-item class="list-item" (click)="logout()">
           <span mat-symbol="door_open" matListItemIcon></span>
           <span matListItemTitle>Logout</span>
         </a>
 
-        <!-- Change Password -->
         <a mat-list-item class="list-item" (click)="openChangePasswordDialog()">
           <span mat-symbol="lock" matListItemIcon></span>
           <span matListItemTitle>Change Password</span>
         </a>
 
-        <!-- Admin Account Info -->
         <div class="mobile-admin-account">
           <div class="profile-dropdown">
             <img
@@ -136,11 +122,8 @@
     </mat-nav-list>
   </mat-sidenav>
 
-  <!--Side Nav Content (Right Side)-->
   <mat-sidenav-content class="sidenav-content">
-    <!--Main Toolbar-->
     <mat-toolbar class="main-toolbar">
-      <!--Displays toggle sidenav button-->
       @if (isHandset$ | async) {
       <div class="toggle-button-container">
         <button
@@ -154,19 +137,14 @@
       </div>
       }
 
-      <!--Actual sidenav content-->
       <header class="sidenav-header">
-        <!--Page Title-->
         <div class="title-container">
           <h1 class="page-title">{{ pageTitle }}</h1>
         </div>
 
-        <!-- Admin Panel - Only show when not in handset mode -->
         @if ((isHandset$ | async) === false) {
         <div class="admin-panel">
-          <!--Admin Settings-->
           <div class="admin-settings">
-            <!-- Night Mode Button -->
             <div
               class="panel-button theme"
               [matTooltip]="
@@ -189,7 +167,6 @@
                 "></span>
             </div>
 
-            <!-- Logout Button -->
             <div
               class="panel-button logout"
               matTooltip="Log out"
@@ -198,7 +175,6 @@
               <span mat-symbol="door_open"></span>
             </div>
 
-            <!-- Change Password Button -->
             <div
               class="panel-button change-password"
               matTooltip="Change Password"
@@ -208,7 +184,6 @@
             </div>
           </div>
 
-          <!-- Admin Account -->
           <div class="admin-account">
             <div class="account-text">
               <div class="account-name">{{ accountName }}</div>
@@ -225,9 +200,23 @@
         }
       </header>
     </mat-toolbar>
-    <!-- Main Content -->
     <div class="sidenav-main" [ngClass]="{ 'reports-view': isReportsView }">
       <router-outlet></router-outlet>
     </div>
+
+    <footer class="admin-footer">
+      <div class="footer-divider"></div>
+      <div class="footer-content">
+        <p class="footer-text">
+          © 2026 PUP Taguig Faculty Loading & Scheduling System. All rights reserved.
+        </p>
+        <div class="privacy-links">
+          <a href="https://www.pup.edu.ph/privacy/" target="_blank" class="privacyNotice">Privacy Policy</a>
+          <span class="separator">|</span>
+          <a href="https://www.pup.edu.ph/terms/" target="_blank" class="privacyNotice">Terms and Conditions</a>
+        </div>
+      </div>
+    </footer>
+
   </mat-sidenav-content>
 </mat-sidenav-container>

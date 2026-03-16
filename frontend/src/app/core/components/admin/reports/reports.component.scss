@@ -137,3 +137,7 @@
     @include mixins.flex-layout($gap: var(--spacing-xs));
   }
 }
+
+.reports-main-relative {
+  position: relative;
+}

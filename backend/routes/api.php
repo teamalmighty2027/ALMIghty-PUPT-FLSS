@@ -210,6 +210,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Reports
      */
+    Route::get('/reports/terms', [ReportsController::class, 'getAllTermsForDropdown']);
     Route::get('/faculty-schedules-report', [ReportsController::class, 'getFacultySchedulesReport']);
     Route::get('/room-schedules-report', [ReportsController::class, 'getRoomSchedulesReport']);
     Route::get('/program-schedules-report', [ReportsController::class, 'getProgramSchedulesReport']);
@@ -217,6 +218,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+
+
 
     /**
      * Rooms
@@ -296,6 +299,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['check.hmac:frrs'])->group(function () {
         Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
         Route::get('/course/files', [ExternalController::class, 'courseFiles']);
+    });
+
+    /**
+     * Dental Management System (DMS), Accreditation System (Accred)
+     */
+    Route::middleware(['check.hmac:dms,accred,frrs'])->group(function () {
+        Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 
     /**

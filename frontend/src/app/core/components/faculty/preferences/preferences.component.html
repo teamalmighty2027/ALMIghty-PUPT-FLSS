@@ -128,7 +128,7 @@
           <h3 class="cards-label">
             <span mat-symbol="school"></span>Select a Course
           </h3>
-          <div class="programs-scroll-container">
+          <div class="courses-scroll-container">
             <div [@cardEntranceAnimation]="courses().length">
               @for (course of courses(); track course.course_id) {
               <div
@@ -139,6 +139,9 @@
                   <span class="course-code">{{ course.course_code }}</span>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
+                <button mat-icon-button class="add-button">
+                  <span mat-symbol="add" variant="outlined" size="20px"></span>
+                </button>
               </div>
               }
             </div>
@@ -161,6 +164,9 @@
                   <span class="course-code">{{ course.course_code }}</span>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
+                <button mat-icon-button class="add-button">
+                  <span mat-symbol="add" variant="outlined" size="20px"></span>
+                </button>
               </div>
               }
             </div>
@@ -170,7 +176,7 @@
         <div id="courses_list">
           <h3 class="cards-label">
             <span mat-symbol="school"></span>
-            Select Courses
+            Select a Course
           </h3>
           <div class="courses-scroll-container">
             <div [@cardEntranceAnimation]="filteredCourses().length">

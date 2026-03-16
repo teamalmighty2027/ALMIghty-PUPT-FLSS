@@ -26,7 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { CookieService } from 'ngx-cookie-service';
-import { Program, Course, PreferredDay } from '../../../models/preferences.model';
+import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -82,9 +82,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   selectedProgram = signal<Program | undefined>(undefined);
   selectedYearLevel = signal<number | null>(null);  
   selectedCourse = signal<Course | null>(null);
-  // TODO: Refactor to use Section object
-  selectedSection = signal<string | undefined>(undefined);
-  selectedSectionId = signal<number | undefined>(undefined);
+  selectedSection = signal<Section | undefined>(undefined);
+  // selectedSectionId = signal<number | undefined>(undefined);
 
   // Temporary hardcoded year level as four
   dynamicYearLevels = computed(() =>
@@ -304,8 +303,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       lab_hours: course.lab_hours,
       units: course.units,
       year_level: course.course_details.year_level,
-      section_id: course.course_details.section_id ?? null,
-      section_name: course.course_details.section_name ?? null,
+      section: {
+        section_id: course.section_details?.section_id ?? null,
+        section_name: course.section_details?.section_name ?? '',
+      },
       preferredDays: course.preferred_days.map((prefDay: any) => ({
         day: prefDay.day,
         start_time: this.formatTimeForPayload(prefDay.start_time),
@@ -316,7 +317,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
       program_details: course.program_details ?? undefined,
-      year_section:  `${course.course_details.year_level}-${course.course_details.section_name}`
+      year_section:  `${course.course_details.year_level}-${course.section_details?.section_name ?? ''}`
     }));
   }
 
@@ -509,13 +510,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Clears search query and resets search state
    */
   public clearSearch(): void {
+    this.selectedProgram.set(undefined);
     this.searchQuerySubject.next('');
   }
 
   /**
    * Course Management
    */
-  public async addCourseToTable(course: Course): Promise<void> {    
+  public async addCourseToTable(course: Course): Promise<void> {   
+    
     if (this.selectedProgram() === undefined) {
       this.populatePossiblePrograms(course);
       return;
@@ -523,10 +526,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
-    
-    course.section_name = this.selectedSection();
-    course.section_id = this.selectedSectionId() ?? null;
-    
+
+    const section = this.selectedSection();
+    if (section) {
+      course.section = section;
+    } else {
+      this.showSnackBar('Please select a section for this course.');
+      return;
+    }
+
     if (this.isCourseAlreadyAdded(course)) {
       this.showSnackBar('You already selected this course.');
       return;
@@ -541,14 +549,13 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       })),
       isSubmitted: false,
       program_details: this.selectedProgram(),
-      year_section: `${course.year_level}-${course.section_name}`
+      year_section: `${course.year_level}-${course.section.section_name}`
     };
 
     // Reset selections after adding course to table
     this.selectedProgram.set(undefined);
     this.selectedCourse.set(null);
     this.selectedSection.set(undefined);
-    this.selectedSectionId.set(undefined);
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
     this.showSnackBar(
       `${course.course_code} successfully added to your preferences.`,
@@ -571,7 +578,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   private removeSubmittedCourse(course: TableData) {
     const { course_assignment_id } = course;
-    const { section_id } = course;
+    const { section_id } = course.section;
     if (!this.facultyId() || !this.activeSemesterId()) {
       this.showSnackBar('Error: Missing faculty or semester information.');
       return;
@@ -593,7 +600,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         next: () => {
           this.allSelectedCourses.update((courses) =>
             courses.filter((c) => !(c.course_id === course.course_id 
-              && c.section_name === course.section_name)),
+              && c.section.section_name === course.section.section_name)),
           );
           this.isRemoving.update((value) => {
             const updatedValue = { ...value };
@@ -624,8 +631,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
       courses.filter((c) => !(c.course_id === course.course_id 
-        && c.section_name === course.section_name),
-    ));
+        && c.section.section_name === course.section.section_name)),
+    );
   }
 
   /**
@@ -634,7 +641,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private isCourseAlreadyAdded(course: Course): boolean {
     const isAdded = this.allSelectedCourses().some(      
       (subject) => subject.course_id === course.course_id 
-      && subject.section_id === course.section_id,
+      && subject.section.section_id === course.section.section_id,
     );
     return isAdded;
   }
@@ -658,8 +665,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       const firstSection = targetYear.sections[0];
 
       if (firstSection) {
-        this.selectedSectionId.set(firstSection.section_id);
-        this.selectedSection.set(firstSection.section_name);
+        this.selectedSection.set(firstSection);
       }
       return true;
     }
@@ -675,8 +681,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    this.selectedSection.set(result.section_name);
-    this.selectedSectionId.set(result.section_id);
+    this.selectedSection.set(result);
 
     return true;
   }
@@ -695,7 +700,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           facultyId: this.facultyId(),
           activeSemesterId: this.activeSemesterId(),
           courseAssignmentId: element.course_assignment_id,
-          section_id: element.section_id,
+          section_id: element.section.section_id,
           allSelectedCourses: this.allSelectedCourses(),
         },
         disableClose: true,
@@ -706,7 +711,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         if (result) {
           const courseIndex = this.allSelectedCourses().findIndex(
             (c) => c.course_id === element.course_id 
-              && c.section_id === element.section_id,
+              && c.section.section_id === element.section.section_id,
           );
 
           if (courseIndex !== -1) {
@@ -816,8 +821,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   public formatSelectedDaysAndTime(element: TableData): string {
-    const selectedDays = element.preferredDays
+    const sortedDays = element.preferredDays
       .filter((pd) => pd.start_time && pd.end_time)
+      .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
       .map(
         (pd) =>
           `${pd.day} (${this.formatTime(pd.start_time)} - ${this.formatTime(
@@ -826,7 +832,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       )
       .join('\n');
 
-    return selectedDays || 'Click to select day and time';
+    return sortedDays || 'Click to select day and time';
   }
 
   private formatTime(time: string): string {

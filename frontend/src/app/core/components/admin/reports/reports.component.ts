@@ -1,15 +1,18 @@
 import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
-
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
-
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 
 @Component({
   selector: 'app-reports',
-  imports: [CommonModule, MatTabsModule, RouterModule, MatSymbolDirective],
+  imports: [
+    CommonModule, 
+    MatTabsModule, 
+    RouterModule, 
+    MatSymbolDirective,
+  ],
   templateUrl: './reports.component.html',
   styleUrl: './reports.component.scss',
   encapsulation: ViewEncapsulation.None,
