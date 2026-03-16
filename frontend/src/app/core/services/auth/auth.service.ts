@@ -10,8 +10,6 @@ import { CookieService } from 'ngx-cookie-service';
 import { environment } from '../../../../environments/environment.dev';
 import { environmentOAuth } from '../../../../environments/env.auth';
 
-import { FesrHealthService } from '../health/fesr-health.service';
-
 export interface LoginError {
   message: string;
   status: number;
@@ -35,135 +33,12 @@ interface OAuthTokenResponse {
 })
 export class AuthService {
   private baseUrl = environment.apiUrl;
-  private fesrUrl = environmentOAuth.fesrUrl;
-  private clientId = environmentOAuth.clientId;
-  private clientSecret = environmentOAuth.clientSecret;
-  private redirectUri = `${environment.appUrl}/auth/callback`;
 
   constructor(
     private http: HttpClient,
     private cookieService: CookieService,
     private router: Router,
-    private fesrHealthService: FesrHealthService,
   ) {}
-
-  // ==============================
-  // OAuth-based FESR auth methods (Deprecated)
-  // ==============================
-  checkFesrHealth(): Observable<boolean> {
-    return this.fesrHealthService.checkHealth();
-  }
-
-  // Initiate OAuth flow
-  initiateFesrLogin(): void {
-    const state = this.generateRandomState();
-    console.log('Generated state:', state);
-
-    // Store state in localStorage instead of cookies/sessionStorage
-    localStorage.setItem('oauth_state', state);
-
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
-      state: state,
-    });
-
-    window.location.href = `${
-      environmentOAuth.fesrFrontendUrl
-    }/auth/oauth?${params.toString()}`;
-  }
-
-  // Handle OAuth callback
-  handleCallback(code: string, state: string): Observable<OAuthTokenResponse> {
-    console.log('Handling callback with state:', state);
-
-    const savedState = localStorage.getItem('oauth_state');
-    console.log('Saved state:', savedState);
-
-    if (!savedState) {
-      console.error('No saved state found in localStorage');
-      throw new Error('No saved state found');
-    }
-
-    if (state !== savedState) {
-      console.error('State mismatch:', { received: state, saved: savedState });
-      throw new Error('Invalid state parameter');
-    }
-
-    // Clear the state after verification
-    localStorage.removeItem('oauth_state');
-
-    const tokenRequest = {
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: this.redirectUri,
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-    };
-
-    return this.http
-      .post<OAuthTokenResponse>(`${this.fesrUrl}/api/oauth/token`, tokenRequest)
-      .pipe(
-        switchMap((response) => {
-          if (!response.access_token) {
-            throw new Error('No access token received');
-          }
-
-          this.setToken(response.access_token, response.expires_in);
-
-          if (!response.faculty_data) {
-            throw new Error('No faculty data received');
-          }
-
-          return this.processFacultyData(
-            response.faculty_data,
-            response.access_token,
-          ).pipe(
-            tap((processResponse) => {
-              const expiryDate = new Date(processResponse.expires_at);
-
-              // Store Sanctum token
-              this.setSanctumToken(
-                processResponse.token,
-                processResponse.expires_at,
-              );
-
-              const userInfo = {
-                id: processResponse.user.id,
-                name: processResponse.user.name,
-                email: processResponse.user.email,
-                role: processResponse.user.role,
-                faculty: {
-                  faculty_id: processResponse.user.faculty.faculty_id,
-                  faculty_type: processResponse.user.faculty.faculty_type,
-                  faculty_units: processResponse.user.faculty.faculty_units,
-                },
-              };
-
-              this.setUserInfo(userInfo, expiryDate.toISOString());
-            }),
-            map(() => response),
-          );
-        }),
-      );
-  }
-
-  validateFesrToken(token: string): Observable<any> {
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-    return this.http.post(
-      `${this.fesrUrl}/api/oauth/validate`,
-      {},
-      { headers },
-    );
-  }
-
-  processFacultyData(facultyData: any, fesrToken: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/oauth/process-faculty`, {
-      faculty_data: facultyData,
-      fesr_token: fesrToken,
-    });
-  }
 
   // ==============================
   // IDP auth methods 
@@ -328,19 +203,6 @@ export class AuthService {
     this.cookieService.set('refresh_token', refresh_token, expiryDate, '/');
   }
 
-  private setToken(fesrToken: string, expiresIn: number): void {
-    const expiryDate = new Date();
-    expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
-
-    // Store FESR token separately
-    this.cookieService.set('fesr_token', fesrToken, {
-      expires: expiryDate,
-      path: '/',
-      sameSite: 'Lax',
-      secure: false,
-    });
-  }
-
   setSanctumToken(sanctumToken: string, expiresAt: string): void {
     const expiryDate = new Date(expiresAt);
     // Store Sanctum token as the main token
@@ -425,7 +287,6 @@ export class AuthService {
   clearCookies(): void {
     const cookiesToClear = [
       'token',
-      'fesr_token',
       'oauth_state',
       'user_id',
       'user_name',

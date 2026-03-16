@@ -123,36 +123,4 @@ export class CallbackComponent implements OnInit, OnDestroy {
     });
     this.router.navigate(['/login']);
   }
-
-  private returnToConsent() {
-    if (this.originalOAuthParams) {
-      const params = new URLSearchParams({
-        client_id: this.originalOAuthParams.client_id,
-        redirect_uri: this.originalOAuthParams.redirect_uri,
-        state: this.originalOAuthParams.state,
-        response_type: this.originalOAuthParams.response_type,
-        user_id: this.originalOAuthParams.user_id,
-      });
-
-      window.location.href = `${
-        environmentOAuth.fesrFrontendUrl
-      }/auth/oauth/consent?${params.toString()}`;
-    } else {
-      this.authService.initiateFesrLogin();
-    }
-  }
-
-  private showAccessDeniedDialog() {
-    const dialogRef = this.dialog.open(AccessDeniedDialogComponent, {
-      disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result === 'retry') {
-        this.returnToConsent();
-      } else {
-        this.router.navigate(['/login']);
-      }
-    });
-  }
 }
