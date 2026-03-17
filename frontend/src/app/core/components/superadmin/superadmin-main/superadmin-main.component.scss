@@ -163,6 +163,7 @@
   flex-direction: column !important;
   min-height: 100%;
   padding: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
   box-sizing: border-box;
 
   .main-toolbar {
@@ -258,7 +259,7 @@
 // Full-Width Footer
 .admin-footer {
   background-color: var(--main-bg);
-  padding: var(--spacing-lg) 0;
+  padding: var(--spacing-sm) 0;
   width: 100%;
   @include mixins.flex-layout($direction: column, $align: center);
 

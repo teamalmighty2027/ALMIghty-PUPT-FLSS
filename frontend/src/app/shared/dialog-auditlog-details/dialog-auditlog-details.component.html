@@ -4,8 +4,13 @@
       <span mat-symbol="history" class="header-icon"></span>
       <h2 class="dialog-title">Audit Log Details</h2>
     </div>
-    <button mat-icon-button (click)="close()" class="close-button">
-      <span mat-symbol="close"></span>
+    <button mat-icon-button 
+      type="button" 
+      aria-label="Close dialog" 
+      (click)="close()" 
+      class="close-button"
+    >
+      <span mat-symbol="close"> Close </span>
     </button>
   </header>
 
@@ -53,5 +58,6 @@
         {{ data.changes_summary }}
       </div>
     </section>
+
   </div>
 </div>
