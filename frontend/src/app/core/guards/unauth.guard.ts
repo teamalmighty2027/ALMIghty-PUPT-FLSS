@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router, UrlTree } from '@angular/router';
+import { CanActivate, UrlTree } from '@angular/router';
 import { AuthService } from '../services/auth/auth.service';
 import { RoleService } from '../services/role/role.service';
 
@@ -8,7 +8,6 @@ import { RoleService } from '../services/role/role.service';
 })
 export class UnauthGuard implements CanActivate {
   constructor(
-    private router: Router,
     private authService: AuthService,
     private roleService: RoleService
   ) {}

@@ -11,7 +11,6 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { AuthService } from '../../../services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../../animations/animations';
 
@@ -36,8 +35,7 @@ export class LoadAndScheduleComponent implements OnInit {
 
   constructor(
     private reportsService: ReportsService,
-    private authService: AuthService,
-    private cookieService: CookieService,
+    private authService: AuthService,    
     private dialog: MatDialog,
   ) {}
 

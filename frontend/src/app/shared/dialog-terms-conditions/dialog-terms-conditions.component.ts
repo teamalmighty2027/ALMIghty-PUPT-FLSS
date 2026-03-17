@@ -29,7 +29,7 @@ export class DialogTermsConditionsComponent {
    * Closes the dialog and redirects the user to the login page
    */
   onCancel(): void {
-    this.dialogRef.close(false);    
+    this.dialogRef.close(false);
     this.authService.logout().subscribe({
           next: () => {
             this.authService.clearCookies();

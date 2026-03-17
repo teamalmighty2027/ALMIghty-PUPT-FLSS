@@ -47,10 +47,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly MOBILE_BREAKPOINT = 512;
   private readonly SLIDER_TRANSITION_SCALE = 0.95;
-  private readonly COOKIE_KEYS = {
-    userName: 'user_name',
-    userEmail: 'user_email',
-  };
   private readonly DIALOG_CLASSES = {
     base: 'dialog-base',
   };
