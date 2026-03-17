@@ -69,8 +69,6 @@ export class AuthService {
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
       switchMap((response) => {
-        console.log('IDP callback response:', response);
-
         // Extract token and user data from backend response
         const token = response.token;
         const user = response.data;

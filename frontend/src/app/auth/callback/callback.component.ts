@@ -43,39 +43,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
     this.route.queryParams
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe((params) => {
-        // const { code, state, error } = params;
-
-        // // Store the original state if available
-        // if (state) {
-        //   try {
-        //     const decodedState = JSON.parse(atob(state));
-        //     if (decodedState.originalParams) {
-        //       this.originalOAuthParams = decodedState.originalParams;
-        //     }
-        //   } catch (e) {
-        //     console.debug(
-        //       'State is not a complex object, continuing with simple state validation'
-        //     );
-        //   }
-        // }
-
-        // if (error === 'access_denied') {
-        //   this.loadingText = 'Processing';
-        //   this.showAccessDeniedDialog();
-        //   return;
-        // }
-
-        // if (error) {
-        //   this.handleError(error);
-        //   return;
-        // }
-
-        // if (!code || !state) {
-        //   this.handleError('Missing required parameters');
-        //   return;
-        // }
-
-        // this.loadingText = 'Almost there! Finishing your login';
+        this.loadingText = 'Almost there! Finishing your login';
         const minimumDelay = timer(3000);
 
         this.authService
@@ -91,15 +59,11 @@ export class CallbackComponent implements OnInit, OnDestroy {
               // Redirect based on user role
               const role = response.data?.role;
 
-              console.log('OAuth callback response received. User role:', role);
-              console.log('Full response:', response);
-
               if (!role) {
                 this.handleError('User role could not be determined');
                 return;
               }
-
-              // Navigate with explicit error logging
+              
               const navigationPath = this.getNavigationPath(role);
               
               if (!navigationPath) {
@@ -108,7 +72,6 @@ export class CallbackComponent implements OnInit, OnDestroy {
                 return;
               }
 
-              console.log('Navigating to:', navigationPath);
               this.router.navigate([navigationPath]).then(
                 (success) => console.log('Navigation success:', success),
                 (error) => console.error('Navigation error:', error)
@@ -127,6 +90,11 @@ export class CallbackComponent implements OnInit, OnDestroy {
     this.unsubscribe$.complete();
   }
 
+  /**
+   * Helper method to determine navigation path based on user role
+   * @param role 
+   * @returns 
+   */
   private getNavigationPath(role: string): string | null {
     switch (role) {
       case 'faculty':

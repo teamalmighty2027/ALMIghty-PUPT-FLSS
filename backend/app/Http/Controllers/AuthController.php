@@ -232,14 +232,16 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            // Store the token and user info in cookies
-            Cookie::queue(Cookie::make('user_token', json_encode($token), 1440, null, null, true, true));
-            Cookie::queue(Cookie::make('access_token', $accessToken, 1440, '/'));
-            Cookie::queue(Cookie::make('refresh_token', $token['refresh_token'] ?? '', 1440, '/'));
+            $tokenResult = $user->createToken('iDP-user-token');
+            $sanctumToken = $tokenResult->plainTextToken;
 
-            // Prepare user data to be stored in the cookie (matching flssLogin structure)
+            // Use IDP token expiry for Sanctum token expiry
+            $expiresIn = $token['expires_in'] ?? 3600;
+            $expiration = Carbon::now()->addSeconds($expiresIn);
+
+            // Prepare user data
             $faculty = $user->faculty;
-            $userData = json_encode([
+            $userDataArray = [
                 'id'      => $user->id,
                 'name'    => $user->first_name . ' ' . $user->last_name,
                 'email'   => $user->email,
@@ -250,19 +252,27 @@ class AuthController extends Controller
                     'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
                     'faculty_units' => $faculty->faculty_units,
                 ] : null,
-            ]);
+            ];
+            $userDataJson = json_encode($userDataArray);
 
-            Cookie::queue(Cookie::make('user_info', $userData, 1440));
+            // AuditLogger automatically grabs their Name, Role, and ID
+            Auth::setUser($user);
+
+            // Log IDP login
+            AuditLogger::logLogin($email);
 
             return response()->json([
                 'message' => 'IDP authentication successful.',
                 'token'      => [
-                    'access_token' => $accessToken,
+                    'access_token' => $sanctumToken,
                     'refresh_token' => $token['refresh_token'] ?? null, 
-                    'expires_in'   => $token['expires_in'] ?? null, 
+                    'expires_in'   => $expiresIn, 
                 ],
-                'data'       => json_decode($userData, true),
-            ]);
+                'data'       => $userDataArray,
+            ])
+            // HttpOnly=false, Secure=false for now
+            ->cookie('token', $sanctumToken, $expiresIn / 60, null, null, false, false)  
+            ->cookie('user_info', $userDataJson, $expiresIn / 60);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());
             return response()->json([
