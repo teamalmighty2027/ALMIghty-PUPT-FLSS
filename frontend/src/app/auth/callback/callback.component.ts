@@ -72,12 +72,12 @@ export class CallbackComponent implements OnInit, OnDestroy {
                 return;
               }
 
-              this.router.navigate([navigationPath]).then(
+              this.router.navigate([navigationPath]).catch(
                 (error) => console.error('Navigation error:', error)
               );
             },
             error: (error) => {
-              console.error('OAuth callback error:', error);
+              console.error('IDP callback error:', error);
               this.handleError(error.message || 'Failed to process login');
             },
           });

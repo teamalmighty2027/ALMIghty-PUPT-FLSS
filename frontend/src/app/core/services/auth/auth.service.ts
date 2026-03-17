@@ -57,8 +57,6 @@ export class AuthService {
   // Call the IDP's authorization endpoint to initiate login
   initiateIdpLogin(): void {
     const clientId = environmentOAuth.clientId;
-    const clientSecret = environmentOAuth.clientSecret;
-
     window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
   }
 
@@ -89,8 +87,8 @@ export class AuthService {
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-        // Store Sanctum-style token (to match flssLogin)
-        this.cookieService.set('token', token.access_token, {
+        // Store Sanctum-style token
+        this.cookieService.set('token', response.token.token, {
           expires: expiryDate,
           path: '/',
           sameSite: 'Lax',
@@ -100,6 +98,7 @@ export class AuthService {
         // Set individual user info cookies (matching flssLogin approach)
         this.setUserInfo(user, expiryDate.toISOString());
         localStorage.setItem('token', response.token.token);
+        localStorage.setItem('access_token', token.access_token);
 
         return of(response);
       }),
@@ -302,7 +301,8 @@ export class AuthService {
 
     // Clear localStorage
     localStorage.removeItem('oauth_state');
-    localStorage.removeItem('user_data');    
+    localStorage.removeItem('user_data');
+    localStorage.removeItem('token');    
     this.userDataCache = null;
   }
 
