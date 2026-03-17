@@ -68,6 +68,9 @@ export class AuthService {
     const payload = { code };
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
+      tap((response) => {
+        this.setUserData(response.data);
+      }),
       switchMap((response) => {
         // Extract token and user data from backend response
         const token = response.token;
@@ -96,8 +99,8 @@ export class AuthService {
 
         // Set individual user info cookies (matching flssLogin approach)
         this.setUserInfo(user, expiryDate.toISOString());
+        localStorage.setItem('token', response.token.token);
 
-        console.log('IDP authentication successful. User info cookies set. Role:', user.role);
         return of(response);
       }),
       catchError((error) => {
@@ -248,24 +251,6 @@ export class AuthService {
       true,
       'Strict',
     );
-    this.cookieService.set(
-      'user_email',
-      user.email,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
-    this.cookieService.set(
-      'user_role',
-      user.role,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
 
     if (user.faculty) {
       this.cookieService.set(
@@ -315,7 +300,10 @@ export class AuthService {
       this.cookieService.delete(cookieName, '/');
     });
 
+    // Clear localStorage
     localStorage.removeItem('oauth_state');
+    localStorage.removeItem('user_data');    
+    this.userDataCache = null;
   }
 
   /**
@@ -327,6 +315,14 @@ export class AuthService {
     allowedRoles: string[],
   ): Observable<LoginResponse> {
     return this.flssLogin(email, password, allowedRoles).pipe(
+      tap((response) => {
+        if (response.user) {
+          this.setUserData(response.user);
+          // Also set individual cookies for backward compatibility
+          this.setUserInfo(response.user, response.expires_at);
+          localStorage.setItem('token', response.token);
+        }
+      }),
       catchError((error) => {
         const errorMessage = this.handleLoginError(error);
         throw { message: errorMessage, status: error.status };
@@ -372,5 +368,55 @@ export class AuthService {
       default:
         return 'An unexpected error occurred. Please try again later.';
     }
+  }
+
+  // Create a secure user data object that can be retrieved
+  private userDataCache: any = null;
+
+  setUserData(user: any): void {
+    // Only store non-sensitive user info in cache
+    this.userDataCache = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      code: user.code || user.user_code || '', // Support both field names
+      faculty: user.faculty,
+    };
+    // Save to localStorage (not cookies) if needed for page reloads
+    localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
+  }
+
+  getUserData(): any {
+    return this.userDataCache || JSON.parse(localStorage.getItem('user_data') || '{}');
+  }
+
+  getUserId(): string {
+    return this.getUserData().id;
+  }
+
+  getUserRole(): string {
+    return this.getUserData().role;
+  }
+
+  getUserName(): string {
+    return this.getUserData().name;
+  }
+
+  getUserEmail(): string {
+    return this.getUserData().email;
+  }
+
+  getUserCode(): string {
+    return this.getUserData().code || '';
+  }
+
+  getUserFacultyId(): string {
+    const faculty = this.getUserData().faculty;
+    return faculty?.faculty_id ?? '';
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.getUserData().id;
   }
 }

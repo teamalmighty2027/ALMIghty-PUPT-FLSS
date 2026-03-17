@@ -135,7 +135,6 @@ export class DialogAppealScheduleComponent {
         } else {
           this.data.options.endTimeOptions = [...this.data.options.timeOptions];
           if (!endTimeControl?.value) {
-            console.log('Clearing error on endTimeControl');
             endTimeControl?.setErrors(null);
           }
         }
@@ -314,7 +313,7 @@ export class DialogAppealScheduleComponent {
             // TODO: Remove the send appeal button to the schedule block 
           },
           error: (error) => {
-            console.log('Full error:', JSON.stringify(error));
+            console.error('Full error:', JSON.stringify(error));
             this.snackBar.open(error.message, 
               'Close', {duration: 3000,}
             );

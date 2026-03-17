@@ -94,8 +94,8 @@ export class AdminMainComponent implements OnInit {
   }
 
   private initializeUserData(): void {
-    this.accountName = this.cookieService.get('user_name');
-    this.accountRole = this.toTitleCase(this.cookieService.get('user_role'));
+    this.accountName = this.authService.getUserName();
+    this.accountRole = this.toTitleCase(this.authService.getUserRole());
   }
 
   public toggleTheme() {

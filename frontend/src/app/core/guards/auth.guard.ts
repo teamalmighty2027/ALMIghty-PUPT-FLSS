@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { CanActivate, ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree, Router } from '@angular/router';
-import { CookieService } from 'ngx-cookie-service';
 import { AuthService } from '../services/auth/auth.service';
 import { RoleService } from '../services/role/role.service';
 
@@ -10,7 +9,6 @@ import { RoleService } from '../services/role/role.service';
 export class AuthGuard implements CanActivate {
   constructor(
     private router: Router,
-    private cookieService: CookieService,
     private authService: AuthService,
     private roleService: RoleService
   ) {}
@@ -19,11 +17,11 @@ export class AuthGuard implements CanActivate {
     next: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): boolean | UrlTree {
-    const token = this.authService.getToken();
-    const userRole = this.cookieService.get('user_role') || '';
+    const isAuthenticated = this.authService.isAuthenticated();
+    const userRole = this.authService.getUserRole() || '';
     const expectedRole = next.data['role'] as string;
 
-    if (!token) {
+    if (!isAuthenticated) {
       return this.isLoginRoute(next)
         ? true
         : this.router.createUrlTree(['/login']);

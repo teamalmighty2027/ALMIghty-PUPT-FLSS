@@ -10,6 +10,7 @@ import { DialogScheduleHistoryComponent } from '../../../../shared/dialog-schedu
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import { AuthService } from '../../../services/auth/auth.service';
 import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../../animations/animations';
@@ -35,6 +36,7 @@ export class LoadAndScheduleComponent implements OnInit {
 
   constructor(
     private reportsService: ReportsService,
+    private authService: AuthService,
     private cookieService: CookieService,
     private dialog: MatDialog,
   ) {}
@@ -44,7 +46,7 @@ export class LoadAndScheduleComponent implements OnInit {
   }
 
   loadFacultySchedule() {
-    const facultyId = this.cookieService.get('faculty_id');
+    const facultyId = this.authService.getUserFacultyId();
     if (facultyId) {
       this.reportsService.getSingleFacultySchedule(+facultyId).subscribe(
         (data) => {

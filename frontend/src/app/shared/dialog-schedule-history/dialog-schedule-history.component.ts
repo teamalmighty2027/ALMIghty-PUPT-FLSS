@@ -14,6 +14,7 @@ import { FacultyScheduleTimetableComponent } from '../faculty-schedule-timetable
 import { LoadingComponent } from '../loading/loading.component';
 
 import { ReportsService } from '../../core/services/admin/reports/reports.service';
+import { AuthService } from '../../core/services/auth/auth.service';
 import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../core/animations/animations';
@@ -74,6 +75,7 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
 
   constructor(
     private reportsService: ReportsService,
+    private authService: AuthService,
     private cookieService: CookieService,
     private dialogRef: MatDialogRef<DialogScheduleHistoryComponent>
   ) {}
@@ -88,7 +90,7 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
   }
 
   private loadAcademicYears(): void {
-    const facultyId = Number(this.cookieService.get('faculty_id'));
+    const facultyId = Number(this.authService.getUserFacultyId());
 
     this.loadingAcademicYearsSubject.next(true);
     this.hasLoadedDataSubject.next(false);
@@ -152,7 +154,7 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
   }
 
   private fetchScheduleHistory(): void {
-    const facultyId = Number(this.cookieService.get('faculty_id'));
+    const facultyId = Number(this.authService.getUserFacultyId());
 
     this.loadingScheduleHistorySubject.next(true);
     this.facultySchedule = null;

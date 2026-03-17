@@ -25,6 +25,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
+import { AuthService } from '../../../services/auth/auth.service';
 import { CookieService } from 'ngx-cookie-service';
 import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
 
@@ -185,6 +186,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     private readonly dialog: MatDialog,
     private readonly preferencesService: PreferencesService,
     private readonly snackBar: MatSnackBar,
+    private readonly authService: AuthService,
     private readonly cookieService: CookieService,
   ) {
     effect(() => {
@@ -226,7 +228,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   private loadInitialData() {
     this.isLoading.set(true);
-    const facultyId = this.cookieService.get('faculty_id');
+    const facultyId = this.authService.getUserFacultyId();
 
     this.subscriptions.add(
       this.preferencesService

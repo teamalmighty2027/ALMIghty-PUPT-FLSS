@@ -84,10 +84,11 @@ class AuthController extends Controller
 
         return response()->json([
             'message'    => 'Login successful.',
-            'token'      => $token,
             'expires_at' => $expiration,
+            'token'      => $token,
             'user'       => json_decode($userData, true),
-        ]);
+        ])
+        ->cookie('token', $token, 1440, null, null, true, true);
     }
 
     public function logout(Request $request)
@@ -264,14 +265,14 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'IDP authentication successful.',
                 'token'      => [
-                    'access_token' => $sanctumToken,
+                    'token' => $sanctumToken,
+                    'access_token' => $accessToken,
                     'refresh_token' => $token['refresh_token'] ?? null, 
                     'expires_in'   => $expiresIn, 
                 ],
                 'data'       => $userDataArray,
             ])
-            // HttpOnly=false, Secure=false for now
-            ->cookie('token', $sanctumToken, $expiresIn / 60, null, null, false, false)  
+            ->cookie('token', $sanctumToken, $expiresIn / 60, null, null, true, true)  
             ->cookie('user_info', $userDataJson, $expiresIn / 60);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());

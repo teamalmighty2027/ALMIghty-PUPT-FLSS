@@ -73,7 +73,6 @@ export class CallbackComponent implements OnInit, OnDestroy {
               }
 
               this.router.navigate([navigationPath]).then(
-                (success) => console.log('Navigation success:', success),
                 (error) => console.error('Navigation error:', error)
               );
             },
