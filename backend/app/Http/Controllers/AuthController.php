@@ -224,9 +224,21 @@ class AuthController extends Controller
             $roles = $userData['roles'] ?? [];
             $user = null;
 
-            // Check database for user with matching email
-            // TODO: Make this conditional, if role is faculty then include faculty data
-            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+            // Validate roles data
+            if (empty($roles) || !is_array($roles)) {
+                return response()->json([
+                    'message' => 'Invalid roles data received from IDP.'
+                ], 401);
+            }
+
+            // Check database for user with matching email and role
+            if (in_array('FLSS:faculty', $roles)) {
+                $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+            } else if (in_array('FLSS:admin', $roles)) {
+                $user = User::where('email', $email)->first();
+            } else {
+                $user = User::where('email', $email)->first();
+            }
 
             if (!$user) {
                 return response()->json([
@@ -243,19 +255,26 @@ class AuthController extends Controller
             $expiration = (int) ceil($expiresIn / 60);
 
             // Prepare user data
-            $faculty = $user->faculty;
             $userDataArray = [
                 'id'      => $user->id,
                 'name'    => $user->first_name . ' ' . $user->last_name,
                 'email'   => $user->email,
-                'role'    => $user->role,
-                'faculty' => $faculty ? [
-                    'faculty_id'    => $faculty->id,
-                    'faculty_email' => $user->email,
-                    'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
-                    'faculty_units' => $faculty->faculty_units,
-                ] : null,
             ];
+
+            // TODO: Should handle multiple roles
+            if (in_array('FLSS:faculty', $roles)) {
+                $userDataArray['role'] = 'faculty';
+                // add to user data if faculty
+                $userDataArray['faculty'] = $user->faculty ? [
+                    'faculty_id'    => $user->faculty->id,
+                    'faculty_email' => $user->email,
+                    'faculty_type'  => $user->faculty->facultyType->faculty_type ?? null,
+                    'faculty_units' => $user->faculty->faculty_units,
+                ] : null;
+            } else if (in_array('FLSS:admin', $roles)) {
+                $userDataArray['role'] = 'admin';
+            }
+
             $userDataJson = json_encode($userDataArray);
 
             // AuditLogger automatically grabs their Name, Role, and ID
@@ -269,12 +288,12 @@ class AuthController extends Controller
                 'token'      => [
                     'token' => $sanctumToken,
                     'access_token' => $accessToken,
-                    'refresh_token' => $token['refresh_token'] ?? null, 
+                    'refresh_token' => $token['refresh_token'] ?? null,
                     'expires_in'   => $expiresIn, 
                 ],
                 'data'       => $userDataArray,
             ])
-            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)  
+            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
             ->cookie('user_info', $userDataJson, $expiration);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());
