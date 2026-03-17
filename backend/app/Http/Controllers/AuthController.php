@@ -9,10 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-use Firebase\JWT\ExpiredException;
-use Firebase\JWT\SignatureInvalidException;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -105,6 +101,7 @@ class AuthController extends Controller
             // Clear the cookies
             Cookie::queue(Cookie::forget('user_token'));
             Cookie::queue(Cookie::forget('user_info'));
+            Cookie::queue(Cookie::forget('token'));
 
             return response()->json(['message' => 'Logged out successfully.'], 200);
         }
@@ -213,6 +210,12 @@ class AuthController extends Controller
 
             $userData = $meResponse->json();
 
+            if (!is_array($userData) || !isset($userData['email'])) {
+                return response()->json([
+                    'message' => 'Invalid user data received from IDP.'
+                ], 401);
+            }
+
             $id = $userData['id'] ?? null;
             $email = $userData['email'] ?? null;
             $firstName = $userData['first_name'] ?? '';
@@ -221,9 +224,8 @@ class AuthController extends Controller
             $roles = $userData['roles'] ?? [];
             $user = null;
 
-            Log::info('Fetched user data from IDP: ', is_array($userData) ? $userData : []);
-
             // Check database for user with matching email
+            // TODO: Make this conditional, if role is faculty then include faculty data
             $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
 
             if (!$user) {
@@ -238,7 +240,7 @@ class AuthController extends Controller
 
             // Use IDP token expiry for Sanctum token expiry
             $expiresIn = $token['expires_in'] ?? 3600;
-            $expiration = Carbon::now()->addSeconds($expiresIn);
+            $expiration = (int) ceil($expiresIn / 60);
 
             // Prepare user data
             $faculty = $user->faculty;
@@ -272,8 +274,8 @@ class AuthController extends Controller
                 ],
                 'data'       => $userDataArray,
             ])
-            ->cookie('token', $sanctumToken, $expiresIn / 60, null, null, true, true)  
-            ->cookie('user_info', $userDataJson, $expiresIn / 60);
+            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)  
+            ->cookie('user_info', $userDataJson, $expiration);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());
             return response()->json([
