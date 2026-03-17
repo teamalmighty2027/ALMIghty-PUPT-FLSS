@@ -89,18 +89,30 @@ export class CallbackComponent implements OnInit, OnDestroy {
           .subscribe({
             next: (response) => {
               // Redirect based on user role
-              const role = response.data.roles;
+              const role = response.data?.role;
 
-              if (role === 'faculty') {
-                console.log('Redirecting to faculty home');
-                this.router.navigate(['/faculty/home']);
-              } else if (role === 'admin') {
-                this.router.navigate(['/admin']);
-              } else if (role === 'superadmin') {
-                this.router.navigate(['/superadmin']);
-              } else {
-                this.handleError('Unknown user role');
+              console.log('OAuth callback response received. User role:', role);
+              console.log('Full response:', response);
+
+              if (!role) {
+                this.handleError('User role could not be determined');
+                return;
               }
+
+              // Navigate with explicit error logging
+              const navigationPath = this.getNavigationPath(role);
+              
+              if (!navigationPath) {
+                console.warn('Unknown user role:', role);
+                this.handleError(`Unknown user role: ${role}`);
+                return;
+              }
+
+              console.log('Navigating to:', navigationPath);
+              this.router.navigate([navigationPath]).then(
+                (success) => console.log('Navigation success:', success),
+                (error) => console.error('Navigation error:', error)
+              );
             },
             error: (error) => {
               console.error('OAuth callback error:', error);
@@ -113,6 +125,19 @@ export class CallbackComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.unsubscribe$.next();
     this.unsubscribe$.complete();
+  }
+
+  private getNavigationPath(role: string): string | null {
+    switch (role) {
+      case 'faculty':
+        return '/faculty/home';
+      case 'admin':
+        return '/admin';
+      case 'superadmin':
+        return '/superadmin';
+      default:
+        return null;
+    }
   }
 
   private handleError(message: string) {

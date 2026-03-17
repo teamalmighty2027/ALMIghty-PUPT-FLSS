@@ -222,31 +222,46 @@ class AuthController extends Controller
 
             Log::info('Fetched user data from IDP: ', is_array($userData) ? $userData : []);
 
+            // Check database for user with matching email
+            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found in system.',
+                    'error'   => true
+                ], 401);
+            }
+
             // Store the token and user info in cookies
             Cookie::queue(Cookie::make('user_token', json_encode($token), 1440, null, null, true, true));
             Cookie::queue(Cookie::make('access_token', $accessToken, 1440, '/'));
             Cookie::queue(Cookie::make('refresh_token', $token['refresh_token'] ?? '', 1440, '/'));
-            Cookie::queue(Cookie::make('user_info', json_encode($userData), 1440, '/'));
 
-            // Temporarily check database for user with matching email, if not found create new user with default role
-            $user = User::where('email', $email)->first();
+            // Prepare user data to be stored in the cookie (matching flssLogin structure)
+            $faculty = $user->faculty;
+            $userData = json_encode([
+                'id'      => $user->id,
+                'name'    => $user->first_name . ' ' . $user->last_name,
+                'email'   => $user->email,
+                'role'    => $user->role,
+                'faculty' => $faculty ? [
+                    'faculty_id'    => $faculty->id,
+                    'faculty_email' => $user->email,
+                    'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
+                    'faculty_units' => $faculty->faculty_units,
+                ] : null,
+            ]);
+
+            Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
             return response()->json([
                 'message' => 'IDP authentication successful.',
-                'token'   => [
+                'token'      => [
                     'access_token' => $accessToken,
                     'refresh_token' => $token['refresh_token'] ?? null, 
                     'expires_in'   => $token['expires_in'] ?? null, 
                 ],
-                'data'    => [
-                    'id'         => $id,
-                    'email'      => $email,
-                    'name'       => trim($firstName . ' ' . $middleName . ' ' . $lastName),
-                    'first_name' => $firstName,
-                    'middle_name'=> $middleName,
-                    'last_name'  => $lastName,
-                    'roles'      => $user ? $user->role : null,
-                ],
+                'data'       => json_decode($userData, true),
             ]);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());

@@ -69,6 +69,8 @@ export class AuthService {
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
       switchMap((response) => {
+        console.log('IDP callback response:', response);
+
         // Extract token and user data from backend response
         const token = response.token;
         const user = response.data;
@@ -77,18 +79,32 @@ export class AuthService {
           throw new Error('No access token received');
         }
 
+        if (!user?.role) {
+          throw new Error('No user role received from backend');
+        }
+
         // Calculate expiry date
         const expiresIn = token.expires_in || 3600; // fallback to 1 hour if not present
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-        // Set cookies for access token, refresh token, and user info
-        this.cookieService.set('access_token', token.access_token, expiryDate, '/');
-        this.cookieService.set('refresh_token', token.refresh_token, expiryDate, '/');        
+        // Store Sanctum-style token (to match flssLogin)
+        this.cookieService.set('token', token.access_token, {
+          expires: expiryDate,
+          path: '/',
+          sameSite: 'Lax',
+          secure: false,
+        });
+
+        // Set individual user info cookies (matching flssLogin approach)
         this.setUserInfo(user, expiryDate.toISOString());
 
-        console.log('IDP callback response:', response);
+        console.log('IDP authentication successful. User info cookies set. Role:', user.role);
         return of(response);
+      }),
+      catchError((error) => {
+        console.error('Error in handleIdpCallback:', error);
+        throw error;
       }),
     );
   }
