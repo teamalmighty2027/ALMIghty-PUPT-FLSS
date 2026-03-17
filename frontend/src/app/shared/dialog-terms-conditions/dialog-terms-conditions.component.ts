@@ -30,7 +30,6 @@ export class DialogTermsConditionsComponent {
    */
   onCancel(): void {
     this.dialogRef.close(false);
-    console.log('User declined the terms and conditions. Redirecting to login page.');
     this.authService.logout().subscribe({
           next: () => {
             this.authService.clearCookies();

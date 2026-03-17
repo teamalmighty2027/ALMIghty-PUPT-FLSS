@@ -6,13 +6,12 @@ use App\Services\AuditLogger;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
-use Firebase\JWT\JWT;
-use Firebase\JWT\Key;
-use Firebase\JWT\ExpiredException;
-use Firebase\JWT\SignatureInvalidException;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
@@ -71,9 +70,8 @@ class AuthController extends Controller
         Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
         Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
-        // Let Laravel know exactly who is logging in for this request
-        // so the AuditLogger can automatically grab their Name, Role, and ID!
-        \Illuminate\Support\Facades\Auth::setUser($user);
+        // AuditLogger automatically grabs their Name, Role, and ID
+        Auth::setUser($user);
 
         // ══════════════════════════════════════════════════════════
         // ← LOG LOGIN ACTION
@@ -82,10 +80,11 @@ class AuthController extends Controller
 
         return response()->json([
             'message'    => 'Login successful.',
-            'token'      => $token,
             'expires_at' => $expiration,
+            'token'      => $token,
             'user'       => json_decode($userData, true),
-        ]);
+        ])
+        ->cookie('token', $token, 1440, null, null, true, true);
     }
 
     public function logout(Request $request)
@@ -102,6 +101,7 @@ class AuthController extends Controller
             // Clear the cookies
             Cookie::queue(Cookie::forget('user_token'));
             Cookie::queue(Cookie::forget('user_info'));
+            Cookie::queue(Cookie::forget('token'));
 
             return response()->json(['message' => 'Logged out successfully.'], 200);
         }
@@ -159,84 +159,123 @@ class AuthController extends Controller
     public function handleIdpCallback(Request $request)
     {
         $request->validate([
-            'idp_token' => 'required|string'
+            'code'          => 'required|string',
         ]);
 
-        $idpToken = $request->input('idp_token');
+        $baseUrl = env('IDP_BASE_URL');
+        $code = $request->input('code');
+        $clientId = env('CLIENT_ID');
+        $clientSecret = env('CLIENT_SECRET');
+
+        // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
+        $tokenResponse = Http::withoutVerifying()->asJson()->post(
+            rtrim($baseUrl, '/') . '/api/v1/auth/token',
+            [
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
+                'code'          => $code,
+            ]
+        );
         
-        // Fetch these from your .env file
-        $publicKey = env('PUPT_IDP_PUBLIC_KEY'); 
-        $expectedAudience = env('PUPT_IDP_CLIENT_ID');
-
         try {
-            // 1. Decode and Verify the Signature (RS256)
-            $decodedToken = JWT::decode($idpToken, new Key($publicKey, 'RS256')); 
-
-            // 2. Verify the Issuer
-            if ($decodedToken->iss !== 'unified-access-idp') {
+            if (!$tokenResponse->successful()) {
+                $errorBody = $tokenResponse->json();
+                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                    ? $errorBody['error']
+                    : 'Token exchange failed.';
+                
                 return response()->json([
-                    'message' => 'Invalid token issuer.'
+                    'message' => 'IDP session has expired. Please log in again.'
                 ], 401);
-            }
+            }   
 
-            // 3. Verify the Audience (Handling the array format shown in the image)
-            $tokenAudiences = is_array($decodedToken->aud) ? $decodedToken->aud : [$decodedToken->aud];
-            if (!in_array($expectedAudience, $tokenAudiences)) {
-                return response()->json([
-                    'message' => 'Invalid token audience.'
-                ], 401);
-            }
-
-            // 4. Extract Custom Claims
-            $idpUserId = $decodedToken->userId;
-            $email = $decodedToken->email;
-            $firstName = $decodedToken->firstName;
-            $lastName = $decodedToken->lastName;
-            $roles = $decodedToken->roles; 
-            // Array like ["idp:admin"]
-
-            // 5. Match or Create the User in your PUPT-FLSS database
-            $user = User::firstOrCreate(
-                // The unique identifier from the IDP
-                ['idp_id' => $idpUserId], 
-                [
-                    // Data to fill if the user is being created for the first time
-                    'name' => trim($firstName . ' ' . $lastName),
-                    'email' => $email,
-                    'auth_provider' => 'unified-access-idp', // Placeholder
-                ]
+            // --- STEP 2: Verify Token and Fetch User Data ---
+            $token = $tokenResponse->json() ?? null;
+            $accessToken = $token['access_token'] ?? null;
+            $meResponse = Http::withoutVerifying()->withToken($accessToken)->get(
+                rtrim($baseUrl, '/') . '/api/v1/me'
             );
 
-            // Optional: Update the user's name/email in FLSS in case it changed on the IDP
-            // $user->update([
-            //     'name' => trim($firstName . ' ' . $lastName),
-            //     'email' => $email,
-            // ]);
+            if (!$meResponse->successful()) {
+                $errorBody = $meResponse->json();
+                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                    ? $errorBody['error']
+                    : 'Failed to fetch user data from IDP.';
 
-            // 6. Generate the local Sanctum token
-            $user->tokens()->delete();
-            $localToken = $user->createToken('flss_angular_client')->plainTextToken;
+                return response()->json([
+                    'error'   => True,
+                    'message' => $errorMessage
+                ], 401);
+            }
 
-            // 7. Return the token and user data to AngularJS
-            return response()->json([
-                'message' => 'Authentication successful',
-                'access_token' => $localToken,
-                'token_type' => 'Bearer',
-                'user' => [
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'roles' => $roles
-                ]
-            ], 200);
+            $userData = $meResponse->json();
 
-        } catch (ExpiredException $e) {
+            if (!is_array($userData) || !isset($userData['email'])) {
+                return response()->json([
+                    'message' => 'Invalid user data received from IDP.'
+                ], 401);
+            }
+
+            $id = $userData['id'] ?? null;
+            $email = $userData['email'] ?? null;
+            $firstName = $userData['first_name'] ?? '';
+            $middleName = $userData['middle_name'] ?? '';
+            $lastName = $userData['last_name'] ?? '';
+            $roles = $userData['roles'] ?? [];
+            $user = null;
+
+            // Check database for user with matching email
+            // TODO: Make this conditional, if role is faculty then include faculty data
+            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found in system.',
+                    'error'   => true
+                ], 401);
+            }
+
+            $tokenResult = $user->createToken('iDP-user-token');
+            $sanctumToken = $tokenResult->plainTextToken;
+
+            // Use IDP token expiry for Sanctum token expiry
+            $expiresIn = $token['expires_in'] ?? 3600;
+            $expiration = (int) ceil($expiresIn / 60);
+
+            // Prepare user data
+            $faculty = $user->faculty;
+            $userDataArray = [
+                'id'      => $user->id,
+                'name'    => $user->first_name . ' ' . $user->last_name,
+                'email'   => $user->email,
+                'role'    => $user->role,
+                'faculty' => $faculty ? [
+                    'faculty_id'    => $faculty->id,
+                    'faculty_email' => $user->email,
+                    'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
+                    'faculty_units' => $faculty->faculty_units,
+                ] : null,
+            ];
+            $userDataJson = json_encode($userDataArray);
+
+            // AuditLogger automatically grabs their Name, Role, and ID
+            Auth::setUser($user);
+
+            // Log IDP login
+            AuditLogger::logLogin($email);
+
             return response()->json([
-                'message' => 'IDP session has expired. Please log in again.'
-            ], 401);
-        } catch (SignatureInvalidException $e) {
-            return response()->json([
-                'message' => 'Token signature verification failed.'
-            ], 401);
+                'message' => 'IDP authentication successful.',
+                'token'      => [
+                    'token' => $sanctumToken,
+                    'access_token' => $accessToken,
+                    'refresh_token' => $token['refresh_token'] ?? null, 
+                    'expires_in'   => $expiresIn, 
+                ],
+                'data'       => $userDataArray,
+            ])
+            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)  
+            ->cookie('user_info', $userDataJson, $expiration);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());
             return response()->json([

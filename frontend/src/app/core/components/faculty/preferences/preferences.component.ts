@@ -25,7 +25,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
-import { CookieService } from 'ngx-cookie-service';
+import { AuthService } from '../../../services/auth/auth.service';
 import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
@@ -83,7 +83,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   selectedYearLevel = signal<number | null>(null);  
   selectedCourse = signal<Course | null>(null);
   selectedSection = signal<Section | undefined>(undefined);
-  // selectedSectionId = signal<number | undefined>(undefined);
 
   // Temporary hardcoded year level as four
   dynamicYearLevels = computed(() =>
@@ -185,7 +184,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     private readonly dialog: MatDialog,
     private readonly preferencesService: PreferencesService,
     private readonly snackBar: MatSnackBar,
-    private readonly cookieService: CookieService,
+    private readonly authService: AuthService,
   ) {
     effect(() => {
       this.dataSource().data;
@@ -226,7 +225,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   private loadInitialData() {
     this.isLoading.set(true);
-    const facultyId = this.cookieService.get('faculty_id');
+    const facultyId = this.authService.getUserFacultyId();
 
     this.subscriptions.add(
       this.preferencesService

@@ -43,39 +43,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
     this.route.queryParams
       .pipe(takeUntil(this.unsubscribe$))
       .subscribe((params) => {
-        // const { code, state, error } = params;
-
-        // // Store the original state if available
-        // if (state) {
-        //   try {
-        //     const decodedState = JSON.parse(atob(state));
-        //     if (decodedState.originalParams) {
-        //       this.originalOAuthParams = decodedState.originalParams;
-        //     }
-        //   } catch (e) {
-        //     console.debug(
-        //       'State is not a complex object, continuing with simple state validation'
-        //     );
-        //   }
-        // }
-
-        // if (error === 'access_denied') {
-        //   this.loadingText = 'Processing';
-        //   this.showAccessDeniedDialog();
-        //   return;
-        // }
-
-        // if (error) {
-        //   this.handleError(error);
-        //   return;
-        // }
-
-        // if (!code || !state) {
-        //   this.handleError('Missing required parameters');
-        //   return;
-        // }
-
-        // this.loadingText = 'Almost there! Finishing your login';
+        this.loadingText = 'Almost there! Finishing your login';
         const minimumDelay = timer(3000);
 
         this.authService
@@ -89,20 +57,27 @@ export class CallbackComponent implements OnInit, OnDestroy {
           .subscribe({
             next: (response) => {
               // Redirect based on user role
-              const role = response.user.roles[0]
+              const role = response.data?.role;
 
-              if (role === 'ROLE_FACULTY') {
-                this.router.navigate(['/faculty/home']);
-              } else if (role === 'ROLE_ADMIN') {
-                this.router.navigate(['/admin']);
-              } else if (role === 'ROLE_SUPERADMIN') {
-                this.router.navigate(['/superadmin']);
-              } else {
-                this.handleError('Unknown user role');
+              if (!role) {
+                this.handleError('User role could not be determined');
+                return;
               }
+              
+              const navigationPath = this.getNavigationPath(role);
+              
+              if (!navigationPath) {
+                console.warn('Unknown user role:', role);
+                this.handleError(`Unknown user role: ${role}`);
+                return;
+              }
+
+              this.router.navigate([navigationPath]).catch(
+                (error) => console.error('Navigation error:', error)
+              );
             },
             error: (error) => {
-              console.error('OAuth callback error:', error);
+              console.error('IDP callback error:', error);
               this.handleError(error.message || 'Failed to process login');
             },
           });
@@ -114,6 +89,24 @@ export class CallbackComponent implements OnInit, OnDestroy {
     this.unsubscribe$.complete();
   }
 
+  /**
+   * Helper method to determine navigation path based on user role
+   * @param role 
+   * @returns 
+   */
+  private getNavigationPath(role: string): string | null {
+    switch (role) {
+      case 'faculty':
+        return '/faculty/home';
+      case 'admin':
+        return '/admin';
+      case 'superadmin':
+        return '/superadmin';
+      default:
+        return null;
+    }
+  }
+
   private handleError(message: string) {
     this.snackBar.open(message, 'Close', {
       duration: 5000,
@@ -121,37 +114,5 @@ export class CallbackComponent implements OnInit, OnDestroy {
       verticalPosition: 'top',
     });
     this.router.navigate(['/login']);
-  }
-
-  private returnToConsent() {
-    if (this.originalOAuthParams) {
-      const params = new URLSearchParams({
-        client_id: this.originalOAuthParams.client_id,
-        redirect_uri: this.originalOAuthParams.redirect_uri,
-        state: this.originalOAuthParams.state,
-        response_type: this.originalOAuthParams.response_type,
-        user_id: this.originalOAuthParams.user_id,
-      });
-
-      window.location.href = `${
-        environmentOAuth.fesrFrontendUrl
-      }/auth/oauth/consent?${params.toString()}`;
-    } else {
-      this.authService.initiateFesrLogin();
-    }
-  }
-
-  private showAccessDeniedDialog() {
-    const dialogRef = this.dialog.open(AccessDeniedDialogComponent, {
-      disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (result === 'retry') {
-        this.returnToConsent();
-      } else {
-        this.router.navigate(['/login']);
-      }
-    });
   }
 }

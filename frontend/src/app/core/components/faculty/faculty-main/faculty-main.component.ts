@@ -47,10 +47,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private readonly MOBILE_BREAKPOINT = 512;
   private readonly SLIDER_TRANSITION_SCALE = 0.95;
-  private readonly COOKIE_KEYS = {
-    userName: 'user_name',
-    userEmail: 'user_email',
-  };
   private readonly DIALOG_CLASSES = {
     base: 'dialog-base',
   };
@@ -106,8 +102,8 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private loadFacultyInfo(): void {
-    this.facultyName = this.cookieService.get(this.COOKIE_KEYS.userName);
-    this.facultyEmail = this.cookieService.get(this.COOKIE_KEYS.userEmail);
+    this.facultyName = this.authService.getUserName();
+    this.facultyEmail = this.authService.getUserEmail();
   }
 
   toggleDropdown(event: Event) {

@@ -18,6 +18,7 @@ import { SlideshowComponent } from '../../shared/slideshow/slideshow.component';
 
 import { ThemeService } from '../../core/services/theme/theme.service';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-login',
@@ -54,7 +55,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   constructor(
     private themeService: ThemeService,
     private dialog: MatDialog,
-    private authService: AuthService
+    private authService: AuthService,
+    private snackbar: MatSnackBar
   ) {
     this.isDarkTheme$ = this.themeService.isDarkTheme$;
   }
@@ -72,7 +74,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.currentBackgroundImage = `url(${this.slideshowImages[index]})`;
   }
 
-  handleFacultyLogin(): void {
+  handleGlobalLogin(): void {
     if (this.isRedirectDialogOpen || this.isFacultyDialogOpen) return;
 
     this.isRedirectDialogOpen = true;
@@ -85,21 +87,31 @@ export class LoginComponent implements OnInit, OnDestroy {
       this.isRedirectDialogOpen = false;
     });
 
-    this.authService.checkIdpHealth().subscribe({
-      next: (isHealthy) => {
-        if (isHealthy) {
-          dialogRef.componentInstance.updateState(false, true);
-        } else {
-          dialogRef.close();
-          this.openFacultyLoginDialog();
-        }
-      },
-      error: (error) => {
-        console.error('Error checking IDP health:', error);
-        dialogRef.close();
-        this.openFacultyLoginDialog();
-      },
-    });
+    // this.openFacultyLoginDialog();
+
+    try {
+      this.authService.initiateIdpLogin();
+    } catch (error) {
+      console.error('Error initiating IDP login:', error);
+      dialogRef.close();
+      this.snackbar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
+    }
+
+    // this.authService.checkIdpHealth().subscribe({
+    //   next: (isHealthy) => {
+    //     if (isHealthy) {
+    //       dialogRef.componentInstance.updateState(false, true);
+    //     } else {
+    //       dialogRef.close();
+    //       this.openFacultyLoginDialog();
+    //     }
+    //   },
+    //   error: (error) => {
+    //     console.error('Error checking IDP health:', error);
+    //     dialogRef.close();
+    //     this.openFacultyLoginDialog();
+    //   },
+    // });
   }
 
   openFacultyLoginDialog(): void {

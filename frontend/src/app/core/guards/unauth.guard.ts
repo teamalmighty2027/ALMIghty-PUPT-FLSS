@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router, UrlTree } from '@angular/router';
-import { CookieService } from 'ngx-cookie-service';
+import { CanActivate, UrlTree } from '@angular/router';
+import { AuthService } from '../services/auth/auth.service';
 import { RoleService } from '../services/role/role.service';
 
 @Injectable({
@@ -8,16 +8,16 @@ import { RoleService } from '../services/role/role.service';
 })
 export class UnauthGuard implements CanActivate {
   constructor(
-    private cookieService: CookieService,
+    private authService: AuthService,
     private roleService: RoleService
   ) {}
 
   canActivate(): boolean | UrlTree {
-    const token = this.cookieService.get('token');
-    if (token) {
-      const userRole = this.cookieService.get('user_role') || '';
+    if (this.authService.isAuthenticated()) {
+      const userRole = this.authService.getUserRole() || '';
       return this.roleService.getHomeUrlForRole(userRole);
     }
     return true;
   }
 }
+

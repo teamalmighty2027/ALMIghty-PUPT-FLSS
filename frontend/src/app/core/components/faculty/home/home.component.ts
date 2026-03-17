@@ -9,9 +9,9 @@ import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { DialogScheduleDetailsComponent } from '../../../../shared/dialog-schedule-details/dialog-schedule-details.component';
 
-import { CookieService } from 'ngx-cookie-service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { FacultyNotificationService } from '../../../services/faculty/faculty-notification/faculty-notification.service';
+import { AuthService } from '../../../services/auth/auth.service';
 
 import { FullCalendarComponent, FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventInput } from '@fullcalendar/core';
@@ -139,7 +139,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
   constructor(
     private reportsService: ReportsService,
     private facultyNotifService: FacultyNotificationService,
-    private cookieService: CookieService,
+    private authService: AuthService,
     private changeDetectorRef: ChangeDetectorRef,
     private dialog: MatDialog,
   ) {}
@@ -155,14 +155,15 @@ export class HomeComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Load faculty information from cookies.
+   * Load faculty information from auth service.
    */
   private loadFacultyInfo(): void {
-    this.facultyCode = this.cookieService.get('user_code');
-    this.facultyName = this.cookieService.get('user_name');
-    this.facultyId = this.cookieService.get('faculty_id');
-    this.facultyType = this.cookieService.get('faculty_type');
-    this.facultyEmail = this.cookieService.get('user_email');
+    const userData = this.authService.getUserData();
+    this.facultyCode = this.authService.getUserCode();
+    this.facultyName = this.authService.getUserName();
+    this.facultyId = this.authService.getUserFacultyId();
+    this.facultyType = userData.faculty?.faculty_type || '';
+    this.facultyEmail = this.authService.getUserEmail();
   }
 
   /**
