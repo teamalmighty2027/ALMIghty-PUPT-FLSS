@@ -9,7 +9,6 @@ import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { DialogScheduleDetailsComponent } from '../../../../shared/dialog-schedule-details/dialog-schedule-details.component';
 
-import { CookieService } from 'ngx-cookie-service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { FacultyNotificationService } from '../../../services/faculty/faculty-notification/faculty-notification.service';
 import { AuthService } from '../../../services/auth/auth.service';
@@ -141,7 +140,6 @@ export class HomeComponent implements OnInit, AfterViewInit {
     private reportsService: ReportsService,
     private facultyNotifService: FacultyNotificationService,
     private authService: AuthService,
-    private cookieService: CookieService,
     private changeDetectorRef: ChangeDetectorRef,
     private dialog: MatDialog,
   ) {}

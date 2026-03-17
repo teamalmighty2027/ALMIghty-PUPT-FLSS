@@ -15,7 +15,6 @@ import { LoadingComponent } from '../loading/loading.component';
 
 import { ReportsService } from '../../core/services/admin/reports/reports.service';
 import { AuthService } from '../../core/services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../core/animations/animations';
 
@@ -76,7 +75,6 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
   constructor(
     private reportsService: ReportsService,
     private authService: AuthService,
-    private cookieService: CookieService,
     private dialogRef: MatDialogRef<DialogScheduleHistoryComponent>
   ) {}
 

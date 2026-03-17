@@ -16,7 +16,6 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { OverviewService, OverviewDetails, RequestNotification } from '../../../services/admin/overview/overview.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { AuthService } from '../../../services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
 import { CommonModule } from '@angular/common';
@@ -82,8 +81,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private overviewService: OverviewService,
     private preferencesService: PreferencesService,
-    private authService: AuthService,
-    private cookieService: CookieService,
+    private authService: AuthService,    
     private router: Router
   ) {}
 
