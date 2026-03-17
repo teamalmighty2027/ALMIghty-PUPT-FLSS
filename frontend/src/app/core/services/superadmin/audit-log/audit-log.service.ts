@@ -39,7 +39,7 @@ export class AuditLogService {
 
   private transformLog(log: any): AuditEntry {
     return {
-      id: log.id,
+      id: log.audit_log_id,
       date_time: this.formatDateTime(log.created_at),
       role: this.formatRole(log.user_type),
       user: log.user_name || log.user_email || 'System',
