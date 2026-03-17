@@ -1,0 +1,91 @@
+@use '../../../styles/mixins.scss';
+
+:host {
+  display: block;
+  background-color: var(--neutral-space); // Automatically follows your app's theme
+  color: var(--neutral-base);
+  border-radius: var(--border-radius-md);
+  max-width: 550px;
+}
+
+.audit-details-container {
+  padding: var(--spacing-lg);
+}
+
+.dialog-header {
+  @include mixins.flex-layout($justify: space-between, $align: center);
+  border-bottom: 1px solid var(--neutral-option);
+  padding-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+
+  .title-group {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    .header-icon { color: var(--primary-text); font-size: var(--font-size-xl); }
+    
+    .dialog-title { 
+      margin: 0; 
+      font-family: var(--font-base); 
+      color: var(--primary-text);
+      font-size: 200%;
+      font-weight: 700;
+      letter-spacing: var(--letter-spacing-xxs);
+    }
+  }
+}
+
+.content-card {
+  background: var(--neutral-light);
+  border: 1px solid var(--neutral-option);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+
+  .card-label {
+    margin: 0 0 var(--spacing-xs) 0;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    color: var(--primary-text);
+    font-weight: 700;
+    opacity: 0.8;
+  }
+}
+
+.data-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.data-item, .metadata-row {
+  display: flex;
+  gap: var(--spacing-md);
+  // Aligns everything vertically for better scanability
+  .label { font-weight: 600; color: var(--primary-text); width: 60px; } 
+  .value { color: var(--neutral-base); }
+}
+
+.mid-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  .compact { margin-bottom: var(--spacing-md); }
+}
+
+.action-badge {
+  padding: 4px 12px;
+  border-radius: var(--border-radius-xl);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  background: var(--primary-one-fade);
+  color: var(--primary-text);
+}
+
+.summary-box {
+  background: var(--neutral-space);
+  padding: var(--spacing-md);
+  border-left: 4px solid var(--primary-text);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+  line-height: var(--line-height-md);
+  word-break: break-word;
+}

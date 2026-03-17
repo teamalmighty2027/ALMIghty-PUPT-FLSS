@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialogRef } from '@angular/material/dialog';
-import { Router } from '@angular/router'; // Added Router
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth/auth.service';
 import { CookieService } from 'ngx-cookie-service';
 import { fadeAnimation } from '../../core/animations/animations';

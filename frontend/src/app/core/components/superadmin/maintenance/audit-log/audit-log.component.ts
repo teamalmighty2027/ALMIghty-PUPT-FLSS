@@ -2,18 +2,18 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRe
 import { CommonModule } from '@angular/common';
 import { Subject, BehaviorSubject } from 'rxjs';
 import { takeUntil, finalize } from 'rxjs/operators';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog'; 
 
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 import { AuditEntry, AuditLogService } from '../../../../services/superadmin/audit-log/audit-log.service';
 import { fadeAnimation } from '../../../../animations/animations';
-import { AuditLogDetailsComponent } from './audit-log-details/audit-log-details.component';
+import { DialogAuditlogDetailsComponent } from '../../../../../shared/dialog-auditlog-details/dialog-auditlog-details.component';
 
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [CommonModule, TableGenericComponent, LoadingComponent],
+  imports: [CommonModule, TableGenericComponent, LoadingComponent, MatDialogModule], 
   templateUrl: './audit-log.component.html',
   styleUrls: ['./audit-log.component.scss'],
   animations: [fadeAnimation],
@@ -65,7 +65,11 @@ export class AuditLogComponent implements OnInit, OnDestroy {
   }
 
   onViewDetails(log: AuditEntry) {
-    this.dialog.open(AuditLogDetailsComponent, { width: '800px', data: log });
+    this.dialog.open(DialogAuditlogDetailsComponent, { 
+      width: '850px', 
+      data: log,
+      panelClass: 'custom-audit-log-panel' 
+    });
   }
 
   ngOnDestroy() {
