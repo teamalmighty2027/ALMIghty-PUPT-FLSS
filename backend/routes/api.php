@@ -287,6 +287,20 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', [ExternalController::class, 'healthCheck']);
 
     /**
+     * General Faculty Data
+     */
+    Route::middleware(['check.hmac:orr,frrs'])->group(function () {
+        Route::get('/faculties', [ExternalController::class, 'facultyList']);
+    });
+
+    /**
+     * Accreditation System (Accred)
+     */
+    Route::middleware(['check.hmac:accred'])->group(function () {
+        Route::get('/departments', [ExternalController::class, 'departmentList']);
+    });
+
+    /**
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
@@ -300,13 +314,6 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['check.hmac:frrs'])->group(function () {
         Route::get('/course-schedules', [ExternalController::class, 'courseSchedules']);
         Route::get('/course-files', [ExternalController::class, 'courseFiles']);
-    });
-
-    /**
-     * Accreditation System (Accred)
-     */
-    Route::middleware(['check.hmac:accred,frrs'])->group(function () {
-        Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 
     /**
