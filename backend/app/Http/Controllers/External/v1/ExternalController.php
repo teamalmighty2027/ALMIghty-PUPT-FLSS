@@ -218,6 +218,22 @@ class ExternalController extends Controller
     }
 
     /**
+     * For: Faculty Attendance System
+     * Returns all rooms
+     */
+    public function allRooms()
+    {
+        $rooms = DB::table('rooms')
+            ->select('room_id', 'room_code', 'building_name', 'capacity')
+            ->orderBy('room_code')
+            ->get();
+
+        return response()->json([
+            'rooms' => $rooms,
+        ]);
+    }
+
+    /**
      * FOR: ECRS
      * Returns all faculty schedules
      * (Deprecated)

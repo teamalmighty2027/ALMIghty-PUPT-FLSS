@@ -290,7 +290,8 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
-        Route::get('/faculty/schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+        Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+        Route::get('/rooms', [ExternalController::class, 'allRooms']);
     });
 
     /**
@@ -304,7 +305,7 @@ Route::prefix('v1')->group(function () {
     /**
      * Accreditation System (Accred)
      */
-    Route::middleware(['check.hmac:dms,accred,frrs'])->group(function () {
+    Route::middleware(['check.hmac:accred,frrs'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 
