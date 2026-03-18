@@ -297,15 +297,22 @@ Route::prefix('v1')->group(function () {
      * Faculty Reportorial Requirements System (FRRS)
      */
     Route::middleware(['check.hmac:frrs'])->group(function () {
-        Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
-        Route::get('/course/files', [ExternalController::class, 'courseFiles']);
+        Route::get('/course-schedules', [ExternalController::class, 'courseSchedules']);
+        Route::get('/course-files', [ExternalController::class, 'courseFiles']);
     });
 
     /**
-     * Dental Management System (DMS), Accreditation System (Accred)
+     * Accreditation System (Accred)
      */
     Route::middleware(['check.hmac:dms,accred,frrs'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
+    });
+
+    /**
+     * Dental Management System (DMS), Online Clinic Management System (OCMS)
+     */
+    Route::middleware(['check.hmac:dms,ocms'])->group(function () {
+        Route::get('/faculty-profiles', [ExternalController::class, 'facultyProfiles']);
     });
 
     /**
