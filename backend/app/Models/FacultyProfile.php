@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Attributes\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class FacultyProfile extends Model
@@ -37,5 +39,37 @@ class FacultyProfile extends Model
     public function program()
     {
         return $this->belongsTo(Program::class, 'program_id', 'program_id');
+    }
+
+    /**
+     * Format birthdate with robust null/type checking.
+     * Accessible as $model->birthday throughout the application.
+     */
+    protected function birthday(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => $this->formatBirthdate($this->attributes['birthdate'] ?? null),
+        );
+    }
+
+    /**
+     * Helper method to format birthdate.
+     * Handles Carbon instances, strings, and null values gracefully.
+     */
+    private function formatBirthdate($birthdate): ?string
+    {
+        if (empty($birthdate)) {
+            return null;
+        }
+
+        if ($birthdate instanceof Carbon) {
+            return $birthdate->format('Y-m-d');
+        }
+
+        try {
+            return Carbon::parse($birthdate)->format('Y-m-d');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 }
