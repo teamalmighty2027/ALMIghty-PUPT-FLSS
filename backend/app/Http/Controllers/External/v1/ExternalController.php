@@ -740,6 +740,7 @@ class ExternalController extends Controller
             $data = [
                 'faculty_id'    => $faculty->user_id,
                 'first_name'    => $faculty->first_name,
+                'middle_name'   => $faculty->middle_name,
                 'last_name'     => $faculty->last_name,
                 'suffix_name'   => $faculty->suffix_name ?? null,
                 'faculty_code'  => $faculty->faculty_code,
@@ -780,6 +781,7 @@ class ExternalController extends Controller
             $data = [
                 'faculty_id'    => $user->id,
                 'first_name'    => $user->first_name,
+                'middle_name'   => $user->middle_name,
                 'last_name'     => $user->last_name,
                 'suffix_name'   => $user->suffix_name ?? null,
                 'faculty_code'  => $user->code,
@@ -817,11 +819,8 @@ class ExternalController extends Controller
      * For: Accreditation System (Accred)
      * Returns a list of faculties grouped by their respective departments 
      */
-    public function departmentList(Request $request)
+    public function departmentList()
     {
-        // Identify which system is making the request
-        $clientSystem = $request->attributes->get('client_system');
-
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->whereNotNull('program_id')
             ->get()
@@ -851,6 +850,7 @@ class ExternalController extends Controller
                 return [
                     'faculty_id'    => $user->id,
                     'first_name'    => $user->first_name,
+                    'middle_name'   => $user->middle_name,
                     'last_name'     => $user->last_name,
                     'suffix_name'   => $user->suffix_name ?? null,
                     'faculty_code'  => $user->code,
@@ -864,7 +864,6 @@ class ExternalController extends Controller
         });
 
         return response()->json([
-            'system' => $clientSystem,
             'departments' => $departmentGroups,
         ]);
     }
