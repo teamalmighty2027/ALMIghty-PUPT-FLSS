@@ -4,6 +4,7 @@ namespace App\Http\Controllers\External\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\FacultyProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -197,8 +198,15 @@ class ExternalController extends Controller
                     'program_title'  => $schedule->program_title,
                     'year_level'     => $schedule->year_level,
                     'section_name'   => $schedule->section_name,
-                    'course_title'   => $schedule->course_title,
-                    'course_code'    => $schedule->course_code,
+                    'course_details' => [
+                        'course_assignment_id' => $schedule->course_assignment_id,
+                        'course_title'         => $schedule->course_title,
+                        'course_code'          => $schedule->course_code,
+                        'lec'                  => $schedule->lec_hours,
+                        'lab'                  => $schedule->lab_hours,
+                        'units'                => $schedule->units,
+                        'tuition_hours'        => $schedule->tuition_hours,
+                    ],
                 ];
             }
         }
@@ -752,46 +760,45 @@ class ExternalController extends Controller
         // Identify which system is making the request
         $clientSystem = $request->attributes->get('client_system');
 
-        $faculties = DB::table('faculty')
-            ->join('users', 'faculty.user_id', '=', 'users.id')
-            ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
-            ->select(
-                'users.id as user_id',
-                'users.code as faculty_code',
-                'users.last_name',
-                'users.first_name',
-                'users.middle_name',
-                'users.suffix_name',
-                'faculty_type.faculty_type',
-                'users.email',
-                'users.status'
-            )
-            ->orderBy('users.last_name')
-            ->orderBy('users.first_name')
-            ->get();
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+            ->get()
+            ->sortBy([
+                fn($faculty) => $faculty->faculty->user->last_name,
+                fn($faculty) => $faculty->faculty->user->first_name,
+            ]);
 
-        $formattedFaculties = $faculties->map(function ($faculty) {
+        $formattedFaculties = $faculties->map(function ($profile) {
+            $user = $profile->faculty->user;
+            
             $data = [
-                'faculty_id'    => $faculty->user_id,
-                'first_name'    => $faculty->first_name,
-                'last_name'     => $faculty->last_name,
-                'suffix_name'   => $faculty->suffix_name ?? null,
-                'faculty_code'  => $faculty->faculty_code,
-                'faculty_type'  => $faculty->faculty_type,
-                'email'         => $faculty->email,
-                'status'        => $faculty->status
+                'faculty_id'    => $user->id,
+                'first_name'    => $user->first_name,
+                'last_name'     => $user->last_name,
+                'suffix_name'   => $user->suffix_name ?? null,
+                'faculty_code'  => $user->code,
+                'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                'department'    => $profile->program->program_title ?? null,
+                'email'         => $user->email,
+                'status'        => $user->status
             ];
 
-            // TODO: Faculty Profile Data is unavailable in the current database        
+            // Faculty Profile Data with address as separate fields
             $data['profile'] = [
-                'birthday'  => 'N/A',
-                'gender'    => 'N/A',
-                'address'   => 'N/A',
-                'department'=> 'N/A',
+                'birthday'   => $profile->birthdate ? $profile->birthdate->format('Y-m-d') : null,
+                'gender'     => $profile->sex ?? null,
+                'address' => [
+                    'house_num' => $profile->house_num ?? null,
+                    'street'    => $profile->street ?? null,
+                    'barangay'  => $profile->barangay ?? null,
+                    'city'      => $profile->city ?? null,
+                    'province'  => $profile->province ?? null,
+                    'country'   => $profile->country ?? null,
+                    'zipcode'   => $profile->zipcode ?? null,
+                ],
             ];
 
             return $data;
-        });
+        })->values();
 
         return response()->json([
             'system' => $clientSystem,
