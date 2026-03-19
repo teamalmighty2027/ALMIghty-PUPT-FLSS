@@ -305,7 +305,7 @@ Route::prefix('v1')->group(function () {
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
         Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
-        Route::get('/rooms', [ExternalController::class, 'allRooms']);
+        Route::get('/rooms', [ExternalController::class, 'roomsList']);
     });
 
     /**

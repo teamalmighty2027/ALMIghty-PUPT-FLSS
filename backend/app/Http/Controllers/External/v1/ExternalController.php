@@ -5,6 +5,7 @@ namespace App\Http\Controllers\External\v1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\FacultyProfile;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -229,12 +230,18 @@ class ExternalController extends Controller
      * For: Faculty Attendance System
      * Returns all rooms
      */
-    public function allRooms()
+    public function roomsList()
     {
-        $rooms = DB::table('rooms')
-            ->select('room_id', 'room_code', 'building_name', 'capacity')
+        $rooms = Room::with('building')
             ->orderBy('room_code')
-            ->get();
+            ->get()
+            ->map(function ($room) {
+                return [
+                    'room_id' => $room->room_id,
+                    'room_code' => $room->room_code,
+                    'building_name' => $room->building?->building_name,
+                ];
+            });
 
         return response()->json([
             'rooms' => $rooms,
@@ -803,6 +810,62 @@ class ExternalController extends Controller
         return response()->json([
             'system' => $clientSystem,
             'faculties' => $formattedFaculties,
+        ]);
+    }
+
+    /**
+     * For: Accreditation System (Accred)
+     * Returns a list of faculties grouped by their respective departments 
+     */
+    public function departmentList(Request $request)
+    {
+        // Identify which system is making the request
+        $clientSystem = $request->attributes->get('client_system');
+
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+            ->whereNotNull('program_id')
+            ->get()
+            ->sortBy([
+                fn($faculty) => $faculty->program->program_title,
+                fn($faculty) => $faculty->faculty->user->last_name,
+                fn($faculty) => $faculty->faculty->user->first_name,
+            ]);
+
+        // Get assigned units for each faculty
+        $assignedUnits = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->join('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->select('schedules.faculty_id', DB::raw('SUM(courses.units) as total_units'))
+            ->groupBy('schedules.faculty_id')
+            ->pluck('total_units', 'schedules.faculty_id');
+
+        // Group faculties by department
+        $departmentGroups = $faculties->groupBy(function ($profile) {
+            return $profile->program->program_title;
+        })->map(function ($departmentFaculties) use ($assignedUnits) {
+            return $departmentFaculties->map(function ($profile) use ($assignedUnits) {
+                $user = $profile->faculty->user;
+                $facultyAssignedUnits = (int) ($assignedUnits[$profile->faculty->id] ?? 0);
+
+                return [
+                    'faculty_id'    => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'suffix_name'   => $user->suffix_name ?? null,
+                    'faculty_code'  => $user->code,
+                    'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                    'email'         => $user->email,
+                    'status'        => $user->status,
+                    'assigned_units'=> $facultyAssignedUnits,
+                    'regular_units' => $profile->faculty->facultyType->regular_units ?? 0
+                ];
+            })->values();
+        });
+
+        return response()->json([
+            'system' => $clientSystem,
+            'departments' => $departmentGroups,
         ]);
     }
 
