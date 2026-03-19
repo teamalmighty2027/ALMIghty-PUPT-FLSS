@@ -19,6 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        //
+        throw new \RuntimeException('This migration drops the version_control table and cannot be safely rolled back.');
     }
 };

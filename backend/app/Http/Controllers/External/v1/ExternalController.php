@@ -726,13 +726,15 @@ class ExternalController extends Controller
             ->get();
 
         // Get assigned units for each faculty
-        $assignedUnits = DB::table('schedules')
+        $rows = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->select('schedules.faculty_id', DB::raw('SUM(courses.units) as total_units'))
-            ->groupBy('schedules.faculty_id')
-            ->pluck('total_units', 'schedules.faculty_id');
+            ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
+            ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
+            ->select('schedules.faculty_id', 'course_assignments.course_assignment_id', 'courses.units')
+            ->distinct()
+            ->get();
+
+        $assignedUnits = $rows->groupBy('faculty_id')->map(fn($items) => (int) $items->sum('units'))->toArray();
 
         $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem, $assignedUnits) {
             // Format assigned units as integer, defaulting to 0 if not found
@@ -787,7 +789,7 @@ class ExternalController extends Controller
                 'suffix_name'   => $user->suffix_name ?? null,
                 'faculty_code'  => $user->code,
                 'faculty_type'  => $profile->faculty->facultyType->faculty_type,
-                'department'    => $profile->program->program_title ?? null,
+                'department'    => $profile->program?->program_title,
                 'email'         => $user->email,
                 'status'        => $user->status
             ];
@@ -841,7 +843,7 @@ class ExternalController extends Controller
 
         // Group faculties by department. Profiles without a program go under 'Unspecified'
         $departmentGroups = $faculties->groupBy(function ($profile) {
-            return $profile->program->program_title ?? 'Unspecified';
+            return $profile->program?->program_title ?? 'Unspecified';
         })->map(function ($departmentFaculties) {
             return $departmentFaculties->map(function ($profile) {
                 $user = $profile->faculty->user;

@@ -12,8 +12,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::dropIfExists('faculty_profile');
-
         Schema::create('faculty_profile', function (Blueprint $table) {
             $table->id('faculty_profile_id');            
             $table->unsignedBigInteger('faculty_id')->unique();
@@ -47,7 +45,11 @@ return new class extends Migration
             // If column already exists, drop it first to avoid conflicts
             if (Schema::hasColumn('faculty', 'faculty_profile_id')) {
                 Schema::table('faculty', function (Blueprint $table) {
-                  $table->dropForeign(['faculty_profile_id']);  
+                  try {
+                    $table->dropForeign(['faculty_profile_id']);
+                  } catch (\Exception $e) {
+                    // Ignore if the foreign key constraint does not exist or has a non-standard name
+                  }
                   $table->dropColumn('faculty_profile_id');    
                 });
             }
@@ -90,7 +92,7 @@ return new class extends Migration
             $table->foreign('faculty_profile_id')
                 ->references('faculty_profile_id')
                 ->on('faculty_profile')
-                ->cascadeOnDelete();
+                ->restrictOnDelete();
         });
     }
 
@@ -102,7 +104,12 @@ return new class extends Migration
         if (Schema::hasTable('faculty')) {
             if (Schema::hasColumn('faculty', 'faculty_profile_id')) {
                 Schema::table('faculty', function (Blueprint $table) {
-                    $table->dropForeign(['faculty_profile_id']);
+                    try {
+                      $table->dropForeign(['faculty_profile_id']);
+                    } catch (\Exception $e) {
+                      // Ignore if the foreign key constraint does not exist or has a non-standard name
+                    }
+                    
                     $table->dropColumn('faculty_profile_id');
                 });
             }
