@@ -6,12 +6,21 @@ use App\Models\Appeal;
 use App\Models\Room;
 use App\Models\Schedule;
 use App\Services\AuditLogger;
+use App\Services\FileManager; // <-- Added FileManager
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class RescheduleController extends Controller
 {
+    protected $fileManager;
+
+    // Inject FileManager into the controller
+    public function __construct(FileManager $fileManager)
+    {
+        $this->fileManager = $fileManager;
+    }
+
     // ─────────────────────────────────────────────────────────
     //  EXISTING — Faculty submits an appeal
     //  POST /api/submit-rescheduling-appeal
@@ -35,8 +44,9 @@ class RescheduleController extends Controller
         }
 
         $filePath = null;
+        // Use the new FileManager to save the file
         if ($request->hasFile('appealFile')) {
-            $filePath = $request->file('appealFile')->store('appeals', 'public');
+            $filePath = $this->fileManager->saveRescheduleFile($request->file('appealFile'));
         }
 
         $roomId = null;
@@ -51,7 +61,7 @@ class RescheduleController extends Controller
             'start_time'  => $validated['startTime'],
             'end_time'    => $validated['endTime'],
             'room_id'     => $roomId,
-            'file_path'   => $filePath,
+            'file_path'   => $filePath, // Save the path returned by FileManager
             'reasoning'   => $validated['reason'],
             'is_approved' => null,
         ]);

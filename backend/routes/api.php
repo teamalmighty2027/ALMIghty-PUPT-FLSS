@@ -274,6 +274,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/deleteYearLevel/{id}', [YearLevelController::class, 'destroy']);
 });
 
+Route::post('/submit-rescheduling-appeal', [App\Http\Controllers\RescheduleController::class, 'submitReschedulingAppeal']);
+
 /*
 |----------------------------
 | External/Integration Routes
