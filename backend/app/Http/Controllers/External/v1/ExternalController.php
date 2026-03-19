@@ -693,6 +693,7 @@ class ExternalController extends Controller
             ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
             ->select(
+                'faculty.id as faculty_id',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'users.last_name',
@@ -700,6 +701,7 @@ class ExternalController extends Controller
                 'users.middle_name',
                 'users.suffix_name',
                 'faculty_type.faculty_type',
+                'faculty_type.regular_units',
                 'users.email',
                 'users.status'
             )
@@ -707,8 +709,19 @@ class ExternalController extends Controller
             ->orderBy('users.first_name')
             ->get();
 
-        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem) {
-            // Base data
+        // Get assigned units for each faculty
+        $assignedUnits = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->join('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->select('schedules.faculty_id', DB::raw('SUM(courses.units) as total_units'))
+            ->groupBy('schedules.faculty_id')
+            ->pluck('total_units', 'schedules.faculty_id');
+
+        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem, $assignedUnits) {
+            // Format assigned units as integer, defaulting to 0 if not found
+            $facultyAssignedUnits = (int) ($assignedUnits[$faculty->faculty_id] ?? 0);
+
             $data = [
                 'faculty_id'    => $faculty->user_id,
                 'first_name'    => $faculty->first_name,
@@ -717,10 +730,10 @@ class ExternalController extends Controller
                 'faculty_code'  => $faculty->faculty_code,
                 'faculty_type'  => $faculty->faculty_type,
                 'email'         => $faculty->email,
-                'status'        => $faculty->status
-                // TODO: Add assigned_units or total_units in response
+                'status'        => $faculty->status,                
+                'assigned_units'=> $facultyAssignedUnits,
+                'regular_units' => $faculty->regular_units
             ];
-
             return $data;
         });
 
