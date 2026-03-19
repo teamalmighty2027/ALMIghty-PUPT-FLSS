@@ -5,6 +5,7 @@ namespace App\Http\Controllers\External\v1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\FacultyProfile;
+use App\Models\Program;
 use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -822,30 +823,28 @@ class ExternalController extends Controller
     public function departmentList()
     {
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
-            ->whereNotNull('program_id')
             ->get()
             ->sortBy([
-                fn($faculty) => $faculty->program->program_title,
                 fn($faculty) => $faculty->faculty->user->last_name,
                 fn($faculty) => $faculty->faculty->user->first_name,
             ]);
 
-        // Get assigned units for each faculty
-        $assignedUnits = DB::table('schedules')
-            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->select('schedules.faculty_id', DB::raw('SUM(courses.units) as total_units'))
-            ->groupBy('schedules.faculty_id')
-            ->pluck('total_units', 'schedules.faculty_id');
+        // If any faculty profile is missing a program, try to infer from their schedules
+        foreach ($faculties as $profile) {
+            if (empty($profile->program)) {
+                $inferred = $this->assignProgramFromSchedules($profile);
+                if ($inferred) {
+                    $profile->setRelation('program', $inferred);
+                } 
+            }
+        }        
 
-        // Group faculties by department
+        // Group faculties by department. Profiles without a program go under 'Unspecified'
         $departmentGroups = $faculties->groupBy(function ($profile) {
-            return $profile->program->program_title;
-        })->map(function ($departmentFaculties) use ($assignedUnits) {
-            return $departmentFaculties->map(function ($profile) use ($assignedUnits) {
+            return $profile->program->program_title ?? 'Unspecified';
+        })->map(function ($departmentFaculties) {
+            return $departmentFaculties->map(function ($profile) {
                 $user = $profile->faculty->user;
-                $facultyAssignedUnits = (int) ($assignedUnits[$profile->faculty->id] ?? 0);
 
                 return [
                     'faculty_id'    => $user->id,
@@ -857,8 +856,6 @@ class ExternalController extends Controller
                     'faculty_type'  => $profile->faculty->facultyType->faculty_type,
                     'email'         => $user->email,
                     'status'        => $user->status,
-                    'assigned_units'=> $facultyAssignedUnits,
-                    'regular_units' => $profile->faculty->facultyType->regular_units ?? 0
                 ];
             })->values();
         });
@@ -866,6 +863,43 @@ class ExternalController extends Controller
         return response()->json([
             'departments' => $departmentGroups,
         ]);
+    }
+
+    /**
+     * Attempt to infer a faculty's program by inspecting their assigned schedules.
+     * Returns a Program model if one was found, otherwise null. This does not
+     * persist changes to the FacultyProfile; it only sets the relation in-memory.
+     *
+     * @param  \App\Models\FacultyProfile  $profile
+     * @return \App\Models\Program|null
+     */
+    private function assignProgramFromSchedules(FacultyProfile $profile): ?Program
+    {
+        $facultyId = $profile->faculty?->id;
+
+        if (! $facultyId) {
+            return null;
+        }
+
+        // Find the most frequently occurring program for this faculty's schedules
+        $programRow = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->join('programs', 'sections_per_program_year.program_id', '=', 'programs.program_id')
+            ->where('schedules.faculty_id', $facultyId)
+            ->select('programs.program_id', 'programs.program_title', DB::raw('COUNT(programs.program_id) as cnt'))
+            ->groupBy('programs.program_id', 'programs.program_title')
+            ->orderByDesc('cnt')
+            ->first();
+
+        if (! $programRow) {
+            return null;
+        }
+
+        Log::info("Inferred program for faculty_id {$facultyId}: program_id {$programRow->program_id} ({$programRow->program_title}) based on schedule data.");
+
+        // Load Program model (primary key uses program_id)
+        return Program::where('program_id', $programRow->program_id)->first();
     }
 
     /**
