@@ -3,44 +3,20 @@
 @use '../../../styles/breakpoints.scss' as bp;
 
 $day-colors: (
-  monday: (
-    var(--primary-text),
-    var(--primary-text-two),
-  ),
-  tuesday: (
-    var(--secondary-text),
-    var(--secondary-text-two),
-  ),
-  wednesday: (
-    var(--blue-primary),
-    var(--blue-text),
-  ),
-  thursday: (
-    var(--aqua-primary),
-    var(--aqua-text),
-  ),
-  friday: (
-    var(--purple-primary),
-    var(--purple-text),
-  ),
-  saturday: (
-    var(--green-primary),
-    var(--green-text),
-  ),
-  sunday: (
-    var(--primary-text),
-    var(--primary-text-two),
-  ),
+  monday: (var(--primary-text), var(--primary-text-two)),
+  tuesday: (var(--secondary-text), var(--secondary-text-two)),
+  wednesday: (var(--blue-primary), var(--blue-text)),
+  thursday: (var(--aqua-primary), var(--aqua-text)),
+  friday: (var(--purple-primary), var(--purple-text)),
+  saturday: (var(--green-primary), var(--green-text)),
+  sunday: (var(--primary-text), var(--primary-text-two)),
 );
 
 @each $day, $colors in $day-colors {
   $primary-color: list.nth($colors, 1);
   $text-color: list.nth($colors, 2);
 
-  .schedule-content.schedule-#{$day} .course {
-    color: #{$primary-color};
-  }
-
+  .schedule-content.schedule-#{$day} .course { color: #{$primary-color}; }
   .schedule-content.schedule-#{$day} .time {
     background-color: #{$primary-color};
     color: #{$text-color};
@@ -84,18 +60,13 @@ $day-colors: (
         visibility: hidden;
       }
 
-      &.mat-mdc-extended-fab {
-        .fab-label {
-          opacity: 1;
-          width: auto;
-          visibility: visible;
-        }
+      &.mat-mdc-extended-fab .fab-label {
+        opacity: 1;
+        width: auto;
+        visibility: visible;
       }
 
-      .fab-icon {
-        display: inline-flex;
-        align-items: center;
-      }
+      .fab-icon { display: inline-flex; align-items: center; }
     }
   }
 
@@ -107,11 +78,7 @@ $day-colors: (
     background-color: var(--neutral-space);
     position: relative;
 
-    th,
-    td {
-      text-align: center;
-      font-weight: 500;
-    }
+    th, td { text-align: center; font-weight: 500; }
 
     .faculty-schedule-timetable-table-header {
       @include mixins.sticky;
@@ -131,15 +98,13 @@ $day-colors: (
         padding: 0;
         border-bottom: 1px solid var(--neutral-fade);
         border-right: 1px solid var(--neutral-fade);
-        min-width: 10rem;
-        max-width: 10rem;
+        min-width: 13rem;
+        max-width: 13rem;
         height: 1.5rem;
         position: relative;
       }
 
-      tr td:last-child {
-        border-right: none;
-      }
+      tr td:last-child { border-right: none; }
 
       .time-slot {
         @include mixins.default-transition;
@@ -158,9 +123,7 @@ $day-colors: (
         &.schedule-block-start {
           border-bottom: none;
 
-          & + .schedule-cell {
-            border-top: none;
-          }
+          & + .schedule-cell { border-top: none; }
 
           .schedule-content {
             @include mixins.hide-scrollbar;
@@ -170,40 +133,38 @@ $day-colors: (
               $justify: flex-start,
               $gap: var(--spacing-xs)
             );
-
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            top: 0; left: 0; right: 0;
             z-index: 1;
             height: 100%;
             overflow-y: auto;
-
-            white-space: pre-wrap;
             word-break: break-word;
-            font-size: var(--font-size-sm);
-            padding: var(--spacing-xs);
-
+            font-size: var(--font-size-md);
+            padding: var(--spacing-sm);
             padding-bottom: var(--spacing-sm);
 
-            > div {
-              width: 100%;
-              text-align: center;
-              min-height: fit-content;
-            }
+            > div { width: 100%; text-align: center; min-height: fit-content; }
 
             .course-text {
               font-weight: 600;
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              line-clamp: 3;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: normal;
             }
 
-            .time {
-              position: sticky;
-              bottom: 0;
+            // Time + buttons at the very bottom of the content flow
+            .time-actions {
               margin-top: auto;
-              width: fit-content;
-              margin-left: auto;
-              margin-right: auto;
-              z-index: 2;
+              width: 100%;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 4px;
+              padding-bottom: var(--spacing-xs);
             }
           }
         }
@@ -212,11 +173,39 @@ $day-colors: (
           border-bottom: none;
           border-top: none;
 
-          & + .schedule-cell[style*='background-color'] {
-            border-left: none;
-          }
+          & + .schedule-cell[style*='background-color'] { border-left: none; }
         }
       }
     }
+  }
+}
+
+// ── Block Action Buttons ────────────────────────────────────────
+.block-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+
+  // Flag / appeal button
+  .edit-button {
+    color: var(--secondary-text);
+    width: 36px;
+    height: 36px;
+
+    mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
+
+    &:hover { background-color: rgba(0,0,0,0.06); }
+  }
+
+  // My Appeals history button
+  .appeals-status-button {
+    color: var(--secondary-text); // Matches the flag icon color
+    width: 36px;
+    height: 36px;
+
+    mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
+
+    &:hover { background-color: rgba(0,0,0,0.06); } // Matches the flag hover effect
   }
 }

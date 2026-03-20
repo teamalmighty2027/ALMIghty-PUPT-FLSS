@@ -1,4 +1,5 @@
 // rescheduling.component.scss
+// rescheduling.component.scss
 @use "../../../../../styles/mixins";
 
 * {
@@ -69,6 +70,7 @@
       padding: var(--spacing-xs);
       text-align: center;
 
+      // ── Status Badges ──
       .status-badge {
         padding: var(--spacing-xxs) var(--spacing-sm);
         border-radius: var(--border-radius-lg);
@@ -97,6 +99,7 @@
         color: var(--secondary-text);
       }
 
+      // ── Action Cell ──
       &.action {
         .action-button-container {
           @include mixins.flex-layout($align: stretch);
@@ -146,36 +149,40 @@
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ADMIN REVIEW MODAL / DIALOG (Compact Mode)
+//  ADMIN REVIEW MODAL
+//  Styled to match dialog.appeal.schedule.component.scss
 // ═══════════════════════════════════════════════════════════════
 
-.dialog-content-wrapper {
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 1.5rem;
+}
+
+.modal-content {
   background: var(--neutral-light, #fff);
   border-radius: var(--border-radius-md, 8px);
   width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* Hide outer scrollbar */
-}
-
-// ── New Scrollable Container ───────────────────────────────────
-.modal-scrollable-content {
-  flex: 1; /* Takes up remaining height */
-  overflow-y: auto; /* Enable vertical scroll */
-  @include mixins.hide-scrollbar; 
-  
+  max-width: 920px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-level-3, 0 8px 32px rgba(0,0,0,0.18));
   display: flex;
   flex-direction: column;
 }
 
-// ── Modal Header (Fixed) ───────────────────────────────────────
+// ── Modal Header ───────────────────────────────────────────────
+// Matches .dialog-header from dialog.appeal.schedule.component.scss
 .modal-header {
-  flex-shrink: 0; 
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem; 
+  padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid var(--neutral-fade);
 
   .modal-title {
@@ -209,14 +216,15 @@
   }
 }
 
-// ── Modal Top ──────────────────────────────────────────────────
+// ── Modal Top (full-width current schedule) ────────────────────
 .modal-top {
-  padding: 1.5rem 1.5rem 0 1.5rem;
+  padding: var(--spacing-md) var(--spacing-md) 0;
 
   .schedule-summary {
     margin-bottom: 0;
   }
 
+  // Vertical line-by-line layout
   .current-schedule-grid {
     display: flex;
     flex-direction: column;
@@ -226,17 +234,17 @@
 // ── Modal Body ─────────────────────────────────────────────────
 .modal-body {
   display: flex;
-  gap: 1.5rem; 
-  padding: 1rem 1.5rem 1.5rem 1.5rem; 
-  flex-wrap: wrap; 
+  gap: 0;
+  padding: var(--spacing-sm) var(--spacing-md);
 
+  // Visual divider in the middle
   .modal-left {
-    padding-right: 1.5rem;
+    padding-right: var(--spacing-md);
     border-right: 1px solid var(--neutral-fade);
   }
 
   .modal-right {
-    padding-left: 1.5rem;
+    padding-left: var(--spacing-md);
   }
 
   @media (max-width: 768px) {
@@ -258,51 +266,54 @@
 
 // ─────────────────────────────────────────────────────────────
 //  LEFT PANEL
+//  Reuses .schedule-summary + .reason-section + .document-section
 // ─────────────────────────────────────────────────────────────
 .modal-left {
-  flex: 1 1 300px;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem; 
+  gap: var(--spacing-md);
 }
 
-.schedule-summary, .reason-section, .document-section, .edit-mode-section {
+// Sized to match the mat-form-field text in the right panel
+.schedule-summary {
   background-color: var(--neutral-space);
   border-radius: var(--border-radius-sm);
-  padding: 1rem;
+  padding: var(--spacing-sm);
   border: 1px solid var(--neutral-fade);
-}
 
-.schedule-summary {
+  // Requested schedule variant — slightly different border to distinguish
   &.requested-schedule {
     border-color: var(--primary-one, #7d1f1f);
     border-left: 3px solid var(--primary-one, #7d1f1f);
   }
 
   .section-label {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
     color: var(--primary-text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
     border-bottom: 1px solid var(--neutral-fade);
   }
 
   .info-row {
     display: flex;
     align-items: baseline;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
 
     &:last-child { margin-bottom: 0; }
+    &:last-child { margin-bottom: 0; }
 
+    .label {
     .label {
       font-weight: 600;
       min-width: 70px;
       color: var(--secondary-text);
-      font-size: 0.9rem;
+      font-size: 0.875rem;
     }
 
     .value {
@@ -313,22 +324,30 @@
   }
 }
 
+// Matches dialog .reason-section exactly
 .reason-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
+
+  // with-spacing no longer needed — footer gap handles vertical rhythm
+
   .reason-title {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
     color: var(--primary-text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
     border-bottom: 1px solid var(--neutral-fade);
   }
 
   .reason-text {
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
     color: var(--primary-text);
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
   }
 
@@ -337,14 +356,20 @@
   }
 }
 
+// Document attachment row
 .document-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
+
   .section-label {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
     color: var(--primary-text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--spacing-xs);
   }
 
   .doc-row {
@@ -354,7 +379,7 @@
     background-color: var(--neutral-light);
     border: 1px solid var(--neutral-fade);
     border-radius: var(--border-radius-sm);
-    padding: 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
 
     .doc-icon {
       color: #d32f2f;
@@ -365,7 +390,7 @@
 
     .doc-name {
       flex: 1;
-      font-size: 0.9rem;
+      font-size: var(--font-size-sm);
       color: var(--primary-text);
       font-weight: 500;
       overflow: hidden;
@@ -387,102 +412,94 @@
 
 // ─────────────────────────────────────────────────────────────
 //  RIGHT PANEL
+//  Reuses .edit-mode-section + .reason-section from dialog
 // ─────────────────────────────────────────────────────────────
 .modal-right {
-  flex: 1 1 300px;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
+// Matches dialog .edit-mode-section exactly
 .edit-mode-section {
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm);
+  border: 1px solid var(--neutral-fade);
+
   .suggested-label {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
     color: var(--primary-text);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
     border-bottom: 1px solid var(--neutral-fade);
   }
 
   mat-form-field {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-xs);
   }
 
   .full-width { width: 100%; }
 }
 
+// Matches dialog .time-row exactly
 .time-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 1rem;
+  gap: var(--spacing-sm);
 
   .time-field { width: 100%; }
 }
 
-// ── Admin Remarks Section (Inside Scrollable Area) ──
-.admin-remarks-section {
-  padding: 0 1.5rem 1.5rem 1.5rem; // Matches modal-body padding
-
-  .reason-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--primary-text);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--neutral-fade);
-  }
-
-  mat-form-field {
-    width: 100%;
-    margin-bottom: 0;
-  }
-}
-
-// ── Modal Footer (Buttons Only - Fixed) ──
+// ── Modal Footer (full-width remarks + actions) ────────────────
 .modal-footer {
-  flex-shrink: 0;
-  padding: 1rem 1.5rem; 
-  background-color: var(--neutral-light);
-  border-top: 1px solid var(--neutral-fade);
+  padding: 0 var(--spacing-md) var(--spacing-md);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-sm);
+
+  .reason-section {
+    margin-top: 0;
+  }
+
+  .full-width {
+    width: 100%;
+  }
 }
 
-// ── Action Buttons ──
+// ── Modal Action Buttons ───────────────────────────────────────
+// Matches dialog mat-dialog-actions
 .modal-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  justify-content: flex-end;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) 0 0 0;
+  border-top: 1px solid var(--neutral-fade);
 
   .btn-clear {
     margin-right: auto;
     color: var(--secondary-text);
-    font-size: 0.9rem;
   }
 
   .btn-cancel {
     color: var(--secondary-text);
-    font-size: 0.9rem;
   }
 
   .btn-deny {
     background-color: var(--primary-one, #7d1f1f);
     color: white;
-    font-size: 0.9rem;
-    line-height: 2.25rem;
-    height: 2.25rem;
-    padding: 0 1.25rem;
 
+    &:hover {
+      background-color: var(--primary-one-dark, #6a1a1a);
+    }
+  }
     &:hover {
       background-color: var(--primary-one-dark, #6a1a1a);
     }
@@ -491,10 +508,6 @@
   .btn-approve {
     background-color: var(--primary-one, #7d1f1f);
     color: white;
-    font-size: 0.9rem;
-    line-height: 2.25rem;
-    height: 2.25rem;
-    padding: 0 1.25rem;
 
     &:hover {
       background-color: var(--primary-one-dark, #6a1a1a);
@@ -502,6 +515,7 @@
   }
 }
 
+// Material prefix icon sizing (mirror dialog ::ng-deep)
 ::ng-deep {
   mat-icon[matPrefix] {
     margin-right: var(--spacing-xs);
