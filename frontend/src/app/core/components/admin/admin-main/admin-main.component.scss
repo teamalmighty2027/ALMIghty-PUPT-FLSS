@@ -282,8 +282,6 @@
     padding: var(--spacing-sm) 0;
     width: 100%;
 
-    padding-right: 16rem; 
-
     @include mixins.flex-layout($direction: column, $align: center);
 
     .footer-divider {

@@ -37,13 +37,16 @@ export class ReschedulingService {
   private to24Hour(time: string): string {
     if (!time) return '';
     if (!time.includes('AM') && !time.includes('PM')) return time;
+    
     const [timePart, period] = time.trim().split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
+
     if (period === 'AM') {
       if (hours === 12) hours = 0;
     } else {
       if (hours !== 12) hours += 12;
     }
+
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
@@ -55,17 +58,22 @@ export class ReschedulingService {
     appealDetails: { day: string; startTime: string; endTime: string; roomCode: string; }
   ): Observable<any> {
     const url = `${this.baseUrl}/rescheduling-appeals`;
+
     if (!scheduleId || !reason || !appealDetails) {
       return throwError(() => new Error('Invalid parameters provided.'));
     }
+
     const form = new FormData();
     form.append('scheduleId', String(scheduleId));
+
     if (appealFile) form.append('appealFile', appealFile, appealFile.name);
+
     form.append('reason',    reason);
     form.append('day',       appealDetails.day ?? '');
     form.append('startTime', this.to24Hour(appealDetails.startTime));
     form.append('endTime',   this.to24Hour(appealDetails.endTime));
     form.append('roomCode',  String(appealDetails.roomCode ?? ''));
+
     return this.http.post(url, form).pipe(
       catchError((error: any) => throwError(() => error))
     );

@@ -130,13 +130,13 @@
      Mirrors the appeal-dialog layout so the admin sees exactly
      what the faculty member submitted.
      ───────────────────────────────────────────────────────────── -->
-<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+<div class="modal-overlay" *ngIf="showModal" (click)="closeDialog()">
   <div class="modal-content" (click)="$event.stopPropagation()">
 
     <!-- Modal Header -->
     <div class="modal-header">
       <h2 class="modal-title">Review Appeal</h2>
-      <button class="modal-close-btn" (click)="closeModal()">
+      <button class="modal-close-btn" (click)="closeDialog()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
@@ -295,7 +295,7 @@
         <button mat-button class="btn-clear" (click)="clearAll()">
           Clear All
         </button>
-        <button mat-button class="btn-cancel" (click)="closeModal()">
+        <button mat-button class="btn-cancel" (click)="closeDialog()">
           Cancel
         </button>
         <button mat-flat-button class="btn-deny" (click)="denyAppeal()">

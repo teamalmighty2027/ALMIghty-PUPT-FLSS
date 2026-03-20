@@ -193,7 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Rescheduling Appeals — Admin
      */
-    Route::post('/rescheduling-appeals',          [RescheduleController::class, 'submitReschedulingAppeal']);
+    Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
     Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
     Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
     Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);

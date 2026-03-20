@@ -86,7 +86,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
 
-  constructor(private reschedulingService: ReschedulingService) {}
+  constructor(
+    private reschedulingService: ReschedulingService,
+    private dialog: MatDialog
+  ) {}
 
   ngOnInit(): void {
     this.generateTimeOptions();
@@ -191,7 +194,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   }
 
   closeDialog(): void {
-    this.dialog.closeAll();
+    this.showModal = false;
     this.selectedAppeal = null;
     this.adminRemarks = '';
   }
@@ -229,7 +232,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
-        this.closeModal();
+        this.closeDialog();
       },
       error: (err) => console.error('Failed to approve appeal:', err),
     });
@@ -245,7 +248,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     ).subscribe({
       next: () => {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Denied');
-        this.closeModal();
+        this.closeDialog();
       },
       error: (err) => console.error('Failed to deny appeal:', err),
     });

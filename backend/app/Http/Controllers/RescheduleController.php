@@ -235,12 +235,13 @@ class RescheduleController extends Controller
                 'room_id'     => $roomId,
             ]);
 
-            $schedule->update([
-                'day'        => $validated['day'],
-                'start_time' => $validated['start_time'],
-                'end_time'   => $validated['end_time'],
-                'room_id'    => $roomId,
-            ]);
+            // NOTE: Disabling updating of original schedule table
+            // $schedule->update([
+            //     'day'        => $validated['day'],
+            //     'start_time' => $validated['start_time'],
+            //     'end_time'   => $validated['end_time'],
+            //     'room_id'    => $roomId,
+            // ]);
         });
 
         // ═══════════════════════════════════════════════════════
@@ -262,98 +263,10 @@ class RescheduleController extends Controller
             description: "Rescheduled via Appeal: Moved Schedule #{$schedule->schedule_id} to {$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
         );
 
+        return response()->json([
             'message' => 'Appeal submitted successfully.',
             'appeal'  => $appeal,
         ], 201);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    //  ADMIN — Fetch all appeals
-    //  GET /api/rescheduling-appeals
-    // ─────────────────────────────────────────────────────────
-    public function getAllAppeals(): JsonResponse
-    {
-        $appeals = DB::table('appeals as a')
-            ->join('schedules as s',          'a.schedule_id',                    '=', 's.schedule_id')
-            ->join('section_courses as sc',   's.section_course_id',              '=', 'sc.section_course_id')
-            ->join('course_assignments as ca','sc.course_assignment_id',           '=', 'ca.course_assignment_id')
-            ->join('courses as c',            'ca.course_id',                     '=', 'c.course_id')
-            ->join('sections_per_program_year as spy', 'sc.sections_per_program_year_id', '=', 'spy.sections_per_program_year_id')
-            ->join('programs as p',           'spy.program_id',                   '=', 'p.program_id')
-            ->join('faculty as f',            's.faculty_id',                     '=', 'f.id')
-            ->join('users as u',              'f.user_id',                        '=', 'u.id')
-            ->leftJoin('rooms as ar',         'a.room_id',                        '=', 'ar.room_id')
-            ->select([
-                'a.appeal_id',
-                'a.schedule_id',
-                DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', COALESCE(u.middle_name, '')) AS faculty_name"),
-                'p.program_code',
-                'c.course_title',
-                'a.original_day        AS original_day',
-                'a.original_start_time AS original_start_time',
-                'a.original_end_time   AS original_end_time',
-                'a.original_room_code  AS original_room',
-                'a.day        AS appeal_day',
-                'a.start_time AS appeal_start_time',
-                'a.end_time   AS appeal_end_time',
-                'ar.room_code AS appeal_room',
-                'a.file_path',
-                'a.reasoning',
-                'a.is_approved',
-                'a.created_at',
-            ])
-            ->orderBy('a.created_at', 'desc')
-            ->get();
-
-        return response()->json($appeals);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    //  ADMIN — Approve an appeal
-    //  POST /api/rescheduling-appeals/{id}/approve
-    // ─────────────────────────────────────────────────────────
-    public function approveAppeal(Request $request, int $id): JsonResponse
-    {
-        $validated = $request->validate([
-            'day'           => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'start_time'    => ['required', 'date_format:H:i'],
-            'end_time'      => ['required', 'date_format:H:i'],
-            'room'          => 'nullable|string',
-            'admin_remarks' => 'nullable|string',
-        ]);
-
-        if (strtotime($validated['end_time']) <= strtotime($validated['start_time'])) {
-            return response()->json(['message' => 'The end time must be after the start time.'], 422);
-        }
-
-        $appeal = Appeal::findOrFail($id);
-
-        $roomId = $appeal->room_id;
-        if (!empty($validated['room'])) {
-            $room   = Room::where('room_code', $validated['room'])->first();
-            $roomId = $room?->room_id ?? $roomId;
-        }
-
-        DB::transaction(function () use ($appeal, $validated, $roomId) {
-            $appeal->update([
-                'is_approved' => 1,
-                'admin_remarks' => $validated['admin_remarks'] ?? null,
-                'day'         => $validated['day'],
-                'start_time'  => $validated['start_time'],
-                'end_time'    => $validated['end_time'],
-                'room_id'     => $roomId,
-            ]);
-
-            Schedule::where('schedule_id', $appeal->schedule_id)
-                ->update([
-                    'day'        => $validated['day'],
-                    'start_time' => $validated['start_time'],
-                    'end_time'   => $validated['end_time'],
-                    'room_id'    => $roomId,
-                ]);
-        });
-
-        return response()->json(['message' => 'Appeal approved and schedule updated.', 'appeal' => $appeal->fresh()]);
     }
 
     // ─────────────────────────────────────────────────────────
