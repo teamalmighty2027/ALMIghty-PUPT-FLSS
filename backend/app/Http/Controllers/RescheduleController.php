@@ -23,9 +23,9 @@ class RescheduleController extends Controller
 
     // ─────────────────────────────────────────────────────────
     //  EXISTING — Faculty submits an appeal
-    //  POST /api/submit-rescheduling-appeal
+    //  POST /api/rescheduling-appeals
     // ─────────────────────────────────────────────────────────
-    public function submitReschedulingAppeal(Request $request): JsonResponse
+    public function submitAppeal(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'scheduleId' => 'required|integer|exists:schedules,schedule_id',

@@ -61,7 +61,7 @@ export class ReschedulingService {
   /**
    * Submits a rescheduling appeal to the backend API.
    */
-  submitReschedulingAppeal(
+  submitAppeal(
     scheduleId: number,
     appealFile: File | null,
     reason: string,

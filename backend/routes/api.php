@@ -193,7 +193,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Rescheduling Appeals
      */
-    Route::post('/submit-rescheduling-appeal',              [RescheduleController::class, 'submitReschedulingAppeal']);
+    Route::post('/rescheduling-appeals',                    [RescheduleController::class, 'submitAppeal']);
     Route::get('/rescheduling-appeals',                     [RescheduleController::class, 'getAllAppeals']);
     Route::post('/rescheduling-appeals/{id}/approve',       [RescheduleController::class, 'approveAppeal']);
     Route::post('/rescheduling-appeals/{id}/deny',          [RescheduleController::class, 'denyAppeal']);
@@ -273,8 +273,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/updateYearLevel/{id}', [YearLevelController::class, 'update']);
     Route::delete('/deleteYearLevel/{id}', [YearLevelController::class, 'destroy']);
 });
-
-Route::post('/submit-rescheduling-appeal', [App\Http\Controllers\RescheduleController::class, 'submitReschedulingAppeal']);
 
 /*
 |----------------------------

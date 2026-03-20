@@ -969,41 +969,4 @@ class ScheduleController extends Controller
             'preferred_end_time' => $top->preferred_end_time,
         ]);
     }
-
-    /**
-     * Handles the submission of a reschedule request file.
-     */
-    public function submitReschedule(Request $request)
-    {
-        // 1. Validate that the file was actually uploaded and is a safe format
-        $validator = Validator::make($request->all(), [
-            'schedule_id' => 'required|exists:schedules,schedule_id',
-            'reason' => 'required|string',
-            'attachment' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // Max 5MB
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => 'Validation Error', 'errors' => $validator->errors()], 422);
-        }
-
-        $filePath = null;
-
-        // 2. Pass the file to your new FileManager service
-        if ($request->hasFile('attachment')) {
-            $filePath = $this->fileManager->saveRescheduleFile($request->file('attachment'));
-        }
-
-        // 3. Log the action using your AuditLogger
-        AuditLogger::logCreate(
-            model: 'RescheduleRequest',
-            modelId: $request->input('schedule_id'), // Update with actual reschedule ID later
-            data: ['attachment_path' => $filePath],
-            description: "Submitted reschedule request with attachment"
-        );
-
-        return response()->json([
-            'message' => 'Reschedule request submitted successfully',
-            'file_path' => $filePath, // You can return the path to the frontend if needed
-        ], 201);
-    }
 }

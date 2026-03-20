@@ -2,15 +2,18 @@ import { Component, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment.dev';
 
 @Component({
-  // ... your component metadata
+  selector: 'app-dialog-appeal-schedule',
+  templateUrl: './dialog-appeal-schedule.component.html',
+  styleUrls: ['./dialog-appeal-schedule.component.scss']
 })
 export class DialogAppealScheduleComponent {
   appealForm: FormGroup;
   selectedFile: File | null = null;
   selectedFileName: string = '';
-  isEditMode: boolean = true; // Assuming this is set based on your logic
+  isEditMode: boolean = true;
 
   constructor(
     private fb: FormBuilder,
@@ -70,7 +73,8 @@ export class DialogAppealScheduleComponent {
     }
 
     // Send it to your Laravel API
-    this.http.post('http://localhost:8000/api/submit-rescheduling-appeal', formData)
+    
+    this.http.post(`${environment.apiUrl}/rescheduling-appeals`, formData)
       .subscribe({
         next: (response) => {
           console.log('Appeal submitted successfully', response);

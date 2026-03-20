@@ -292,7 +292,7 @@ export class DialogAppealScheduleComponent {
         return;
       }
 
-      this.reschedulingService.submitReschedulingAppeal(
+      this.reschedulingService.submitAppeal(
         this.data.original.scheduleId,
         this.selectedFile,
         this.appealForm.value.reason,
