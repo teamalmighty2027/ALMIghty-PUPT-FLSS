@@ -4,6 +4,9 @@ namespace App\Http\Controllers\External\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\FacultyProfile;
+use App\Models\Program;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -197,8 +200,15 @@ class ExternalController extends Controller
                     'program_title'  => $schedule->program_title,
                     'year_level'     => $schedule->year_level,
                     'section_name'   => $schedule->section_name,
-                    'course_title'   => $schedule->course_title,
-                    'course_code'    => $schedule->course_code,
+                    'course_details' => [
+                        'course_assignment_id' => $schedule->course_assignment_id,
+                        'course_title'         => $schedule->course_title,
+                        'course_code'          => $schedule->course_code,
+                        'lec'                  => $schedule->lec_hours,
+                        'lab'                  => $schedule->lab_hours,
+                        'units'                => $schedule->units,
+                        'tuition_hours'        => $schedule->tuition_hours,
+                    ],
                 ];
             }
         }
@@ -214,6 +224,28 @@ class ExternalController extends Controller
         // Step 5: Structure the response
         return response()->json([
             'parttime_faculty_schedules' => array_values($faculties),
+        ]);
+    }
+
+    /**
+     * For: Faculty Attendance System
+     * Returns all rooms
+     */
+    public function roomsList()
+    {
+        $rooms = Room::with('building')
+            ->orderBy('room_code')
+            ->get()
+            ->map(function ($room) {
+                return [
+                    'room_id' => $room->room_id,
+                    'room_code' => $room->room_code,
+                    'building_name' => $room->building?->building_name,
+                ];
+            });
+
+        return response()->json([
+            'rooms' => $rooms,
         ]);
     }
 
@@ -409,6 +441,7 @@ class ExternalController extends Controller
      * For: E-Class Record System (ECRS)
      * Notifies ECRS about schedule publication changes.
      * Only sends notification when schedules are being published (not unpublished).
+     * (Deprecated)
      */
     public static function ECRSScheduleChange(string $action, bool $isPublished, ?int $facultyId = null): void
     {
@@ -663,8 +696,8 @@ class ExternalController extends Controller
     }
 
     /**
-     * For: Dental Management System (DMS)
-     * For: Accreditation System (Accred) 
+     * For: Faculty Reportorial Requirements System (FRRS)
+     * For: Online Research Repository (ORR)
      * Returns a list of all faculty members with their details
      */
     public function facultyList(Request $request)
@@ -676,6 +709,7 @@ class ExternalController extends Controller
             ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
             ->select(
+                'faculty.id as faculty_id',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'users.last_name',
@@ -683,6 +717,7 @@ class ExternalController extends Controller
                 'users.middle_name',
                 'users.suffix_name',
                 'faculty_type.faculty_type',
+                'faculty_type.regular_units',
                 'users.email',
                 'users.status'
             )
@@ -690,28 +725,34 @@ class ExternalController extends Controller
             ->orderBy('users.first_name')
             ->get();
 
-        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem) {
-            // Base data
+        // Get assigned units for each faculty
+        $rows = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
+            ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
+            ->select('schedules.faculty_id', 'course_assignments.course_assignment_id', 'courses.units')
+            ->distinct()
+            ->get();
+
+        $assignedUnits = $rows->groupBy('faculty_id')->map(fn($items) => (int) $items->sum('units'))->toArray();
+
+        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem, $assignedUnits) {
+            // Format assigned units as integer, defaulting to 0 if not found
+            $facultyAssignedUnits = (int) ($assignedUnits[$faculty->faculty_id] ?? 0);
+
             $data = [
                 'faculty_id'    => $faculty->user_id,
                 'first_name'    => $faculty->first_name,
+                'middle_name'   => $faculty->middle_name,
                 'last_name'     => $faculty->last_name,
                 'suffix_name'   => $faculty->suffix_name ?? null,
                 'faculty_code'  => $faculty->faculty_code,
                 'faculty_type'  => $faculty->faculty_type,
                 'email'         => $faculty->email,
-                'status'        => $faculty->status
+                'status'        => $faculty->status,                
+                'assigned_units'=> $facultyAssignedUnits,
+                'regular_units' => $faculty->regular_units
             ];
-
-            // Conditionally append sensitive data for DMS
-            // TODO: Faculty Profile Data is unavailable in the current database
-            if ($clientSystem === 'dms') {
-                $data['profile'] = [
-                   'birthday'  => 'N/A',
-                   'gender'    => 'N/A'
-                ];
-            }
-
             return $data;
         });
 
@@ -719,6 +760,148 @@ class ExternalController extends Controller
             'system' => $clientSystem,
             'faculties' => $formattedFaculties,
         ]);
+    }
+
+    /**
+     * For: Dental Management System (DMS)
+     * For: Online Clinic Management System (OCMS)
+     * Returns faculty list with details for DMS and OCMS integration.
+     */
+    public function facultyProfiles(Request $request) {
+        // Identify which system is making the request
+        $clientSystem = $request->attributes->get('client_system');
+
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+            ->get()
+            ->sortBy([
+                fn($faculty) => $faculty->faculty->user->last_name,
+                fn($faculty) => $faculty->faculty->user->first_name,
+            ]);
+
+        $formattedFaculties = $faculties->map(function ($profile) {
+            $user = $profile->faculty->user;
+            
+            $data = [
+                'faculty_id'    => $user->id,
+                'first_name'    => $user->first_name,
+                'middle_name'   => $user->middle_name,
+                'last_name'     => $user->last_name,
+                'suffix_name'   => $user->suffix_name ?? null,
+                'faculty_code'  => $user->code,
+                'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                'department'    => $profile->program?->program_title,
+                'email'         => $user->email,
+                'status'        => $user->status
+            ];
+
+            // Faculty Profile Data with address as separate fields
+            $data['profile'] = [
+                'birthday'   => $profile->birthday,
+                'gender'     => $profile->sex ?? null,
+                'address' => [
+                    'house_num' => $profile->house_num ?? null,
+                    'street'    => $profile->street ?? null,
+                    'barangay'  => $profile->barangay ?? null,
+                    'city'      => $profile->city ?? null,
+                    'province'  => $profile->province ?? null,
+                    'country'   => $profile->country ?? null,
+                    'zipcode'   => $profile->zipcode ?? null,
+                ],
+            ];
+
+            return $data;
+        })->values();
+
+        return response()->json([
+            'system' => $clientSystem,
+            'faculties' => $formattedFaculties,
+        ]);
+    }
+
+    /**
+     * For: Accreditation System (Accred)
+     * Returns a list of faculties grouped by their respective departments 
+     */
+    public function departmentList()
+    {
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+            ->get()
+            ->sortBy([
+                fn($faculty) => $faculty->faculty->user->last_name,
+                fn($faculty) => $faculty->faculty->user->first_name,
+            ]);
+
+        // If any faculty profile is missing a program, try to infer from their schedules
+        foreach ($faculties as $profile) {
+            if (empty($profile->program)) {
+                $inferred = $this->assignProgramFromSchedules($profile);
+                if ($inferred) {
+                    $profile->setRelation('program', $inferred);
+                } 
+            }
+        }        
+
+        // Group faculties by department. Profiles without a program go under 'Unspecified'
+        $departmentGroups = $faculties->groupBy(function ($profile) {
+            return $profile->program?->program_title ?? 'Unspecified';
+        })->map(function ($departmentFaculties) {
+            return $departmentFaculties->map(function ($profile) {
+                $user = $profile->faculty->user;
+
+                return [
+                    'faculty_id'    => $user->id,
+                    'first_name'    => $user->first_name,
+                    'middle_name'   => $user->middle_name,
+                    'last_name'     => $user->last_name,
+                    'suffix_name'   => $user->suffix_name ?? null,
+                    'faculty_code'  => $user->code,
+                    'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                    'email'         => $user->email,
+                    'status'        => $user->status,
+                ];
+            })->values();
+        });
+
+        return response()->json([
+            'departments' => $departmentGroups,
+        ]);
+    }
+
+    /**
+     * Attempt to infer a faculty's program by inspecting their assigned schedules.
+     * Returns a Program model if one was found, otherwise null. This does not
+     * persist changes to the FacultyProfile; it only sets the relation in-memory.
+     *
+     * @param  \App\Models\FacultyProfile  $profile
+     * @return \App\Models\Program|null
+     */
+    private function assignProgramFromSchedules(FacultyProfile $profile): ?Program
+    {
+        $facultyId = $profile->faculty?->id;
+
+        if (! $facultyId) {
+            return null;
+        }
+
+        // Find the most frequently occurring program for this faculty's schedules
+        $programRow = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->join('programs', 'sections_per_program_year.program_id', '=', 'programs.program_id')
+            ->where('schedules.faculty_id', $facultyId)
+            ->select('programs.program_id', 'programs.program_title', DB::raw('COUNT(programs.program_id) as cnt'))
+            ->groupBy('programs.program_id', 'programs.program_title')
+            ->orderByDesc('cnt')
+            ->first();
+
+        if (! $programRow) {
+            return null;
+        }
+
+        Log::info("Inferred program for faculty_id {$facultyId}: program_id {$programRow->program_id} ({$programRow->program_title}) based on schedule data.");
+
+        // Load Program model (primary key uses program_id)
+        return Program::where('program_id', $programRow->program_id)->first();
     }
 
     /**

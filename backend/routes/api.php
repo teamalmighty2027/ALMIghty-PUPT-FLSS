@@ -287,25 +287,40 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', [ExternalController::class, 'healthCheck']);
 
     /**
+     * General Faculty Data
+     */
+    Route::middleware(['check.hmac:orr,frrs'])->group(function () {
+        Route::get('/faculties', [ExternalController::class, 'facultyList']);
+    });
+
+    /**
+     * Accreditation System (Accred)
+     */
+    Route::middleware(['check.hmac:accred'])->group(function () {
+        Route::get('/departments', [ExternalController::class, 'departmentList']);
+    });
+
+    /**
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
-        Route::get('/faculty/schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+        Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+        Route::get('/rooms', [ExternalController::class, 'roomsList']);
     });
 
     /**
      * Faculty Reportorial Requirements System (FRRS)
      */
     Route::middleware(['check.hmac:frrs'])->group(function () {
-        Route::get('/course/schedules', [ExternalController::class, 'courseSchedules']);
-        Route::get('/course/files', [ExternalController::class, 'courseFiles']);
+        Route::get('/course-schedules', [ExternalController::class, 'courseSchedules']);
+        Route::get('/course-files', [ExternalController::class, 'courseFiles']);
     });
 
     /**
-     * Dental Management System (DMS), Accreditation System (Accred)
+     * Dental Management System (DMS), Online Clinic Management System (OCMS)
      */
-    Route::middleware(['check.hmac:dms,accred,frrs'])->group(function () {
-        Route::get('/faculties', [ExternalController::class, 'facultyList']);
+    Route::middleware(['check.hmac:dms,ocms'])->group(function () {
+        Route::get('/faculty-profiles', [ExternalController::class, 'facultyProfiles']);
     });
 
     /**
