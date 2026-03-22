@@ -38,7 +38,7 @@ class AccountController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin',
-            'status' => 'required|in:Active,Inactive',
+            'status' => 'required|in:Active,Inactive,Retired',
         ]);
 
         $existingCode = User::where('code', $validatedData['code'])->exists();

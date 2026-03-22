@@ -41,7 +41,10 @@
                 element[column.key] === 'Available',
               'status-inactive':
                 element[column.key] === 'Inactive' ||
-                element[column.key] === 'Unavailable'
+                element[column.key] === 'Unavailable',
+              'status-retired': 
+                element[column.key] === 'Retired' ||
+                element[column.key] === 'Retired'
             }"
           >
             {{ element[column.key] }}
