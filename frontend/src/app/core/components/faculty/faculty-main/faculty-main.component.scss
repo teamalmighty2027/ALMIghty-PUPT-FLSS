@@ -11,12 +11,12 @@
     $direction: column,
     $align: none,
     $justify: none,
-    $gap: var(--spacing-lg)
+    $gap: var(--spacing-md)
   );
   height: 100%;
   box-sizing: border-box;
   padding: var(--spacing-2xl);
-  padding-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
   background-color: var(--main-bg);
 }
 

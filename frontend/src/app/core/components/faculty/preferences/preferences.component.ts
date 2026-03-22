@@ -138,6 +138,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return Array.from(uniqueTitlesMap.values());
   });
   @ViewChild('searchInput') searchInput!: ElementRef;
+   @ViewChild('tableContainer') tableContainer!: ElementRef<HTMLDivElement>;
 
   // Table Data
   allSelectedCourses = signal<TableData[]>([]);
@@ -560,6 +561,13 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.showSnackBar(
       `${course.course_code} successfully added to your preferences.`,
     );
+
+    // Make the table component instantly scroll to the newly added course
+    setTimeout(() => {
+      if (this.tableContainer) {
+        this.tableContainer.nativeElement.scrollTop = this.tableContainer.nativeElement.scrollHeight;
+      }
+    }, 0);
   }
 
   /**
