@@ -12,8 +12,6 @@ import { AccessDeniedDialogComponent } from './access-denied-dialog/access-denie
 
 import { AuthService } from '../../core/services/auth/auth.service';
 
-import { environmentOAuth } from '../../../environments/env.auth';
-
 @Component({
   selector: 'app-callback',
   templateUrl: './callback.component.html',
@@ -46,6 +44,18 @@ export class CallbackComponent implements OnInit, OnDestroy {
         this.loadingText = 'Almost there! Finishing your login';
         const minimumDelay = timer(3000);
 
+        // Open Access Denied Dialog if IDP returned an error
+        if (params['error']) {
+          this.showAccessDeniedDialog();
+          return;
+        }
+
+        // If code is missing on the query params
+        if (!params['code']) {
+          this.handleError('Authorization code is missing');
+          return;
+        }
+
         this.authService
           .handleIdpCallback(params)
           .pipe(
@@ -67,7 +77,6 @@ export class CallbackComponent implements OnInit, OnDestroy {
               const navigationPath = this.getNavigationPath(role);
               
               if (!navigationPath) {
-                console.warn('Unknown user role:', role);
                 this.handleError(`Unknown user role: ${role}`);
                 return;
               }
@@ -107,6 +116,11 @@ export class CallbackComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Helper method to display error messages in a snackbar 
+   * and redirect to login 
+   * @param message 
+   */
   private handleError(message: string) {
     this.snackBar.open(message, 'Close', {
       duration: 5000,
@@ -114,5 +128,20 @@ export class CallbackComponent implements OnInit, OnDestroy {
       verticalPosition: 'top',
     });
     this.router.navigate(['/login']);
+  }
+
+  /**
+   * Displays an access denied dialog when the IDP returns an error
+   * during the callback process. After the dialog is closed, 
+   * the user is redirected back to the login page.
+   */
+  private showAccessDeniedDialog() {
+    const dialogRef = this.dialog.open(AccessDeniedDialogComponent, {
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      this.router.navigate(['/login']);
+    });
   }
 }

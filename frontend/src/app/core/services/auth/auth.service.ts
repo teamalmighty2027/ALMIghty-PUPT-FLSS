@@ -83,17 +83,9 @@ export class AuthService {
         }
 
         // Calculate expiry date
-        const expiresIn = token.expires_in || 3600; // fallback to 1 hour if not present
+        const expiresIn = token.expires_in || 3600;
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
-
-        // Store Sanctum-style token
-        this.cookieService.set('token', response.token.token, {
-          expires: expiryDate,
-          path: '/',
-          sameSite: 'Lax',
-          secure: false,
-        });
 
         // Set individual user info cookies
         this.setUserInfo(user, expiryDate.toISOString());
