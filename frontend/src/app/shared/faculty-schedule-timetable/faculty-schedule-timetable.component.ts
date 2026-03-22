@@ -381,7 +381,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
         daySchedule.forEach((item: any) => {
           const courseContent = [
             item.course_details.course_code, item.course_details.course_title,
-            `${item.program_code} ${item.year_level} - ${item.section_name}`, item.room_code,
+            `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+            item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
             `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`,
           ];
           const boxHeight = this.calculateBoxHeight(doc, courseContent, dayColumnWidth);
