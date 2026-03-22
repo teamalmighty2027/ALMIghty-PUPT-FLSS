@@ -512,6 +512,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public clearSearch(): void {
     this.selectedCourse.set(null);
     this.selectedProgram.set(undefined);
+    this.searchState() === 'courseSelection'
     this.searchQuerySubject.next('');
   }
 
