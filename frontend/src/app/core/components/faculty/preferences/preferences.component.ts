@@ -492,6 +492,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   public onSearchInput(query: string): void {
     this.searchQuerySubject.next(query);
+    this.showPossiblePrograms.set(false);
   }
 
   private updateSearchState(query: string): void {
@@ -510,9 +511,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Clears search query and resets search state
    */
   public clearSearch(): void {
+    this.showPossiblePrograms.set(false);
     this.selectedCourse.set(null);
     this.selectedProgram.set(undefined);
-    this.searchState() === 'courseSelection'
     this.searchQuerySubject.next('');
   }
 
