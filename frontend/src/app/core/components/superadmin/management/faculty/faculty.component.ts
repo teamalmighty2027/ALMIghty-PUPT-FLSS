@@ -45,7 +45,7 @@ interface Column {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
-  facultyStatuses = ['Active', 'Inactive'];
+  facultyStatuses = ['Active', 'Inactive', 'Retired'];
   facultyTypes: FacultyType[] = [];
   selectedFacultyIndex: number | null = null;
 

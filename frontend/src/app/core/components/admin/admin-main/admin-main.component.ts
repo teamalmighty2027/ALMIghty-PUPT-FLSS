@@ -79,7 +79,9 @@ export class AdminMainComponent implements OnInit {
     this.initializeUserData();
     
     if (this.cookieService.get('termsAccepted') !== 'true') {
-      this.dialog.open(DialogTermsConditionsComponent);
+      this.dialog.open(DialogTermsConditionsComponent, {
+        disableClose: true
+      });
     }
 
     this.router.events

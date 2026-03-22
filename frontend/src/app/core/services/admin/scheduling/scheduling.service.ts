@@ -14,6 +14,7 @@ export enum CacheType {
   Faculty = 'faculty',
   Schedules = 'schedules',
   Preferences = 'preferences',
+  SelectedProgram = 'selectedProgram',
 }
 
 @Injectable({
@@ -31,6 +32,28 @@ export class SchedulingService {
     private http: HttpClient,
     private scheduleValidationService: ScheduleValidationService
   ) {}
+
+  /**
+   * Saves the selected program to localStorage.
+   */
+  setSelectedProgram(program: { display: string; id: number }): void {
+    localStorage.setItem('scheduling_selected_program', JSON.stringify(program));
+  }
+
+  /**
+   * Retrieves the cached selected program from localStorage.
+   */
+  getSelectedProgram(): { display: string; id: number } | null {
+    const cached = localStorage.getItem('scheduling_selected_program');
+    return cached ? JSON.parse(cached) : null;
+  }
+
+  /**
+   * Clears the selected program from localStorage.
+   */
+  clearSelectedProgram(): void {
+    localStorage.removeItem('scheduling_selected_program');
+  }
 
   /**
    * Retrieves the sections for a given program and year.
@@ -233,6 +256,9 @@ export class SchedulingService {
           break;
         case CacheType.Preferences:
           this.submittedPreferences$ = undefined;
+          break;
+        case CacheType.SelectedProgram:
+          this.clearSelectedProgram();
           break;
         default:
           console.warn(`Unknown CacheType: ${type}`);

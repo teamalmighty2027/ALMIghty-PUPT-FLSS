@@ -216,7 +216,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   private setDefaultSelections(): Observable<void> {
     return new Observable<void>((observer) => {
       if (this.programOptions.length > 0) {
-        const defaultProgram = this.programOptions[0];
+        // Try to restore from cache first
+        const cachedProgram = this.schedulingService.getSelectedProgram();
+        const defaultProgram =
+          cachedProgram && this.programOptions.find((p) => p.id === cachedProgram.id)
+            ? this.programOptions.find((p) => p.id === cachedProgram.id)!
+            : this.programOptions[0];
+
         this.selectedProgram = defaultProgram.display;
         this.previousProgram = defaultProgram.display;
 
@@ -306,6 +312,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       this.schedules = [];
       return;
     }
+
+    // Cache the selected program
+    this.schedulingService.setSelectedProgram({
+      display: selectedProgram.display,
+      id: selectedProgram.id
+    });
 
     this.selectedProgram = selectedProgramDisplay;
 

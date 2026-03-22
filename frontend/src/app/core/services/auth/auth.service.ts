@@ -285,7 +285,7 @@ export class AuthService {
   clearCookies(): void {
     const cookiesToClear = [
       'token',
-      'oauth_state',
+      'role',
       'user_id',
       'user_name',
       'user_email',
@@ -293,6 +293,7 @@ export class AuthService {
       'faculty_id',
       'faculty_type',
       'faculty_units',
+      'termsAccepted',
     ];
 
     cookiesToClear.forEach((cookieName) => {
@@ -302,7 +303,7 @@ export class AuthService {
     // Clear localStorage
     localStorage.removeItem('oauth_state');
     localStorage.removeItem('user_data');
-    localStorage.removeItem('token');    
+    localStorage.removeItem('token');
     this.userDataCache = null;
   }
 

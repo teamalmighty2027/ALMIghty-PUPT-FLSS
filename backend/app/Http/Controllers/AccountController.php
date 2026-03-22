@@ -38,7 +38,7 @@ class AccountController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin',
-            'status' => 'required|in:Active,Inactive',
+            'status' => 'required|in:Active,Inactive,Retired',
         ]);
 
         $existingCode = User::where('code', $validatedData['code'])->exists();
@@ -103,7 +103,7 @@ class AccountController extends Controller
                 'email' => 'sometimes|required|email|unique:users,email,' . $admin->id,
                 'password' => 'sometimes|string|min:8',
                 'role' => 'sometimes|required|in:admin',
-                'status' => 'sometimes|required|in:Active,Inactive',
+                'status' => 'sometimes|required|in:Active,Inactive,Retired',
             ]);
 
             // Update the user model instances manually

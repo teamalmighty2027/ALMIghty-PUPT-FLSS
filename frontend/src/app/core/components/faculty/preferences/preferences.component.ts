@@ -138,6 +138,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return Array.from(uniqueTitlesMap.values());
   });
   @ViewChild('searchInput') searchInput!: ElementRef;
+   @ViewChild('tableContainer') tableContainer!: ElementRef<HTMLDivElement>;
 
   // Table Data
   allSelectedCourses = signal<TableData[]>([]);
@@ -491,6 +492,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   public onSearchInput(query: string): void {
     this.searchQuerySubject.next(query);
+    this.showPossiblePrograms.set(false);
   }
 
   private updateSearchState(query: string): void {
@@ -509,6 +511,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Clears search query and resets search state
    */
   public clearSearch(): void {
+    this.showPossiblePrograms.set(false);
+    this.selectedCourse.set(null);
     this.selectedProgram.set(undefined);
     this.searchQuerySubject.next('');
   }
@@ -559,6 +563,13 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.showSnackBar(
       `${course.course_code} successfully added to your preferences.`,
     );
+
+    // Make the table component instantly scroll to the newly added course
+    setTimeout(() => {
+      if (this.tableContainer) {
+        this.tableContainer.nativeElement.scrollTop = this.tableContainer.nativeElement.scrollHeight;
+      }
+    }, 0);
   }
 
   /**
@@ -676,7 +687,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
-    if (result === undefined || result === null) {      
+    if (result === undefined || result === null) {   
+      this.selectedSection.set(undefined);
+      this.selectedProgram.set(undefined);   
       return false;
     }
 
@@ -780,20 +793,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           }
         }
       });
-  }
-
-  /* 
-   * Unused Functions for Program Selection Flow - may be used in the future
-   */
-
-  /**
-   * Revert sidebar to program selection and clear actions
-   */
-  public backToProgramSelection(): void {
-    this.searchState.set('courseSelection');
-    this.selectedProgram.set(undefined);
-    this.selectedYearLevel.set(null);    
-    this.clearSearch();
   }
 
   /*

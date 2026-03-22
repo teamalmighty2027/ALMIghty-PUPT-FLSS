@@ -78,7 +78,9 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     this.loadFacultyInfo();
     if (this.cookieService.get('termsAccepted') !== 'true') {
-      this.dialog.open(DialogTermsConditionsComponent);
+      this.dialog.open(DialogTermsConditionsComponent, {
+        disableClose: true
+      });
     }
   }
 
