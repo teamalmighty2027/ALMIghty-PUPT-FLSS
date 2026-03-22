@@ -25,7 +25,6 @@ import { CookieService } from 'ngx-cookie-service';
 
 import { slideInAnimation, fadeAnimation } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
-import { disableCursor } from '@fullcalendar/core/internal';
 
 @Component({
   selector: 'app-admin-main',
