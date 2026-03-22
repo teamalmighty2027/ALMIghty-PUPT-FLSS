@@ -95,9 +95,9 @@
           </div>
         </div>
 
-        <div *ngIf="appeal.adminRemarks" class="your-existing-card-class">
-          <h4 class="your-existing-header-class">ADMIN REMARKS</h4>
-          <p>{{ appeal.adminRemarks }}</p>
+        <div class="info-section" *ngIf="appeal.adminRemarks">
+          <div class="section-label" style="color: #c62828;">ADMIN REMARKS</div>
+          <p class="reason-text">{{ appeal.adminRemarks }}</p>
         </div>
 
         <!-- Cancel button — only for pending -->

@@ -15,10 +15,6 @@ class Appeal extends Model
     // Allow these columns to be saved/updated
     protected $fillable = [
         'schedule_id',
-        'original_day',
-        'original_start_time',
-        'original_end_time',
-        'original_room_code',
         'day',
         'start_time',
         'end_time',

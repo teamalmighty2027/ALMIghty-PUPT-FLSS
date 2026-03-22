@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\GeminiService;
 use App\Models\Appeal;
 use App\Models\Room;
 use App\Models\Schedule;
@@ -45,34 +46,48 @@ class RescheduleController extends Controller
             ->first();
 
         $filePath = null;
-        if ($request->hasFile('appealFile')) {
-            $filePath = $request->file('appealFile')->store('appeals', 'public');
-        }
+        $aiSummary = null;
 
+        if ($request->hasFile('appealFile')) {
+            $file = $request->file('appealFile');
+            
+            // 1. Store the file in storage/app/public/appeals
+            $filePath = $file->store('appeals', 'public');
+            
+            // 2. Get the absolute path to the permanently saved file
+            $absolutePath = storage_path('app/public/' . $filePath);
+            
+            // 3. Send the absolute path to Gemini
+            $aiSummary = GeminiService::summarizeAppealDocument($absolutePath);
+        }
+        
         $roomId = null;
         if (!empty($validated['roomCode'])) {
             $room   = Room::where('room_code', $validated['roomCode'])->first();
             $roomId = $room?->room_id;
         }
 
+        // 🟢 CHANGE #2: Combine the typed reason and the AI summary
+        $finalReasoning = $validated['reason'];
+        if ($aiSummary) {
+            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . trim($aiSummary);
+        }
+
+        // 🟢 CHANGE #3: Save the combined $finalReasoning to the database
         $appeal = Appeal::create([
-            'schedule_id'         => $validated['scheduleId'],
-            'original_day'        => $schedule?->day,
-            'original_start_time' => $schedule?->start_time,
-            'original_end_time'   => $schedule?->end_time,
-            'original_room_code'  => $schedule?->room_code,
-            'day'                 => $validated['day'],
-            'start_time'          => $validated['startTime'],
-            'end_time'            => $validated['endTime'],
-            'room_id'             => $roomId,
-            'file_path'           => $filePath,
-            'reasoning'           => $validated['reason'],
-            'is_approved'         => null,
+            'schedule_id' => $validated['scheduleId'],
+            'day'         => $validated['day'],
+            'start_time'  => $validated['startTime'],
+            'end_time'    => $validated['endTime'],
+            'room_id'     => $roomId,
+            'file_path'   => $filePath,
+            'reasoning'   => $finalReasoning, // Updated this line!
+            'is_approved' => null,
         ]);
 
         return response()->json(['message' => 'Appeal submitted successfully.', 'appeal' => $appeal], 201);
     }
-
+    
     // ─────────────────────────────────────────────────────────
     //  FACULTY — Get my own appeals
     //  GET /api/my-appeals
@@ -81,40 +96,45 @@ class RescheduleController extends Controller
     {
         $user = $request->user();
         
-        // 1. Get the current user's faculty profile
         $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
 
         if (!$faculty) {
-            return response()->json([], 200); // Return empty if not a faculty
+            return response()->json([], 200);
         }
 
-        // 2. Fetch appeals that belong to this faculty's schedules
-        $appeals = Appeal::select('appeals.*', 'rooms.room_code as appeal_room_code')
+        $appeals = DB::table('appeals')
             ->join('schedules', 'appeals.schedule_id', '=', 'schedules.schedule_id')
-            ->leftJoin('rooms', 'appeals.room_id', '=', 'rooms.room_id') // Join rooms to get the new room code
+            ->leftJoin('rooms as orig_room', 'schedules.room_id', '=', 'orig_room.room_id')
+            ->leftJoin('rooms as appeal_room', 'appeals.room_id', '=', 'appeal_room.room_id')
             ->where('schedules.faculty_id', $faculty->id)
+            ->select(
+                'appeals.*',
+                'schedules.day as original_day',
+                'schedules.start_time as original_start_time',
+                'schedules.end_time as original_end_time',
+                'orig_room.room_code as original_room_code',
+                'appeal_room.room_code as appeal_room_code'
+            )
             ->orderBy('appeals.created_at', 'desc')
             ->get();
 
-        // 3. Map the data cleanly for the frontend
         $formattedAppeals = $appeals->map(function ($appeal) {
             return [
-                'appeal_id'           => $appeal->appeal_id, // Make sure this matches your primary key
+                'appeal_id'           => $appeal->appeal_id,
                 'schedule_id'         => $appeal->schedule_id,
                 
-                // Original Snapshot Data
+                // Dynamically pulled from the official schedules table
                 'original_day'        => $appeal->original_day,
                 'original_start_time' => $appeal->original_start_time,
                 'original_end_time'   => $appeal->original_end_time,
                 'original_room'       => $appeal->original_room_code, 
 
-                // New Appeal Data
+                // The requested appeal changes
                 'appeal_day'          => $appeal->day,
                 'appeal_start_time'   => $appeal->start_time,
                 'appeal_end_time'     => $appeal->end_time,
-                'appeal_room'         => $appeal->appeal_room_code, // Use the joined room code
+                'appeal_room'         => $appeal->appeal_room_code,
                 
-                // Meta Data
                 'reasoning'           => $appeal->reasoning,
                 'file_path'           => $appeal->file_path,
                 'is_approved'         => $appeal->is_approved,
@@ -162,29 +182,32 @@ class RescheduleController extends Controller
     public function getAllAppeals(): JsonResponse
     {
         $appeals = DB::table('appeals as a')
-            ->join('schedules as s',          'a.schedule_id',                    '=', 's.schedule_id')
-            ->join('section_courses as sc',   's.section_course_id',              '=', 'sc.section_course_id')
-            ->join('course_assignments as ca','sc.course_assignment_id',           '=', 'ca.course_assignment_id')
-            ->join('courses as c',            'ca.course_id',                     '=', 'c.course_id')
+            ->join('schedules as s',          'a.schedule_id',                   '=', 's.schedule_id')
+            ->join('section_courses as sc',   's.section_course_id',             '=', 'sc.section_course_id')
+            ->join('course_assignments as ca','sc.course_assignment_id',         '=', 'ca.course_assignment_id')
+            ->join('courses as c',            'ca.course_id',                    '=', 'c.course_id')
             ->join('sections_per_program_year as spy', 'sc.sections_per_program_year_id', '=', 'spy.sections_per_program_year_id')
-            ->join('programs as p',           'spy.program_id',                   '=', 'p.program_id')
-            ->join('faculty as f',            's.faculty_id',                     '=', 'f.id')
-            ->join('users as u',              'f.user_id',                        '=', 'u.id')
-            ->leftJoin('rooms as ar',         'a.room_id',                        '=', 'ar.room_id')
+            ->join('programs as p',           'spy.program_id',                  '=', 'p.program_id')
+            ->join('faculty as f',            's.faculty_id',                    '=', 'f.id')
+            ->join('users as u',              'f.user_id',                       '=', 'u.id')
+            ->leftJoin('rooms as orig_r',     's.room_id',                       '=', 'orig_r.room_id') // Join original room
+            ->leftJoin('rooms as ar',         'a.room_id',                       '=', 'ar.room_id')     // Join appeal room
             ->select([
                 'a.appeal_id',
                 'a.schedule_id',
                 DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', COALESCE(u.middle_name, '')) AS faculty_name"),
                 'p.program_code',
                 'c.course_title',
-                'a.original_day        AS original_day',
-                'a.original_start_time AS original_start_time',
-                'a.original_end_time   AS original_end_time',
-                'a.original_room_code  AS original_room',
-                'a.day        AS appeal_day',
-                'a.start_time AS appeal_start_time',
-                'a.end_time   AS appeal_end_time',
-                'ar.room_code AS appeal_room',
+                // Original schedule data from schedules table
+                's.day              AS original_day',
+                's.start_time       AS original_start_time',
+                's.end_time         AS original_end_time',
+                'orig_r.room_code   AS original_room',
+                // Appeal data
+                'a.day              AS appeal_day',
+                'a.start_time       AS appeal_start_time',
+                'a.end_time         AS appeal_end_time',
+                'ar.room_code       AS appeal_room',
                 'a.file_path',
                 'a.reasoning',
                 'a.is_approved',
@@ -227,21 +250,24 @@ class RescheduleController extends Controller
         }
 
         DB::transaction(function () use ($appeal, $schedule, $validated, $roomId) {
+            // 1. Mark the appeal as approved
             $appeal->update([
-                'is_approved' => true,
-                'day'         => $validated['day'],
-                'start_time'  => $validated['start_time'],
-                'end_time'    => $validated['end_time'],
-                'room_id'     => $roomId,
+                'is_approved'   => true,
+                'admin_remarks' => $validated['admin_remarks'] ?? null,
             ]);
 
-            // NOTE: Disabling updating of original schedule table
-            // $schedule->update([
-            //     'day'        => $validated['day'],
-            //     'start_time' => $validated['start_time'],
-            //     'end_time'   => $validated['end_time'],
-            //     'room_id'    => $roomId,
-            // ]);
+            // 2. Create or Update the active Internal Arrangement
+            // updateOrCreate ensures there is only ever ONE active arrangement per official schedule
+            \App\Models\InternalArrangement::updateOrCreate(
+                ['schedule_id' => $schedule->schedule_id], 
+                [
+                    'appeal_id'  => $appeal->appeal_id,
+                    'day'        => $validated['day'],
+                    'start_time' => $validated['start_time'],
+                    'end_time'   => $validated['end_time'],
+                    'room_id'    => $roomId,
+                ]
+            );
         });
 
         // ═══════════════════════════════════════════════════════
