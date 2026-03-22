@@ -95,10 +95,10 @@ export class AuthService {
           secure: false,
         });
 
-        // Set individual user info cookies (matching flssLogin approach)
+        // Set individual user info cookies
         this.setUserInfo(user, expiryDate.toISOString());
-        localStorage.setItem('token', response.token.token);
-        localStorage.setItem('access_token', token.access_token);
+        this.setSanctumToken(response.token.token, expiryDate.toISOString());
+        this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
       }),
@@ -319,7 +319,6 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user);
-          // Also set individual cookies for backward compatibility
           this.setUserInfo(response.user, response.expires_at);
           localStorage.setItem('token', response.token);
         }
