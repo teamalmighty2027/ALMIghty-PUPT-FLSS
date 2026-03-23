@@ -322,6 +322,10 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  onSpeechRecognition() {
+    throw new Error('Method not implemented.');
+  }
+
   // Helper function to compare time strings
   private compareTimeStrings(time1: string, time2: string): number {
     const parseTime = (timeStr: string): number => {

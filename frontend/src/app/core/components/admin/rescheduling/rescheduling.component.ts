@@ -300,6 +300,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   }
 
   // ── Other ──────────────────────────────────────────────────────
+  onSpeechRecognition() {
+    throw new Error('Method not implemented.');
+  }
+
   onExportAll(): void {
     console.log('Export all appeals', this.dataSource.data);
   }

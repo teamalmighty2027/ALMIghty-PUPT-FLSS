@@ -278,6 +278,10 @@
                 placeholder="Add remarks for the faculty member (optional)..."
                 rows="3"
               ></textarea>
+              <!-- Mic for speech recognition -->
+            <button mat-icon-button matSuffix (click)="onSpeechRecognition()" title="Speak to fill">
+              <mat-icon>mic</mat-icon>
+            </button>
             </mat-form-field>
           </div>
         </div>
