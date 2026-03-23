@@ -13,12 +13,9 @@ import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { DialogFacultyLoginComponent } from '../../shared/dialog-faculty-login/dialog-faculty-login.component';
 import { DialogAdminLoginComponent } from '../../shared/dialog-admin-login/dialog-admin-login.component';
-import { DialogRedirectComponent } from '../../shared/dialog-redirect/dialog-redirect.component';
 import { SlideshowComponent } from '../../shared/slideshow/slideshow.component';
 
 import { ThemeService } from '../../core/services/theme/theme.service';
-import { AuthService } from '../../core/services/auth/auth.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-login',

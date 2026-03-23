@@ -28,8 +28,9 @@ export class DialogRedirectComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any
   ) {
     this.checkingIDP = data.checkingIDP;
-    this.redirecting = false;
-    this.intendedRole = data.intendedRole;
+    this.redirecting = data.redirecting;
+    this.intendedRole = Array.isArray(data?.intendedRole)
+      ? data.intendedRole : [];
   }
 
   ngOnInit(): void {

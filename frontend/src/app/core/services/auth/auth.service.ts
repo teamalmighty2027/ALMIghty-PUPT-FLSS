@@ -59,8 +59,8 @@ export class AuthService {
   // Call the IDP's authorization endpoint to initiate login
   initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
-    window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
     this.requestedRole = intendedRole;
+    window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
@@ -82,6 +82,14 @@ export class AuthService {
 
         if (!token?.access_token) {
           throw new Error('No access token received');
+        }
+
+        if (!token?.expires_in) {
+          throw new Error('No token expiry received');
+        }
+
+        if (!token.refresh_token) {
+          throw new Error('No refresh token received');
         }
 
         if (!user?.role) {
@@ -292,6 +300,8 @@ export class AuthService {
       'faculty_type',
       'faculty_units',
       'termsAccepted',
+      'access_token',
+      'refresh_token',
     ];
 
     cookiesToClear.forEach((cookieName) => {

@@ -119,27 +119,28 @@ export class DialogAdminLoginComponent implements OnInit {
   }
 
   onIdpLogin(): void {
-      this.dialogRef.close();
-      if (this.isRedirectDialogOpen) return;
-  
-      this.isRedirectDialogOpen = true;
-      const dialogRef = this.dialog.open(DialogRedirectComponent, {
-        disableClose: true,
-        data: { checkingIDP: true, intendedRole: ['admin', 'superadmin'] },
-      });
-  
-      dialogRef.afterClosed().subscribe(() => {
-        this.isRedirectDialogOpen = false;
-      });
-  
-      try {
-        this.authService.initiateIdpLogin(['admin', 'superadmin']);
-      } catch (error) {
-        console.error('Error initiating IDP login:', error);
-        dialogRef.close();
-        this.snackBar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
-      }
+    if (this.isRedirectDialogOpen) return;
+
+    this.dialogRef.close();
+
+    this.isRedirectDialogOpen = true;
+    const dialogRef = this.dialog.open(DialogRedirectComponent, {
+      disableClose: true,
+      data: { checkingIDP: true, intendedRole: ['admin', 'superadmin'] },
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.isRedirectDialogOpen = false;
+    });
+
+    try {
+      this.authService.initiateIdpLogin(['admin', 'superadmin']);
+    } catch (error) {
+      console.error('Error initiating IDP login:', error);
+      dialogRef.close();
+      this.snackBar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
     }
+  }
 
   onCloseClick(): void {
     this.dialogRef.close();

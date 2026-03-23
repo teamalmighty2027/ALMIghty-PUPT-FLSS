@@ -121,13 +121,14 @@ export class DialogFacultyLoginComponent implements OnInit {
   }
 
   onIdpLogin(): void {
-    this.dialogRef.close();
     if (this.isRedirectDialogOpen) return;
+
+    this.dialogRef.close();
 
     this.isRedirectDialogOpen = true;
     const dialogRef = this.dialog.open(DialogRedirectComponent, {
       disableClose: true,
-      data: { checkingIDP: true, intendedRole: ['faculty'] },
+      data: { checkingIDP: true, redirecting: true, intendedRole: ['faculty'] },
     });
 
     dialogRef.afterClosed().subscribe(() => {
