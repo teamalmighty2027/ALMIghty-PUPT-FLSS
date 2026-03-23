@@ -333,9 +333,11 @@
     
     <div class="modal-footer">
       <div class="modal-actions">
-        <button mat-button class="btn-clear" (click)="clearAll()">
-          Clear All
-        </button>
+        @if (selectedAppeal?.appealVerification === 'Pending') {
+          <button mat-button class="btn-clear" (click)="clearAll()">
+            Clear All
+          </button>
+        }
         <button mat-button class="btn-cancel" (click)="closeDialog()">
           Cancel
         </button>
