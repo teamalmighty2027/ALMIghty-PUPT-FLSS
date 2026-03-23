@@ -367,24 +367,15 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       .pipe(takeUntil(this.speechSession$))
       .subscribe((result) => {
         const reasonControl = this.appealForm.get('reason');
-        if (reasonControl) {
+        if (reasonControl && result.isFinal) {
           const currentValue = reasonControl.value || '';
-          const newValue = result.isFinal
-            ? currentValue +
-              (currentValue ? ' ' : '') +
-              result.transcript
-            : currentValue;
+          // Only append final results to avoid duplicates
+          const newValue = currentValue +
+            (currentValue ? ' ' : '') +
+            result.transcript;
           reasonControl.setValue(newValue);
           reasonControl.markAsDirty();
           this.cdr.markForCheck();
-        }
-
-        // Stop listening after final result
-        if (result.isFinal) {
-          this.isListening = false;
-          this.speechRecognitionService.stopListening();
-          this.speechSession$.next();
-          this.speechSession$.complete();
         }
       });
 

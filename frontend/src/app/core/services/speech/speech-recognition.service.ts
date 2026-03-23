@@ -31,6 +31,7 @@ export class SpeechRecognitionService {
   private transcript$ = new Subject<SpeechRecognitionResult>();
   private error$ = new Subject<string>();
   private isBrowserSupported: boolean;
+  private lastProcessedFinalIndex: number = -1;
 
   constructor() {
     this.isBrowserSupported = this.initializeSpeechRecognition();
@@ -74,6 +75,7 @@ export class SpeechRecognitionService {
     if (!this.recognition) return;
 
     this.recognition.onstart = () => {
+      this.lastProcessedFinalIndex = -1;
       this.isListening$.next(true);
     };
 
@@ -90,13 +92,17 @@ export class SpeechRecognitionService {
         const isFinal = event.results[i].isFinal;
 
         if (isFinal) {
-          finalTranscript += transcript + ' ';
+          // Only add to finalTranscript if this is a new final result
+          if (i > this.lastProcessedFinalIndex) {
+            finalTranscript += transcript + ' ';
+            this.lastProcessedFinalIndex = i;
+          }
         } else {
           interimTranscript += transcript;
         }
       }
 
-      // Emit final transcript
+      // Emit final transcript only if there are new final results
       if (finalTranscript) {
         this.transcript$.next({
           transcript: finalTranscript.trim(),

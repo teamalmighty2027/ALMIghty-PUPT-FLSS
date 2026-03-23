@@ -351,16 +351,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       .getTranscript()
       .pipe(takeUntil(this.speechSession$))
       .subscribe((result) => {
-        if (result.isFinal) {
-          // Append final transcript to admin remarks
+        // Only append final results to avoid duplicates
+        if (result.isFinal && result.transcript) {
           this.adminRemarks = (this.adminRemarks + ' ' + result.transcript).trim();
           this.cdr.markForCheck();
-          
-          // Stop listening after final result
-          this.isListening = false;
-          this.speechRecognitionService.stopListening();
-          this.speechSession$.next();
-          this.speechSession$.complete();
         }
       });
 
