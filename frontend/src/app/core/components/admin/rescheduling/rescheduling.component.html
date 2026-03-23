@@ -247,70 +247,91 @@
 
       <div class="modal-body">
 
-        <div class="edit-mode-section">
-          <div class="suggested-label">
-            <span>NEW SCHEDULE</span>
+        <div class="modal-left">
+          <div class="schedule-summary requested-schedule">
+            <div class="section-label">REQUESTED SCHEDULE</div>
+            <div class="info-row">
+              <span class="label">Day:</span>
+              <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Time:</span>
+              <span class="value">
+                {{ selectedAppeal?.preferredStartTime || '—' }}
+                <ng-container *ngIf="selectedAppeal?.preferredEndTime">
+                  – {{ selectedAppeal?.preferredEndTime }}
+                </ng-container>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="label">Room:</span>
+              <span class="value">{{ selectedAppeal?.room || '—' }}</span>
+            </div>
           </div>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Day</mat-label>
-            <mat-select [(ngModel)]="newSchedule!.preferredDay">
-              <mat-option *ngFor="let day of daysOfWeek" [value]="day">
-                {{ day }}
-              </mat-option>
-            </mat-select>
-            <mat-icon matPrefix>today</mat-icon>
-          </mat-form-field>
-
-          <div class="time-row">
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Start Time</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.preferredStartTime">
-                <mat-option *ngFor="let time of timeOptions" [value]="time">
-                  {{ time }}
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
-            </mat-form-field>
-
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>End Time</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.preferredEndTime">
-                <mat-option *ngFor="let time of timeOptions" [value]="time">
-                  {{ time }}
-                </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
+          <div class="reason-section">
+            <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
+            <mat-form-field appearance="outline" class="full-width">
+              <textarea
+                matInput
+                [(ngModel)]="adminRemarks"
+                placeholder="Add remarks for the faculty member (optional)..."
+                rows="3"
+              ></textarea>
             </mat-form-field>
           </div>
+        </div>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Room</mat-label>
-            <input matInput [(ngModel)]="newSchedule!.room" placeholder="Enter room code" />
-            <mat-icon matPrefix>meeting_room</mat-icon>
-          </mat-form-field>
+        <div class="modal-right">
+          <div class="edit-mode-section">
+            <div class="suggested-label">
+              <span>NEW SCHEDULE</span>
+            </div>
 
-        </div><!-- /edit-mode-section -->
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Day</mat-label>
+              <mat-select [(ngModel)]="newSchedule!.preferredDay">
+                <mat-option *ngFor="let day of daysOfWeek" [value]="day">
+                  {{ day }}
+                </mat-option>
+              </mat-select>
+              <mat-icon matPrefix>today</mat-icon>
+            </mat-form-field>
 
-      </div><!-- /modal-body -->
+            <div class="time-row">
+              <mat-form-field appearance="outline" class="time-field">
+                <mat-label>Start Time</mat-label>
+                <mat-select [(ngModel)]="newSchedule!.preferredStartTime">
+                  <mat-option *ngFor="let time of timeOptions" [value]="time">
+                    {{ time }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matPrefix>schedule</mat-icon>
+              </mat-form-field>
 
-    </div><!-- /modal-scrollable-content -->
+              <mat-form-field appearance="outline" class="time-field">
+                <mat-label>End Time</mat-label>
+                <mat-select [(ngModel)]="newSchedule!.preferredEndTime">
+                  <mat-option *ngFor="let time of timeOptions" [value]="time">
+                    {{ time }}
+                  </mat-option>
+                </mat-select>
+                <mat-icon matPrefix>schedule</mat-icon>
+              </mat-form-field>
+            </div>
 
-    <!-- ── Full-width Admin Remarks + Actions ── -->
-    <div class="modal-footer">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Room</mat-label>
+              <input matInput [(ngModel)]="newSchedule!.room" placeholder="Enter room code" />
+              <mat-icon matPrefix>meeting_room</mat-icon>
+            </mat-form-field>
 
-      <div class="reason-section">
-        <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
-        <mat-form-field appearance="outline" class="full-width">
-          <textarea
-            matInput
-            [(ngModel)]="adminRemarks"
-            placeholder="Add remarks for the faculty member (optional)..."
-            rows="3"
-          ></textarea>
-        </mat-form-field>
+          </div>
+        </div>
       </div>
-
+    </div>
+    
+    <div class="modal-footer">
       <div class="modal-actions">
         <button mat-button class="btn-clear" (click)="clearAll()">
           Clear All
