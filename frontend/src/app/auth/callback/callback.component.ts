@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 
-import { Subject, finalize, timer } from 'rxjs';
+import { Subject, timer } from 'rxjs';
 import { map, switchMap, takeUntil } from 'rxjs/operators';
 
 import { MatSnackBar } from '@angular/material/snack-bar';
