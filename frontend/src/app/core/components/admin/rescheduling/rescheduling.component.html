@@ -339,12 +339,14 @@
         <button mat-button class="btn-cancel" (click)="closeDialog()">
           Cancel
         </button>
-        <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
-          Deny
-        </button>
-        <button mat-flat-button class="btn-approve" (click)="approveAppeal()">
-          Approve
-        </button>
+        @if (selectedAppeal?.appealVerification === 'Pending') {
+          <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
+            Deny
+          </button>
+          <button mat-flat-button class="btn-approve" (click)="approveAppeal()">
+            Approve
+          </button>
+        }
       </div>
 
     </div><!-- /modal-footer -->

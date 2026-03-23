@@ -205,7 +205,20 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
 
   openEditDialog(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
-    this.newSchedule = { ...appeal };
+    
+    // Load previous appeal data if the appeal is not pending
+    if (this.selectedAppeal.appealVerification !== 'Pending') {
+      this.newSchedule = { ...this.selectedAppeal };
+    } else {
+      // For pending appeals, initialize with empty form fields
+      this.newSchedule = {
+        ...appeal,
+        preferredDay: undefined,
+        preferredStartTime: undefined,
+        preferredEndTime: undefined,
+        room: undefined,
+      };
+    }
     this.adminRemarks = '';
     
     this.dialog.open(this.appealDialog, {
