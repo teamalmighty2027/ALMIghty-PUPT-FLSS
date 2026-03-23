@@ -71,10 +71,7 @@ export class AuthService {
       'request_role': this.requestedRole
     };
 
-    return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
-      tap((response) => {
-        this.setUserData(response.data);
-      }),
+    return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(      
       switchMap((response) => {
         // Extract token and user data from backend response
         const token = response.token;
@@ -102,6 +99,7 @@ export class AuthService {
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
         // Set individual user info cookies
+        this.setUserData(response.data);
         this.setUserInfo(user, expiryDate.toISOString());
         this.setSanctumToken(response.token.token, expiryDate.toISOString());
         this.setIdpToken(token.access_token, token.refresh_token, expiresIn);

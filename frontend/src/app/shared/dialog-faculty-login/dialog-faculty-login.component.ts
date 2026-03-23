@@ -46,7 +46,6 @@ export class DialogFacultyLoginComponent implements OnInit {
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private snackBar: MatSnackBar,
     private snackbar: MatSnackBar,
     private dialog: MatDialog,
     @Inject(MAT_DIALOG_DATA) public data: any,
@@ -167,7 +166,7 @@ export class DialogFacultyLoginComponent implements OnInit {
   }
 
   private showErrorSnackbar(message: string): void {
-    this.snackBar.open(message, 'Close', {
+    this.snackbar.open(message, 'Close', {
       duration: 5000,
       horizontalPosition: 'center',
       verticalPosition: 'bottom',

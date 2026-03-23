@@ -161,6 +161,7 @@ class AuthController extends Controller
         $request->validate([
             'code'          => 'required|string',
             'request_role'  => 'nullable|array',
+            'request_role.*'=> 'string|in:faculty,admin,superadmin',
         ]);
 
         $baseUrl = env('IDP_BASE_URL');
@@ -277,8 +278,6 @@ class AuthController extends Controller
                 $userDataArray['role'] = in_array('admin', $requestedRole) ? 'admin' : null;
             } else if (in_array('FLSS:superadmin', $roles)) {
                 $userDataArray['role'] = in_array('superadmin', $requestedRole) ? 'superadmin' : null;
-            } else {
-                $userDataArray['role'] = null;
             }
 
             $userDataJson = json_encode($userDataArray);
