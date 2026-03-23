@@ -279,8 +279,13 @@
                 rows="3"
               ></textarea>
               <!-- Mic for speech recognition -->
-            <button mat-icon-button matSuffix (click)="onSpeechRecognition()" title="Speak to fill">
-              <mat-icon>mic</mat-icon>
+            <button 
+              mat-icon-button 
+              matSuffix 
+              (click)="onSpeechRecognition()" 
+              [title]="isListening ? 'Stop recording' : 'Click to speak'"
+              [color]="isListening ? 'warn' : ''">
+              <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
             </button>
             </mat-form-field>
           </div>
