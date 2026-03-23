@@ -72,8 +72,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   headerInputFields: any[] = [];
 
   selectedAppeal: ReschedulingAppeal | null = null;
-  showModal = false;
+  newSchedule: ReschedulingAppeal | null = null;
   adminRemarks = '';
+
+  // Get reference to the ng-templates in HTML
+  @ViewChild('viewDialog') viewDialog!: TemplateRef<any>;
+  @ViewChild('appealDialog') appealDialog!: TemplateRef<any>;
 
   displayedColumns: string[] = [
     'index', 'facultyName', 'programCode',
@@ -186,16 +190,51 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     return i + 1 + pageIndex * pageSize;
   }
 
-  // ── Modal ──────────────────────────────────────────────────────
-  openEditModal(appeal: ReschedulingAppeal): void {
+  openViewDialog(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
+    
+    this.dialog.open(this.viewDialog, {
+      width: '55%',           
+      maxWidth: '1000px',     
+      maxHeight: '90vh',      
+      height: 'auto',        
+      disableClose: true,
+      panelClass: 'custom-dialog-container'
+    });
+  }
+
+  openEditDialog(appeal: ReschedulingAppeal): void {
+    this.selectedAppeal = { ...appeal };
+    
+    // Load previous appeal data if the appeal is not pending
+    if (this.selectedAppeal.appealVerification !== 'Pending') {
+      this.newSchedule = { ...this.selectedAppeal };
+    } else {
+      // For pending appeals, initialize with empty form fields
+      this.newSchedule = {
+        ...appeal,
+        preferredDay: undefined,
+        preferredStartTime: undefined,
+        preferredEndTime: undefined,
+        room: undefined,
+      };
+    }
     this.adminRemarks = '';
-    this.showModal = true;
+    
+    this.dialog.open(this.appealDialog, {
+      width: '55%',           
+      maxWidth: '1000px',     
+      maxHeight: '90vh',      
+      height: 'auto',        
+      disableClose: true,
+      panelClass: 'custom-dialog-container'
+    });
   }
 
   closeDialog(): void {
-    this.showModal = false;
+    this.dialog.closeAll();
     this.selectedAppeal = null;
+    this.newSchedule = null;
     this.adminRemarks = '';
   }
 
@@ -223,10 +262,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
     this.reschedulingService.approveAppeal(
       this.selectedAppeal.rawAppealId,
       {
-        day:       this.selectedAppeal.preferredDay       ?? '',
-        startTime: this.selectedAppeal.preferredStartTime ?? '',
-        endTime:   this.selectedAppeal.preferredEndTime   ?? '',
-        room:      this.selectedAppeal.room               ?? '',
+        day:       this.newSchedule?.preferredDay       ?? '',
+        startTime: this.newSchedule?.preferredStartTime ?? '',
+        endTime:   this.newSchedule?.preferredEndTime   ?? '',
+        room:      this.newSchedule?.room               ?? '',
       },
       this.adminRemarks
     ).subscribe({
