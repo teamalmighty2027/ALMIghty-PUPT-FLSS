@@ -67,7 +67,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
           .subscribe({
             next: (response) => {
               // Redirect based on user role
-              const role = response.data?.intended_role || response.data?.roles?.[0];
+              const role = response.data?.role || response.data?.roles?.[0];
 
               if (!role) {
                 this.handleError('User role could not be determined');

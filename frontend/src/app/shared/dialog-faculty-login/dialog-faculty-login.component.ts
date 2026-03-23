@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,6 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService, LoginError } from '../../core/services/auth/auth.service';
+import { DialogRedirectComponent } from '../dialog-redirect/dialog-redirect.component';
 
 @Component({
   selector: 'app-dialog-faculty-login',
@@ -38,6 +39,7 @@ export class DialogFacultyLoginComponent implements OnInit {
   showPassword = false;
   passwordHasValue = false;
   isLoading = false;
+  isRedirectDialogOpen = false;
 
   constructor(
     public dialogRef: MatDialogRef<DialogFacultyLoginComponent>,
@@ -45,6 +47,8 @@ export class DialogFacultyLoginComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private snackBar: MatSnackBar,
+    private snackbar: MatSnackBar,
+    private dialog: MatDialog,
     @Inject(MAT_DIALOG_DATA) public data: any,
   ) {}
 
@@ -117,7 +121,44 @@ export class DialogFacultyLoginComponent implements OnInit {
 
   onIdpLogin(): void {
     this.dialogRef.close();
-    this.authService.initiateIdpLogin(['faculty']);
+    if (this.isRedirectDialogOpen) return;
+
+    this.isRedirectDialogOpen = true;
+    const dialogRef = this.dialog.open(DialogRedirectComponent, {
+      disableClose: true,
+      data: { checkingIDP: true },
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.isRedirectDialogOpen = false;
+    });
+
+    // this.openFacultyLoginDialog();
+
+    try {
+      this.authService.initiateIdpLogin(['faculty']);
+    } catch (error) {
+      console.error('Error initiating IDP login:', error);
+      dialogRef.close();
+      this.snackbar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
+    }
+
+    // this.authService.checkIdpHealth().subscribe({
+    //   next: (isHealthy) => {
+    //     if (isHealthy) {
+    //       dialogRef.componentInstance.updateState(false, true);
+    //     } else {
+    //       dialogRef.close();
+    //       this.openFacultyLoginDialog();
+    //     }
+    //   },
+    //   error: (error) => {
+    //     console.error('Error checking IDP health:', error);
+    //     dialogRef.close();
+    //     this.openFacultyLoginDialog();
+    //   },
+    // });
+  
   }
 
   private onAutoLogout(): void {

@@ -39,7 +39,6 @@ export class LoginComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private isAdminDialogOpen = false;
   private isFacultyDialogOpen = false;
-  private isRedirectDialogOpen = false;
 
   readonly slideshowImages = [
     'assets/images/pupt_img_1.webp',
@@ -55,8 +54,6 @@ export class LoginComponent implements OnInit, OnDestroy {
   constructor(
     private themeService: ThemeService,
     private dialog: MatDialog,
-    private authService: AuthService,
-    private snackbar: MatSnackBar
   ) {
     this.isDarkTheme$ = this.themeService.isDarkTheme$;
   }
@@ -72,46 +69,6 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   onSlideChange(index: number) {
     this.currentBackgroundImage = `url(${this.slideshowImages[index]})`;
-  }
-
-  handleGlobalLogin(): void {
-    if (this.isRedirectDialogOpen || this.isFacultyDialogOpen) return;
-
-    this.isRedirectDialogOpen = true;
-    const dialogRef = this.dialog.open(DialogRedirectComponent, {
-      disableClose: true,
-      data: { checkingIDP: true },
-    });
-
-    dialogRef.afterClosed().subscribe(() => {
-      this.isRedirectDialogOpen = false;
-    });
-
-    // this.openFacultyLoginDialog();
-
-    try {
-      this.authService.initiateIdpLogin();
-    } catch (error) {
-      console.error('Error initiating IDP login:', error);
-      dialogRef.close();
-      this.snackbar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
-    }
-
-    // this.authService.checkIdpHealth().subscribe({
-    //   next: (isHealthy) => {
-    //     if (isHealthy) {
-    //       dialogRef.componentInstance.updateState(false, true);
-    //     } else {
-    //       dialogRef.close();
-    //       this.openFacultyLoginDialog();
-    //     }
-    //   },
-    //   error: (error) => {
-    //     console.error('Error checking IDP health:', error);
-    //     dialogRef.close();
-    //     this.openFacultyLoginDialog();
-    //   },
-    // });
   }
 
   openFacultyLoginDialog(): void {

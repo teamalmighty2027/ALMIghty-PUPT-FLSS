@@ -34,6 +34,7 @@ interface OAuthTokenResponse {
 export class AuthService {
   private baseUrl = environment.apiUrl;
   private requestedRole: string[] = [];
+  private userDataCache: any = null;
 
   constructor(
     private http: HttpClient,
@@ -367,9 +368,6 @@ export class AuthService {
     }
   }
 
-  // Create a secure user data object that can be retrieved
-  private userDataCache: any = null;
-
   setUserData(user: any): void {
     // Only store non-sensitive user info in cache
     this.userDataCache = {
@@ -377,8 +375,9 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
-      code: user.code || user.user_code || '', // Support both field names
-      faculty: user.faculty,
+      code: user.code || user.user_code || '',
+      faculty: user.faculty || null,
+      roles: user.roles || [user.role],
     };
     // Save to localStorage (not cookies) if needed for page reloads
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
@@ -394,6 +393,11 @@ export class AuthService {
 
   getUserRole(): string {
     return this.getUserData().role;
+  }
+
+  getUserRoles(): string[] {
+    const roles = this.getUserData().roles || [this.getUserData().role];
+    return roles.filter((r: string) => !!r);
   }
 
   getUserName(): string {

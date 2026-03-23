@@ -266,7 +266,7 @@ class AuthController extends Controller
 
             if (in_array('FLSS:faculty', $roles)) {                
                 // Add to user data if faculty
-                $userDataArray['intended_role'] = in_array('faculty', $requestedRole) ? 'faculty' : null;
+                $userDataArray['role'] = in_array('faculty', $requestedRole) ? 'faculty' : null;
                 $userDataArray['faculty'] = $user->faculty ? [
                     'faculty_id'    => $user->faculty->id,
                     'faculty_email' => $user->email,
@@ -274,11 +274,11 @@ class AuthController extends Controller
                     'faculty_units' => $user->faculty->faculty_units,
                 ] : null;
             } else if (in_array('FLSS:admin', $roles)) {                
-                $userDataArray['intended_role'] = in_array('admin', $requestedRole) ? 'admin' : null;
+                $userDataArray['role'] = in_array('admin', $requestedRole) ? 'admin' : null;
             } else if (in_array('FLSS:superadmin', $roles)) {
-                $userDataArray['intended_role'] = in_array('superadmin', $requestedRole) ? 'superadmin' : null;
+                $userDataArray['role'] = in_array('superadmin', $requestedRole) ? 'superadmin' : null;
             } else {
-                $userDataArray['intended_role'] = null;
+                $userDataArray['role'] = null;
             }
 
             $userDataJson = json_encode($userDataArray);

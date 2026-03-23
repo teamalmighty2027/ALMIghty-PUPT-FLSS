@@ -20,6 +20,7 @@ import { slideTextAnimation } from '../../core/animations/animations';
 export class DialogRedirectComponent implements OnInit {
   checkingIDP: boolean;
   redirecting: boolean;
+  intendedRole: string[];
 
   constructor(
     private dialogRef: MatDialogRef<DialogRedirectComponent>,
@@ -28,6 +29,7 @@ export class DialogRedirectComponent implements OnInit {
   ) {
     this.checkingIDP = data.checkingIDP;
     this.redirecting = false;
+    this.intendedRole = data.intendedRole;
   }
 
   ngOnInit(): void {
@@ -47,7 +49,7 @@ export class DialogRedirectComponent implements OnInit {
   initiateRedirection(): void {
     setTimeout(() => {
       this.dialogRef.close();
-      this.authService.initiateIdpLogin();
+      this.authService.initiateIdpLogin(this.intendedRole);
     }, 2000);
   }
 
