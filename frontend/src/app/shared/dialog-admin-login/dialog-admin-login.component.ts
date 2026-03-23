@@ -117,7 +117,7 @@ export class DialogAdminLoginComponent implements OnInit {
 
   onIdpLogin(): void {
     this.dialogRef.close();
-    this.authService.initiateIdpLogin();
+    this.authService.initiateIdpLogin(['admin', 'superadmin']);
   }
 
   onCloseClick(): void {

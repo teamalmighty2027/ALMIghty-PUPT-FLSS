@@ -117,7 +117,7 @@ export class DialogFacultyLoginComponent implements OnInit {
 
   onIdpLogin(): void {
     this.dialogRef.close();
-    this.authService.initiateIdpLogin();
+    this.authService.initiateIdpLogin(['faculty']);
   }
 
   private onAutoLogout(): void {

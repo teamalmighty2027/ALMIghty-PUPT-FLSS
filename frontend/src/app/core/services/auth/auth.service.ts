@@ -33,6 +33,7 @@ interface OAuthTokenResponse {
 })
 export class AuthService {
   private baseUrl = environment.apiUrl;
+  private requestedRole: string[] = [];
 
   constructor(
     private http: HttpClient,
@@ -55,15 +56,19 @@ export class AuthService {
   }
 
   // Call the IDP's authorization endpoint to initiate login
-  initiateIdpLogin(): void {
+  initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
     window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
+    this.requestedRole = intendedRole;
   }
 
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
-    const payload = { code };
+    const payload = { 
+      'code': code,
+      'request_role': this.requestedRole
+    };
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
       tap((response) => {
