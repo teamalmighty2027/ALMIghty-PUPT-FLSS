@@ -66,11 +66,12 @@ export class AuthService {
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
-    this.requestedRole = this.cookieService.get('intended_role') ? JSON.parse(this.cookieService.get('intended_role')) : []
+    this.requestedRole = this.cookieService.get('intended_role') 
+      ? JSON.parse(this.cookieService.get('intended_role')) : [];
 
     const payload = { 
       'code': code,
-      'request_role': 
+      'request_role': this.requestedRole,
     };
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(      
