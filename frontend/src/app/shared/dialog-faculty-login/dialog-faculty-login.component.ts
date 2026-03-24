@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 
 import { MatButtonModule } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,6 +15,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService, LoginError } from '../../core/services/auth/auth.service';
+import { DialogRedirectComponent } from '../dialog-redirect/dialog-redirect.component';
 
 @Component({
   selector: 'app-dialog-faculty-login',
@@ -38,13 +39,15 @@ export class DialogFacultyLoginComponent implements OnInit {
   showPassword = false;
   passwordHasValue = false;
   isLoading = false;
+  isRedirectDialogOpen = false;
 
   constructor(
     public dialogRef: MatDialogRef<DialogFacultyLoginComponent>,
     private formBuilder: FormBuilder,
     private authService: AuthService,
     private router: Router,
-    private snackBar: MatSnackBar,
+    private snackbar: MatSnackBar,
+    private dialog: MatDialog,
     @Inject(MAT_DIALOG_DATA) public data: any,
   ) {}
 
@@ -104,6 +107,7 @@ export class DialogFacultyLoginComponent implements OnInit {
           const expirationTime = expiryDate.getTime() - Date.now();
           setTimeout(() => this.onAutoLogout(), expirationTime);
 
+          this.isLoading = false;
           this.dialogRef.close();
           this.router.navigateByUrl('/faculty/home', { replaceUrl: true });
         },
@@ -112,6 +116,30 @@ export class DialogFacultyLoginComponent implements OnInit {
           this.isLoading = false;
         },
       });
+    }
+  }
+
+  onIdpLogin(): void {
+    if (this.isRedirectDialogOpen) return;
+
+    this.dialogRef.close();
+
+    this.isRedirectDialogOpen = true;
+    const dialogRef = this.dialog.open(DialogRedirectComponent, {
+      disableClose: true,
+      data: { checkingIDP: true, redirecting: true, intendedRole: ['faculty'] },
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.isRedirectDialogOpen = false;
+    });
+
+    try {
+      this.authService.initiateIdpLogin(['faculty']);
+    } catch (error) {
+      console.error('Error initiating IDP login:', error);
+      dialogRef.close();
+      this.snackbar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
     }
   }
 
@@ -138,7 +166,7 @@ export class DialogFacultyLoginComponent implements OnInit {
   }
 
   private showErrorSnackbar(message: string): void {
-    this.snackBar.open(message, 'Close', {
+    this.snackbar.open(message, 'Close', {
       duration: 5000,
       horizontalPosition: 'center',
       verticalPosition: 'bottom',

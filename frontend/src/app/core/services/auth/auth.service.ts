@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
 import { Observable, of } from 'rxjs';
@@ -33,6 +33,8 @@ interface OAuthTokenResponse {
 })
 export class AuthService {
   private baseUrl = environment.apiUrl;
+  private requestedRole: string[] = [];
+  private userDataCache: any = null;
 
   constructor(
     private http: HttpClient,
@@ -55,20 +57,21 @@ export class AuthService {
   }
 
   // Call the IDP's authorization endpoint to initiate login
-  initiateIdpLogin(): void {
+  initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
+    this.requestedRole = intendedRole;
     window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
-    const payload = { code };
+    const payload = { 
+      'code': code,
+      'request_role': this.requestedRole
+    };
 
-    return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(
-      tap((response) => {
-        this.setUserData(response.data);
-      }),
+    return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(      
       switchMap((response) => {
         // Extract token and user data from backend response
         const token = response.token;
@@ -78,27 +81,28 @@ export class AuthService {
           throw new Error('No access token received');
         }
 
+        if (!token?.expires_in) {
+          throw new Error('No token expiry received');
+        }
+
+        if (!token.refresh_token) {
+          throw new Error('No refresh token received');
+        }
+
         if (!user?.role) {
           throw new Error('No user role received from backend');
         }
 
         // Calculate expiry date
-        const expiresIn = token.expires_in || 3600; // fallback to 1 hour if not present
+        const expiresIn = token.expires_in || 3600;
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-        // Store Sanctum-style token
-        this.cookieService.set('token', response.token.token, {
-          expires: expiryDate,
-          path: '/',
-          sameSite: 'Lax',
-          secure: false,
-        });
-
-        // Set individual user info cookies (matching flssLogin approach)
+        // Set individual user info cookies
+        this.setUserData(response.data);
         this.setUserInfo(user, expiryDate.toISOString());
-        localStorage.setItem('token', response.token.token);
-        localStorage.setItem('access_token', token.access_token);
+        this.setSanctumToken(response.token.token, expiryDate.toISOString());
+        this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
       }),
@@ -294,6 +298,8 @@ export class AuthService {
       'faculty_type',
       'faculty_units',
       'termsAccepted',
+      'access_token',
+      'refresh_token',
     ];
 
     cookiesToClear.forEach((cookieName) => {
@@ -319,7 +325,6 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user);
-          // Also set individual cookies for backward compatibility
           this.setUserInfo(response.user, response.expires_at);
           localStorage.setItem('token', response.token);
         }
@@ -371,9 +376,6 @@ export class AuthService {
     }
   }
 
-  // Create a secure user data object that can be retrieved
-  private userDataCache: any = null;
-
   setUserData(user: any): void {
     // Only store non-sensitive user info in cache
     this.userDataCache = {
@@ -381,8 +383,9 @@ export class AuthService {
       name: user.name,
       email: user.email,
       role: user.role,
-      code: user.code || user.user_code || '', // Support both field names
-      faculty: user.faculty,
+      code: user.code || user.user_code || '',
+      faculty: user.faculty || null,
+      roles: user.roles || [user.role],
     };
     // Save to localStorage (not cookies) if needed for page reloads
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
@@ -398,6 +401,11 @@ export class AuthService {
 
   getUserRole(): string {
     return this.getUserData().role;
+  }
+
+  getUserRoles(): string[] {
+    const roles = this.getUserData().roles || [this.getUserData().role];
+    return roles.filter((r: string) => !!r);
   }
 
   getUserName(): string {

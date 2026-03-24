@@ -13,8 +13,9 @@ export class RoleService {
 
   constructor(private router: Router) {}
 
-  hasRequiredRole(userRole: string, requiredRole: string): boolean {
-    return !requiredRole || userRole === requiredRole;
+  hasRequiredRole(userRole: string[], requiredRole: string): boolean {
+    const userRoleSet = new Set(userRole);
+      return userRoleSet.has(requiredRole);
   }
 
   getHomeUrlForRole(userRole: string): UrlTree {

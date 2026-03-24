@@ -4,7 +4,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router } from '@angular/router';
 
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,6 +15,7 @@ import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService, LoginError } from '../../core/services/auth/auth.service';
 import { RoleService } from '../../core/services/role/role.service';
+import { DialogRedirectComponent } from '../dialog-redirect/dialog-redirect.component';
 
 @Component({
   selector: 'app-dialog-admin-login',
@@ -37,6 +38,7 @@ export class DialogAdminLoginComponent implements OnInit {
   showPassword = false;
   passwordHasValue = false;
   isLoading = false;
+  isRedirectDialogOpen = false;
 
   constructor(
     public dialogRef: MatDialogRef<DialogAdminLoginComponent>,
@@ -44,6 +46,7 @@ export class DialogAdminLoginComponent implements OnInit {
     private authService: AuthService,
     private router: Router,
     private roleService: RoleService,
+    private dialog: MatDialog,
     private snackBar: MatSnackBar,
   ) {}
 
@@ -112,6 +115,30 @@ export class DialogAdminLoginComponent implements OnInit {
             this.isLoading = false;
           },
         });
+    }
+  }
+
+  onIdpLogin(): void {
+    if (this.isRedirectDialogOpen) return;
+
+    this.dialogRef.close();
+
+    this.isRedirectDialogOpen = true;
+    const dialogRef = this.dialog.open(DialogRedirectComponent, {
+      disableClose: true,
+      data: { checkingIDP: true, intendedRole: ['admin', 'superadmin'] },
+    });
+
+    dialogRef.afterClosed().subscribe(() => {
+      this.isRedirectDialogOpen = false;
+    });
+
+    try {
+      this.authService.initiateIdpLogin(['admin', 'superadmin']);
+    } catch (error) {
+      console.error('Error initiating IDP login:', error);
+      dialogRef.close();
+      this.snackBar.open('Failed to initiate global login. Please try again.', 'Close', { duration: 5000 });
     }
   }
 

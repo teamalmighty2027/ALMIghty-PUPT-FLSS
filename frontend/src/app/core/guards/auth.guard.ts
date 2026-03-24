@@ -20,6 +20,7 @@ export class AuthGuard implements CanActivate {
     const isAuthenticated = this.authService.isAuthenticated();
     const userRole = this.authService.getUserRole() || '';
     const expectedRole = next.data['role'] as string;
+    const userRoles = this.authService.getUserRoles();
 
     if (!isAuthenticated) {
       return this.isLoginRoute(next)
@@ -29,7 +30,7 @@ export class AuthGuard implements CanActivate {
 
     if (
       expectedRole &&
-      !this.roleService.hasRequiredRole(userRole, expectedRole)
+      !this.roleService.hasRequiredRole(userRoles, expectedRole)
     ) {
       return this.router.createUrlTree(['/forbidden']);
     }

@@ -83,6 +83,15 @@
         }
       </mat-form-field>
 
+      <button
+        mat-flat-button
+        class="login-button ter-ripple global"
+        (click)="onIdpLogin()">
+        <span class="button-text">
+          Login through IDP
+        </span>
+      </button>
+
       <!-- Forgot Password Link -->
       <div class="forgot-password-container">
         <a class="forgot-password-link" (click)="onForgotPassword()">

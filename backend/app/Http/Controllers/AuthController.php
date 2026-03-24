@@ -160,10 +160,13 @@ class AuthController extends Controller
     {
         $request->validate([
             'code'          => 'required|string',
+            'request_role'  => 'nullable|array',
+            'request_role.*'=> 'string|in:faculty,admin,superadmin',
         ]);
 
         $baseUrl = env('IDP_BASE_URL');
         $code = $request->input('code');
+        $requestedRole = $request->input('request_role', []);
         $clientId = env('CLIENT_ID');
         $clientSecret = env('CLIENT_SECRET');
 
@@ -259,28 +262,28 @@ class AuthController extends Controller
                 'id'      => $user->id,
                 'name'    => $user->first_name . ' ' . $user->last_name,
                 'email'   => $user->email,
+                'roles'   => $roles
             ];
 
-            // TODO: Should handle multiple roles
-            if (in_array('FLSS:faculty', $roles)) {
-                $userDataArray['role'] = 'faculty';
-                // add to user data if faculty
+            if (in_array('FLSS:faculty', $roles)) {                
+                // Add to user data if faculty
+                $userDataArray['role'] = in_array('faculty', $requestedRole) ? 'faculty' : null;
                 $userDataArray['faculty'] = $user->faculty ? [
                     'faculty_id'    => $user->faculty->id,
                     'faculty_email' => $user->email,
                     'faculty_type'  => $user->faculty->facultyType->faculty_type ?? null,
                     'faculty_units' => $user->faculty->faculty_units,
                 ] : null;
-            } else if (in_array('FLSS:admin', $roles)) {
-                $userDataArray['role'] = 'admin';
+            } else if (in_array('FLSS:admin', $roles)) {                
+                $userDataArray['role'] = in_array('admin', $requestedRole) ? 'admin' : null;
+            } else if (in_array('FLSS:superadmin', $roles)) {
+                $userDataArray['role'] = in_array('superadmin', $requestedRole) ? 'superadmin' : null;
             }
 
             $userDataJson = json_encode($userDataArray);
 
             // AuditLogger automatically grabs their Name, Role, and ID
             Auth::setUser($user);
-
-            // Log IDP login
             AuditLogger::logLogin($email);
 
             return response()->json([
