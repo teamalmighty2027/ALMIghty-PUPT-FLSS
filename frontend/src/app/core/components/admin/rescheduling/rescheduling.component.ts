@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, TemplateRef, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -11,10 +11,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { trigger, transition, style, animate } from '@angular/animations';
+import { Subject, takeUntil } from 'rxjs';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
+import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 
 // ── Local view model ───────────────────────────────────────────
 interface ReschedulingAppeal {
@@ -67,7 +70,7 @@ interface ReschedulingAppeal {
   templateUrl: './rescheduling.component.html',
   styleUrl: './rescheduling.component.scss',
 })
-export class ReschedulingComponent implements OnInit, AfterViewInit {
+export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   isLoading = false;
   headerInputFields: any[] = [];
 
@@ -90,10 +93,21 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
 
+  // Speech recognition properties
+  isListening: boolean = false;
+  speechSupported: boolean = false;
+  private destroy$ = new Subject<void>();
+  private speechSession$ = new Subject<void>();
+
   constructor(
     private reschedulingService: ReschedulingService,
-    private dialog: MatDialog
-  ) {}
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar,
+    private speechRecognitionService: SpeechRecognitionService,
+    private cdr: ChangeDetectorRef
+  ) {
+    this.speechSupported = this.speechRecognitionService.isSupported();
+  }
 
   ngOnInit(): void {
     this.generateTimeOptions();
@@ -300,6 +314,72 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
   }
 
   // ── Other ──────────────────────────────────────────────────────
+  /**
+   * Handle speech recognition button click
+   * Starts listening and appends speech to admin remarks field
+   */
+  onSpeechRecognition(): void {
+    // Check if speech recognition is supported
+    if (!this.speechRecognitionService.isSupported()) {
+      this.snackBar.open(
+        'Speech Recognition is not supported in your browser. Please use Chrome, Edge, or Safari.',
+        'Close',
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    if (this.isListening) {
+      // Stop listening and cleanup subscriptions
+      this.speechRecognitionService.stopListening();
+      this.isListening = false;
+      this.speechSession$.next();
+      this.speechSession$.complete();
+      this.speechSession$ = new Subject<void>();
+      return;
+    }
+
+    // Reset speech session subject for new session
+    this.speechSession$ = new Subject<void>();
+
+    // Start listening
+    this.isListening = true;
+    this.speechRecognitionService.startListening();
+
+    // Subscribe to transcript updates
+    this.speechRecognitionService
+      .getTranscript()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((result) => {
+        // Only append final results to avoid duplicates
+        if (result.isFinal && result.transcript) {
+          this.adminRemarks = (this.adminRemarks + ' ' + result.transcript).trim();
+          this.cdr.markForCheck();
+        }
+      });
+
+    // Subscribe to errors
+    this.speechRecognitionService
+      .getError()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((error) => {
+        this.isListening = false;
+        this.snackBar.open(error, 'Close', { duration: 5000 });
+        this.speechSession$.next();
+        this.speechSession$.complete();
+        this.cdr.markForCheck();
+      });
+
+    // Subscribe to listening status
+    this.speechRecognitionService
+      .getIsListening()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((listening) => {
+        this.isListening = listening;
+        this.cdr.markForCheck();
+      });
+  }
+
   onExportAll(): void {
     console.log('Export all appeals', this.dataSource.data);
   }
@@ -316,5 +396,21 @@ export class ReschedulingComponent implements OnInit, AfterViewInit {
 
   assignSchedule(): void {
     this.approveAppeal();
+  }
+
+  /**
+   * Clean up subscriptions and abort speech recognition on component destroy
+   */
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Abort any active speech recognition
+    if (this.isListening) {
+      this.speechSession$.next();
+      this.speechSession$.complete();
+      this.speechRecognitionService.abort();
+      this.isListening = false;
+    }
   }
 }

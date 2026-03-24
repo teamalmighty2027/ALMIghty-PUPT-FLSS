@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, Inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -11,6 +11,7 @@ import { SchedulingService } from '../../core/services/admin/scheduling/scheduli
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
 import { ReschedulingService } from '../../core/services/faculty/rescheduling/rescheduling.service';
+import { SpeechRecognitionService } from '../../core/services/speech/speech-recognition.service';
 
 interface DialogData {  
   isEditMode?: boolean;
@@ -55,7 +56,7 @@ interface DialogData {
   templateUrl: './dialog-appeal-schedule.component.html',
   styleUrls: ['./dialog-appeal-schedule.component.scss']
 })
-export class DialogAppealScheduleComponent {
+export class DialogAppealScheduleComponent implements OnDestroy {
   appealForm: FormGroup;
   isEditMode: boolean = false;
   selectedFile: File | null = null;
@@ -65,13 +66,19 @@ export class DialogAppealScheduleComponent {
   // Time options for dropdowns
   timeOptions: string[] = [];
   roomOptions: string[] = [];
+  
+  // Speech recognition properties
+  isListening: boolean = false;
+  speechSupported: boolean = false;
 
   private destroy$ = new Subject<void>();
+  private speechSession$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
     private schedulingService: SchedulingService,
     private reschedulingService: ReschedulingService,
+    private speechRecognitionService: SpeechRecognitionService,
     public dialogRef: MatDialogRef<DialogAppealScheduleComponent>,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
@@ -322,6 +329,78 @@ export class DialogAppealScheduleComponent {
     }
   }
 
+  /**
+   * Handle speech recognition button click
+   * Starts listening and appends speech to reason field
+   */
+  onSpeechRecognition(): void {
+    // Check if speech recognition is supported
+    if (!this.speechRecognitionService.isSupported()) {
+      this.snackBar.open(
+        'Speech Recognition is not supported in your browser. Please use Chrome, Edge, or Safari.',
+        'Close',
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    if (this.isListening) {
+      // Stop listening and cleanup subscriptions
+      this.speechRecognitionService.stopListening();
+      this.isListening = false;
+      this.speechSession$.next();
+      this.speechSession$.complete();
+      this.speechSession$ = new Subject<void>();
+      return;
+    }
+
+    // Reset speech session subject for new session
+    this.speechSession$ = new Subject<void>();
+
+    // Start listening
+    this.isListening = true;
+    this.speechRecognitionService.startListening();
+
+    // Subscribe to transcript updates
+    this.speechRecognitionService
+      .getTranscript()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((result) => {
+        const reasonControl = this.appealForm.get('reason');
+        if (reasonControl && result.isFinal) {
+          const currentValue = reasonControl.value || '';
+          // Only append final results to avoid duplicates
+          const newValue = currentValue +
+            (currentValue ? ' ' : '') +
+            result.transcript;
+          reasonControl.setValue(newValue);
+          reasonControl.markAsDirty();
+          this.cdr.markForCheck();
+        }
+      });
+
+    // Subscribe to errors
+    this.speechRecognitionService
+      .getError()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((error) => {
+        this.isListening = false;
+        this.snackBar.open(error, 'Close', { duration: 5000 });
+        this.speechSession$.next();
+        this.speechSession$.complete();
+        this.cdr.markForCheck();
+      });
+
+    // Subscribe to listening status
+    this.speechRecognitionService
+      .getIsListening()
+      .pipe(takeUntil(this.speechSession$))
+      .subscribe((listening) => {
+        this.isListening = listening;
+        this.cdr.markForCheck();
+      });
+  }
+
   // Helper function to compare time strings
   private compareTimeStrings(time1: string, time2: string): number {
     const parseTime = (timeStr: string): number => {
@@ -335,5 +414,21 @@ export class DialogAppealScheduleComponent {
     };
 
     return parseTime(time1) - parseTime(time2);
+  }
+
+  /**
+   * Clean up subscriptions and abort speech recognition on component destroy
+   */
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    // Abort any active speech recognition
+    if (this.isListening) {
+      this.speechSession$.next();
+      this.speechSession$.complete();
+      this.speechRecognitionService.abort();
+      this.isListening = false;
+    }
   }
 }
