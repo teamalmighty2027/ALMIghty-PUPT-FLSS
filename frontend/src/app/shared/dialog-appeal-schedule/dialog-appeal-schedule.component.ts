@@ -425,6 +425,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     
     // Abort any active speech recognition
     if (this.isListening) {
+      this.speechSession$.next();
+      this.speechSession$.complete();
       this.speechRecognitionService.abort();
       this.isListening = false;
     }

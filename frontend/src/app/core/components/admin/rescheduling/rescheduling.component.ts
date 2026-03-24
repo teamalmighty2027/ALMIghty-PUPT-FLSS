@@ -11,13 +11,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject, takeUntil } from 'rxjs';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
 // ── Local view model ───────────────────────────────────────────
 interface ReschedulingAppeal {
@@ -407,7 +407,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     
     // Abort any active speech recognition
     if (this.isListening) {
+      this.speechSession$.next();
+      this.speechSession$.complete();
       this.speechRecognitionService.abort();
+      this.isListening = false;
     }
   }
 }

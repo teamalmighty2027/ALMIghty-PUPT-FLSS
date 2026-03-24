@@ -129,9 +129,11 @@
           <button 
             mat-icon-button 
             matSuffix 
+            type="button"
             (click)="onSpeechRecognition()" 
             [title]="isListening ? 'Stop recording' : 'Click to speak'"
-            [color]="isListening ? 'warn' : ''">
+            [attr.aria-label]="isListening ? 'Stop recording' : 'Click to speak'"
+            [color]="isListening ? 'warn' : null">
             <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
           </button>
 
