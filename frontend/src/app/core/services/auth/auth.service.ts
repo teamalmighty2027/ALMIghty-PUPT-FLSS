@@ -59,16 +59,18 @@ export class AuthService {
   // Call the IDP's authorization endpoint to initiate login
   initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
-    this.requestedRole = intendedRole;
+    this.cookieService.set('intended_role', JSON.stringify(intendedRole), undefined, '/');
     window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
   handleIdpCallback(params: any): Observable<any> {
     const { code } = params;
+    this.requestedRole = this.cookieService.get('intended_role') ? JSON.parse(this.cookieService.get('intended_role')) : []
+
     const payload = { 
       'code': code,
-      'request_role': this.requestedRole
+      'request_role': 
     };
 
     return this.http.post<any>(`${this.baseUrl}/auth/callback`, payload).pipe(      
