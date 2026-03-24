@@ -14,8 +14,13 @@ export class RoleService {
   constructor(private router: Router) {}
 
   hasRequiredRole(userRole: string[], requiredRole: string): boolean {
-    const userRoleSet = new Set(userRole);
-      return userRoleSet.has(requiredRole);
+    // Strip "FLSS:" prefix if present
+    const normalizedRoles = userRole.map(role =>
+      role.startsWith('FLSS:') ? role.substring(5) : role
+    );
+
+    const userRoleSet = new Set(normalizedRoles);
+    return userRoleSet.has(requiredRole);
   }
 
   getHomeUrlForRole(userRole: string): UrlTree {

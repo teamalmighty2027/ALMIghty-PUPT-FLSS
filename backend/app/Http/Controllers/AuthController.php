@@ -265,19 +265,19 @@ class AuthController extends Controller
                 'roles'   => $roles
             ];
 
-            if (in_array('FLSS:faculty', $roles)) {                
+            if (in_array('FLSS:faculty', $roles) && in_array('faculty', $requestedRole)) {                
                 // Add to user data if faculty
-                $userDataArray['role'] = in_array('faculty', $requestedRole) ? 'faculty' : null;
+                $userDataArray['role'] = 'faculty';
                 $userDataArray['faculty'] = $user->faculty ? [
                     'faculty_id'    => $user->faculty->id,
                     'faculty_email' => $user->email,
                     'faculty_type'  => $user->faculty->facultyType->faculty_type ?? null,
                     'faculty_units' => $user->faculty->faculty_units,
                 ] : null;
-            } else if (in_array('FLSS:admin', $roles)) {                
-                $userDataArray['role'] = in_array('admin', $requestedRole) ? 'admin' : null;
-            } else if (in_array('FLSS:superadmin', $roles)) {
-                $userDataArray['role'] = in_array('superadmin', $requestedRole) ? 'superadmin' : null;
+            } else if (in_array('FLSS:admin', $roles) && in_array('admin', $requestedRole)) {
+                $userDataArray['role'] = 'admin';
+            } else if (in_array('FLSS:superadmin', $roles) && in_array('superadmin', $requestedRole)) {
+                $userDataArray['role'] = 'superadmin';
             }
 
             $userDataJson = json_encode($userDataArray);
