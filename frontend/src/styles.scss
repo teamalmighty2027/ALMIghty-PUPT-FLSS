@@ -518,6 +518,7 @@ span[mat-symbol] {
   }
 }
 
+
 .sienna-btn, 
 #sienna-widget-button, 
 .sienna-trigger,
@@ -539,13 +540,3 @@ span[mat-symbol] {
     border-top: 4px solid #800000 !important;
 }
 
-.sienna-accessibility-widget, 
-.sienna-btn-container {
-    --primary-color: #800000 !important;
-    --sienna-primary: #800000 !important;
-}
-
-/* This targets the actual button if it's exposed */
-#sienna-widget-button {
-    background-color: #800000 !important;
-}
