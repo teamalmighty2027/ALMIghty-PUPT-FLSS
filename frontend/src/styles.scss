@@ -12,6 +12,15 @@
   --font-base: 'Inter Tight', 'Helvetica Neue', sans-serif;
   --font-header: 'Trajan Pro', serif;
 
+  // Sienna Widget
+  --sienna-primary-color: #800000 !important;
+  --sienna-accent-color: #800000 !important;
+  --sienna-primary: #800000 !important;
+  --sienna-bg: #800000 !important;
+  --sienna-color: #800000 !important;
+  --sienna-accent: #800000 !important;
+  --sienna-btn-bg: #800000 !important;
+
   // Font Sizes
   --font-size-tiny: 0.4rem;
   --font-size-xs: 0.65rem;
@@ -508,3 +517,26 @@ span[mat-symbol] {
     width: 100%;
   }
 }
+
+
+.sienna-btn, 
+#sienna-widget-button, 
+.sienna-trigger,
+.sienna-accessibility-btn {
+    background-color: #800000 !important; /* PUP Maroon */
+    color: #ffffff !important;
+    z-index: 9999 !important; /* Keeps it above the mobile footer */
+}
+
+/* Fix for the icon color */
+.sienna-btn svg, 
+.sienna-accessibility-btn svg,
+#sienna-widget-button svg {
+    fill: #ffffff !important;
+}
+
+/* Optional: Match the menu accent to Maroon */
+.sienna-menu {
+    border-top: 4px solid #800000 !important;
+}
+
