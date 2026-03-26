@@ -11,6 +11,15 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * ⚠️ DEPRECATED: Process External Schedule Change Job
+ * 
+ * This job processes incoming schedule changes from external systems via webhooks.
+ * 
+ * @deprecated The webhook integration with external systems is deprecated and will be removed.
+ *             Do NOT use this job for new schedule change processing.
+ *             TODO: Replace with new internal event synchronization system.
+ */
 class ProcessExternalScheduleChange implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;

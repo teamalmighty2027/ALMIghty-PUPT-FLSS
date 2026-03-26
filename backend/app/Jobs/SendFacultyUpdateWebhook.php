@@ -12,6 +12,16 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+/**
+ * ⚠️ DEPRECATED: Send Faculty Update Webhook Job
+ * 
+ * This job sends faculty profile updates to the FESR (Faculty External System Repository)
+ * system via webhook.
+ * 
+ * @deprecated The webhook integration with FESR/HRIS is deprecated and will be removed.
+ *             Do NOT use this job for new faculty updates.
+ *             TODO: Replace with new internal event synchronization system.
+ */
 class SendFacultyUpdateWebhook implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;

@@ -339,6 +339,9 @@ Route::prefix('v1')->group(function () {
 
 /**
  * Faculty Data Management and Evaluation System with Research Repository (FESR)
+ * 
+ * ⚠️ DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
+ * TODO: Replace with new internal event synchronization system.
  */
 Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']);
+Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']); // DEPRECATED: Remove when new system is in place
