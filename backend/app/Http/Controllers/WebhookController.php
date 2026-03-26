@@ -1,7 +1,6 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Jobs\SendFacultyUpdateWebhook;
 use App\Models\Faculty;
 use App\Models\FacultyType;
 use App\Models\User;
@@ -147,32 +146,11 @@ class WebhookController extends Controller
      */
     public function sendFacultyWebhook($event, $facultyData)
     {
-        \Log::warning('DEPRECATED: sendFacultyWebhook() called - webhook integration is abandoned', [
+        \Log::warning('DEPRECATED: sendFacultyWebhook() called - webhook integration is abandoned and removed', [
             'event' => $event,
             'timestamp' => now(),
         ]);
-        try {
-            if (! $this->webhookSecret) {
-                Log::error('Cannot send webhook: Webhook secret is not set');
-                return false;
-            }
-
-            Log::info('Dispatching webhook job', [
-                'event'        => $event,
-                'faculty_data' => $facultyData,
-            ]);
-
-            // ⚠️ DEPRECATED: Job-based webhook dispatch
-            // TODO: Replace with synchronous event dispatch or new notification system
-            // Old Code: SendFacultyUpdateWebhook::dispatch($event, $facultyData);
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Error dispatching webhook job:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return false;
-        }
+        return false; // Webhook job has been removed
     }
 
     /**

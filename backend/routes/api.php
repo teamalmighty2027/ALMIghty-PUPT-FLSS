@@ -23,7 +23,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
-use App\Http\Controllers\WebhookController;
+
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
@@ -344,4 +344,4 @@ Route::prefix('v1')->group(function () {
  * TODO: Replace with new internal event synchronization system.
  */
 Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']); // DEPRECATED: Remove when new system is in place
+// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']); // Removed - use new event system
