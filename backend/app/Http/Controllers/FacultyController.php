@@ -57,7 +57,22 @@ class FacultyController extends Controller
             'password'    => $validatedData['password'],
         ]);
 
+        $FacultyProfile = $user->facultyProfile()->create([
+            'faculty_id' => $user->id,
+            'house_num' => null,
+            'street' => null,
+            'barangay' => null,
+            'city' => null,
+            'province' => null,
+            'country' => null,
+            'zipcode' => null,
+            'program_id' => null,
+            'birthdate' => null,
+            'sex' => null,
+        ]);
+
         $faculty = $user->faculty()->create([
+            'faculty_profile_id' => $FacultyProfile->faculty_profile_id,
             'faculty_type_id' => $validatedData['faculty_type_id'],
         ]);
 
