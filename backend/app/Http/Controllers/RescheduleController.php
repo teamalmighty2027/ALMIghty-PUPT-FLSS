@@ -250,16 +250,19 @@ class RescheduleController extends Controller
         }
 
         DB::transaction(function () use ($appeal, $schedule, $validated, $roomId) {
-            // 1. Mark the appeal as approved
+            // 1. Actually update the appeal to Approved
             $appeal->update([
-                'is_approved'   => true,
+                'is_approved'   => 1,
                 'admin_remarks' => $validated['admin_remarks'] ?? null,
+                'day'           => $validated['day'],
+                'start_time'    => $validated['start_time'],
+                'end_time'      => $validated['end_time'],
+                'room_id'       => $roomId,
             ]);
 
-            // 2. Create or Update the active Internal Arrangement
-            // updateOrCreate ensures there is only ever ONE active arrangement per official schedule
-            \App\Models\InternalArrangement::updateOrCreate(
-                ['schedule_id' => $schedule->schedule_id], 
+            // 2. Create the internal arrangement
+            $arrangement = \App\Models\InternalArrangement::updateOrCreate(
+                ['schedule_id' => $schedule->schedule_id],
                 [
                     'appeal_id'  => $appeal->appeal_id,
                     'day'        => $validated['day'],
@@ -267,6 +270,12 @@ class RescheduleController extends Controller
                     'end_time'   => $validated['end_time'],
                     'room_id'    => $roomId,
                 ]
+            );
+
+            // 3. Log the arrangement, NOT the schedule
+            AuditLogger::logUpdate(
+                $arrangement, 
+                "Approved appeal #{$appeal->appeal_id} and created internal arrangement for Schedule #{$schedule->schedule_id}"
             );
         });
 
