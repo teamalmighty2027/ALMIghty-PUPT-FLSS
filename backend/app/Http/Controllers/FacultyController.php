@@ -6,6 +6,8 @@ use App\Models\Faculty;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class FacultyController extends Controller
 {
@@ -37,58 +39,64 @@ class FacultyController extends Controller
             'password'        => 'required|string',
         ]);
 
-        $user = User::create([
-            'first_name'  => $validatedData['first_name'],
-            'middle_name' => $validatedData['middle_name'],
-            'last_name'   => $validatedData['last_name'],
-            'suffix_name' => $validatedData['suffix_name'],
-            'code'        => $validatedData['code'],
-            'email'       => $validatedData['email'],
-            'role'        => 'faculty',
-            'status'      => $validatedData['status'],
-            'password'    => $validatedData['password'],
-        ]);
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'first_name'  => $validatedData['first_name'],
+                'middle_name' => $validatedData['middle_name'],
+                'last_name'   => $validatedData['last_name'],
+                'suffix_name' => $validatedData['suffix_name'],
+                'code'        => $validatedData['code'],
+                'email'       => $validatedData['email'],
+                'role'        => 'faculty',
+                'status'      => $validatedData['status'],
+                'password'    => Hash::make($validatedData['password']),
+            ]);
 
-        // Create Faculty first (so we have the faculty_id)
-        $faculty = $user->faculty()->create([
-            'faculty_type_id' => $validatedData['faculty_type_id'],
-        ]);
+            $faculty = $user->faculty()->create([
+                'faculty_type_id' => $validatedData['faculty_type_id'],
+            ]);
 
-        // Create FacultyProfile with the faculty_id from the Faculty record
-        $FacultyProfile = \App\Models\FacultyProfile::create([
-            'faculty_id' => $faculty->id,
-            'house_num' => null,
-            'street' => null,
-            'barangay' => null,
-            'city' => null,
-            'province' => null,
-            'country' => null,
-            'zipcode' => null,
-            'program_id' => null,
-            'birthdate' => null,
-            'sex' => null,
-        ]);
+            $facultyProfile = \App\Models\FacultyProfile::create([
+                'faculty_id' => $faculty->id,
+                'house_num' => null,
+                'street' => null,
+                'barangay' => null,
+                'city' => null,
+                'province' => null,
+                'country' => null,
+                'zipcode' => null,
+                'program_id' => null,
+                'birthdate' => null,
+                'sex' => null,
+            ]);
 
-        // Update Faculty with the faculty_profile_id
-        $faculty->update(['faculty_profile_id' => $FacultyProfile->faculty_profile_id]);
+            $faculty->faculty_profile_id = $facultyProfile->getKey();
+            $faculty->save();
 
-        $facultyType = $faculty->facultyType;
+            $facultyType = $faculty->facultyType;
 
-        // ═══════════════════════════════════════════════════════
-        // AUDIT LOG: Faculty Created
-        // ═══════════════════════════════════════════════════════
-        AuditLogger::logCreate(
-            model: 'Faculty',
-            modelId: $faculty->id,
-            data: array_merge($user->toArray(), ['faculty_type' => $facultyType->faculty_type]),
-            description: "Created faculty account: {$user->formatted_name} ({$user->email})"
-        );
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Faculty Created
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logCreate(
+                model: 'Faculty',
+                modelId: $faculty->id,
+                data: array_merge($user->toArray(), ['faculty_type' => $facultyType->faculty_type]),
+                description: "Created faculty account: {$user->formatted_name} ({$user->email})"
+            );
 
-        // ⚠️ DEPRECATED: Email notification workflow
-        // TODO: Replace with new notification system
-        // Old: SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
+            DB::commit();
 
-        return response()->json($user->load('faculty.facultyType'), 201);
+            return response()->json($user->load('faculty.facultyType'), 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'message' => 'Failed to create faculty',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+            ], 500);
+        }
     }
 
     /**

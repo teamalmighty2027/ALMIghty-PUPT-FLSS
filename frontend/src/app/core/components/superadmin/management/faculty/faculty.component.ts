@@ -8,7 +8,6 @@ import { catchError, debounceTime, distinctUntilChanged, of, Subject, takeUntil,
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
 import { TableDialogComponent, DialogConfig, DialogFieldConfig } from '../../../../../shared/table-dialog/table-dialog.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
@@ -19,7 +18,6 @@ import { FacultyService, Faculty } from '../../../../services/superadmin/managem
 import { FacultyTypeService, FacultyType } from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
-import { DialogTermsConditionsComponent } from '../../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
 interface Column {
   key: string;
@@ -36,7 +34,6 @@ interface Column {
     TableHeaderComponent,
     LoadingComponent,
     MatProgressSpinnerModule,
-    MatSymbolDirective,
   ],
   templateUrl: './faculty.component.html',
   styleUrls: ['./faculty.component.scss'],
