@@ -1,7 +1,6 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Jobs\SendFacultyUpdateWebhook;
 use App\Models\Faculty;
 use App\Models\FacultyType;
 use App\Models\User;
@@ -9,6 +8,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * ⚠️ DEPRECATED: FESR/HRIS Webhook Controller
+ * 
+ * This controller handles webhook integration with the FESR (Faculty External System Repository) 
+ * and HRIS (Human Resource Information System) platforms.
+ * 
+ * @deprecated The entire webhook workflow is deprecated and will be removed.
+ *             Do NOT use this controller for new integrations.
+ *             TODO: Replace with new internal event synchronization system.
+ */
 class WebhookController extends Controller
 {
 
@@ -18,6 +27,10 @@ class WebhookController extends Controller
 
     public function __construct()
     {
+        Log::warning('DEPRECATED: WebhookController instantiated - this controller should not be used', [
+            'timestamp' => now(),
+        ]);
+
         $this->fesrWebhookUrl = env('FESR_WEBHOOK_URL', 'http://localhost:3000/api/webhooks/faculty');
 
         $this->webhookSecret  = env('WEBHOOK_SECRET');
@@ -29,12 +42,19 @@ class WebhookController extends Controller
     /**
      * Handle incoming webhooks from the FESR system for faculty updates.
      *
+     * @deprecated This webhook integration with FESR/HRIS system is deprecated and will be removed.
+     * TODO: Replace with new internal notification/synchronization system
+     *
      * @param Request $request The incoming HTTP request containing the webhook payload.
      * @return \Illuminate\Http\JsonResponse A JSON response indicating the status of the webhook processing.
      * @throws \Exception If there is an error processing the webhook.
      */
     public function handleFacultyWebhook(Request $request)
     {
+        \Log::warning('DEPRECATED: handleFacultyWebhook() called - webhook integration is abandoned', [
+            'ip' => $request->ip(),
+            'timestamp' => now(),
+        ]);
         try {
             Log::info('Received webhook from FESR', [
                 'headers' => $request->headers->all(),
@@ -117,40 +137,27 @@ class WebhookController extends Controller
     /**
      * Send outgoing webhooks to the FESR system for faculty updates.
      *
+     * @deprecated This webhook integration with FESR/HRIS system is deprecated and will be removed.
+     * TODO: Replace with new internal notification/event system
+     *
      * @param string $event The type of event that triggered the webhook (e.g., 'faculty.updated').
      * @param array $facultyData The data related to the faculty update.
      * @return bool True if the webhook job was dispatched successfully, false otherwise.
-     *
-     * This method dispatches a `SendFacultyUpdateWebhook` job to handle the asynchronous sending of the webhook.
-     * It logs the event and faculty data being sent.
-     * It returns false if the webhook secret is not set or if there is an error dispatching the job.
      */
     public function sendFacultyWebhook($event, $facultyData)
     {
-        try {
-            if (! $this->webhookSecret) {
-                Log::error('Cannot send webhook: Webhook secret is not set');
-                return false;
-            }
-
-            Log::info('Dispatching webhook job', [
-                'event'        => $event,
-                'faculty_data' => $facultyData,
-            ]);
-
-            SendFacultyUpdateWebhook::dispatch($event, $facultyData);
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Error dispatching webhook job:', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            return false;
-        }
+        \Log::warning('DEPRECATED: sendFacultyWebhook() called - webhook integration is abandoned and removed', [
+            'event' => $event,
+            'timestamp' => now(),
+        ]);
+        return false; // Webhook job has been removed
     }
 
     /**
      * Handle faculty updates received from the FESR webhook.
+     *
+     * @deprecated This webhook handling from FESR/HRIS system is deprecated and will be removed.
+     * TODO: Replace with new internal event synchronization mechanism
      *
      * @param array $facultyData The data of the faculty member being updated.
      * @return bool True if the faculty was updated successfully, false otherwise.
@@ -160,6 +167,10 @@ class WebhookController extends Controller
      */
     protected function handleFacultyUpdate(array $facultyData)
     {
+        \Log::warning('DEPRECATED: handleFacultyUpdate() called - webhook integration is abandoned', [
+            'faculty_code' => $facultyData['faculty_code'] ?? 'unknown',
+            'timestamp' => now(),
+        ]);
         try {
             return \DB::transaction(function () use ($facultyData) {
                 $requiredFields = ['faculty_code', 'first_name', 'last_name', 'email', 'status', 'faculty_type'];
@@ -237,6 +248,8 @@ class WebhookController extends Controller
     /**
      * Generate an HMAC-SHA256 signature for the given payload using the webhook secret.
      *
+     * @deprecated FESR webhook signature verification is deprecated and will be removed.
+     *
      * @param mixed $payload The payload to sign. Can be a string or an array.
      * @return string|null The generated signature, or null if the webhook secret is not set.
      */
@@ -258,6 +271,8 @@ class WebhookController extends Controller
 
     /**
      * Verify the signature of a webhook payload.
+     *
+     * @deprecated FESR webhook signature verification is deprecated and will be removed.
      *
      * @param mixed $payload The payload to verify. Can be a string or an array.
      * @param string $signature The signature received in the webhook request.

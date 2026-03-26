@@ -2,21 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\WebhookController;
-use App\Jobs\SendFacultyFirstLoginPasswordJob;
 use App\Models\Faculty;
 use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class FacultyController extends Controller
 {
-    protected $webhookController;
-
-    public function __construct(WebhookController $webhookController)
-    {
-        $this->webhookController = $webhookController;
-    }
 
     /**
      * GET all faculty users
@@ -45,52 +39,64 @@ class FacultyController extends Controller
             'password'        => 'required|string',
         ]);
 
-        $user = User::create([
-            'first_name'  => $validatedData['first_name'],
-            'middle_name' => $validatedData['middle_name'],
-            'last_name'   => $validatedData['last_name'],
-            'suffix_name' => $validatedData['suffix_name'],
-            'code'        => $validatedData['code'],
-            'email'       => $validatedData['email'],
-            'role'        => 'faculty',
-            'status'      => $validatedData['status'],
-            'password'    => $validatedData['password'],
-        ]);
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'first_name'  => $validatedData['first_name'],
+                'middle_name' => $validatedData['middle_name'],
+                'last_name'   => $validatedData['last_name'],
+                'suffix_name' => $validatedData['suffix_name'],
+                'code'        => $validatedData['code'],
+                'email'       => $validatedData['email'],
+                'role'        => 'faculty',
+                'status'      => $validatedData['status'],
+                'password'    => Hash::make($validatedData['password']),
+            ]);
 
-        $faculty = $user->faculty()->create([
-            'faculty_type_id' => $validatedData['faculty_type_id'],
-        ]);
+            $faculty = $user->faculty()->create([
+                'faculty_type_id' => $validatedData['faculty_type_id'],
+            ]);
 
-        $facultyType = $faculty->facultyType;
+            $facultyProfile = \App\Models\FacultyProfile::create([
+                'faculty_id' => $faculty->id,
+                'house_num' => null,
+                'street' => null,
+                'barangay' => null,
+                'city' => null,
+                'province' => null,
+                'country' => null,
+                'zipcode' => null,
+                'program_id' => null,
+                'birthdate' => null,
+                'sex' => null,
+            ]);
 
-        // ═══════════════════════════════════════════════════════
-        // AUDIT LOG: Faculty Created
-        // ═══════════════════════════════════════════════════════
-        AuditLogger::logCreate(
-            model: 'Faculty',
-            modelId: $faculty->id,
-            data: array_merge($user->toArray(), ['faculty_type' => $facultyType->faculty_type]),
-            description: "Created faculty account: {$user->formatted_name} ({$user->email})"
-        );
+            $faculty->faculty_profile_id = $facultyProfile->getKey();
+            $faculty->save();
 
-        // Send email with password to faculty
-        SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
+            $facultyType = $faculty->facultyType;
 
-        // Send webhook to FESR about new faculty
-        $facultyData = [
-            'faculty_code'   => $validatedData['code'],
-            'first_name'     => $validatedData['first_name'],
-            'middle_name'    => $validatedData['middle_name'],
-            'last_name'      => $validatedData['last_name'],
-            'name_extension' => $validatedData['suffix_name'],
-            'email'          => $validatedData['email'],
-            'status'         => $validatedData['status'],
-            'faculty_type'   => $facultyType->faculty_type,
-        ];
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Faculty Created
+            // ═══════════════════════════════════════════════════════
+            AuditLogger::logCreate(
+                model: 'Faculty',
+                modelId: $faculty->id,
+                data: array_merge($user->toArray(), ['faculty_type' => $facultyType->faculty_type]),
+                description: "Created faculty account: {$user->formatted_name} ({$user->email})"
+            );
 
-        $this->webhookController->sendFacultyWebhook('faculty.created', $facultyData);
+            DB::commit();
 
-        return response()->json($user->load('faculty.facultyType'), 201);
+            return response()->json($user->load('faculty.facultyType'), 201);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            \Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return response()->json([
+                'message' => 'Failed to create faculty',
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
+            ], 500);
+        }
     }
 
     /**
@@ -212,20 +218,6 @@ class FacultyController extends Controller
                     description: "Updated faculty: {$user->formatted_name} - {$changesSummary}"
                 );
             }
-
-            // Send webhook
-            $facultyData = [
-                'faculty_code'   => $user->code,
-                'first_name'     => $validatedData['first_name'],
-                'middle_name'    => $validatedData['middle_name'],
-                'last_name'      => $validatedData['last_name'],
-                'name_extension' => $validatedData['suffix_name'],
-                'email'          => $validatedData['email'],
-                'status'         => $validatedData['status'],
-                'faculty_type'   => $facultyType ? $facultyType->faculty_type : 'Unknown',
-            ];
-
-            $this->webhookController->sendFacultyWebhook('faculty.updated', $facultyData);
 
             return response()->json($user->load('faculty.facultyType'));
 

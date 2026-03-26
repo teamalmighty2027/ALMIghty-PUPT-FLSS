@@ -5,21 +5,6 @@
   </div>
   } @else {
 
-  <!-- FESR Status Banner -->
-  <div
-    class="fesr-status-banner"
-    [ngClass]="{ online: isFesrHealthy, offline: !isFesrHealthy }">
-    <span [mat-symbol]="isFesrHealthy ? 'cloud_done' : 'cloud_off'"></span>
-    <span>
-      FESR is {{ isFesrHealthy ? 'online' : 'offline' }}.
-      {{
-        isFesrHealthy
-          ? 'Faculty management is read-only. Please make changes in FESR.'
-          : 'Faculty can be managed here while FESR is offline.'
-      }}
-    </span>
-  </div>
-
   <!-- Table Header -->
   <div class="faculty-header-container" [@fadeAnimation]>
     <app-table-header
@@ -27,7 +12,6 @@
       [addButtonLabel]="'Add Faculty'"
       [inputFields]="headerInputFields"
       [showExportButton]="false"
-      [buttonDisabled]="isFesrHealthy"
       (inputChange)="onInputChange($event)"
       (add)="openAddFacultyDialog()"></app-table-header>
   </div>
@@ -41,7 +25,6 @@
       [displayedColumns]="displayedColumns"
       [showViewButton]="false"
       [showDeleteButton]="false"
-      [disableEdit]="isFesrHealthy"
       (edit)="openEditFacultyDialog($event)"></app-table-generic>
   </div>
 

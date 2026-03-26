@@ -83,4 +83,15 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function facultyProfile()
+    {
+        return $this->hasOneThrough(
+            FacultyProfile::class,
+            Faculty::class,
+            'user_id',
+            'faculty_id',
+            'id',
+            'id'
+        );
+    }
 }
