@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\WebhookController;
-use App\Jobs\SendFacultyFirstLoginPasswordJob;
 use App\Models\Faculty;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -11,12 +9,6 @@ use Illuminate\Http\Request;
 
 class FacultyController extends Controller
 {
-    protected $webhookController;
-
-    public function __construct(WebhookController $webhookController)
-    {
-        $this->webhookController = $webhookController;
-    }
 
     /**
      * GET all faculty users
@@ -57,8 +49,14 @@ class FacultyController extends Controller
             'password'    => $validatedData['password'],
         ]);
 
-        $FacultyProfile = $user->facultyProfile()->create([
-            'faculty_id' => $user->id,
+        // Create Faculty first (so we have the faculty_id)
+        $faculty = $user->faculty()->create([
+            'faculty_type_id' => $validatedData['faculty_type_id'],
+        ]);
+
+        // Create FacultyProfile with the faculty_id from the Faculty record
+        $FacultyProfile = \App\Models\FacultyProfile::create([
+            'faculty_id' => $faculty->id,
             'house_num' => null,
             'street' => null,
             'barangay' => null,
@@ -71,10 +69,8 @@ class FacultyController extends Controller
             'sex' => null,
         ]);
 
-        $faculty = $user->faculty()->create([
-            'faculty_profile_id' => $FacultyProfile->faculty_profile_id,
-            'faculty_type_id' => $validatedData['faculty_type_id'],
-        ]);
+        // Update Faculty with the faculty_profile_id
+        $faculty->update(['faculty_profile_id' => $FacultyProfile->faculty_profile_id]);
 
         $facultyType = $faculty->facultyType;
 
@@ -88,22 +84,9 @@ class FacultyController extends Controller
             description: "Created faculty account: {$user->formatted_name} ({$user->email})"
         );
 
-        // Send email with password to faculty
-        SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
-
-        // Send webhook to FESR about new faculty
-        $facultyData = [
-            'faculty_code'   => $validatedData['code'],
-            'first_name'     => $validatedData['first_name'],
-            'middle_name'    => $validatedData['middle_name'],
-            'last_name'      => $validatedData['last_name'],
-            'name_extension' => $validatedData['suffix_name'],
-            'email'          => $validatedData['email'],
-            'status'         => $validatedData['status'],
-            'faculty_type'   => $facultyType->faculty_type,
-        ];
-
-        $this->webhookController->sendFacultyWebhook('faculty.created', $facultyData);
+        // ⚠️ DEPRECATED: Email notification workflow
+        // TODO: Replace with new notification system
+        // Old: SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
 
         return response()->json($user->load('faculty.facultyType'), 201);
     }
@@ -227,20 +210,6 @@ class FacultyController extends Controller
                     description: "Updated faculty: {$user->formatted_name} - {$changesSummary}"
                 );
             }
-
-            // Send webhook
-            $facultyData = [
-                'faculty_code'   => $user->code,
-                'first_name'     => $validatedData['first_name'],
-                'middle_name'    => $validatedData['middle_name'],
-                'last_name'      => $validatedData['last_name'],
-                'name_extension' => $validatedData['suffix_name'],
-                'email'          => $validatedData['email'],
-                'status'         => $validatedData['status'],
-                'faculty_type'   => $facultyType ? $facultyType->faculty_type : 'Unknown',
-            ];
-
-            $this->webhookController->sendFacultyWebhook('faculty.updated', $facultyData);
 
             return response()->json($user->load('faculty.facultyType'));
 
