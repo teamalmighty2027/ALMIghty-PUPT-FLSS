@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { catchError, debounceTime, distinctUntilChanged, of, Subject, takeUntil, interval, firstValueFrom } from 'rxjs';
+import { catchError, debounceTime, distinctUntilChanged, of, Subject, takeUntil, firstValueFrom } from 'rxjs';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -16,7 +16,6 @@ import { InputField, TableHeaderComponent } from '../../../../../shared/table-he
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 
 import { FacultyService, Faculty } from '../../../../services/superadmin/management/faculty/faculty.service';
-import { FesrHealthService } from '../../../../services/health/fesr-health.service';
 import { FacultyTypeService, FacultyType } from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -55,7 +54,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   faculty: Faculty[] = [];
   filteredFaculty: Faculty[] = [];
   isLoading = true;
-  isFesrHealthy = false;
 
   searchControl = new FormControl('');
   private destroy$ = new Subject<void>();
@@ -94,7 +92,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private facultyService: FacultyService,
-    private fesrHealthService: FesrHealthService,
     private router: Router,
     private facultyTypeService: FacultyTypeService,
   ) {}
@@ -103,7 +100,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
-    // this.setupFesrHealthCheck();
   }
 
   ngOnDestroy() {
@@ -354,15 +350,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * Opens the dialog to add a new faculty member.
    */
   openAddFacultyDialog() {
-    if (this.isFesrHealthy) {
-      this.snackBar.open(
-        'Faculty details can only be added in FESR when the system is online. Please add faculty in FESR.',
-        'Close',
-        { duration: 5000 },
-      );
-      return;
-    }
-
     const config = this.getDialogConfig();
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
@@ -404,15 +391,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * @param faculty The faculty member to edit.
    */
   openEditFacultyDialog(faculty: Faculty) {
-    if (this.isFesrHealthy) {
-      this.snackBar.open(
-        'Faculty details can only be modified in FESR when the system is online. Please make changes in FESR.',
-        'Close',
-        { duration: 5000 },
-      );
-      return;
-    }
-
     this.selectedFacultyIndex = this.faculty.indexOf(faculty);
     const config = this.getDialogConfig(faculty);
 
@@ -476,38 +454,6 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
           });
       }
     }
-  }
-
-  /**
-   * Sets up an interval to periodically check the health of the FESR system.
-   */
-  private setupFesrHealthCheck() {
-    this.checkFesrHealth();
-
-    interval(30000)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        this.checkFesrHealth();
-      });
-  }
-
-  /**
-   * Checks the health of the FESR system and updates the `isFesrHealthy` flag.
-   * Marks the component for change detection.
-   */
-  private checkFesrHealth() {
-    this.cdr.markForCheck();
-
-    this.fesrHealthService
-      .checkHealth()
-      .pipe(
-        takeUntil(this.destroy$),
-        catchError(() => of(false)),
-      )
-      .subscribe((isHealthy) => {
-        this.isFesrHealthy = isHealthy;
-        this.cdr.markForCheck();
-      });
   }
 
   sanitizeFileName(fileName: string): string {
