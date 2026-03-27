@@ -743,6 +743,23 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.adminRemarks = '';
   }
 
+  private getErrorMessage(error: any, defaultMessage: string): string {
+    // Handle different error response structures
+    if (error?.status && error?.statusText) {
+      // HttpErrorResponse with status
+      if (error?.error?.message) return error.error.message;
+      if (error?.error?.error) return error.error.error;
+      if (typeof error?.error === 'string') return error.error;
+      if (error?.message) return error.message;
+    }
+    
+    // Handle plain error objects
+    if (typeof error === 'string') return error;
+    if (error?.message) return error.message;
+    
+    return defaultMessage;
+  }
+
   approveAppeal(): void {
     if (!this.selectedAppeal) return;
     this.reschedulingService.approveAppeal(
@@ -759,8 +776,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
         this.closeDialog();
         this.loadData(); // Reload both APIs to update the arrangements tab immediately
+        this.snackBar.open('Appeal approved successfully.', 'Close', { duration: 5000 });
       },
-      error: (err) => console.error('Failed to approve appeal:', err),
+      error: (err) => {
+        const errorMessage = this.getErrorMessage(err, 'Failed to approve appeal');
+        this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+        console.error('Failed to approve appeal:', err);
+      },
     });
   }
 
@@ -770,9 +792,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe({
         next: () => { 
           this.updateLocalStatus(this.selectedAppeal!.id, 'Denied'); 
-          this.closeDialog(); 
+          this.closeDialog();
+          this.snackBar.open('Appeal denied successfully.', 'Close', { duration: 5000 });
         },
-        error: (err) => console.error('Failed to deny appeal:', err),
+        error: (err) => {
+          const errorMessage = this.getErrorMessage(err, 'Failed to deny appeal');
+          this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+          console.error('Failed to deny appeal:', err);
+        },
       });
   }
 

@@ -225,83 +225,93 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function approveAppeal(Request $request, int $id): JsonResponse
     {
-        $validated = $request->validate([
-            'day'           => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'start_time'    => ['required', 'date_format:H:i'],
-            'end_time'      => ['required', 'date_format:H:i'],
-            'room'          => 'nullable|string',
-            'admin_remarks' => 'nullable|string',
-        ]);
-
-        if (strtotime($validated['end_time']) <= strtotime($validated['start_time'])) {
-            return response()->json(['message' => 'The end time must be after the start time.'], 422);
-        }
-
-        $appeal = Appeal::findOrFail($id);
-        $oldAppealData = $appeal->toArray();
-
-        $schedule = Schedule::findOrFail($appeal->schedule_id);
-        $oldScheduleData = $schedule->toArray();
-
-        $roomId = $appeal->room_id;
-        if (!empty($validated['room'])) {
-            $room   = Room::where('room_code', $validated['room'])->first();
-            $roomId = $room?->room_id ?? $roomId;
-        }
-
-        DB::transaction(function () use ($appeal, $schedule, $validated, $roomId) {
-            // 1. Actually update the appeal to Approved
-            $appeal->update([
-                'is_approved'   => 1,
-                'admin_remarks' => $validated['admin_remarks'] ?? null,
-                'day'           => $validated['day'],
-                'start_time'    => $validated['start_time'],
-                'end_time'      => $validated['end_time'],
-                'room_id'       => $roomId,
+        try {
+            $validated = $request->validate([
+                'day'           => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+                'start_time'    => ['required', 'date_format:H:i'],
+                'end_time'      => ['required', 'date_format:H:i'],
+                'room'          => 'nullable|string',
+                'admin_remarks' => 'nullable|string',
             ]);
 
-            // 2. Create the internal arrangement
-            $arrangement = \App\Models\InternalArrangement::updateOrCreate(
-                ['schedule_id' => $schedule->schedule_id],
-                [
-                    'appeal_id'  => $appeal->appeal_id,
-                    'day'        => $validated['day'],
-                    'start_time' => $validated['start_time'],
-                    'end_time'   => $validated['end_time'],
-                    'room_id'    => $roomId,
-                ]
-            );
+            if (strtotime($validated['end_time']) <= strtotime($validated['start_time'])) {
+                return response()->json(['message' => 'The end time must be after the start time.'], 422);
+            }
 
-            // 3. Log the arrangement, NOT the schedule
+            $appeal = Appeal::findOrFail($id);
+            $oldAppealData = $appeal->toArray();
+
+            $schedule = Schedule::findOrFail($appeal->schedule_id);
+            $oldScheduleData = $schedule->toArray();
+
+            $roomId = $appeal->room_id;
+            if (!empty($validated['room'])) {
+                $room   = Room::where('room_code', $validated['room'])->first();
+                $roomId = $room?->room_id ?? $roomId;
+            }
+
+            DB::transaction(function () use ($appeal, $schedule, $validated, $roomId) {
+                // 1. Actually update the appeal to Approved
+                $appeal->update([
+                    'is_approved'   => 1,
+                    'admin_remarks' => $validated['admin_remarks'] ?? null,
+                    'day'           => $validated['day'],
+                    'start_time'    => $validated['start_time'],
+                    'end_time'      => $validated['end_time'],
+                    'room_id'       => $roomId,
+                ]);
+
+                // 2. Create the internal arrangement
+                $arrangement = \App\Models\InternalArrangement::updateOrCreate(
+                    ['schedule_id' => $schedule->schedule_id],
+                    [
+                        'appeal_id'  => $appeal->appeal_id,
+                        'day'        => $validated['day'],
+                        'start_time' => $validated['start_time'],
+                        'end_time'   => $validated['end_time'],
+                        'room_id'    => $roomId,
+                    ]
+                );
+
+                // 3. Log the arrangement
+                AuditLogger::logUpdate(
+                    model: 'InternalArrangement',
+                    modelId: $arrangement->arrangement_id,
+                    oldData: [],
+                    newData: $arrangement->toArray(),
+                    description: "Approved appeal #{$appeal->appeal_id} and created internal arrangement for Schedule #{$schedule->schedule_id}"
+                );
+            });
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Appeal Approved and Schedule Updated
+            // ═══════════════════════════════════════════════════════
             AuditLogger::logUpdate(
-                $arrangement, 
-                "Approved appeal #{$appeal->appeal_id} and created internal arrangement for Schedule #{$schedule->schedule_id}"
+                model: 'Appeal',
+                modelId: $appeal->appeal_id,
+                oldData: $oldAppealData,
+                newData: $appeal->toArray(),
+                description: "Approved Appeal #{$appeal->appeal_id}"
             );
-        });
 
-        // ═══════════════════════════════════════════════════════
-        // AUDIT LOG: Appeal Approved and Schedule Updated
-        // ═══════════════════════════════════════════════════════
-        AuditLogger::logUpdate(
-            model: 'Appeal',
-            modelId: $appeal->appeal_id,
-            oldData: $oldAppealData,
-            newData: $appeal->toArray(),
-            description: "Approved Appeal #{$appeal->appeal_id}"
-        );
+            AuditLogger::logUpdate(
+                model: 'Schedule',
+                modelId: $schedule->schedule_id,
+                oldData: $oldScheduleData,
+                newData: $schedule->toArray(),
+                description: "Rescheduled via Appeal: Moved Schedule #{$schedule->schedule_id} to {$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
+            );
 
-        AuditLogger::logUpdate(
-            model: 'Schedule',
-            modelId: $schedule->schedule_id,
-            oldData: $oldScheduleData,
-            newData: $schedule->toArray(),
-            description: "Rescheduled via Appeal: Moved Schedule #{$schedule->schedule_id} to {$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
-        );
-
-        return response()->json([
-            'message' => 'Appeal submitted successfully.',
-            'appeal'  => $appeal,
-        ], 201);
+            return response()->json([
+                'message' => 'Appeal submitted successfully.',
+                'appeal'  => $appeal,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to approve appeal: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -310,18 +320,24 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function denyAppeal(Request $request, int $id): JsonResponse
     {
-        // ADD $validated = here!
-        $validated = $request->validate([
-            'admin_remarks' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'admin_remarks' => 'nullable|string',
+            ]);
 
-        $appeal = Appeal::findOrFail($id);
+            $appeal = Appeal::findOrFail($id);
 
-        $appeal->update([
-            'is_approved'   => 0,                             
-            'admin_remarks' => $validated['admin_remarks'] ?? null,
-        ]);
+            $appeal->update([
+                'is_approved'   => 0,                             
+                'admin_remarks' => $validated['admin_remarks'] ?? null,
+            ]);
 
-        return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
+            return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to deny appeal: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

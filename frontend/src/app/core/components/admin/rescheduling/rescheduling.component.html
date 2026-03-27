@@ -321,20 +321,20 @@
             <div class="section-label">REQUESTED SCHEDULE</div>
             <div class="info-row">
               <span class="label">Day:</span>
-              <span class="value">{{ newSchedule?.preferredDay || '—' }}</span>
+              <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
             </div>
             <div class="info-row">
               <span class="label">Time:</span>
               <span class="value">
-                {{ newSchedule?.preferredStartTime || '—' }}
-                <ng-container *ngIf="newSchedule?.preferredEndTime">
-                  – {{ newSchedule?.preferredEndTime }}
+                {{ selectedAppeal?.preferredStartTime || '—' }}
+                <ng-container *ngIf="selectedAppeal?.preferredEndTime">
+                  – {{ selectedAppeal?.preferredEndTime }}
                 </ng-container>
               </span>
             </div>
             <div class="info-row">
               <span class="label">Room:</span>
-              <span class="value">{{ newSchedule?.room || '—' }}</span>
+              <span class="value">{{ selectedAppeal?.room || '—' }}</span>
             </div>
           </div>
           <div class="reason-section">
