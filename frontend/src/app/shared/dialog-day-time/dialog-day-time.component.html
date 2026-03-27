@@ -7,7 +7,40 @@
 
   <!-- Dialog Content -->
   <div class="dialog-content">
+    <!-- Any Modifiers Section -->
+    <div class="any-modifiers-section">
+      <div class="modifier-toggles">
+        <div class="modifier-toggle">
+          <mat-slide-toggle
+            [(ngModel)]="anyDayMode"
+            (change)="toggleAnyDay()"
+            color="primary"
+          >
+            Any Day
+          </mat-slide-toggle>
+        </div>
+        <div class="modifier-toggle">
+          <mat-slide-toggle
+            [(ngModel)]="anyTimeMode"
+            (change)="toggleAnyTime()"
+            color="primary"
+          >
+            Any Time
+          </mat-slide-toggle>
+        </div>
+      </div>
+      <div class="modifier-summaries">
+        @if (anyDayMode) {
+          <span class="modifier-summary">All Days Selected</span>
+        }
+        @if (anyTimeMode) {
+          <span class="modifier-summary">7:00 AM - 9:00 PM</span>
+        }
+      </div>
+    </div>
+
     <!-- Day Picker -->
+    @if (!anyTimeMode) {
     <div class="day-buttons-container">
       @for (day of dayButtons; track day.name) {
       <div
@@ -21,50 +54,91 @@
       </div>
       }
     </div>
+    }
 
+    <!-- Time Fields -->
+    @if (!anyTimeMode) {
     <div class="time-fields-scroll-container">
-      <!-- Time Selection for Each Day -->
-      @for (day of dayButtons; track day.name) {
-      <div
-        class="time-fields-container"
-        [@showHideFieldsAnimation]="day.selected ? 'visible' : 'hidden'"
-      >
-        <div class="day-label-wrapper">
-          <span class="day-label">{{ day.name }}</span>
-        </div>
-        @if (day.selected) {
-        <div class="time-fields-wrapper">
-          <!-- Start Time Selection -->
-          <mat-form-field appearance="fill" class="dialog-field">
-            <mat-label>Start Time</mat-label>
-            <mat-select
-              [(ngModel)]="day.startTime"
-              (selectionChange)="onStartTimeChange(day)"
-            >
-              @for (time of timeOptions; track time) {
-              <mat-option [value]="time">
-                {{ time }}
-              </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+      @if (anyDayMode) {
+        <!-- Single time pair for all days -->
+        <div class="time-fields-container">
+          <div class="day-label-wrapper">
+            <span class="day-label">Time for All Days</span>
+          </div>
+          <div class="time-fields-wrapper">
+            <!-- Start Time Selection -->
+            <mat-form-field appearance="fill" class="dialog-field">
+              <mat-label>Start Time</mat-label>
+              <mat-select
+                [(ngModel)]="dayButtons[0].startTime"
+                (selectionChange)="onStartTimeChange(dayButtons[0]); applyTimeToAllDays()"
+              >
+                @for (time of timeOptions; track time) {
+                <mat-option [value]="time">
+                  {{ time }}
+                </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
 
-          <!-- End Time Selection -->
-          <mat-form-field appearance="fill" class="dialog-field">
-            <mat-label>End Time</mat-label>
-            <mat-select [(ngModel)]="day.endTime" [disabled]="!day.startTime">
-              @for (time of day.endTimeOptions; track time) {
-              <mat-option [value]="time">
-                {{ time }}
-              </mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+            <!-- End Time Selection -->
+            <mat-form-field appearance="fill" class="dialog-field">
+              <mat-label>End Time</mat-label>
+              <mat-select [(ngModel)]="dayButtons[0].endTime" [disabled]="!dayButtons[0].startTime" (selectionChange)="applyTimeToAllDays()">
+                @for (time of dayButtons[0].endTimeOptions; track time) {
+                <mat-option [value]="time">
+                  {{ time }}
+                </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      } @else {
+        <!-- Multiple time pairs for selected days -->
+        @for (day of dayButtons; track day.name) {
+        <div
+          class="time-fields-container"
+          [@showHideFieldsAnimation]="day.selected ? 'visible' : 'hidden'"
+        >
+          <div class="day-label-wrapper">
+            <span class="day-label">{{ day.name }}</span>
+          </div>
+          @if (day.selected) {
+          <div class="time-fields-wrapper">
+            <!-- Start Time Selection -->
+            <mat-form-field appearance="fill" class="dialog-field">
+              <mat-label>Start Time</mat-label>
+              <mat-select
+                [(ngModel)]="day.startTime"
+                (selectionChange)="onStartTimeChange(day)"
+              >
+                @for (time of timeOptions; track time) {
+                <mat-option [value]="time">
+                  {{ time }}
+                </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <!-- End Time Selection -->
+            <mat-form-field appearance="fill" class="dialog-field">
+              <mat-label>End Time</mat-label>
+              <mat-select [(ngModel)]="day.endTime" [disabled]="!day.startTime">
+                @for (time of day.endTimeOptions; track time) {
+                <mat-option [value]="time">
+                  {{ time }}
+                </mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+          }
         </div>
         }
-      </div>
       }
     </div>
+    }
   </div>
 
   <!-- Dialog buttons -->

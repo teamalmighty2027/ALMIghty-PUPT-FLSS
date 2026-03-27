@@ -35,6 +35,56 @@
 .dialog-content {
   height: auto;
 
+  .any-modifiers-section {
+    @include mixins.flex-layout(
+      $direction: column,
+      $gap: var(--spacing-md),
+      $align: center
+    );
+    padding: var(--spacing-md) 0;
+    margin-block-end: var(--spacing-md);
+
+    .modifier-toggles {
+      @include mixins.flex-layout(
+        $direction: row,
+        $gap: var(--spacing-lg),
+        $align: center,
+        $justify: center
+      );
+      width: 100%;
+    }
+
+    .modifier-toggle {
+      @include mixins.flex-layout(
+        $align: center,
+        $gap: var(--spacing-sm)
+      );
+
+      ::ng-deep .mdc-switch {
+        margin-right: var(--spacing-xs);
+      }
+    }
+
+    .modifier-summaries {
+      @include mixins.flex-layout(
+        $direction: row,
+        $gap: var(--spacing-md),
+        $align: center,
+        $justify: center
+      );
+      width: 100%;
+      min-height: var(--spacing-md);
+    }
+
+    .modifier-summary {
+      color: var(--primary-text);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-xs);
+    }
+  }
+
   .day-buttons-container {
     @include mixins.flex-layout(
       $justify: space-between,
