@@ -779,6 +779,24 @@ class ExternalController extends Controller
             ]);
 
         $formattedFaculties = $faculties->map(function ($profile) {
+            // Skip profiles missing required relationships
+            if (!$profile->faculty || !$profile->faculty->user) {
+                Log::warning('Skipping FacultyProfile with missing faculty or user relationship', [
+                    'faculty_profile_id' => $profile->id ?? 'unknown',
+                    'has_faculty' => !empty($profile->faculty),
+                    'has_user' => !empty($profile->faculty?->user),
+                ]);
+                return null;
+            }
+
+            if (!$profile->faculty->facultyType) {
+                Log::warning('Skipping FacultyProfile with missing facultyType relationship', [
+                    'faculty_id' => $profile->faculty->id ?? 'unknown',
+                    'user_id' => $profile->faculty->user->id ?? 'unknown',
+                ]);
+                return null;
+            }
+
             $user = $profile->faculty->user;
             
             $data = [
@@ -810,7 +828,7 @@ class ExternalController extends Controller
             ];
 
             return $data;
-        })->values();
+        })->filter()->values();
 
         return response()->json([
             'system' => $clientSystem,
@@ -846,6 +864,24 @@ class ExternalController extends Controller
             return $profile->program?->program_title ?? 'Unspecified';
         })->map(function ($departmentFaculties) {
             return $departmentFaculties->map(function ($profile) {
+                // Skip profiles missing required relationships
+                if (!$profile->faculty || !$profile->faculty->user) {
+                    Log::warning('Skipping FacultyProfile with missing faculty or user relationship in departmentList', [
+                        'faculty_profile_id' => $profile->id ?? 'unknown',
+                        'has_faculty' => !empty($profile->faculty),
+                        'has_user' => !empty($profile->faculty?->user),
+                    ]);
+                    return null;
+                }
+
+                if (!$profile->faculty->facultyType) {
+                    Log::warning('Skipping FacultyProfile with missing facultyType relationship in departmentList', [
+                        'faculty_id' => $profile->faculty->id ?? 'unknown',
+                        'user_id' => $profile->faculty->user->id ?? 'unknown',
+                    ]);
+                    return null;
+                }
+
                 $user = $profile->faculty->user;
 
                 return [
@@ -859,7 +895,7 @@ class ExternalController extends Controller
                     'email'         => $user->email,
                     'status'        => $user->status,
                 ];
-            })->values();
+            })->filter()->values();
         });
 
         return response()->json([
@@ -897,8 +933,6 @@ class ExternalController extends Controller
         if (! $programRow) {
             return null;
         }
-
-        Log::info("Inferred program for faculty_id {$facultyId}: program_id {$programRow->program_id} ({$programRow->program_title}) based on schedule data.");
 
         // Load Program model (primary key uses program_id)
         return Program::where('program_id', $programRow->program_id)->first();
