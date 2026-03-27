@@ -820,8 +820,6 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Detects if the preferences represent "Any Day" or "Any Time" modifiers.
-   * Returns { has_any_day, has_any_time } indicating whether all 7 days are selected
-   * with the full time range (7 AM - 9 PM).
    */
   private detectAnyModifiers(element: TableData): { has_any_day: boolean; has_any_time: boolean } {
     const filteredDays = element.preferredDays.filter((pd) => pd.start_time && pd.end_time);

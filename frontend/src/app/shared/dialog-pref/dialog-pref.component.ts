@@ -441,9 +441,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Detects if the course preferences represent "Any Day" or "Any Time" modifiers.
-   * Returns { has_any_day, has_any_time } indicating whether all 7 days are selected
-   * with the full time range (7 AM - 9 PM).
+   * Detects if the course preferences represent "Any Day" or "Any Time" modifiers.   
    */
   private detectAnyModifiers(course: Course): { has_any_day: boolean; has_any_time: boolean } {
     const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
