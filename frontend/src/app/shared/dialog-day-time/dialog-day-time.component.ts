@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatOptionModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
@@ -45,6 +46,7 @@ interface DialogData {
     MatOptionModule,
     MatButtonModule,
     MatRippleModule,
+    MatSlideToggleModule,
     MatProgressSpinnerModule,
   ],
   templateUrl: './dialog-day-time.component.html',
@@ -57,6 +59,8 @@ export class DialogDayTimeComponent implements OnInit {
   timeOptions: string[] = [];
   dayButtons: DayButton[] = [];
   isSaving = false;
+  anyDayMode = false;
+  anyTimeMode = false;
 
   private readonly daysOfWeek = [
     'Monday',
@@ -181,6 +185,51 @@ export class DialogDayTimeComponent implements OnInit {
     }
   }
 
+  toggleAnyDay(): void {
+    if (this.anyDayMode) {
+      // Enable: Select all days and hide time fields
+      this.dayButtons.forEach((day) => {
+        day.selected = true;
+        // Clear time fields when Any Day is enabled
+        day.startTime = '';
+        day.endTime = '';
+        day.endTimeOptions = [...this.timeOptions];
+      });
+    } else {
+      // Disable: Keep current selection, allow manual editing
+      // No action needed on disable
+    }
+  }
+
+  toggleAnyTime(): void {
+    if (this.anyTimeMode) {
+      // Enable: Set all days to 07:00 AM - 09:00 PM
+      this.dayButtons.forEach((day) => {
+        day.selected = true;
+        day.startTime = '07:00 AM';
+        day.endTime = '09:00 PM';
+        this.updateEndTimeOptions(day);
+      });
+    } else {
+      // Disable: Keep current times, allow manual editing
+      // No action needed on disable
+    }
+  }
+
+  // Apply the first day's times to all other days
+  applyTimeToAllDays(): void {
+    if (this.dayButtons.length > 0 && this.dayButtons[0].startTime && this.dayButtons[0].endTime) {
+      const startTime = this.dayButtons[0].startTime;
+      const endTime = this.dayButtons[0].endTime;
+
+      this.dayButtons.forEach((day) => {
+        day.startTime = startTime;
+        day.endTime = endTime;
+        this.updateEndTimeOptions(day);
+      });
+    }
+  }
+
   onStartTimeChange(day: DayButton): void {
     this.updateEndTimeOptions(day);
   }
@@ -189,23 +238,56 @@ export class DialogDayTimeComponent implements OnInit {
     this.dialogRef.close();
   }
 
-  onConfirm(): void {
-    this.isSaving = true;
-    const selectedDays = this.dayButtons
-      .filter((day) => day.selected && day.startTime && day.endTime)
+  private buildPreferredDaysPayload(): Array<{ day: string; start_time: string; end_time: string }> {
+    let daysToProcess: DayButton[] = [];
+
+    if (this.anyDayMode) {
+      // Use all days
+      daysToProcess = this.dayButtons;
+    } else if (this.anyTimeMode) {
+      // Use all days
+      daysToProcess = this.dayButtons;
+    } else {
+      // Use only selected days
+      daysToProcess = this.dayButtons.filter((day) => day.selected);
+    }
+
+    return daysToProcess
+      .filter((day) => day.startTime && day.endTime)
       .map((day) => ({
         day: day.name,
         start_time: String(this.convertTo24HourFormat(day.startTime)),
         end_time: String(this.convertTo24HourFormat(day.endTime)),
       }));
+  }
 
-    const preferenceData = {
+  onConfirm(): void {
+    this.isSaving = true;
+    const selectedDays = this.buildPreferredDaysPayload();
+
+    if (selectedDays.length === 0) {
+      this.snackBar.open('Please select at least one day with times.', 'Close', {
+        duration: 3000,
+      });
+      this.isSaving = false;
+      return;
+    }
+
+    const preferenceData: any = {
       faculty_id: parseInt(this.data.facultyId),
       active_semester_id: this.data.activeSemesterId,
       course_assignment_id: this.data.courseAssignmentId,
       sections_per_program_year_id: this.data.section_id,
       preferred_days: selectedDays,
     };
+
+    // Include "any" flags if modifiers are enabled
+    if (this.anyDayMode) {
+      preferenceData.any_day = true;
+    }
+    if (this.anyTimeMode) {
+      preferenceData.any_time = true;
+    }
 
     this.preferencesService.submitSinglePreference(preferenceData).subscribe({
       next: () => {
