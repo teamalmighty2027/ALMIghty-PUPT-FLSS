@@ -8,16 +8,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 import { LoadingComponent } from '../loading/loading.component';
-
 import { fadeAnimation } from '../../core/animations/animations';
 
 interface ExportDialogData {
   exportType: 'all' | 'single';
-  entity: string;
+  entity?: string;
   entityData?: any;
   customTitle?: string;
   subtitle?: string;
-  generatePdfFunction?: (showPreview: boolean) => Blob | void;
+  // UPDATE: Allow the function to return a Promise<Blob>
+  generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
   generateFileNameFunction?: () => string; 
 }
 
@@ -37,7 +37,7 @@ interface ExportDialogData {
 export class DialogExportComponent implements OnInit, AfterViewInit {
   title: string = '';
   subtitle: string = '';
-  isLoading = true;
+  isLoading = true; // Keeps spinner active until PDF is ready
   exportType: 'all' | 'single' = 'single';
   pdfBlobUrl: SafeResourceUrl | null = null;
 
@@ -50,17 +50,16 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    this.initializeExportData();
+    this.exportType = this.data.exportType || 'single';
+    this.setTitleAndSubtitle();
   }
 
   ngAfterViewInit(): void {
-    this.handlePdfPreview();
-  }
-
-  private initializeExportData(): void {
-    this.exportType = this.data.exportType || 'single';
-    this.setTitleAndSubtitle();
-    this.isLoading = false;
+    if (this.data.generatePdfFunction) {
+      setTimeout(() => this.renderPdfPreview(), 0);
+    } else {
+      this.isLoading = false;
+    }
   }
 
   private setTitleAndSubtitle(): void {
@@ -74,7 +73,6 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
       this.subtitle = subtitle || ''; 
     }
   }
-  
 
   private getSubtitle(entityData: any): string {
     if (entityData.academic_year && entityData.semester_label) {
@@ -85,44 +83,48 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
     return '';
   }
 
-  private handlePdfPreview(): void {
-    if (this.data.generatePdfFunction) {
-      setTimeout(() => this.renderPdfPreview(), 0);
-    }
-  }
+  // UPDATE: Make this async to await the PDF generation
+  private async renderPdfPreview(): Promise<void> {
+    try {
+      const result = this.data.generatePdfFunction?.(true);
+      // Wait for the Promise if it is one, otherwise use the Blob directly
+      const pdfBlob = result instanceof Promise ? await result : result;
 
-  private renderPdfPreview(): void {
-    const pdfBlob = this.data.generatePdfFunction?.(true);
-    if (pdfBlob) {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl); 
-  
-      if (this.pdfIframe?.nativeElement) {
-        this.pdfIframe.nativeElement.src = blobUrl; 
-      } else {
-        console.error('No PDF iframe element found.');
+      if (pdfBlob) {
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl); 
+    
+        if (this.pdfIframe?.nativeElement) {
+          this.pdfIframe.nativeElement.src = blobUrl; 
+        }
       }
-    } else {
-      console.error('PDF Blob is undefined or null.');
+    } catch (error) {
+      console.error('Error generating PDF preview:', error);
+    } finally {
+      this.isLoading = false; // Hide spinner when done
     }
   }
   
-  public downloadPdf(): void {
-    const pdfBlob = this.data.generatePdfFunction?.(false); 
-    if (pdfBlob) {
-      let fileName;
-      if (this.data.generateFileNameFunction) {
-        fileName = this.data.generateFileNameFunction();
-      } else {
-        fileName = `${this.title.replace(/ /g, '_').toLowerCase()}.pdf`;
+  // UPDATE: Make this async as well
+  public async downloadPdf(): Promise<void> {
+    try {
+      const result = this.data.generatePdfFunction?.(false); 
+      const pdfBlob = result instanceof Promise ? await result : result;
+
+      if (pdfBlob) {
+        let fileName = this.data.generateFileNameFunction 
+          ? this.data.generateFileNameFunction() 
+          : `${this.title.replace(/ /g, '_').toLowerCase()}.pdf`;
+    
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(blobUrl); 
       }
-  
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.click();
-      URL.revokeObjectURL(blobUrl); 
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
     }
   }
 
