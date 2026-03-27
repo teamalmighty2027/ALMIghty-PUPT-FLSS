@@ -1,4 +1,5 @@
-<div class="reports-main" style="position: relative;">
+<div class="reports-main">
+
   <div class="reports-content">
     <router-outlet></router-outlet>
   </div>
@@ -8,7 +9,9 @@
     animationDuration="250ms"
     (selectedTabChange)="onTabChange($event)"
     class="reports-tab"
-    headerPosition="below">
+    headerPosition="below"
+    style="flex-shrink: 0;">
+    
     @for (tab of tabs; track tab) {
     <mat-tab>
       <ng-template mat-tab-label>
@@ -20,4 +23,5 @@
     </mat-tab>
     }
   </mat-tab-group>
+
 </div>
