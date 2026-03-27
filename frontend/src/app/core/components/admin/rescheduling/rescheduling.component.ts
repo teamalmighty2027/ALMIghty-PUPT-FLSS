@@ -96,6 +96,7 @@ interface FacultyArrangement {
 })
 export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   isLoading = false;
+  isInitLoading = true;
   selectedTabIndex = 0;
 
   // ── Shared Term Variables ──
@@ -105,6 +106,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   semester: string = '1st Semester';
 
   // ── Tab 1: Appeals Management ──
+  appeals: AppealResponse[] =  [];
   headerInputFields: any[] = [{ type: 'text', label: 'Search Appeals', key: 'search' }];
   displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
   dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
@@ -151,29 +153,48 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.isInitLoading = true;
+    this.isLoading = true;
+
+    forkJoin({
+      appeals: this.reschedulingService.getAllAppeals(),
+      terms: this.reportsService.getAllTermsForDropdown()
+    }).subscribe({
+      next: ({ appeals, terms }) => {
+        this.appeals = appeals;
+        const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+        this.dataSource.data = mappedAppeals;
+
+        this.availableTerms = terms;
+        const activeTerm = terms.find((term: any) => term.is_active === 1);
+        if (activeTerm) {
+          this.selectedTermId = activeTerm.active_semester_id;
+          this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
+          this.semester = this.getSemesterDisplay(activeTerm.semester);
+          if (this.selectedTermId !== null) {
+            this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+          } else {
+            this.isLoading = false;
+            this.isInitLoading = false;
+          }
+        } else {
+          this.isLoading = false;
+          this.isInitLoading = false;
+        }
+      },
+      error: (err) => {
+        console.error('Failed to initialize rescheduling data:', err);
+        this.isLoading = false;
+        this.isInitLoading = false;
+      }
+    });
+
     this.generateTimeOptions();
-    this.loadTerms();
   }
 
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
     this.arrangementsDataSource.paginator = this.arrangementsPaginator;
-  }
-
-  loadTerms() {
-    this.reportsService.getAllTermsForDropdown().subscribe({
-      next: (data) => {
-        this.availableTerms = data;
-        const activeTerm = data.find((term: any) => term.is_active === 1);
-        if (activeTerm) {
-          this.selectedTermId = activeTerm.active_semester_id;
-          this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
-          this.semester = this.getSemesterDisplay(activeTerm.semester);
-          this.loadData();
-        }
-      },
-      error: (err) => console.error('Error loading terms:', err)
-    });
   }
 
   getSemesterDisplay(semester: number): string {
@@ -198,15 +219,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedTermId) return;
 
     this.isLoading = true;
-    
-    forkJoin({
-      appeals: this.reschedulingService.getAllAppeals(),
-      facultiesReq: this.reportsService.getFacultySchedulesReport(this.selectedTermId)
-    }).subscribe({
-      next: ({ appeals, facultiesReq }) => {
-        const mappedAppeals = appeals.map(a => this.mapAppeal(a));
-        this.dataSource.data = mappedAppeals;
+    const mappedAppeals = this.dataSource.data;
+    this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+  }
 
+  private loadArrangementsForTerm(termId: number, mappedAppeals: ReschedulingAppeal[]): void {
+    this.reportsService.getFacultySchedulesReport(termId).subscribe({
+      next: (facultiesReq) => {
         const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
         const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
 
@@ -247,10 +266,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.hasAnyArrangements = mergedFaculties.some(f => f.schedules.length > 0);
 
         this.isLoading = false;
+        this.isInitLoading = false;
       },
       error: (err) => {
-        console.error('Failed to load combined data:', err);
+        console.error('Failed to load faculty arrangements:', err);
         this.isLoading = false;
+        this.isInitLoading = false;
       }
     });
   }

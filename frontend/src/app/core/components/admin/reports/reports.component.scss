@@ -1,7 +1,10 @@
 @use "../../../../../styles/mixins";
 
 .reports-main {
-  height: 100%;
+  display: flex;
+  flex-direction: column; 
+  height: 100%; 
+  position: relative;
   @include mixins.flex-layout(
     $direction: column,
     $align: stretch,
@@ -11,6 +14,9 @@
 }
 
 .reports-content {
+  flex: 1 1 auto;
+  overflow: hidden;
+  height: 100%;
   height: inherit;
 
   .report-container {
