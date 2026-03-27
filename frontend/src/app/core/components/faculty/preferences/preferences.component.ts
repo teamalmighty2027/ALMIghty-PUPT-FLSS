@@ -818,9 +818,59 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .padStart(2, '0')}:00`;
   }
 
+  /**
+   * Detects if the preferences represent "Any Day" or "Any Time" modifiers.
+   * Returns { has_any_day, has_any_time } indicating whether all 7 days are selected
+   * with the full time range (7 AM - 9 PM).
+   */
+  private detectAnyModifiers(element: TableData): { has_any_day: boolean; has_any_time: boolean } {
+    const filteredDays = element.preferredDays.filter((pd) => pd.start_time && pd.end_time);
+    const presentDays = filteredDays.map(pd => pd.day);
+
+    // Check if all 7 days are present
+    const has_any_day = this.daysOfWeek.every(day => presentDays.includes(day));
+
+    // Check if all present days have the "Any Time" range (7 AM - 9 PM)
+    const has_any_time = filteredDays.every(
+      pd => pd.start_time === '07:00:00' && pd.end_time === '21:00:00'
+    );
+
+    return { has_any_day, has_any_time };
+  }
+
   public formatSelectedDaysAndTime(element: TableData): string {
-    const sortedDays = element.preferredDays
-      .filter((pd) => pd.start_time && pd.end_time)
+    const filteredDays = element.preferredDays
+      .filter((pd) => pd.start_time && pd.end_time);
+
+    if (filteredDays.length === 0) {
+      return 'Click to select day and time';
+    }
+
+    const { has_any_day, has_any_time } = this.detectAnyModifiers(element);
+
+    // If both "Any Day" and "Any Time" are enabled
+    if (has_any_day && has_any_time) {
+      return 'Any Day, Any Time';
+    }
+
+    // If only "Any Day" is enabled, show the time range once
+    if (has_any_day) {
+      const firstDay = filteredDays[0];
+      const timeRange = `${this.formatTime(firstDay.start_time)} - ${this.formatTime(firstDay.end_time)}`;
+      return `Any Day, ${timeRange}`;
+    }
+
+    // If only "Any Time" is enabled, show all specific days with "Any Time"
+    if (has_any_time) {
+      const daysString = filteredDays
+        .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
+        .map(pd => pd.day)
+        .join(', ');
+      return `${daysString}, Any Time`;
+    }
+
+    // Default: format each day individually with its time range
+    const sortedDays = filteredDays
       .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
       .map(
         (pd) =>

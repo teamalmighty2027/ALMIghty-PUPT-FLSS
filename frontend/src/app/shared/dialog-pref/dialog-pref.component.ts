@@ -441,17 +441,59 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Detects if the course preferences represent "Any Day" or "Any Time" modifiers.
+   * Returns { has_any_day, has_any_time } indicating whether all 7 days are selected
+   * with the full time range (7 AM - 9 PM).
+   */
+  private detectAnyModifiers(course: Course): { has_any_day: boolean; has_any_time: boolean } {
+    const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const ANY_DAY_START = '07:00:00';
+    const ANY_DAY_END = '21:00:00';
+
+    // Check if all 7 days are present
+    const presentDays = course.preferred_days.map(pref => pref.day);
+    const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
+
+    // Check if all present days have the "Any Time" range (7 AM - 9 PM)
+    const has_any_time = course.preferred_days.every(
+      pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
+    );
+
+    return { has_any_day, has_any_time };
+  }
+
+  /**
    * Formats the preferred days and times for display.
    */
   formatPreferredDaysAndTime(course: Course): string {
+    const { has_any_day, has_any_time } = this.detectAnyModifiers(course);
+
+    // If both "Any Day" and "Any Time" are enabled
+    if (has_any_day && has_any_time) {
+      return 'Any Day, Any Time';
+    }
+
+    // If only "Any Day" is enabled, show the full time range once
+    if (has_any_day) {
+      const firstDay = course.preferred_days[0];
+      const timeRange = `${this.convertTo12HourFormat(
+        firstDay.start_time,
+      )} - ${this.convertTo12HourFormat(firstDay.end_time)}`;
+      return `Any Day, ${timeRange}`;
+    }
+
+    // If only "Any Time" is enabled, show all specific days with "Any Time"
+    if (has_any_time) {
+      const daysString = course.preferred_days.map(pref => pref.day).join(', ');
+      return `${daysString}, Any Time`;
+    }
+
+    // Default: format each day individually with its time range
     return course.preferred_days
       .map((pref) => {
-        const time =
-          pref.start_time === '07:00:00' && pref.end_time === '21:00:00'
-            ? 'Whole Day'
-            : `${this.convertTo12HourFormat(
-                pref.start_time,
-              )} - ${this.convertTo12HourFormat(pref.end_time)}`;
+        const time = `${this.convertTo12HourFormat(
+          pref.start_time,
+        )} - ${this.convertTo12HourFormat(pref.end_time)}`;
         return `${pref.day} (${time})`;
       })
       .join('\n');
