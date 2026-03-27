@@ -240,15 +240,19 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     if (file) {
       // Validate file type (PDF only)
       if (file.type !== 'application/pdf') {
-        alert('Please upload a PDF file only.');
+        this.snackBar.open('Please upload a PDF file only.', 
+          'Close', { duration: 3000 }
+        );
         event.target.value = '';
         return;
       }
 
       // Validate file size (max 2MB)
-      const maxSize = 2 * 1024 * 1024; // 2MB
+      const maxSize = 2 * 1024 * 1024; 
       if (file.size > maxSize) {
-        alert('File size must be less than 2MB.');
+        this.snackBar.open('File size must be less than 2MB.', 
+          'Close', { duration: 3000 }
+        );
         event.target.value = '';
         return;
       }

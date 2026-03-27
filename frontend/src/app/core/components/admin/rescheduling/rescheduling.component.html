@@ -284,10 +284,6 @@
             <span class="value">{{ selectedAppeal?.room || '—' }}</span>
           </div>
         </div>
-        <div class="reason-section">
-          <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE</div>
-          <p class="reason-text">{{ selectedAppeal?.reasoning || '—' }}</p>
-        </div>
         <div class="document-section" *ngIf="selectedAppeal?.filePath">
           <div class="section-label">APPEAL DOCUMENT</div>
           <div class="doc-row">
@@ -297,6 +293,10 @@
               <mat-icon>open_in_new</mat-icon>
             </a>
           </div>
+        </div>
+        <div class="reason-section">
+          <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE</div>
+          <p class="reason-text">{{ selectedAppeal?.reasoning || '—' }}</p>
         </div>
       </div>
     </div>
