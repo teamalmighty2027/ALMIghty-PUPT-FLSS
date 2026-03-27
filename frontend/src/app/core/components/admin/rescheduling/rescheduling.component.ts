@@ -21,6 +21,7 @@ import { TableHeaderComponent } from '../../../../shared/table-header/table-head
 import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
+import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
@@ -128,6 +129,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   timeOptions: string[] = [];
+  roomOptions: string[] = [];
+  availableEndTimes: string[] = [];
 
   isListening = false;
   speechSupported = false;
@@ -138,6 +141,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     private reschedulingService: ReschedulingService,
     private reportsService: ReportsService,
     private reportHeaderService: ReportHeaderService,
+    private schedulingService: SchedulingService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private speechRecognitionService: SpeechRecognitionService,
@@ -591,6 +595,58 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private loadRoomOptions(): void {
+    this.schedulingService.getAllRooms().subscribe({
+      next: (response: any) => {
+        if (response && response.rooms) {
+          const availableRooms = response.rooms.filter(
+            (room: any) => room.status === 'Available'
+          );
+          this.roomOptions = availableRooms.map((room: any) => room.room_code);
+        }
+      },
+      error: (error: any) => {
+        console.error('Failed to load rooms:', error);
+        this.roomOptions = ['A401', 'A402']; 
+      }
+    });
+  }
+
+  onStartTimeChange(): void {
+    if (this.newSchedule?.preferredStartTime) {
+      this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
+      // Clear end time if it's no longer valid
+      const startIndex = this.timeOptions.indexOf(this.newSchedule.preferredStartTime);
+      if (this.newSchedule?.preferredEndTime) {
+        const endIndex = this.timeOptions.indexOf(this.newSchedule.preferredEndTime);
+        if (endIndex <= startIndex) {
+          this.newSchedule.preferredEndTime = undefined;
+        }
+      }
+    }
+  }
+
+  onEndTimeChange(): void {
+    // Validate that end time is after start time
+    if (this.newSchedule?.preferredStartTime && this.newSchedule?.preferredEndTime) {
+      const startIndex = this.timeOptions.indexOf(this.newSchedule.preferredStartTime);
+      const endIndex = this.timeOptions.indexOf(this.newSchedule.preferredEndTime);
+      if (endIndex <= startIndex) {
+        this.snackBar.open('End time must be after start time', 'Close', { duration: 3000 });
+        this.newSchedule.preferredEndTime = undefined;
+      }
+    }
+  }
+
+  private updateAvailableEndTimes(startTime: string): void {
+    const startIndex = this.timeOptions.indexOf(startTime);
+    if (startIndex >= 0 && startIndex < this.timeOptions.length - 1) {
+      this.availableEndTimes = this.timeOptions.slice(startIndex + 1);
+    } else {
+      this.availableEndTimes = [];
+    }
+  }
+
   private to12Hour(time: string | null | undefined): string {
     if (!time) return '—';
     if (time.includes('AM') || time.includes('PM')) return time;
@@ -653,6 +709,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       ? { ...this.selectedAppeal }
       : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
+    
+    // Load room options
+    this.loadRoomOptions();
+    
+    // Initialize available end times
+    this.availableEndTimes = [...this.timeOptions];
+    if (this.newSchedule?.preferredStartTime) {
+      this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
+    }
+    
     this.dialog.open(this.appealDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
@@ -668,11 +734,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearAll(): void {
-    if (!this.selectedAppeal) return;
-    this.selectedAppeal.preferredDay       = undefined;
-    this.selectedAppeal.preferredStartTime = undefined;
-    this.selectedAppeal.preferredEndTime   = undefined;
-    this.selectedAppeal.room               = undefined;
+    if (!this.newSchedule) return;
+    this.newSchedule.preferredDay       = undefined;
+    this.newSchedule.preferredStartTime = undefined;
+    this.newSchedule.preferredEndTime   = undefined;
+    this.newSchedule.room               = undefined;
+    this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
   }
 
