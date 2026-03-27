@@ -62,6 +62,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   // ── NEW INPUTS & OUTPUTS FOR PARENT COMMUNICATION ──
   @Input() isReadOnly: boolean = false;
   @Input() showAppealButtons: boolean = false;
+  @Input() exportMode: 'official' | 'internal' = 'official';
   @Output() appealClicked = new EventEmitter<any>();
   @Output() viewAppealsClicked = new EventEmitter<any>();
 
@@ -322,6 +323,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     let maxYPosition = currentY;
 
     const startNewPage = async () => {
+      this.drawFooter(doc);
       doc.addPage();
       currentY = await this.drawHeaderAsync(
         doc,
@@ -416,6 +418,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     doc.line(pageWidth - margin, currentY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
     
+    this.drawFooter(doc);
     return doc.output('blob'); // Return the blob so the dialog can use it
   }
 
@@ -436,7 +439,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     const formattedName  = this.facultySchedule.faculty_name.replace(',', '').replace(/\s+/g, '_');
     const academicYear   = `${this.facultySchedule.year_start}-${this.facultySchedule.year_end}`;
     const semester       = this.formatSemester(this.facultySchedule.semester).replace(/\s+/g, '_');
-    return `${formattedName}_Schedules_${academicYear}_${semester}`;
+
+    const type = this.exportMode === 'internal'
+      ? 'Internal_Arrangement'
+      : 'Official_Schedule';
+
+    return `${formattedName}_${type}_${academicYear}_${semester}`;
   }
 
   private drawHeader(doc: jsPDF, startY: number, pageWidth: number, margin: number, logoSize: number, title: string, subtitle: string): number {
@@ -453,5 +461,23 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       totalHeight += wrappedLines.length * 5;
     });
     return totalHeight + 5;
+  }
+
+  private drawFooter(doc: jsPDF) {
+    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = doc.internal.pageSize.width;
+
+    const leftText = "This document contains personal-identifiable information that is subject to Data Privacy. Please keep this document protected and in a safe place.";
+    const rightText = "This is system-generated, signature is not required.";
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+
+    // Left side (wrapped)
+    const splitLeft = doc.splitTextToSize(leftText, pageWidth - 40);
+    doc.text(splitLeft, 10, pageHeight - 10);
+
+    // Right side (aligned right)
+    doc.text(rightText, pageWidth - 10, pageHeight - 5, { align: 'right' });
   }
 }
