@@ -50,6 +50,7 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Input() showAddButton = true;
   @Input() showActiveYearAndSem = false;
   @Input() showButtons = true;
+  @Input() addButtonTooltip = '';
   @Input() selectedValues: { [key: string]: any } = {};
   @Input() customExportOptions: { all: string; current: string } | null = null;
   @Input() searchLabel = 'Search';

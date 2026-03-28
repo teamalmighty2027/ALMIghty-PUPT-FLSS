@@ -22,7 +22,7 @@ export class AuthGuard implements CanActivate {
     const isAuthenticated = this.authService.isAuthenticated();
     const userRole = this.authService.getUserRole() || '';
     const expectedRole = next.data['role'] as string;
-    const requiredPermission = next.data['requirePermission'] as string;
+    const requiredPermission = next.data['requirePermission'] as string | string[] | undefined;
     const userRoles = this.authService.getUserRoles();
 
     if (!isAuthenticated) {
@@ -39,7 +39,12 @@ export class AuthGuard implements CanActivate {
     }
 
     // Check for required permission
-    if (requiredPermission && !this.permissionService.hasPermission(requiredPermission)) {
+    if (
+      requiredPermission &&
+      !this.permissionService.hasAnyPermission(
+        Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission]
+      )
+    ) {
       return this.router.createUrlTree(['/forbidden']);
     }
 

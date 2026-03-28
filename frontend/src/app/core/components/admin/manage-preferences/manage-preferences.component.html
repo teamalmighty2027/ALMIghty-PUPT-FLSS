@@ -186,7 +186,8 @@
               <button
                 class="scheduled-button global pop"
                 (click)="onToggleAllPreferences($event, true)"
-                [matTooltip]="getTooltip('global')">
+                [matTooltip]="canEditFacultyPreferences ? getTooltip('global') : 'You do not have permission to edit preferences'"
+                [disabled]="!canEditFacultyPreferences">
                 Scheduled
               </button>
               } @else {
@@ -194,8 +195,8 @@
               <mat-slide-toggle
                 class="header-toggle"
                 [checked]="isToggleAllChecked"
-                [disabled]="getToggleState(allData[0]).isGlobalDisabled"
-                [matTooltip]="getTooltip('global')"
+                [disabled]="!canEditFacultyPreferences || getToggleState(allData[0]).isGlobalDisabled"
+                [matTooltip]="canEditFacultyPreferences ? getTooltip('global') : 'You do not have permission to edit preferences'"
                 (change)="onToggleAllPreferences($event)">
               </mat-slide-toggle>
               }
@@ -238,7 +239,8 @@
               <button
                 class="scheduled-button individual pop"
                 (click)="onToggleSinglePreferences(element, $event, true)"
-                [matTooltip]="getTooltip('individual', element)">
+                [matTooltip]="canEditFacultyPreferences ? getTooltip('individual', element) : 'You do not have permission to edit preferences'"
+                [disabled]="!canEditFacultyPreferences">
                 Scheduled
               </button>
               } @else {
@@ -246,8 +248,8 @@
               <mat-slide-toggle
                 class="single-toggle"
                 [checked]="element.is_enabled"
-                [disabled]="getToggleState(element).isIndividualDisabled"
-                [matTooltip]="getTooltip('individual', element)"
+                [disabled]="!canEditFacultyPreferences || getToggleState(element).isIndividualDisabled"
+                [matTooltip]="canEditFacultyPreferences ? getTooltip('individual', element) : 'You do not have permission to edit preferences'"
                 (change)="onToggleSinglePreferences(element, $event)">
               </mat-slide-toggle>
               }

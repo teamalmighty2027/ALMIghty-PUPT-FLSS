@@ -29,7 +29,7 @@ export const ADMIN_ROUTES: Routes = [
           ),
         data: { 
           pageTitle: 'Faculty Preferences',
-          requirePermission: 'edit_faculty_preferences'
+          requirePermission: ['view_preferences', 'edit_faculty_preferences']
         },
       },
       {

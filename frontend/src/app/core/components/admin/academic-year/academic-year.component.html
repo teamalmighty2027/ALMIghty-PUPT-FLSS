@@ -14,6 +14,8 @@
       [addIconName]="'apps'"
       [showActiveYearAndSem]="false"
       [showButtons]="true"
+      [buttonDisabled]="!canEditAcademicYears"
+      [addButtonTooltip]="canEditAcademicYears ? '' : 'You do not have permission to edit academic years'"
       (inputChange)="onInputChange($event)"
       (add)="openManageAcademicYearDialog()"
       (addAcademicYear)="openAddAcademicYearDialog()"

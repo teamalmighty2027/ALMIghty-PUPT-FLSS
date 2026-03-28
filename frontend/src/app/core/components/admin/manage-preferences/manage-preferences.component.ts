@@ -115,6 +115,7 @@ export class ManagePreferencesComponent
   hasAnyPreferences = false;
   hasIndividualDeadlines = false;
   facultyScheduledState = new Map<number, boolean>();
+  canEditFacultyPreferences = false;
 
   // Search Subject
   private searchSubject = new Subject<string>();
@@ -143,10 +144,16 @@ export class ManagePreferencesComponent
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
+
+    this.canEditFacultyPreferences = this.permissionService.hasPermission(
+      'edit_faculty_preferences'
+    );
     
     // Check if user has permission to view preferences
-    if (!this.permissionService.hasPermission('view_preferences') && 
-        !this.permissionService.hasPermission('edit_faculty_preferences')) {
+    if (
+      !this.permissionService.hasPermission('view_preferences') &&
+      !this.canEditFacultyPreferences
+    ) {
       this.snackBar.open('You do not have permission to view preferences', 'Close', {
         duration: 5000,
       });
