@@ -584,7 +584,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         });
       }
 
-      this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer to the very last page
+      this.reportHeaderService.addStandardFooter(doc); 
 
       const pdfBlob = doc.output('blob');
       
@@ -609,7 +609,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const bottomMargin = 20; // Adjusted for footer space
 
     if (!isFirstProgram) {
-      this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before switching programs
+      this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
     }
 
@@ -642,7 +642,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           }
 
           if (currentY + 20 > pageHeight - bottomMargin) {
-            this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before page break
+            this.reportHeaderService.addStandardFooter(doc);
             doc.addPage();
             this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
               .subscribe((newPageY) => currentY = newPageY);
@@ -657,7 +657,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           for (const semester of populatedSemesters) {
             
             if (currentY + 40 > pageHeight - bottomMargin) {
-              this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before page break
+              this.reportHeaderService.addStandardFooter(doc)
               doc.addPage();
               this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
                 .subscribe((newPageY) => currentY = newPageY);

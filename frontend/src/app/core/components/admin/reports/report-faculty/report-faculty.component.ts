@@ -457,7 +457,7 @@ AfterViewChecked, OnDestroy {
 
     this.filteredData.forEach((faculty, index) => {
       if (index > 0) {
-        this.reportHeaderService.addStandardFooter(doc); // 👈 Footer before page break
+        this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
       }
 
@@ -470,7 +470,7 @@ AfterViewChecked, OnDestroy {
       this.drawScheduleTable(doc, faculty.schedules ?? [], currentY, margin, pageWidth, faculty.facultyName);
     });
 
-    this.reportHeaderService.addStandardFooter(doc); // 👈 Final page footer
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
@@ -490,7 +490,7 @@ AfterViewChecked, OnDestroy {
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     }
     
-    this.reportHeaderService.addStandardFooter(doc); // 👈 Final page footer
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
@@ -533,13 +533,13 @@ AfterViewChecked, OnDestroy {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayColumnWidth = (pageWidth - margin * 2) / days.length;
     const pageHeight = doc.internal.pageSize.height;
-    const maxContentHeight = pageHeight - 20; // 👈 Adjusted for footer
+    const maxContentHeight = pageHeight - 20;
 
     let currentY = startY;
     let maxYPosition = currentY;
 
     const startNewPage = () => {
-      this.reportHeaderService.addStandardFooter(doc); // 👈 Footer before internal page break
+      this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
       currentY = this.drawHeader(
         doc, 15, pageWidth, margin, 22,
@@ -635,7 +635,28 @@ AfterViewChecked, OnDestroy {
     doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
     
-    // (Notice: The Prepared By code is gone!)
+    // Footer content: "Prepared By" and "Received By"
+    const footerMargin = 20;
+
+    // "Prepared By:" on the left side
+    const preparedByXPosition = margin;
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Prepared By:', preparedByXPosition, pageHeight - footerMargin);
+
+    // "Received By: <Faculty Name>" on the right side
+    const receivedByXPosition = pageWidth - margin - 80;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Received By:', receivedByXPosition, pageHeight - footerMargin);
+
+    // Faculty name for "Received By:" on the next line, indented
+    const indent = 10;
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `${facultyName}`,
+      receivedByXPosition + indent,
+      pageHeight - footerMargin + 8,
+    );
   }
 
   private formatTime(time: string): string {

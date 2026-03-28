@@ -329,7 +329,7 @@ export class ReportRoomsComponent
 
     this.filteredData.forEach((room, index) => {
       if (index > 0) {
-        this.reportHeaderService.addStandardFooter(doc); // 👈
+        this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
       }
 
@@ -342,7 +342,7 @@ export class ReportRoomsComponent
       this.drawScheduleTable(doc, room.schedules ?? [], subtitle, currentY, margin, pageWidth);
     });
 
-    this.reportHeaderService.addStandardFooter(doc); // 👈
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
@@ -362,7 +362,7 @@ export class ReportRoomsComponent
       this.drawScheduleTable(doc, room.schedules, subtitle, currentY, margin, pageWidth);
     }
 
-    this.reportHeaderService.addStandardFooter(doc); // 👈
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 

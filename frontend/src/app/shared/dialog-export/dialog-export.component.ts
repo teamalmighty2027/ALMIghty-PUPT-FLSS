@@ -16,7 +16,6 @@ interface ExportDialogData {
   entityData?: any;
   customTitle?: string;
   subtitle?: string;
-  // UPDATE: Allow the function to return a Promise<Blob>
   generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
   generateFileNameFunction?: () => string; 
 }
@@ -83,7 +82,9 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
     return '';
   }
 
-  // UPDATE: Make this async to await the PDF generation
+  /**
+   * This function handles both generating the PDF blob and updating the iframe preview.
+   */
   private async renderPdfPreview(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(true);
@@ -105,7 +106,10 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
     }
   }
   
-  // UPDATE: Make this async as well
+  /**
+   * This function is called when the user clicks the "Download PDF" button. 
+   * It generates the PDF blob and triggers the download.
+   */
   public async downloadPdf(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(false); 
