@@ -293,6 +293,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Submit the appeal form button handler
   onSubmit(): void {
+    this.dialogRef.close();
+    this.snackBar.open('Submitting your appeal...', '', { duration: 2000 });
+
     if (this.appealForm.valid) {
       // Validate end time is after start time
       const startTime = this.appealForm.value.appealStartTime;
@@ -320,7 +323,6 @@ export class DialogAppealScheduleComponent implements OnDestroy {
             this.snackBar.open(response.message || 'Appeal submitted successfully.', 
               'Close', {duration: 3000,}
             );
-            this.dialogRef.close();
             // TODO: Remove the send appeal button to the schedule block 
           },
           error: (error) => {

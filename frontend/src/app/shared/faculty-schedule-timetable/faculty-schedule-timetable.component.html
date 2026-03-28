@@ -38,27 +38,23 @@
               <div>
                 {{ getBlockProperty(day, i, 'roomCode') }}
               </div>
-              <!-- Time + action buttons sticky at bottom -->
               <div class="time-actions">
                 <div class="time">{{ getFormattedTime(day, i) }}</div>
 
-                <!-- ── Block Action Buttons ── -->
-                <div class="block-actions">
-                  <!-- Flag / Appeal button -->
+                <div class="block-actions" *ngIf="showAppealButtons">
                   <button
                     mat-icon-button
                     class="edit-button"
-                    (click)="onEditScheduleBlock(day, i)"
+                    (click)="onEditScheduleBlock(day, i, $event)"
                     matTooltip="File an Appeal"
                     aria-label="Appeal Schedule Block">
                     <mat-icon class="block-icon">flag</mat-icon>
                   </button>
 
-                  <!-- My Appeals history button -->
                   <button
                     mat-icon-button
                     class="appeals-status-button"
-                    (click)="onViewMyAppeals(day, i)"
+                    (click)="onViewMyAppeals(day, i, $event)"
                     [matTooltip]="getAppealStatusTooltip(day, i)"
                     aria-label="View My Appeals">
                     <mat-icon class="block-icon">history</mat-icon>
@@ -74,19 +70,5 @@
         }
       </tbody>
     </table>
-
-    <button
-      mat-fab
-      [class.mat-mdc-extended-fab]="isLabelVisible"
-      class="export-pdf-fab"
-      [@fabAnimation]="isLabelVisible ? 'extended' : 'collapsed'"
-      (click)="onExportPdf()">
-      <mat-icon class="fab-icon">{{
-        showPreview ? 'picture_as_pdf' : 'download'
-      }}</mat-icon>
-      <span class="fab-label">
-        {{ showPreview ? 'Export PDF' : 'Download PDF' }}
-      </span>
-    </button>
   </div>
 </div>

@@ -114,4 +114,34 @@ export class ReportHeaderService {
       }),
     );
   }
+
+  /**
+   * Adds a standardized footer to a PDF document with Data Privacy notices
+   * @param doc The jsPDF document instance
+   */
+  addStandardFooter(doc: any): void {
+    // Dynamically fetch the width and height of whatever page size is currently being used
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+    const margin = 10;
+    
+    // Anchor the footer exactly 15mm from the bottom edge
+    const footerY = pageHeight - 15; 
+
+    // Draw the separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
+
+    // Left Text (Maroon)
+    doc.setFontSize(8);
+    doc.setTextColor(128, 0, 0); // Maroon color
+    doc.setFont('helvetica', 'normal');
+    doc.text('This document contains personal-identifiable information that is subject to Data Privacy.', margin, footerY);
+    doc.text('Please keep this document protected and in a safe place.', margin, footerY + 3.5);
+
+    // Right Text (Gray)
+    doc.setTextColor(128, 128, 128);
+    doc.text('This is system-generated, signature is not required.', pageWidth - margin, footerY, { align: 'right' });
+  }
 }

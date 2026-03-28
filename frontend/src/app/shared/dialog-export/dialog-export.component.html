@@ -16,20 +16,18 @@
 
   <!-- PDF Preview section (for both single and all types) -->
   <div class="dialog-export-pdf-container" [@fadeAnimation]>
-    <!-- Preview for 'all' export -->
-    @if (exportType === 'all') {
-    <div class="export-all">
-      <iframe #pdfIframe class="pdf-iframe"></iframe> 
-    </div>
-    }
-    
-    <!-- Preview for 'single' export -->
-    @if (exportType === 'single') {
-    <div class="export-single">
-      <iframe #pdfIframe class="pdf-iframe"></iframe>
-    </div>
-    }
+  @if (exportType === 'all') {
+  <div class="export-all">
+    <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe> 
   </div>
+  }
+  
+  @if (exportType === 'single') {
+  <div class="export-single">
+    <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
+  </div>
+  }
+</div>
 
   <!-- Action buttons -->
   <div class="dialog-actions" [@fadeAnimation]>
