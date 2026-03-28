@@ -79,7 +79,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
-    // 👇 Gate network call behind the showAppealButtons flag
     if (this.showAppealButtons) {
       this.loadMyAppeals();
     }
@@ -249,9 +248,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   }
 
-  private getScheduleBlock(day: string, slotIndex: number): ScheduleBlock | undefined {
+  private getScheduleBlock(
+    day: string, slotIndex: number
+  ): ScheduleBlock | undefined {
     return this.scheduleBlocks.find(
-      b => b.day === day && slotIndex >= b.startSlot && slotIndex < b.startSlot + b.duration,
+      b => b.day === day && slotIndex >= b.startSlot && 
+        slotIndex < b.startSlot + b.duration,
     );
   }
 
@@ -281,7 +283,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     if (!this.facultySchedule || !this.facultySchedule.schedules) return;
 
     const facultyName = this.facultySchedule.faculty_name || 'Faculty';
-    // 👇 Derive title based on current export mode
     const viewType = this.exportMode === 'internal' ? 'Internal Arrangement' : 'Official Schedule';
 
     this.dialog.open(DialogExportComponent, {
@@ -291,7 +292,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       data: {
         exportType: 'single', 
         customTitle: `${facultyName} Schedule`,
-        subtitle: `${viewType} For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`, // 👈 Uses the new viewType
+        subtitle: `${viewType} For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`,
         generatePdfFunction: async (showPreview: boolean) => {
           return await this.generatePdfBlob(); 
         },
@@ -320,7 +321,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     let maxYPosition = currentY;
 
     const startNewPage = async () => {
-      this.reportHeaderService.addStandardFooter(doc); // Add footer before page break
+      this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
       currentY = await this.drawHeaderAsync(
         doc,
@@ -339,7 +340,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
+        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, 
+          { align: 'center' }
+        );
       });
       currentY += 10;
       return currentY;
@@ -355,7 +358,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
+      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, 
+        { align: 'center' })
+      ;
     });
     currentY += 10;
 
@@ -383,19 +388,27 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
             doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
             doc.line(lineX, currentY, lineX, maxYPosition);
           });
-          doc.line(pageWidth - margin, currentY, pageWidth - margin, maxYPosition);
+          doc.line(
+            pageWidth - margin, 
+            currentY, 
+            pageWidth - margin, 
+            maxYPosition
+          );
           
           yPosition = await startNewPage(); 
           maxYPosition = yPosition;
         }
         
-        doc.setFillColor(240, 240, 240); doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
+        doc.setFillColor(240, 240, 240); 
+        doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
         let textYPosition = yPosition + 5;
         
         courseContent.forEach((line: string, index) => {
-          doc.setTextColor(0); doc.setFontSize(9); doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
+          doc.setTextColor(0); doc.setFontSize(9); 
+          doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
           const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 10);
           wrappedLines.forEach((wrappedLine: string) => { doc.text(wrappedLine, xPosition + 5, textYPosition); textYPosition += 5; });
+
           if (index === courseContent.length - 1) {
             const timeTextWidth = doc.getTextWidth(line);
             doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
@@ -415,11 +428,14 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     doc.line(pageWidth - margin, currentY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
     
-    this.reportHeaderService.addStandardFooter(doc); // Add footer to the very last page
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob'); 
   }
 
-  private drawHeaderAsync(doc: jsPDF, startY: number, title: string, subtitle: string): Promise<number> {
+  private drawHeaderAsync(
+    doc: jsPDF, startY: number, title: string, subtitle: string
+  ): Promise<number> {
+
     return new Promise((resolve) => {
       this.reportHeaderService.addHeader(doc, title, startY, subtitle).subscribe({
         next: (newY) => resolve(newY),
@@ -429,7 +445,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   }
 
   private formatSemester(semester: number): string {
-    switch (semester) { case 1: return '1st Semester'; case 2: return '2nd Semester'; case 3: return 'Summer Semester'; default: return `${semester}`; }
+    switch (semester) { 
+      case 1: return '1st Semester'; 
+      case 2: return '2nd Semester'; 
+      case 3: return 'Summer Semester'; 
+      default: return `${semester}`; 
+    }
   }
 
   private generateFileName(): string {
@@ -440,7 +461,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     return `${formattedName}_${type}_${academicYear}_${semester}`;
   }
 
-  private calculateBoxHeight(doc: jsPDF, content: string[], dayColumnWidth: number): number {
+  private calculateBoxHeight(
+    doc: jsPDF, content: string[], dayColumnWidth: number
+  ): number {
+
     const padding = 10; let totalHeight = 5;
     content.forEach((line: string, index: number) => {
       doc.setFontSize(9); doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');

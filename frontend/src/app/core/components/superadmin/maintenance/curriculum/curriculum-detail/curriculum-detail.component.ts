@@ -100,7 +100,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  // 👇 BUG FIX: Added isSilentRefresh flag to prevent full page reload
+  // isSilentRefresh flag to prevent full page reload
   fetchCurriculum(year: string, isSilentRefresh: boolean = false) {
     if (!isSilentRefresh) {
       this.isLoading = true;
@@ -325,7 +325,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         this.curriculumService.updateCourse(course.course_id, updatedCourse).subscribe({
           next: () => {
             this.snackBar.open(`Course updated successfully.`, 'Close', { duration: 3000 });
-            // 👇 Set to TRUE for silent refresh!
             this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true); 
           },
           error: (error) => {
@@ -341,7 +340,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService.deleteCourse(course.course_id).subscribe({
       next: () => {
         this.snackBar.open(`Course deleted successfully.`, 'Close', { duration: 3000 });
-        // 👇 Set to TRUE for silent refresh!
         this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true); 
       },
       error: (error) => {
@@ -387,7 +385,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         this.curriculumService.addCourse(newCourse).subscribe({
           next: () => {
             this.snackBar.open(`Course added successfully.`, 'Close', { duration: 3000 });
-            // 👇 Set to TRUE for silent refresh!
             this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true);
           },
           error: (error) => {
@@ -549,8 +546,12 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     return this.curriculumService.mapSemesterToEnum(semester);
   }
 
-  // 👇 BUG FIX: Added a helper to check if a program actually has matching courses BEFORE rendering
-  private programHasCourses(program: Program, filterYear: string | number, filterSemester: string | number): boolean {
+  // Check if a program actually has matching courses BEFORE rendering
+  private programHasCourses(
+    program: Program, 
+    filterYear: string | number, 
+    filterSemester: string | number
+  ): boolean {
     let yearLevels = program.year_levels;
     
     if (filterYear !== 'All') {
@@ -564,7 +565,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         semesters = semesters.filter(sem => sem.semester === Number(filterSemester));
       }
       
-      // If ANY semester in this program matches the filters and has courses, return true
+      // If ANY semester in this program matches the filters and has courses
       if (semesters.some(sem => sem.courses && sem.courses.length > 0)) {
         return true;
       }
@@ -595,7 +596,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(() => {});
   }
 
-  generatePDF(showPreview: boolean = false, exportAll: boolean = false): void | Blob {
+  generatePDF(
+    showPreview: boolean = false, exportAll: boolean = false
+  ): void | Blob {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
@@ -609,7 +612,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             ? this.curriculum.programs
             : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram)));
 
-      // 👇 BUG FIX: Filter the programs so we don't render empty headers
+      // Filter the programs to exclude empty headers
       const activePrograms = programsToExport.filter(p => this.programHasCourses(p, yearFilter, semFilter));
 
       if (activePrograms.length === 0) {
@@ -653,7 +656,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     let currentY = topMargin;
 
-    this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY)
+    this.reportHeaderService.addHeader(
+      doc, 
+      `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY
+    )
       .subscribe((newY) => {
         currentY = newY;
 
@@ -680,7 +686,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           if (currentY + 20 > pageHeight - bottomMargin) {
             this.reportHeaderService.addStandardFooter(doc); 
             doc.addPage();
-            this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
+            )
               .subscribe((newPageY) => currentY = newPageY);
           }
 
@@ -694,7 +703,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             if (currentY + 40 > pageHeight - bottomMargin) {
               this.reportHeaderService.addStandardFooter(doc); 
               doc.addPage();
-              this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
+              this.reportHeaderService.addHeader(
+                doc, 
+                `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
+              )
                 .subscribe((newPageY) => currentY = newPageY);
               doc.setFont('helvetica', 'bold');
               doc.setFontSize(15);
@@ -739,6 +751,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
               bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
               styles: { lineWidth: 0.1, overflow: 'linebreak', cellPadding: 0.5 },
               columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } },
+              
               didParseCell: function (data: any) {
                 if (data.row.index === tableData.length - 1) {
                   data.cell.styles.fontStyle = 'bold';
