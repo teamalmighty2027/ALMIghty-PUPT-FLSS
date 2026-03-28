@@ -459,6 +459,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
 
           // Add building-specific pages
           buildings.forEach((building) => {
+            this.reportHeaderService.addStandardFooter(doc);
             doc.addPage();
             currentY = 15;
 
@@ -487,6 +488,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
           });
         });
 
+      this.reportHeaderService.addStandardFooter(doc);
       return doc.output('blob');
     } catch (error) {
       this.snackBar.open('Failed to generate PDF.', 'Close', {

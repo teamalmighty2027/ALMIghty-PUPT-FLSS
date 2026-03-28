@@ -565,7 +565,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(() => {});
   }
 
-  generatePDF(showPreview: boolean = false, exportAll: boolean = false): void {
+  generatePDF(showPreview: boolean = false, exportAll: boolean = false): void | Blob {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
@@ -583,6 +583,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           this.addProgramToPDF(doc, program, index === 0, this.selectedYear, this.selectedSemester);
         });
       }
+
+      this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer to the very last page
 
       const pdfBlob = doc.output('blob');
       
@@ -604,9 +606,12 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const pageHeight = doc.internal.pageSize.height;
     const margin = 10;
     const topMargin = 15;
-    const bottomMargin = 15;
+    const bottomMargin = 20; // Adjusted for footer space
 
-    if (!isFirstProgram) doc.addPage();
+    if (!isFirstProgram) {
+      this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before switching programs
+      doc.addPage();
+    }
 
     let currentY = topMargin;
 
@@ -628,10 +633,16 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             sortedSemesters = sortedSemesters.filter(sem => sem.semester === Number(filterSemester));
           }
 
-          const hasCoursesInYear = sortedSemesters.some(sem => sem.courses && sem.courses.length > 0);
-          if (!hasCoursesInYear) continue;
+          // 👇 BUG FIX: Filter out ANY semester that has 0 courses first
+          const populatedSemesters = sortedSemesters.filter(sem => sem.courses && sem.courses.length > 0);
+
+          // If there are no populated semesters left for this year, skip the entire year level
+          if (populatedSemesters.length === 0) {
+            continue; 
+          }
 
           if (currentY + 20 > pageHeight - bottomMargin) {
+            this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before page break
             doc.addPage();
             this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
               .subscribe((newPageY) => currentY = newPageY);
@@ -642,10 +653,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           doc.text(`${program.name} - Year ${yearLevel.year}`, margin, currentY);
           currentY += 10;
 
-          for (const semester of sortedSemesters) {
-            if (!semester.courses || semester.courses.length === 0) continue;
+          // Now only loop through the semesters that actually have courses
+          for (const semester of populatedSemesters) {
             
             if (currentY + 40 > pageHeight - bottomMargin) {
+              this.reportHeaderService.addStandardFooter(doc); // 👈 Add footer before page break
               doc.addPage();
               this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
                 .subscribe((newPageY) => currentY = newPageY);

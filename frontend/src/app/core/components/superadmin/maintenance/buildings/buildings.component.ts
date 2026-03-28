@@ -308,6 +308,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
           });
         });
 
+      this.reportHeaderService.addStandardFooter(doc);
       return doc.output('blob');
     } catch (error) {
       this.snackBar.open('Failed to generate PDF.', 'Close', {
