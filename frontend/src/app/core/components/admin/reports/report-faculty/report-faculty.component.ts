@@ -451,37 +451,26 @@ AfterViewChecked, OnDestroy {
     const logoSize = 22;
 
     if (this.filteredData.length === 0) {
-      this.snackBar.open('No data available to export.', 'Close', {
-        duration: 3000,
-      });
+      this.snackBar.open('No data available to export.', 'Close', { duration: 3000 });
       return new Blob();
     }
 
     this.filteredData.forEach((faculty, index) => {
       if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc); // 👈 Footer before page break
         doc.addPage();
       }
 
-      // Draw header and schedule for each faculty
       let currentY = this.drawHeader(
-        doc,
-        topMargin,
-        pageWidth,
-        margin,
-        logoSize,
+        doc, topMargin, pageWidth, margin, logoSize,
         `${faculty.facultyName} Schedule`,
-        this.getAcademicYearSubtitle(faculty),
+        this.getAcademicYearSubtitle(faculty)
       );
 
-      this.drawScheduleTable(
-        doc,
-        faculty.schedules ?? [],
-        currentY,
-        margin,
-        pageWidth,
-        faculty.facultyName,
-      );
+      this.drawScheduleTable(doc, faculty.schedules ?? [], currentY, margin, pageWidth, faculty.facultyName);
     });
+
+    this.reportHeaderService.addStandardFooter(doc); // 👈 Final page footer
     return doc.output('blob');
   }
 
@@ -493,25 +482,15 @@ AfterViewChecked, OnDestroy {
     const logoSize = 22;
 
     if (faculty.schedules && faculty.schedules.length > 0) {
-      // Single schedule case
       let currentY = this.drawHeader(
-        doc,
-        topMargin,
-        pageWidth,
-        margin,
-        logoSize,
+        doc, topMargin, pageWidth, margin, logoSize,
         `${faculty.facultyName}`,
-        this.getAcademicYearSubtitle(faculty),
+        this.getAcademicYearSubtitle(faculty)
       );
-      this.drawScheduleTable(
-        doc,
-        faculty.schedules,
-        currentY,
-        margin,
-        pageWidth,
-        faculty.facultyName,
-      );
+      this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     }
+    
+    this.reportHeaderService.addStandardFooter(doc); // 👈 Final page footer
     return doc.output('blob');
   }
 
@@ -539,12 +518,7 @@ AfterViewChecked, OnDestroy {
 
   // Helper function to draw the schedule table
   private drawScheduleTable(
-    doc: jsPDF,
-    scheduleData: any[],
-    startY: number,
-    margin: number,
-    pageWidth: number,
-    facultyName: string,
+    doc: jsPDF, scheduleData: any[], startY: number, margin: number, pageWidth: number, facultyName: string
   ): void {
     const hasSchedules = scheduleData && scheduleData.length > 0;
 
@@ -552,44 +526,27 @@ AfterViewChecked, OnDestroy {
       doc.setFontSize(20);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(128, 128, 128);
-      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, {
-        align: 'center',
-      });
+      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
       return;
     }
 
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayColumnWidth = (pageWidth - margin * 2) / days.length;
     const pageHeight = doc.internal.pageSize.height;
-    const maxContentHeight = pageHeight - margin;
+    const maxContentHeight = pageHeight - 20; // 👈 Adjusted for footer
 
     let currentY = startY;
     let maxYPosition = currentY;
 
-    // Function to start a new page and draw the header
     const startNewPage = () => {
+      this.reportHeaderService.addStandardFooter(doc); // 👈 Footer before internal page break
       doc.addPage();
       currentY = this.drawHeader(
-        doc,
-        15,
-        pageWidth,
-        margin,
-        22,
-        doc.getNumberOfPages() > 1
-          ? 'Faculty Schedule (Continued)'
-          : 'Faculty Schedule',
-        this.getAcademicYearSubtitle(scheduleData[0]),
+        doc, 15, pageWidth, margin, 22,
+        doc.getNumberOfPages() > 1 ? 'Faculty Schedule (Continued)' : 'Faculty Schedule',
+        this.getAcademicYearSubtitle(scheduleData[0])
       );
 
-      // Redraw day headers on new page
       days.forEach((day, index) => {
         const xPosition = margin + index * dayColumnWidth;
         doc.setFillColor(128, 0, 0);
@@ -597,15 +554,12 @@ AfterViewChecked, OnDestroy {
         doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, {
-          align: 'center',
-        });
+        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
       });
       currentY += 12;
       return currentY;
     };
 
-    // Draw initial day headers
     days.forEach((day, index) => {
       const xPosition = margin + index * dayColumnWidth;
       doc.setFillColor(128, 0, 0);
@@ -613,24 +567,18 @@ AfterViewChecked, OnDestroy {
       doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, {
-        align: 'center',
-      });
+      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
     });
 
-    currentY += 12; // Space after headers
+    currentY += 12; 
 
-    // Process each day's schedule
     days.forEach((day, dayIndex) => {
       const xPosition = margin + dayIndex * dayColumnWidth;
       let yPosition = currentY;
 
       const daySchedule = scheduleData
         .filter((item: any) => item.day === day)
-        .sort(
-          (a: any, b: any) =>
-            this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time),
-        );
+        .sort((a: any, b: any) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
 
       if (daySchedule.length > 0) {
         daySchedule.forEach((item: any) => {
@@ -639,107 +587,55 @@ AfterViewChecked, OnDestroy {
             item.course_details.course_title,
             `${item.program_code} ${item.year_level} - ${item.section_name}`,
             item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
-            `${this.formatTime(item.start_time)} - ${this.formatTime(
-              item.end_time,
-            )}`,
+            `${this.formatTime(item.start_time)} - ${this.formatTime(item.end_time)}`,
           ];
 
-          // Calculate dynamic box height based on content
-          const boxHeight = this.calculateBoxHeight(
-            doc,
-            courseContent,
-            dayColumnWidth,
-          );
+          const boxHeight = this.calculateBoxHeight(doc, courseContent, dayColumnWidth);
 
           if (yPosition + boxHeight > maxContentHeight) {
             days.forEach((_, i) => {
               const lineX = margin + i * dayColumnWidth;
-              doc.setDrawColor(200, 200, 200);
-              doc.setLineWidth(0.5);
+              doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
               doc.line(lineX, startY, lineX, maxYPosition);
             });
-            doc.line(
-              pageWidth - margin,
-              startY,
-              pageWidth - margin,
-              maxYPosition,
-            );
+            doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
 
             yPosition = startNewPage();
             maxYPosition = yPosition;
           }
 
-          // Use the calculated height for the box
           doc.setFillColor(240, 240, 240);
           doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
 
           let textYPosition = yPosition + 5;
           courseContent.forEach((line: string, index) => {
-            doc.setTextColor(0);
-            doc.setFontSize(9);
-            doc.setFont(
-              index <= 1 ? 'helvetica' : 'helvetica',
-              index <= 1 ? 'bold' : 'normal',
-            );
-
+            doc.setTextColor(0); doc.setFontSize(9); doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
             const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 10);
             wrappedLines.forEach((wrappedLine: string) => {
-              doc.text(wrappedLine, xPosition + 5, textYPosition);
-              textYPosition += 5;
+              doc.text(wrappedLine, xPosition + 5, textYPosition); textYPosition += 5;
             });
-
             if (index === courseContent.length - 1) {
               const timeTextWidth = doc.getTextWidth(line);
-              doc.setDrawColor(0, 0, 0);
-              doc.setLineWidth(0.2);
-              doc.line(
-                xPosition + 5,
-                textYPosition - 4,
-                xPosition + 5 + timeTextWidth,
-                textYPosition - 4,
-              );
+              doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
+              doc.line(xPosition + 5, textYPosition - 4, xPosition + 5 + timeTextWidth, textYPosition - 4);
             }
           });
 
           yPosition += boxHeight + 5;
-          if (yPosition > maxYPosition) {
-            maxYPosition = yPosition;
-          }
+          if (yPosition > maxYPosition) maxYPosition = yPosition;
         });
       }
     });
 
     days.forEach((_, i) => {
       const lineX = margin + i * dayColumnWidth;
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
       doc.line(lineX, startY, lineX, maxYPosition);
     });
     doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
-
-    // Footer content: "Prepared By" and "Received By"
-    const footerMargin = 20;
-
-    // "Prepared By:" on the left side
-    const preparedByXPosition = margin;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Prepared By:', preparedByXPosition, pageHeight - footerMargin);
-
-    // "Received By: <Faculty Name>" on the right side
-    const receivedByXPosition = pageWidth - margin - 80;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Received By:', receivedByXPosition, pageHeight - footerMargin);
-
-    // Faculty name for "Received By:" on the next line, indented
-    const indent = 10;
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      `${facultyName}`,
-      receivedByXPosition + indent,
-      pageHeight - footerMargin + 8,
-    );
+    
+    // (Notice: The Prepared By code is gone!)
   }
 
   private formatTime(time: string): string {

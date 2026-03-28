@@ -399,6 +399,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     facultiesWithSchedules.forEach((faculty, index) => {
       if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc); // 👈
         doc.addPage();
       }
       let currentY = this.drawHeader(
@@ -409,6 +410,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     });
 
+    this.reportHeaderService.addStandardFooter(doc); // 👈
     return doc.output('blob');
   }
 
@@ -427,6 +429,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     }
+    
+    this.reportHeaderService.addStandardFooter(doc); // 👈
     return doc.output('blob');
   }
 
@@ -452,12 +456,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayColumnWidth = (pageWidth - margin * 2) / days.length;
     const pageHeight = doc.internal.pageSize.height;
-    const maxContentHeight = pageHeight - margin;
+    const maxContentHeight = pageHeight - 20;
 
     let currentY = startY;
     let maxYPosition = currentY;
 
     const startNewPage = () => {
+      this.reportHeaderService.addStandardFooter(doc); // 👈
       doc.addPage();
       currentY = this.drawHeader(
         doc, 15, pageWidth, margin, 22,
@@ -466,11 +471,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       );
       days.forEach((day, index) => {
         const xPosition = margin + index * dayColumnWidth;
-        doc.setFillColor(128, 0, 0);
-        doc.setTextColor(255, 255, 255);
+        doc.setFillColor(128, 0, 0); doc.setTextColor(255, 255, 255);
         doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
         doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
       });
       currentY += 12;
@@ -479,11 +482,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     days.forEach((day, index) => {
       const xPosition = margin + index * dayColumnWidth;
-      doc.setFillColor(128, 0, 0);
-      doc.setTextColor(255, 255, 255);
+      doc.setFillColor(128, 0, 0); doc.setTextColor(255, 255, 255);
       doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10); doc.setFont('helvetica', 'bold');
       doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, { align: 'center' });
     });
 
@@ -512,8 +513,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           if (yPosition + boxHeight > maxContentHeight) {
             days.forEach((_, i) => {
               const lineX = margin + i * dayColumnWidth;
-              doc.setDrawColor(200, 200, 200);
-              doc.setLineWidth(0.5);
+              doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
               doc.line(lineX, startY, lineX, maxYPosition);
             });
             doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
@@ -526,55 +526,38 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
           let textYPosition = yPosition + 5;
           courseContent.forEach((line: string, index) => {
-            doc.setTextColor(0);
-            doc.setFontSize(9);
+            doc.setTextColor(0); doc.setFontSize(9);
             doc.setFont(index <= 1 ? 'helvetica' : 'helvetica', index <= 1 ? 'bold' : 'normal');
 
             const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 10);
             wrappedLines.forEach((wrappedLine: string) => {
-              doc.text(wrappedLine, xPosition + 5, textYPosition);
-              textYPosition += 5;
+              doc.text(wrappedLine, xPosition + 5, textYPosition); textYPosition += 5;
             });
 
             if (index === courseContent.length - 1) {
               const timeTextWidth = doc.getTextWidth(line);
-              doc.setDrawColor(0, 0, 0);
-              doc.setLineWidth(0.2);
+              doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
               doc.line(xPosition + 5, textYPosition - 4, xPosition + 5 + timeTextWidth, textYPosition - 4);
             }
           });
 
           yPosition += boxHeight + 5;
-          if (yPosition > maxYPosition) {
-            maxYPosition = yPosition;
-          }
+          if (yPosition > maxYPosition) maxYPosition = yPosition;
         });
       }
     });
 
     days.forEach((_, i) => {
       const lineX = margin + i * dayColumnWidth;
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
       doc.line(lineX, startY, lineX, maxYPosition);
     });
     doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
-
-    const footerMargin = 20;
-    const preparedByXPosition = margin;
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Prepared By:', preparedByXPosition, pageHeight - footerMargin);
-
-    const receivedByXPosition = pageWidth - margin - 80;
-    doc.setFont('helvetica', 'bold');
-    doc.text('Received By:', receivedByXPosition, pageHeight - footerMargin);
-
-    const indent = 10;
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${facultyName}`, receivedByXPosition + indent, pageHeight - footerMargin + 8);
+    
+    // (Prepared By text deleted!)
   }
+
 
   private calculateBoxHeight(doc: jsPDF, content: string[], columnWidth: number): number {
     const padding = 10;

@@ -593,6 +593,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         });
       });
     });
+    this.reportHeaderService.addStandardFooter(doc);
 
     return doc;
   }
@@ -663,6 +664,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         'No matching year levels or sections found for the selected options.',
       );
     }
+    this.reportHeaderService.addStandardFooter(doc);
 
     return doc.output('blob');
   }
@@ -726,6 +728,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
     // Function to start a new page
     const startNewPage = () => {
+      this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
       currentY = this.drawHeader(
         doc,

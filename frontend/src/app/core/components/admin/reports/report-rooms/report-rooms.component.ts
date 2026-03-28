@@ -329,30 +329,20 @@ export class ReportRoomsComponent
 
     this.filteredData.forEach((room, index) => {
       if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc); // 👈
         doc.addPage();
       }
 
       const subtitle = this.getAcademicYearSubtitle(room);
       let currentY = this.drawHeader(
-        doc,
-        topMargin,
-        pageWidth,
-        margin,
-        logoSize,
-        `Room ${room.roomCode} Schedule`,
-        subtitle,
+        doc, topMargin, pageWidth, margin, logoSize,
+        `Room ${room.roomCode} Schedule`, subtitle,
       );
 
-      this.drawScheduleTable(
-        doc,
-        room.schedules ?? [],
-        subtitle,
-        currentY,
-        margin,
-        pageWidth,
-      );
+      this.drawScheduleTable(doc, room.schedules ?? [], subtitle, currentY, margin, pageWidth);
     });
 
+    this.reportHeaderService.addStandardFooter(doc); // 👈
     return doc.output('blob');
   }
 
@@ -366,24 +356,13 @@ export class ReportRoomsComponent
 
     if (room.schedules && room.schedules.length > 0) {
       let currentY = this.drawHeader(
-        doc,
-        topMargin,
-        pageWidth,
-        margin,
-        logoSize,
-        `Room ${room.roomCode}`,
-        subtitle,
+        doc, topMargin, pageWidth, margin, logoSize,
+        `Room ${room.roomCode}`, subtitle,
       );
-      this.drawScheduleTable(
-        doc, 
-        room.schedules, 
-        subtitle,
-        currentY,
-        margin, 
-        pageWidth
-      );
+      this.drawScheduleTable(doc, room.schedules, subtitle, currentY, margin, pageWidth);
     }
 
+    this.reportHeaderService.addStandardFooter(doc); // 👈
     return doc.output('blob');
   }
 
@@ -439,12 +418,14 @@ export class ReportRoomsComponent
     ];
     const dayColumnWidth = (pageWidth - margin * 2) / days.length;
     const pageHeight = doc.internal.pageSize.height;
-    const maxContentHeight = pageHeight - margin;
+    const maxContentHeight = pageHeight - 20; // Adjusted for footer space
 
     let currentY = startY;
     let maxYPosition = currentY;
 
+    // Helper to trigger a new page
     const startNewPage = () => {
+      this.reportHeaderService.addStandardFooter(doc); // Add footer before page break
       doc.addPage();
       currentY = this.drawHeader(
         doc,
@@ -452,11 +433,8 @@ export class ReportRoomsComponent
         pageWidth,
         margin,
         22,
-        doc.getNumberOfPages() > 1
-          ? 'Room Schedule (Continued)'
-          : 'Room Schedule',
+        doc.getNumberOfPages() > 1 ? 'Room Schedule (Continued)' : 'Room Schedule',
         subtitle,
-        // this.getAcademicYearSubtitle(scheduleData[0]),
       );
 
       days.forEach((day, index) => {
@@ -475,6 +453,7 @@ export class ReportRoomsComponent
       return currentY;
     };
 
+    // Draw initial day headers
     days.forEach((day, index) => {
       const xPosition = margin + index * dayColumnWidth;
       doc.setFillColor(128, 0, 0);
@@ -489,6 +468,7 @@ export class ReportRoomsComponent
 
     currentY += 12;
 
+    // Loop through each day and display schedules
     days.forEach((day, dayIndex) => {
       const xPosition = margin + dayIndex * dayColumnWidth;
       let yPosition = currentY;
@@ -502,19 +482,17 @@ export class ReportRoomsComponent
 
       if (daySchedule.length > 0) {
         daySchedule.forEach((item: any) => {
-          const boxHeight = this.calculateBoxHeight(
-            doc,
-            [
-              item.course_details.course_code,
-              item.course_details.course_title,
-              `${item.program_code} ${item.year_level} - ${item.section_name}`,
-              item.faculty_name,
-              `${this.formatTime(item.start_time)} - ${this.formatTime(
-                item.end_time,
-              )}`,
-            ],
-            dayColumnWidth,
-          );
+          
+          // IMPORTANT: Clean array with NO functions inside it
+          const scheduleContent = [
+            item.course_details.course_code,
+            item.course_details.course_title,
+            `${item.program_code} ${item.year_level} - ${item.section_name}`,
+            item.faculty_name,
+            `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`,
+          ];
+
+          const boxHeight = this.calculateBoxHeight(doc, scheduleContent, dayColumnWidth);
 
           if (yPosition + boxHeight > maxContentHeight) {
             days.forEach((_, i) => {
@@ -523,12 +501,7 @@ export class ReportRoomsComponent
               doc.setLineWidth(0.5);
               doc.line(lineX, startY, lineX, maxYPosition);
             });
-            doc.line(
-              pageWidth - margin,
-              startY,
-              pageWidth - margin,
-              maxYPosition,
-            );
+            doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
 
             yPosition = startNewPage();
             maxYPosition = yPosition;
@@ -538,15 +511,7 @@ export class ReportRoomsComponent
           doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
 
           let textYPosition = yPosition + 5;
-          [
-            item.course_details.course_code,
-            item.course_details.course_title,
-            `${item.program_code} ${item.year_level} - ${item.section_name}`,
-            item.faculty_name,
-            `${this.formatTime(item.start_time)} - ${this.formatTime(
-              item.end_time,
-            )}`,
-          ].forEach((line: string, index) => {
+          scheduleContent.forEach((line: string, index) => {
             doc.setTextColor(0);
             doc.setFontSize(9);
             doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
@@ -556,6 +521,18 @@ export class ReportRoomsComponent
               doc.text(wrappedLine, xPosition + 5, textYPosition);
               textYPosition += 5;
             });
+
+            if (index === scheduleContent.length - 1) {
+              const timeTextWidth = doc.getTextWidth(line);
+              doc.setDrawColor(0, 0, 0);
+              doc.setLineWidth(0.2);
+              doc.line(
+                xPosition + 5,
+                textYPosition - 4,
+                xPosition + 5 + timeTextWidth,
+                textYPosition - 4,
+              );
+            }
           });
 
           yPosition += boxHeight + 5;
@@ -565,14 +542,18 @@ export class ReportRoomsComponent
         });
       }
     });
+
     days.forEach((_, i) => {
       const lineX = margin + i * dayColumnWidth;
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.5);
       doc.line(lineX, startY, lineX, maxYPosition);
     });
+
     doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
+    
+    // (Old "Prepared By" code is completely gone from here)
   }
 
   private formatTime(time: string): string {
@@ -585,6 +566,10 @@ export class ReportRoomsComponent
   private timeToMinutes(time: string): number {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
+  }
+
+  private formatTimeTo12Hour(time: string): string {
+    return this.formatTime(time);
   }
 
   getAcademicYearSubtitle(room: Room): string {
