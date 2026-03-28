@@ -38,6 +38,12 @@ class PermissionSeeder extends Seeder
                 'category' => 'scheduling',
             ],
             [
+                'permission_key' => 'rescheduling',
+                'display_name' => 'Rescheduling',
+                'description' => 'Review and process rescheduling appeals',
+                'category' => 'scheduling',
+            ],
+            [
                 'permission_key' => 'view_preferences',
                 'display_name' => 'View Preferences',
                 'description' => 'View faculty preferences (read-only)',

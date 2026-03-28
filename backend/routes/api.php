@@ -203,10 +203,12 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Rescheduling Appeals — Admin
      */
-    Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
-    Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
-    Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
-    Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);
+    Route::middleware('permission:rescheduling')->group(function () {
+        Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
+        Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
+        Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
+        Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);
+    });
 
     // Rescheduling Appeals — Faculty (My Appeals)
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);

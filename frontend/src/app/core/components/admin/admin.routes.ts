@@ -100,7 +100,10 @@ export const ADMIN_ROUTES: Routes = [
           import('./rescheduling/rescheduling.component').then(
             (m) => m.ReschedulingComponent
           ),
-        data: { pageTitle: 'Rescheduling' },
+        data: {
+          pageTitle: 'Rescheduling',
+          requirePermission: 'rescheduling'
+        },
       },
       {
         path: 'help',
