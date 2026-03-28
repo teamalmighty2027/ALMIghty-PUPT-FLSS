@@ -8,6 +8,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { TableDialogComponent, DialogConfig, DialogFieldConfig } from '../../../../../shared/table-dialog/table-dialog.component';
+import { DialogAdminPermissionComponent } from '../../../../../shared/dialog-admin-permission/dialog-admin-permission.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
 import { InputField, TableHeaderComponent } from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
@@ -304,6 +305,33 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.updateAdmin(admin.id, { ...result, role: 'admin' });
       }
     });
+  }
+
+  openPermissionDialog(admin: User): void {
+    const dialogRef = this.dialog.open(DialogAdminPermissionComponent, {
+      data: {
+        adminId: admin.id,
+        adminName: `${admin.first_name} ${admin.last_name}`,
+      },
+      width: '600px',
+      disableClose: false,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result?.success) {
+        this.snackBar.open('Permissions updated successfully', 'Close', {
+          duration: 3000,
+        });
+        // Refresh the admin list to get updated permission data
+        this.fetchAdmins();
+      }
+    });
+  }
+
+  onCustomAction(event: any): void {
+    if (event.action === 'edit-permissions') {
+      this.openPermissionDialog(event.row);
+    }
   }
 
   updateAdmin(id: string, updatedAdmin: any) {

@@ -26,6 +26,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { CurriculumService } from '../../../services/superadmin/curriculum/curriculum.service';
 import { AcademicYearService } from '../../../services/admin/academic-year/academic-year.service';
+import { PermissionService } from '../../../services/permission/permission.service';
 import {
   AcademicYear,
   Program,
@@ -60,6 +61,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
   selectedAcademicYearId: number | null = null;
   private destroy$ = new Subject<void>();
   isLoading = true;
+  canEditAcademicYears = false;
 
   headerInputFields: InputField[] = [
     {
@@ -85,10 +87,12 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private academicYearService: AcademicYearService,
-    private curriculumService: CurriculumService
+    private curriculumService: CurriculumService,
+    private permissionService: PermissionService,
   ) {}
 
   ngOnInit() {
+    this.canEditAcademicYears = this.permissionService.hasPermission('edit_academic_years');
     this.loadData();
   }
 
@@ -270,6 +274,14 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
    * @param program - The program to manage.
    */
   onManageCurriculum(program: Program) {
+    // Check if user has permission to edit academic years
+    if (!this.permissionService.hasPermission('edit_academic_years')) {
+      this.snackBar.open('You do not have permission to manage curriculum.', 'Close', {
+        duration: 5000,
+      });
+      return;
+    }
+
     const fields: DialogFieldConfig[] = [];
 
     this.curriculumService.getCurricula().subscribe((curricula) => {
@@ -400,6 +412,14 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
    * @param program - The program to manage.
    */
   onManageSections(program: Program) {
+    // Check if user has permission to edit academic years
+    if (!this.permissionService.hasPermission('edit_academic_years')) {
+      this.snackBar.open('You do not have permission to manage sections.', 'Close', {
+        duration: 5000,
+      });
+      return;
+    }
+
     if (!this.selectedAcademicYearId) {
       this.snackBar.open('Invalid academic year selection.', 'Close', {
         duration: 3000,
@@ -527,6 +547,14 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
    * @param program - The program to remove.
    */
   onRemoveProgram(program: Program) {
+    // Check if user has permission to edit academic years
+    if (!this.permissionService.hasPermission('edit_academic_years')) {
+      this.snackBar.open('You do not have permission to delete programs.', 'Close', {
+        duration: 5000,
+      });
+      return;
+    }
+
     const dialogData: DialogData = {
       title: 'Confirm Delete',
       content: `Are you sure you want to delete the program

@@ -60,6 +60,7 @@
               mat-button
               class="edit-button sec-ripple"
               (click)="onManageCurriculum(element)"
+              [disabled]="!canEditAcademicYears"
             >
               <mat-icon>school</mat-icon>
               <span>Edit Curriculum</span>
@@ -76,6 +77,7 @@
               mat-button
               class="edit-button sec-ripple"
               (click)="onManageSections(element)"
+              [disabled]="!canEditAcademicYears"
             >
               <mat-icon>view_list</mat-icon>
               <span>Edit Sections</span>
@@ -92,6 +94,7 @@
               mat-button
               class="remove-button"
               (click)="onRemoveProgram(element)"
+              [disabled]="!canEditAcademicYears"
             >
               <mat-icon>delete</mat-icon>
               <span>Remove</span>
