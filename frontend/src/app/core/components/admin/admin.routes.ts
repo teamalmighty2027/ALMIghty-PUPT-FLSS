@@ -27,7 +27,10 @@ export const ADMIN_ROUTES: Routes = [
           import('./manage-preferences/manage-preferences.component').then(
             (m) => m.ManagePreferencesComponent
           ),
-        data: { pageTitle: 'Faculty Preferences' },
+        data: { 
+          pageTitle: 'Faculty Preferences',
+          requirePermission: 'edit_faculty_preferences'
+        },
       },
       {
         path: 'scheduling',
@@ -35,7 +38,10 @@ export const ADMIN_ROUTES: Routes = [
           import('./scheduling/scheduling.component').then(
             (m) => m.SchedulingComponent
           ),
-        data: { pageTitle: 'Scheduling' },
+        data: { 
+          pageTitle: 'Scheduling',
+          requirePermission: 'assign_schedules'
+        },
       },
       {
         path: 'academic-years',
@@ -43,13 +49,19 @@ export const ADMIN_ROUTES: Routes = [
           import('./academic-year/academic-year.component').then(
             (m) => m.AcademicYearComponent
           ),
-        data: { pageTitle: 'Academic Years' },
+        data: { 
+          pageTitle: 'Academic Years',
+          requirePermission: 'edit_academic_years'
+        },
       },
       {
         path: 'reports',
         loadComponent: () =>
           import('./reports/reports.component').then((m) => m.ReportsComponent),
-        data: { pageTitle: 'Official Reports' },
+        data: { 
+          pageTitle: 'Official Reports',
+          requirePermission: 'view_reports'
+        },
         children: [
           {
             path: 'faculty',

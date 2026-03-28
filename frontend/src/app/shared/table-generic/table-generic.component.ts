@@ -56,6 +56,7 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Output() delete = new EventEmitter<T>();
   @Output() view = new EventEmitter<T>();
   @Output() tableHeadingButtonClick = new EventEmitter<void>();
+  @Output() customAction = new EventEmitter<{ action: string; row: T }>();
 
   private _data: T[] = [];
   public dataSource = new MatTableDataSource<T>([]);
@@ -104,6 +105,10 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
 
   onTableHeadingButtonClick() {
     this.tableHeadingButtonClick.emit();
+  }
+
+  onCustomAction(action: string, item: T) {
+    this.customAction.emit({ action, row: item });
   }
 
   onDelete(item: T) {
