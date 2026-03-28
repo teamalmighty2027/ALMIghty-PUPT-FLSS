@@ -72,6 +72,16 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::delete('/deleteAdmins/{admin}', [AccountController::class, 'destroyAdmin']);
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
+
+    /*
+    |----------------------------------
+    | Permission Management Routes
+    |----------------------------------
+     */
+    Route::get('/permissions', [AccountController::class, 'getPermissions']);
+    Route::get('/admins/{admin}/permissions', [AccountController::class, 'getAdminPermissions']);
+    Route::post('/admins/{admin}/permissions', [AccountController::class, 'updateAdminPermissions']);
+    Route::get('/programs', [ProgramController::class, 'index']);
 });
 
 /*
