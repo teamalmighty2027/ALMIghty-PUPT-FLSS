@@ -645,17 +645,17 @@ AfterViewChecked, OnDestroy {
     doc.text('Prepared By:', preparedByXPosition, pageHeight - footerMargin);
 
     // "Received By: <Faculty Name>" on the right side
-    const receivedByXPosition = pageWidth - margin - 80;
+    const receivedByXPosition = pageWidth - margin - 85;
     doc.setFont('helvetica', 'bold');
     doc.text('Received By:', receivedByXPosition, pageHeight - footerMargin);
 
     // Faculty name for "Received By:" on the next line, indented
-    const indent = 10;
+    const indent = 30;
     doc.setFont('helvetica', 'normal');
     doc.text(
       `${facultyName}`,
       receivedByXPosition + indent,
-      pageHeight - footerMargin + 8,
+      pageHeight - footerMargin,
     );
   }
 
