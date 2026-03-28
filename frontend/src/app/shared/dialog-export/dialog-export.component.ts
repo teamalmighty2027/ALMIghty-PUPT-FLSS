@@ -92,6 +92,9 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
     return '';
   }
 
+  /**
+   * This function handles both generating the PDF blob and updating the iframe preview.
+   */
   private async renderPdfPreview(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(true);
@@ -117,6 +120,10 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   
+  /**
+   * This function is called when the user clicks the "Download PDF" button. 
+   * It generates the PDF blob and triggers the download.
+   */
   public async downloadPdf(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(false); 

@@ -400,7 +400,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     facultiesWithSchedules.forEach((faculty, index) => {
       if (index > 0) {
-        this.reportHeaderService.addStandardFooter(doc); // 👈
+        this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
       }
       let currentY = this.drawHeader(
@@ -411,7 +411,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     });
 
-    this.reportHeaderService.addStandardFooter(doc); // 👈
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
@@ -431,7 +431,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
     }
     
-    this.reportHeaderService.addStandardFooter(doc); // 👈
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
@@ -463,7 +463,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     let maxYPosition = currentY;
 
     const startNewPage = () => {
-      this.reportHeaderService.addStandardFooter(doc); // 👈
+      this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
       currentY = this.drawHeader(
         doc, 15, pageWidth, margin, 22,

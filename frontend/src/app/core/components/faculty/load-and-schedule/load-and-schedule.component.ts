@@ -11,7 +11,6 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs'; 
 
-// 👇 Make sure this import is here
 import { FacultyScheduleTimetableComponent } from '../../../../shared/faculty-schedule-timetable/faculty-schedule-timetable.component';
 import { DialogScheduleHistoryComponent } from '../../../../shared/dialog-schedule-history/dialog-schedule-history.component';
 import { DialogAppealScheduleComponent } from '../../../../shared/dialog-appeal-schedule/dialog-appeal-schedule.component';
@@ -60,8 +59,6 @@ export interface ScheduleBlock {
   animations: [fadeAnimation],
 })
 export class LoadAndScheduleComponent implements OnInit {
-  
-  // 👇 THIS LINKS THE PARENT TO THE CHILD COMPONENT
   @ViewChild(FacultyScheduleTimetableComponent) timetableComponent!: FacultyScheduleTimetableComponent;
 
   facultySchedule: any;
@@ -237,7 +234,6 @@ export class LoadAndScheduleComponent implements OnInit {
     return `${hours}:${minutes} ${period}`;
   }
 
-  // 👇 THE ONLY LOGIC WE NEED FOR THE BUTTON!
   onExportPdf() {
     if (this.timetableComponent) {
       // Tells the child component to run the PDF code it already has
