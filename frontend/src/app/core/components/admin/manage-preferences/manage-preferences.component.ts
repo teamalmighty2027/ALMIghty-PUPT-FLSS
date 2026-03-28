@@ -23,7 +23,6 @@ import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '.
 
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
-import { PermissionService } from '../../../services/permission/permission.service';
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
@@ -115,7 +114,6 @@ export class ManagePreferencesComponent
   hasAnyPreferences = false;
   hasIndividualDeadlines = false;
   facultyScheduledState = new Map<number, boolean>();
-  canEditFacultyPreferences = false;
 
   // Search Subject
   private searchSubject = new Subject<string>();
@@ -139,27 +137,10 @@ export class ManagePreferencesComponent
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
     private reportHeaderService: ReportHeaderService,
-    private permissionService: PermissionService,
   ) {}
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
-
-    this.canEditFacultyPreferences = this.permissionService.hasPermission(
-      'edit_faculty_preferences'
-    );
-    
-    // Check if user has permission to view preferences
-    if (
-      !this.permissionService.hasPermission('view_preferences') &&
-      !this.canEditFacultyPreferences
-    ) {
-      this.snackBar.open('You do not have permission to view preferences', 'Close', {
-        duration: 5000,
-      });
-      this.isLoading.next(false);
-      return;
-    }
 
     this.loadFacultyPreferences();
     this.setupFilterPredicate();

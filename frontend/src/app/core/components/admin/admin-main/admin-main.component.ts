@@ -25,6 +25,7 @@ import { CookieService } from 'ngx-cookie-service';
 
 import { slideInAnimation, fadeAnimation } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-admin-main',
@@ -41,6 +42,7 @@ import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-
     MatRippleModule,
     MatTooltipModule,
     MatSymbolDirective,
+    HasPermissionDirective,
   ],
   animations: [fadeAnimation, slideInAnimation],
 })

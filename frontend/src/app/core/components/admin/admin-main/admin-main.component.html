@@ -24,23 +24,48 @@
           <span mat-symbol="dashboard" matListItemIcon></span>
           <span matListItemTitle>Overview</span>
         </a>
-        <a mat-list-item class="list-item" routerLink="/admin/manage-preferences" routerLinkActive="active-link">
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/manage-preferences"
+          routerLinkActive="active-link"
+          *appHasPermission="['view_preferences', 'edit_faculty_preferences']">
           <span mat-symbol="groups" matListItemIcon></span>
           <span matListItemTitle>Faculty Preferences</span>
         </a>
-        <a mat-list-item class="list-item" routerLink="/admin/academic-years" routerLinkActive="active-link">
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/academic-years"
+          routerLinkActive="active-link"
+          *appHasPermission="'edit_academic_years'">
           <span mat-symbol="date_range" matListItemIcon></span>
           <span matListItemTitle>Academic Years</span>
         </a>
-        <a mat-list-item class="list-item" routerLink="/admin/scheduling" routerLinkActive="active-link">
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/scheduling"
+          routerLinkActive="active-link"
+          *appHasPermission="'assign_schedules'">
           <span mat-symbol="schedule" matListItemIcon></span>
           <span matListItemTitle>Scheduling</span>
         </a>
-        <a mat-list-item class="list-item" routerLink="/admin/reports" routerLinkActive="active-link">
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/reports"
+          routerLinkActive="active-link"
+          *appHasPermission="'view_reports'">
           <span mat-symbol="bar_chart" matListItemIcon></span>
           <span matListItemTitle>Official Reports</span>
         </a>
-        <a mat-list-item class="list-item" routerLink="/admin/rescheduling" routerLinkActive="active-link">
+        <a
+          mat-list-item
+          class="list-item"
+          routerLink="/admin/rescheduling"
+          routerLinkActive="active-link"
+          *appHasPermission="'rescheduling'">
           <span mat-symbol="edit_calendar" matListItemIcon></span>
           <span matListItemTitle>Rescheduling</span>
         </a>
