@@ -1,5 +1,8 @@
 <div class="permission-dialog">
-  <h2 mat-dialog-title>Manage Admin Permissions - {{ data.adminName }}</h2>
+  <div class="dialog-header">
+    <h2 mat-dialog-title>Manage Admin Permissions</h2>
+    <p class="dialog-subtitle">{{ data.adminName }}</p>
+  </div>
 
   <mat-dialog-content>
     <div *ngIf="isLoading" class="loading-spinner">
@@ -31,7 +34,7 @@
         </div>
       </div>
 
-      <div class="permission-section">
+      <div class="permission-section card">
         <h3>Program Access</h3>
         <p class="section-description">
           Restrict this admin's access to specific programs, or grant full access
@@ -56,7 +59,10 @@
                 (change)="toggleProgram(program.program_id)"
                 [disabled]="isSaving"
               >
-                {{ program.program_code }} - {{ program.program_title }}
+              <div class="program-info">
+                <p class="program-code">{{ program.program_code }}</p>
+                <p class="program-title">{{ program.program_title }}</p>
+              </div>
               </mat-checkbox>
             </div>
           </div>
@@ -69,17 +75,19 @@
     </div>
   </mat-dialog-content>
 
-  <mat-dialog-actions align="end">
+  <mat-dialog-actions class="dialog-actions">
     <button
       mat-button
+      class="cancel-button"
       (click)="cancel()"
       [disabled]="isSaving"
     >
       Cancel
     </button>
     <button
-      mat-raised-button
+      mat-flat-button
       color="primary"
+      class="action-button"
       (click)="savePermissions()"
       [disabled]="isSaving"
     >
