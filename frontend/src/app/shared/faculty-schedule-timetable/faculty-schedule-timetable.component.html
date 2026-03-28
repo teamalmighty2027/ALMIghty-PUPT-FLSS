@@ -71,16 +71,4 @@
       </tbody>
     </table>
   </div>
-
-  <button
-    mat-fab
-    [class.mat-mdc-extended-fab]="isLabelVisible"
-    class="export-pdf-fab"
-    [@fabAnimation]="isLabelVisible ? 'extended' : 'collapsed'"
-    (click)="onExportPdf()">
-    <mat-icon class="fab-icon">{{ showPreview ? 'picture_as_pdf' : 'download' }}</mat-icon>
-    <span class="fab-label">
-      {{ showPreview ? 'Export PDF' : 'Download PDF' }}
-    </span>
-  </button>
 </div>

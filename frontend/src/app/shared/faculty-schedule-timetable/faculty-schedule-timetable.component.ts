@@ -10,7 +10,6 @@ import { ReportHeaderService } from '../../core/services/report-header/report-he
 import { ReschedulingService } from '../../core/services/faculty/rescheduling/rescheduling.service';
 
 import { fadeAnimation, fabAnimation } from '../../core/animations/animations';
-
 import { DialogExportComponent } from '../dialog-export/dialog-export.component';
 
 import { jsPDF } from 'jspdf';
@@ -59,7 +58,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   @Input() facultySchedule: any;
   @Input() showPreview: boolean = true;
   
-  // ── NEW INPUTS & OUTPUTS FOR PARENT COMMUNICATION ──
   @Input() isReadOnly: boolean = false;
   @Input() showAppealButtons: boolean = false;
   @Input() exportMode: 'official' | 'internal' = 'official';
@@ -254,7 +252,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     );
   }
 
-  // ── EMIT EVENTS INSTEAD OF OPENING DIALOGS DIRECTLY ──
   getRawSchedule(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (!block) return null;
@@ -277,11 +274,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     }
   }
 
-  // ── PDF Export Logic ──
   onExportPdf() {
     if (!this.facultySchedule || !this.facultySchedule.schedules) return;
 
-    // Get the name from the schedule object
     const facultyName = this.facultySchedule.faculty_name || 'Faculty';
 
     this.dialog.open(DialogExportComponent, {
@@ -290,7 +285,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       disableClose: true,
       data: {
         exportType: 'single', 
-        // This changes "All Faculty Schedules" to "[Name] Schedule"
         customTitle: `${facultyName} Schedule`,
         subtitle: `Official Schedule For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`,
         generatePdfFunction: async (showPreview: boolean) => {
@@ -301,7 +295,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     });
   }
 
-  // Helper method that actually builds the PDF (Notice it returns a Promise<Blob>)
   private async generatePdfBlob(): Promise<Blob> {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
@@ -309,7 +302,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     const margin = 10;
     const topMargin = 15;
 
-    // Await the header
     let currentY = await this.drawHeaderAsync(
       doc,
       topMargin,
@@ -319,11 +311,11 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayColumnWidth = (pageWidth - margin * 2) / days.length;
-    const maxContentHeight = pageHeight - margin;
+    const maxContentHeight = pageHeight - 20; 
     let maxYPosition = currentY;
 
     const startNewPage = async () => {
-      this.drawFooter(doc);
+      this.reportHeaderService.addStandardFooter(doc); // Add footer before page break
       doc.addPage();
       currentY = await this.drawHeaderAsync(
         doc,
@@ -418,8 +410,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     doc.line(pageWidth - margin, currentY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
     
-    this.drawFooter(doc);
-    return doc.output('blob'); // Return the blob so the dialog can use it
+    this.reportHeaderService.addStandardFooter(doc); // Add footer to the very last page
+    return doc.output('blob'); 
   }
 
   private drawHeaderAsync(doc: jsPDF, startY: number, title: string, subtitle: string): Promise<number> {
@@ -439,18 +431,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     const formattedName  = this.facultySchedule.faculty_name.replace(',', '').replace(/\s+/g, '_');
     const academicYear   = `${this.facultySchedule.year_start}-${this.facultySchedule.year_end}`;
     const semester       = this.formatSemester(this.facultySchedule.semester).replace(/\s+/g, '_');
-
-    const type = this.exportMode === 'internal'
-      ? 'Internal_Arrangement'
-      : 'Official_Schedule';
-
+    const type = this.exportMode === 'internal' ? 'Internal_Arrangement' : 'Official_Schedule';
     return `${formattedName}_${type}_${academicYear}_${semester}`;
-  }
-
-  private drawHeader(doc: jsPDF, startY: number, pageWidth: number, margin: number, logoSize: number, title: string, subtitle: string): number {
-    let currentY = startY;
-    this.reportHeaderService.addHeader(doc, title, currentY, subtitle).subscribe(newY => { currentY = newY; });
-    return currentY;
   }
 
   private calculateBoxHeight(doc: jsPDF, content: string[], dayColumnWidth: number): number {
@@ -461,23 +443,5 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       totalHeight += wrappedLines.length * 5;
     });
     return totalHeight + 5;
-  }
-
-  private drawFooter(doc: jsPDF) {
-    const pageHeight = doc.internal.pageSize.height;
-    const pageWidth = doc.internal.pageSize.width;
-
-    const leftText = "This document contains personal-identifiable information that is subject to Data Privacy. Please keep this document protected and in a safe place.";
-    const rightText = "This is system-generated, signature is not required.";
-
-    doc.setFontSize(8);
-    doc.setTextColor(120);
-
-    // Left side (wrapped)
-    const splitLeft = doc.splitTextToSize(leftText, pageWidth - 40);
-    doc.text(splitLeft, 10, pageHeight - 10);
-
-    // Right side (aligned right)
-    doc.text(rightText, pageWidth - 10, pageHeight - 5, { align: 'right' });
   }
 }

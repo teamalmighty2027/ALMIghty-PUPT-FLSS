@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
@@ -9,8 +9,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs'; // <--- Added forkJoin
+import { forkJoin } from 'rxjs'; 
 
+// 👇 Make sure this import is here
 import { FacultyScheduleTimetableComponent } from '../../../../shared/faculty-schedule-timetable/faculty-schedule-timetable.component';
 import { DialogScheduleHistoryComponent } from '../../../../shared/dialog-schedule-history/dialog-schedule-history.component';
 import { DialogAppealScheduleComponent } from '../../../../shared/dialog-appeal-schedule/dialog-appeal-schedule.component';
@@ -19,7 +20,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { AuthService } from '../../../services/auth/auth.service';
-import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; // <--- Added Service
+import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; 
 
 import { fadeAnimation } from '../../../animations/animations';
 
@@ -59,8 +60,12 @@ export interface ScheduleBlock {
   animations: [fadeAnimation],
 })
 export class LoadAndScheduleComponent implements OnInit {
+  
+  // 👇 THIS LINKS THE PARENT TO THE CHILD COMPONENT
+  @ViewChild(FacultyScheduleTimetableComponent) timetableComponent!: FacultyScheduleTimetableComponent;
+
   facultySchedule: any;
-  myAppeals: any[] = []; // <--- Stores the faculty's appeals
+  myAppeals: any[] = []; 
   isLoading = true;
   isPublished = false;
 
@@ -70,7 +75,7 @@ export class LoadAndScheduleComponent implements OnInit {
   constructor(
     private reportsService: ReportsService,
     private authService: AuthService,
-    private reschedulingService: ReschedulingService, // <--- Injected service
+    private reschedulingService: ReschedulingService, 
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
   ) {}
@@ -79,7 +84,6 @@ export class LoadAndScheduleComponent implements OnInit {
     this.loadFacultySchedule();
   }
 
-  // ── Fetch BOTH schedule and appeals at the same time ──
   loadFacultySchedule() {
     const facultyId = this.authService.getUserFacultyId();
     if (facultyId) {
@@ -149,7 +153,6 @@ export class LoadAndScheduleComponent implements OnInit {
       },
     });
 
-    // Reload data if an appeal is submitted so the UI updates
     dialogRef.afterClosed().subscribe(res => {
       if (res) this.loadFacultySchedule();
     });
@@ -176,22 +179,15 @@ export class LoadAndScheduleComponent implements OnInit {
     }
   }
 
-  // ── Internal Arrangement dynamically applies Approved Appeals ──
   get internalArrangementSchedule(): any {
     if (!this.facultySchedule) return null;
     
-    // 1. Create a deep clone so we don't accidentally mutate the Official Schedule
     const clone = JSON.parse(JSON.stringify(this.facultySchedule));
-
-    // 2. Find any appeals that were approved (1 or true)
     const approvedAppeals = this.myAppeals?.filter(a => a.is_approved === 1 || a.is_approved === true) || [];
 
     if (Array.isArray(clone.schedules)) {
       clone.schedules = clone.schedules.map((sched: any) => {
-        // Find if this specific schedule block has an approved appeal
         const matchingAppeal = approvedAppeals.find(a => a.schedule_id === sched.schedule_id);
-        
-        // If it does, overwrite its details!
         if (matchingAppeal) {
           return {
             ...sched,
@@ -235,5 +231,13 @@ export class LoadAndScheduleComponent implements OnInit {
     if (hours === 0) hours = 12;
     else if (hours > 12) hours -= 12;
     return `${hours}:${minutes} ${period}`;
+  }
+
+  // 👇 THE ONLY LOGIC WE NEED FOR THE BUTTON!
+  onExportPdf() {
+    if (this.timetableComponent) {
+      // Tells the child component to run the PDF code it already has
+      this.timetableComponent.onExportPdf(); 
+    }
   }
 }

@@ -2,6 +2,14 @@
 @use '../../../styles/mixins';
 @use '../../../styles/breakpoints.scss' as bp;
 
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
 $day-colors: (
   monday: (var(--primary-text), var(--primary-text-two)),
   tuesday: (var(--secondary-text), var(--secondary-text-two)),
@@ -28,17 +36,20 @@ $day-colors: (
 .faculty-schedule-timetable-container {
   display: flex;
   flex-direction: column;
-  position: relative; // Crucial: Constrains the absolute positioned FAB
-  gap: 16px; 
   width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
 
   .table-wrapper {
     @include mixins.hide-scrollbar;
     width: 100%;
+    flex: 1;
+    min-height: 0; // 👈 THE MAGIC FIX: Forces Flexbox to allow scrolling!
+    overflow: auto;
     
     // Internal scrolling height
-    max-height: calc(100vh - 350px); 
-    min-height: 300px;
+    flex: 1;
     overflow: auto; 
     
     border-radius: var(--border-radius-md);
@@ -62,7 +73,7 @@ $day-colors: (
           position: sticky;
           top: 0;
           z-index: 20; 
-          background-color: var(--primary-one); // Crucial: Keeps header solid when scrolling
+          background-color: var(--primary-one); 
           color: white;
           padding: var(--spacing-xs);
           border-right: 1px solid rgba(255, 255, 255, 0.2);
@@ -91,7 +102,7 @@ $day-colors: (
           @include mixins.default-transition;
           font-weight: 500;
           border-right: 1px solid var(--neutral-fade);
-          background-color: var(--neutral-light); // Crucial: Keeps time column solid when scrolling
+          background-color: var(--neutral-light); 
           padding: var(--spacing-xxxs);
           min-width: 80px !important;
           max-width: 80px !important;
@@ -161,18 +172,9 @@ $day-colors: (
       }
     }
   }
-
-  // THE UPDATED FAB STYLE
-  .export-pdf-fab {
-    position: absolute;
-    bottom: 24px;
-    right: 24px;
-    z-index: 100; // Keeps it safely above the sticky headers and time slots
-    background-color: maroon !important; 
-    color: white !important;
-  }
 }
 
+// ── Block Action Buttons ────────────────────────────────────────
 .block-actions {
   display: flex;
   align-items: center;

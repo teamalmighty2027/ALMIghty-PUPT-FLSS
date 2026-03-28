@@ -7,18 +7,6 @@
   @include mixins.hide-scrollbar;
 }
 
-:host {
-  display: block;
-}
-
-.faculty-load-schedule-container {
-  overflow: visible !important; // CRITICAL: Stops the page from cutting off the bottom!
-}
-
-.row-two {
-  overflow: visible !important;
-}
-
 // ─── Page shell ────────────────────────────────────────────────
 .faculty-load-schedule-container {
   @include mixins.flex-layout(
@@ -100,15 +88,22 @@
   }
 }
 
-// ─── Toggle bar ────────────────────────────────────────────────
+// ─── Toggle bar + Export Button ────────────────────────────────
 .view-toggle-bar {
-  @include mixins.flex-layout(
-    $align: center,
-    $justify: flex-start,
-    $gap: var(--spacing-md)
-  );
-  flex-wrap: wrap;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; 
+  gap: 16px;
+  margin-bottom: 24px;
   flex-shrink: 0;
+
+  .toggle-left-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 
   // ── Material toggle group overrides ──
   .schedule-toggle {
@@ -157,7 +152,6 @@
       opacity: 0.7;
     }
 
-    // tiny icon inline inside the span text
     .inline-icon {
       font-size: 14px;
       width: 14px;
@@ -170,6 +164,28 @@
       display: flex;
       align-items: center;
       gap: 2px;
+    }
+  }
+
+  // ── Export PDF Button ──
+  .export-pdf-btn {
+    background-color: var(--primary-one) !important;
+    color: white !important;
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+
+    .btn-icon {
+      margin-right: 8px;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 
@@ -213,7 +229,6 @@
     flex-shrink: 0;
   }
 
-  // tiny inline icon used inside the text span
   .inline-icon {
     font-size: 14px;
     width: 14px;

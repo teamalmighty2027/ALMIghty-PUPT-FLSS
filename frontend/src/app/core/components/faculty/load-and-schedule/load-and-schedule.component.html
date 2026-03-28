@@ -48,33 +48,42 @@
 
     @if (isPublished) {
       <div class="view-toggle-bar" [@fadeAnimation]>
+        
+        <div class="toggle-left-section">
+          <mat-button-toggle-group
+            [(ngModel)]="activeView"
+            (change)="onViewToggle($event.value)"
+            class="schedule-toggle"
+            hideSingleSelectionIndicator>
 
-        <mat-button-toggle-group
-          [(ngModel)]="activeView"
-          (change)="onViewToggle($event.value)"
-          class="schedule-toggle"
-          hideSingleSelectionIndicator>
+            <mat-button-toggle value="official">
+              <mat-icon>event_note</mat-icon>
+              Official Schedule
+            </mat-button-toggle>
 
-          <mat-button-toggle value="official">
-            <mat-icon>event_note</mat-icon>
-            Official Schedule
-          </mat-button-toggle>
+            <mat-button-toggle value="internal">
+              <mat-icon>event_available</mat-icon>
+              Internal Arrangement
+            </mat-button-toggle>
 
-          <mat-button-toggle value="internal">
-            <mat-icon>event_available</mat-icon>
-            Internal Arrangement
-          </mat-button-toggle>
+          </mat-button-toggle-group>
 
-        </mat-button-toggle-group>
+          <div class="toggle-hint">
+            @if (isOfficialView) {
+              <mat-icon class="hint-icon">lock</mat-icon>
+              <span>Read-only — This is your official schedule and cannot be modified.</span>
+            } @else {
+              <mat-icon class="hint-icon">info</mat-icon>
+              <span>Internal arrangements — click <mat-icon class="inline-icon">flag</mat-icon> on any class to submit an appeal</span>
+            }
+          </div>
+        </div>
 
-        <div class="toggle-hint">
-          @if (isOfficialView) {
-            <mat-icon class="hint-icon">lock</mat-icon>
-            <span>Read-only — This is your official schedule and cannot be modified.</span>
-          } @else {
-            <mat-icon class="hint-icon">info</mat-icon>
-            <span>Internal arrangements — click <mat-icon class="inline-icon">flag</mat-icon> on any class to submit an appeal</span>
-          }
+        <div class="toggle-right-section">
+          <button mat-flat-button class="export-pdf-btn" (click)="onExportPdf()">
+            <mat-icon class="btn-icon">picture_as_pdf</mat-icon>
+            <span class="btn-label">Export PDF</span>
+          </button>
         </div>
 
       </div>
