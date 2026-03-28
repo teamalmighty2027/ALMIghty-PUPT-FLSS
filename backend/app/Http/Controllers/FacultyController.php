@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class FacultyController extends Controller
 {
@@ -50,7 +49,7 @@ class FacultyController extends Controller
                 'email'       => $validatedData['email'],
                 'role'        => 'faculty',
                 'status'      => $validatedData['status'],
-                'password'    => Hash::make($validatedData['password']),
+                'password'    => $validatedData['password'],
             ]);
 
             $faculty = $user->faculty()->create([
