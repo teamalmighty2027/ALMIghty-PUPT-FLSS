@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Permission;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,6 @@ class AccountController extends Controller
      */
     public function indexAdmins()
     {
-        // Fetch users with role 'admin' only
         $admins = User::where('role', 'admin')->get();
         return response()->json($admins);
     }
@@ -60,6 +60,10 @@ class AccountController extends Controller
             'password' => $validatedData['password'],
             'status' => $validatedData['status'],
         ]);
+
+        // Auto-assign all permissions to new admin (full access)
+        $allPermissions = Permission::pluck('id')->toArray();
+        $admin->permissions()->attach($allPermissions);
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Admin Created
@@ -232,5 +236,116 @@ class AccountController extends Controller
         );
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * ===================================
+     * Permission Management Methods
+     * ===================================
+     */
+
+    /**
+     * GET all available permissions
+     */
+    public function getPermissions()
+    {
+        $permissions = Permission::select('id', 'permission_key', 'display_name', 'description', 'category')
+            ->orderBy('category')
+            ->orderBy('display_name')
+            ->get();
+
+        return response()->json($permissions);
+    }
+
+    /**
+     * GET specific admin's permissions and allowed programs
+     */
+    public function getAdminPermissions(User $admin)
+    {
+        if ($admin->role !== 'admin' && $admin->role !== 'superadmin') {
+            return response()->json(['message' => 'User is not an admin'], 400);
+        }
+
+        $permissions = $admin->permissions()
+            ->select('permissions.id', 'permission_key', 'display_name')
+            ->get();
+
+        $allowedPrograms = $admin->allowedPrograms()
+            ->select('programs.program_id', 'program_code', 'program_title')
+            ->get();
+
+        $isFullAccess = $admin->isFullAccess();
+
+        return response()->json([
+            'admin_id' => $admin->id,
+            'permissions' => $permissions,
+            'allowed_programs' => $allowedPrograms,
+            'is_full_access' => $isFullAccess,
+        ]);
+    }
+
+    /**
+     * UPDATE admin's permissions and allowed programs
+     */
+    public function updateAdminPermissions(Request $request, User $admin)
+    {
+        if ($admin->role !== 'admin' && $admin->role !== 'superadmin') {
+            return response()->json(['message' => 'User is not an admin'], 400);
+        }
+
+        // Eager load permissions and programs to avoid N+1 queries
+        $admin->load('permissions', 'allowedPrograms');
+
+        $validatedData = $request->validate([
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'integer|exists:permissions,id',
+            'allowed_programs' => 'nullable|array',
+            'allowed_programs.*' => 'integer|exists:programs,program_id',
+        ]);
+
+        $oldPermissions = $admin->permissions->pluck('permission_key')->toArray();
+        $oldPrograms = $admin->getAllowedProgramIds();
+
+        // Sync permissions
+        if (isset($validatedData['permissions'])) {
+            $admin->permissions()->sync($validatedData['permissions']);
+        } else {
+            $admin->permissions()->detach();
+        }
+
+        // Sync allowed programs
+        if (isset($validatedData['allowed_programs'])) {
+            $admin->allowedPrograms()->sync($validatedData['allowed_programs']);
+        } else {
+            $admin->allowedPrograms()->detach();
+        }
+
+        // Reload relations after sync
+        $admin->load('permissions', 'allowedPrograms');
+        $newPermissions = $admin->permissions->pluck('permission_key')->toArray();
+        $newPrograms = $admin->getAllowedProgramIds();
+
+        // Log the permission change
+        AuditLogger::log(
+            action: 'update',
+            description: "Updated permissions for admin: {$admin->formatted_name}",
+            model: 'User',
+            modelId: $admin->id,
+            metadata: [
+                'old_permissions' => $oldPermissions,
+                'new_permissions' => $newPermissions,
+                'old_programs' => $oldPrograms,
+                'new_programs' => $newPrograms,
+                'action_type' => 'permission_update',
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Admin permissions updated successfully',
+            'admin_id' => $admin->id,
+            'permissions' => $admin->permissions->select('id', 'permission_key', 'display_name'),
+            'allowed_programs' => $admin->allowedPrograms->select('program_id', 'program_code', 'program_title'),
+            'is_full_access' => $admin->isFullAccess(),
+        ]);
     }
 }
