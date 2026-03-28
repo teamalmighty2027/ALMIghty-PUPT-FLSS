@@ -79,7 +79,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
-    this.loadMyAppeals();
+    // 👇 Gate network call behind the showAppealButtons flag
+    if (this.showAppealButtons) {
+      this.loadMyAppeals();
+    }
   }
 
   ngAfterViewInit() {
@@ -175,7 +178,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
 
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
-    return block ? block.duration * 26 - 2 : 0;
+    return block ? block.duration * 40 - 2 : 0;
   }
 
   getScheduleBlockStyle(day: string, slotIndex: number): any {
@@ -278,6 +281,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     if (!this.facultySchedule || !this.facultySchedule.schedules) return;
 
     const facultyName = this.facultySchedule.faculty_name || 'Faculty';
+    // 👇 Derive title based on current export mode
+    const viewType = this.exportMode === 'internal' ? 'Internal Arrangement' : 'Official Schedule';
 
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
@@ -286,7 +291,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       data: {
         exportType: 'single', 
         customTitle: `${facultyName} Schedule`,
-        subtitle: `Official Schedule For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`,
+        subtitle: `${viewType} For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`, // 👈 Uses the new viewType
         generatePdfFunction: async (showPreview: boolean) => {
           return await this.generatePdfBlob(); 
         },

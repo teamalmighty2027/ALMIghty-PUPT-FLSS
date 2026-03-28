@@ -119,28 +119,29 @@ export class ReportHeaderService {
    * Adds a standardized footer to a PDF document with Data Privacy notices
    * @param doc The jsPDF document instance
    */
-  public addStandardFooter(doc: jsPDF): void {
-    const pageHeight = doc.internal.pageSize.height;
-    const pageWidth = doc.internal.pageSize.width;
+  addStandardFooter(doc: any): void {
+    // Dynamically fetch the width and height of whatever page size is currently being used
+    const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
     const margin = 10;
-    const footerY = pageHeight - 12; // Base Y position
+    
+    // Anchor the footer exactly 15mm from the bottom edge
+    const footerY = pageHeight - 15; 
 
-    // 1. Top separator line (Thin Gray)
-    doc.setDrawColor(180, 180, 180);
-    doc.setLineWidth(0.3);
+    // Draw the separator line
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
     doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
 
-    // 2. Left side text (Maroon)
-    doc.setFontSize(9);
+    // Left Text (Maroon)
+    doc.setFontSize(8);
+    doc.setTextColor(128, 0, 0); // Maroon color
     doc.setFont('helvetica', 'normal');
-    // Using the global maroon color defined at the top of the service
-    doc.setTextColor(this.MAROON_COLOR[0], this.MAROON_COLOR[1], this.MAROON_COLOR[2]); 
-    
-    doc.text("This document contains personal-identifiable information that is subject to Data Privacy.", margin, footerY);
-    doc.text("Please keep this document protected and in a safe place.", margin, footerY + 4);
+    doc.text('This document contains personal-identifiable information that is subject to Data Privacy.', margin, footerY);
+    doc.text('Please keep this document protected and in a safe place.', margin, footerY + 3.5);
 
-    // 3. Right side text (Dark Gray)
-    doc.setTextColor(80, 80, 80);
-    doc.text("This is system-generated, signature is not required.", pageWidth - margin, footerY, { align: 'right' });
+    // Right Text (Gray)
+    doc.setTextColor(128, 128, 128);
+    doc.text('This is system-generated, signature is not required.', pageWidth - margin, footerY, { align: 'right' });
   }
 }

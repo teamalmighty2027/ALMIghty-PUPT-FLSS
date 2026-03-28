@@ -375,7 +375,6 @@ export class RoomsComponent implements OnInit, OnDestroy {
   // ======================
   // PDF Generation
   // ======================
-
   private createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const pageWidth = doc.internal.pageSize.width;

@@ -321,7 +321,6 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   // ======================
   // PDF Generation
   // ======================
-
   createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const margin = 10;

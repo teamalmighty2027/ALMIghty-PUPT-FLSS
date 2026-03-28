@@ -153,6 +153,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.reportsService.clearAllCaches();
     this.isInitLoading = true;
     this.isLoading = true;
 

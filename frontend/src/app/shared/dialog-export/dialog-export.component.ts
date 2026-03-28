@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, Inject, OnInit, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
 
@@ -16,7 +16,6 @@ interface ExportDialogData {
   entityData?: any;
   customTitle?: string;
   subtitle?: string;
-  // UPDATE: Allow the function to return a Promise<Blob>
   generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
   generateFileNameFunction?: () => string; 
 }
@@ -34,12 +33,15 @@ interface ExportDialogData {
     styleUrls: ['./dialog-export.component.scss'],
     animations: [fadeAnimation]
 })
-export class DialogExportComponent implements OnInit, AfterViewInit {
+export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
   title: string = '';
   subtitle: string = '';
-  isLoading = true; // Keeps spinner active until PDF is ready
+  isLoading = true;
   exportType: 'all' | 'single' = 'single';
   pdfBlobUrl: SafeResourceUrl | null = null;
+  
+  // Track the raw URL so we can revoke it and prevent memory leaks
+  private currentRawBlobUrl: string | null = null;
 
   @ViewChild('pdfIframe') pdfIframe!: ElementRef<HTMLIFrameElement>;
 
@@ -59,6 +61,13 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
       setTimeout(() => this.renderPdfPreview(), 0);
     } else {
       this.isLoading = false;
+    }
+  }
+
+  ngOnDestroy(): void {
+    // Revoke the blob URL when the dialog closes to free up memory
+    if (this.currentRawBlobUrl) {
+      URL.revokeObjectURL(this.currentRawBlobUrl);
     }
   }
 
@@ -83,29 +92,31 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
     return '';
   }
 
-  // UPDATE: Make this async to await the PDF generation
   private async renderPdfPreview(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(true);
-      // Wait for the Promise if it is one, otherwise use the Blob directly
       const pdfBlob = result instanceof Promise ? await result : result;
 
       if (pdfBlob) {
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl); 
+        // Clean up the previous URL if it exists
+        if (this.currentRawBlobUrl) {
+          URL.revokeObjectURL(this.currentRawBlobUrl);
+        }
+
+        this.currentRawBlobUrl = URL.createObjectURL(pdfBlob);
+        this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.currentRawBlobUrl); 
     
         if (this.pdfIframe?.nativeElement) {
-          this.pdfIframe.nativeElement.src = blobUrl; 
+          this.pdfIframe.nativeElement.src = this.currentRawBlobUrl; 
         }
       }
     } catch (error) {
       console.error('Error generating PDF preview:', error);
     } finally {
-      this.isLoading = false; // Hide spinner when done
+      this.isLoading = false;
     }
   }
   
-  // UPDATE: Make this async as well
   public async downloadPdf(): Promise<void> {
     try {
       const result = this.data.generatePdfFunction?.(false); 

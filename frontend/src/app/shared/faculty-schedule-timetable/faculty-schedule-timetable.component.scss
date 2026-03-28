@@ -48,10 +48,6 @@ $day-colors: (
     min-height: 0; // 👈 THE MAGIC FIX: Forces Flexbox to allow scrolling!
     overflow: auto;
     
-    // Internal scrolling height
-    flex: 1;
-    overflow: auto; 
-    
     border-radius: var(--border-radius-md);
     border: 1px solid var(--neutral-fade);
 
@@ -92,7 +88,7 @@ $day-colors: (
           border-bottom: 1px solid var(--neutral-fade);
           border-right: 1px solid var(--neutral-fade);
           min-width: 140px; 
-          height: 1.5rem;
+          height: 2.5rem;
           position: relative;
         }
 

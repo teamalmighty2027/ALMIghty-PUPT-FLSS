@@ -123,6 +123,9 @@ export class LoadAndScheduleComponent implements OnInit {
       return;
     }
 
+    // 👇 Safeguard against indexOf returning -1
+    const formattedStart = this.formatTo12Hour(block.start_time);
+    const startIndex = this.timeOptions.indexOf(formattedStart);
     const endTimeOptions = this.timeOptions.slice(
       this.timeOptions.indexOf(this.formatTo12Hour(block.start_time)) + 1
     );
@@ -204,6 +207,7 @@ export class LoadAndScheduleComponent implements OnInit {
     return clone;
   }
 
+  // 👇 Directly checks if there are approved appeals overriding the official schedule
   get hasInternalArrangements(): boolean {
     return (this.internalArrangementSchedule?.schedules?.length ?? 0) > 0;
   }

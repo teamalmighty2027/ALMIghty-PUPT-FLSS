@@ -568,6 +568,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       program.year_levels.forEach((yearLevel, yearIndex) => {
         yearLevel.sections.forEach((section, sectionIndex) => {
           if (programIndex > 0 || yearIndex > 0 || sectionIndex > 0) {
+            this.reportHeaderService.addStandardFooter(doc);
             doc.addPage();
           }
 
@@ -629,6 +630,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
       filteredSections.forEach((section) => {
         if (!isFirstPage) {
+          this.reportHeaderService.addStandardFooter(doc);
           doc.addPage();
         } else {
           isFirstPage = false;
