@@ -122,8 +122,10 @@ export class AuthService {
   logoutFromIdp(): void {
     const clientId = environmentOAuth.clientId;
     
-    // Attempt to log out from IDP, but even if it fails, we still clear cookies
-    this.http.post(`${environmentOAuth.idpUrl}/api/v1/auth/logout`, {clientId}).subscribe({
+    // Proxy through backend to avoid browser CORS issues
+    this.http.request('DELETE', `${this.baseUrl}/auth/session`, {
+      body: { client_id: clientId },
+    }).subscribe({
       next: () => {
         this.clearCookies();
       },

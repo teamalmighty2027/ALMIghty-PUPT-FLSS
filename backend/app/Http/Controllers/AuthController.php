@@ -301,4 +301,46 @@ class AuthController extends Controller
             ], 401);
         }    
     }
+
+    /**
+     * Proxy logout request to the IDP to avoid browser CORS issues.
+     */
+    public function logoutIdpProxy(Request $request)
+    {
+        $baseUrl = env('IDP_BASE_URL');
+        $clientId = $request->input('client_id')
+            ?? $request->query('client_id')
+            ?? env('CLIENT_ID');
+        $logoutPath = env('IDP_LOGOUT_PATH', '/api/v1/auth/logout');
+
+        if (! $baseUrl || ! $clientId) {
+            return response()->json([
+                'message' => 'IDP configuration is missing.',
+            ], 500);
+        }
+
+        try {
+            $response = Http::withoutVerifying()->asJson()->post(
+                rtrim($baseUrl, '/') . '/api/v1/auth/logout',
+                ['client_id' => $clientId]
+            );
+
+            if (! $response->successful()) {
+                return response()->json([
+                    'message' => 'IDP logout failed.',
+                    'status' => $response->status(),
+                ], 502);
+            }
+
+            return response()->json([
+                'message' => 'IDP logout successful.',
+                'data' => $response->json(),
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error during IDP logout proxy: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'IDP logout proxy failed.',
+            ], 502);
+        }
+    }
 }
