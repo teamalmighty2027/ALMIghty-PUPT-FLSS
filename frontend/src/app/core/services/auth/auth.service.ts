@@ -218,9 +218,7 @@ export class AuthService {
   // Cookies handling methods
   // ==============================
   getToken(): string {
-    // Token is stored as httpOnly cookie by backend and automatically sent with requests.
-    // This method is kept for reference but the actual token cannot be accessed from JavaScript.
-    return '';
+    return localStorage.getItem('token') || '';
   }
 
   private setIdpToken(access_token: string, refresh_token: string, expiresIn: number) {

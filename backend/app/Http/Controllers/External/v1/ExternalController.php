@@ -814,7 +814,7 @@ class ExternalController extends Controller
 
             // Faculty Profile Data with address as separate fields
             $data['profile'] = [
-                'birthday'   => $profile->birthday,
+                'birthday'   => $profile->getBirthdayAttribute(),
                 'gender'     => $profile->sex ?? null,
                 'address' => [
                     'house_num' => $profile->house_num ?? null,
