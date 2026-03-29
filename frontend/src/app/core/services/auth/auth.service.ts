@@ -101,10 +101,9 @@ export class AuthService {
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-        // Set individual user info cookies
+        // Store user data and Sanctum token for Authorization header
         this.setUserData(response.data);
-        this.setUserInfo(user, expiryDate.toISOString());
-        this.setSanctumToken(response.token.token, expiryDate.toISOString());
+        localStorage.setItem('token', response.token?.token || '');
         this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
@@ -122,7 +121,7 @@ export class AuthService {
    */
   logoutFromIdp(): void {
     const clientId = environmentOAuth.clientId;
-
+    
     // Attempt to log out from IDP, but even if it fails, we still clear cookies
     this.http.post(`${environmentOAuth.idpUrl}/api/v1/auth/logout`, {clientId}).subscribe({
       next: () => {
@@ -219,7 +218,9 @@ export class AuthService {
   // Cookies handling methods
   // ==============================
   getToken(): string {
-    return this.cookieService.get('token');
+    // Token is stored as httpOnly cookie by backend and automatically sent with requests.
+    // This method is kept for reference but the actual token cannot be accessed from JavaScript.
+    return '';
   }
 
   private setIdpToken(access_token: string, refresh_token: string, expiresIn: number) {
@@ -239,58 +240,6 @@ export class AuthService {
       sameSite: 'Lax',
       secure: false,
     });
-  }
-
-  setUserInfo(user: any, expiresAt: string): void {
-    const expiryDate = new Date(expiresAt);
-    this.cookieService.set(
-      'user_id',
-      user.id,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
-    this.cookieService.set(
-      'user_name',
-      user.name,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
-
-    if (user.faculty) {
-      this.cookieService.set(
-        'faculty_id',
-        user.faculty.faculty_id,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-      this.cookieService.set(
-        'faculty_type',
-        user.faculty.faculty_type,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-      this.cookieService.set(
-        'faculty_units',
-        user.faculty.faculty_units,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-    }
   }
 
   clearCookies(): void {
@@ -332,7 +281,6 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user);
-          this.setUserInfo(response.user, response.expires_at);
           localStorage.setItem('token', response.token);
         }
       }),
