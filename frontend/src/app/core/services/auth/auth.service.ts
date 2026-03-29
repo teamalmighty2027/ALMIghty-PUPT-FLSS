@@ -60,7 +60,7 @@ export class AuthService {
   initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
     this.cookieService.set('intended_role', JSON.stringify(intendedRole), undefined, '/');
-    window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
+    window.location.href = `${environmentOAuth.idpUrl}/api/v1/auth/authorize?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
@@ -117,19 +117,22 @@ export class AuthService {
   }
 
   /**
-   * Calls the session route and confirms whether the token is still valid
-   * (Placeholder)
+   * Calls the IDP's logout endpoint to invalidate the session
+   * then clears cookies as well
    */
-  checkIdpSession() {
-      this.http.get(`${environmentOAuth.idpUrl}/auth/session`).subscribe({
-        next: (response) => {
-          console.log('IDP session valid:', response);
-        },
-        error: (error) => {
-          console.error('IDP session invalid:', error);
-        }
-      });
+  logoutFromIdp(): void {
+    const clientId = environmentOAuth.clientId;
 
+    // Attempt to log out from IDP, but even if it fails, we still clear cookies
+    this.http.post(`${environmentOAuth.idpUrl}/api/v1/auth/logout`, {clientId}).subscribe({
+      next: () => {
+        this.clearCookies();
+      },
+      error: (error) => {
+        console.error('Error logging out from IDP:', error);
+        this.clearCookies();
+      }
+    });
   }
 
   // ==============================
@@ -151,6 +154,7 @@ export class AuthService {
   logout(): Observable<any> {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
       finalize(() => {
+        this.logoutFromIdp();
         this.clearCookies();
         this.router.navigate(['/login']);
       }),
