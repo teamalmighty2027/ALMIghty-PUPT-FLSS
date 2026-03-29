@@ -102,7 +102,6 @@ export class DialogFacultyLoginComponent implements OnInit {
           const expiryDate = new Date(response.expires_at);
 
           this.authService.setSanctumToken(response.token, response.expires_at);
-          this.authService.setUserInfo(response.user, response.expires_at);
 
           const expirationTime = expiryDate.getTime() - Date.now();
           setTimeout(() => this.onAutoLogout(), expirationTime);

@@ -43,10 +43,11 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 /**
- * (Identity ) IDP Callback Routes
+ * (Identity ) IDP Routes
  */
 Route::prefix('auth')->group(function () {
     Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+    Route::delete('/session', [AuthController::class, 'logoutIdpProxy']);
 });
 
 

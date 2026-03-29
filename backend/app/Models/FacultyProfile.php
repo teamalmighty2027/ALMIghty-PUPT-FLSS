@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Attributes\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class FacultyProfile extends Model
@@ -45,11 +44,9 @@ class FacultyProfile extends Model
      * Format birthdate with robust null/type checking.
      * Accessible as $model->birthday throughout the application.
      */
-    protected function birthday(): Attribute
+    public function getBirthdayAttribute(): ?string
     {
-        return Attribute::make(
-            get: fn() => $this->formatBirthdate($this->attributes['birthdate'] ?? null),
-        );
+        return $this->formatBirthdate($this->attributes['birthdate'] ?? null);
     }
 
     /**
