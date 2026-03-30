@@ -83,21 +83,26 @@
 
     <!-- Add Button -->
     @if (showAddButton) {
-    <button
-      mat-flat-button
-      class="custom-mat-button add-button"
-      [disabled]="buttonDisabled"
-      [ngClass]="{ 'disabled-button': buttonDisabled }"
-      (click)="onAdd()">
-      <div class="button-wrapper">
-        @if (isLoading) {
-        <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
-        } @else {
-        <mat-icon>{{ addIconName }}</mat-icon>
-        {{ addButtonLabel }}
-        }
-      </div>
-    </button>
+    <span
+      class="tooltip-container"
+      [matTooltip]="addButtonTooltip"
+      [matTooltipDisabled]="!buttonDisabled || !addButtonTooltip">
+      <button
+        mat-flat-button
+        class="custom-mat-button add-button"
+        [disabled]="buttonDisabled"
+        [ngClass]="{ 'disabled-button': buttonDisabled }"
+        (click)="onAdd()">
+        <div class="button-wrapper">
+          @if (isLoading) {
+          <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
+          } @else {
+          <mat-icon>{{ addIconName }}</mat-icon>
+          {{ addButtonLabel }}
+          }
+        </div>
+      </button>
+    </span>
     }
   </div>
   }

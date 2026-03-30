@@ -24,7 +24,11 @@
       [displayedColumns]="displayedColumns"
       [showViewButton]="false"
       [showDeleteButton]="false"
-      (edit)="openEditAdminDialog($event)"></app-table-generic>
+      [customActions]="[
+        { label: 'Edit Permissions', action: 'edit-permissions', icon: 'vpn_key' }
+      ]"
+      (edit)="openEditAdminDialog($event)"
+      (customAction)="onCustomAction($event)"></app-table-generic>
   </div>
 
   }

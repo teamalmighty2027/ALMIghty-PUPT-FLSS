@@ -24,7 +24,10 @@ class AuthController extends Controller
         ]);
 
         // Check if the user exists and the password is correct
-        $user = User::with(['faculty.facultyType'])->where('email', $loginUserData['email'])->first();
+        // Eager load permissions and allowed programs to avoid N+1 queries
+        $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
+            ->where('email', $loginUserData['email'])
+            ->first();
 
         if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
             return response()->json([
@@ -52,13 +55,21 @@ class AuthController extends Controller
 
         $faculty = $user->faculty;
 
+        // Get permissions and allowed programs for response
+        $permissions = $user->permissions->pluck('permission_key')->toArray();
+        $allowedPrograms = $user->getAllowedProgramIds();
+        $isFullAccess = $user->isFullAccess();
+
         // Prepare user data to be stored in the cookie
         $userData = json_encode([
-            'id'      => $user->id,
-            'name'    => $user->first_name . ' ' . $user->last_name,
-            'email'   => $user->email,
-            'role'    => $user->role,
-            'faculty' => $faculty ? [
+            'id'               => $user->id,
+            'name'             => $user->first_name . ' ' . $user->last_name,
+            'email'            => $user->email,
+            'role'             => $user->role,
+            'permissions'      => $permissions,
+            'allowed_programs' => $allowedPrograms,
+            'is_full_access'   => $isFullAccess,
+            'faculty'          => $faculty ? [
                 'faculty_id'    => $faculty->id,
                 'faculty_email' => $user->email,
                 'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
@@ -253,12 +264,20 @@ class AuthController extends Controller
             $expiresIn = $token['expires_in'] ?? 3600;
             $expiration = (int) ceil($expiresIn / 60);
 
+            // Get permissions and allowed programs for response
+            $permissions = $user->permissions->pluck('permission_key')->toArray();
+            $allowedPrograms = $user->getAllowedProgramIds();
+            $isFullAccess = $user->isFullAccess();
+
             // Prepare user data
             $userDataArray = [
-                'id'      => $user->id,
-                'name'    => $user->first_name . ' ' . $user->last_name,
-                'email'   => $user->email,
-                'roles'   => $roles
+                'id'               => $user->id,
+                'name'             => $user->first_name . ' ' . $user->last_name,
+                'email'            => $user->email,
+                'roles'            => $roles,
+                'permissions'      => $permissions,
+                'allowed_programs' => $allowedPrograms,
+                'is_full_access'   => $isFullAccess,
             ];
 
             if (in_array('faculty', $requestedRole)) {                

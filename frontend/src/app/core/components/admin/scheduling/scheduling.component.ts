@@ -21,6 +21,8 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { SchedulingService, CacheType } from '../../../services/admin/scheduling/scheduling.service';
 import { AcademicYearService } from '../../../services/admin/academic-year/academic-year.service';
+import { PermissionService } from '../../../services/permission/permission.service';
+
 import {
   Schedule,
   AcademicYear,
@@ -99,6 +101,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   constructor(
     private schedulingService: SchedulingService,
     private academicYearService: AcademicYearService,
+    private permissionService: PermissionService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
@@ -188,7 +191,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   private loadPrograms(): Observable<ProgramOption[]> {
     return this.schedulingService.getActiveYearLevelsCurricula().pipe(
       tap((data) => {
-        this.programOptions = data.map((program) => ({
+        // Get allowed programs from admin permissions
+        const allowedPrograms = this.permissionService.getAllowedPrograms();
+        const hasFullAccess = this.permissionService.hasFullProgramAccess();
+
+        // Filter programs based on permissions
+        const filteredData = hasFullAccess 
+          ? data 
+          : data.filter((program) => allowedPrograms.includes(program.program_id));
+
+        this.programOptions = filteredData.map((program) => ({
           display: `${program.program_code} - ${program.program_title}`,
           id: program.program_id,
           year_levels: program.year_levels.map((year: YearLevel) => ({

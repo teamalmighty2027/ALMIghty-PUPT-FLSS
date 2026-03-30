@@ -69,6 +69,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'super_admin' => \App\Http\Middleware\SuperAdminMiddleware::class,
+        'permission' => \App\Http\Middleware\CheckAdminPermission::class,
         'encrypt.response' => \App\Http\Middleware\EncryptJsonResponse::class,
         'check.api.key' => \App\Http\Middleware\CheckApiKey::class,
         'check.hmac' => \App\Http\Middleware\CheckHmac::class,

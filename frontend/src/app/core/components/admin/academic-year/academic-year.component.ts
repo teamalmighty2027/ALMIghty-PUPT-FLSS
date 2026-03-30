@@ -85,7 +85,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private academicYearService: AcademicYearService,
-    private curriculumService: CurriculumService
+    private curriculumService: CurriculumService,
   ) {}
 
   ngOnInit() {

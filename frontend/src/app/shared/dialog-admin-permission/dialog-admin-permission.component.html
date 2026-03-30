@@ -1,0 +1,98 @@
+<div class="permission-dialog">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>Manage Admin Permissions</h2>
+    <p class="dialog-subtitle">{{ data.adminName }}</p>
+  </div>
+
+  <mat-dialog-content>
+    <div *ngIf="isLoading" class="loading-spinner">
+      <mat-spinner diameter="50"></mat-spinner>
+    </div>
+
+    <div *ngIf="!isLoading" class="permission-sections">
+      <div class="permission-section">
+        <h3>Permissions</h3>
+        <p class="section-description">
+          Select which features this admin can access
+        </p>
+
+        <div class="permission-list">
+          <div *ngFor="let permission of permissions" class="permission-item">
+            <mat-checkbox
+              [checked]="hasPermission(permission.id)"
+              (change)="togglePermission(permission.id)"
+              [disabled]="isSaving"
+            >
+              <div class="permission-content">
+                <span class="permission-name">{{ permission.display_name }}</span>
+                <span class="permission-description">
+                  {{ permission.description }}
+                </span>
+              </div>
+            </mat-checkbox>
+          </div>
+        </div>
+      </div>
+
+      <div class="permission-section card">
+        <h3>Program Access</h3>
+        <p class="section-description">
+          Restrict this admin's access to specific programs, or grant full access
+        </p>
+
+        <div class="program-toggle">
+          <mat-slide-toggle
+            [(ngModel)]="isFullAccess"
+            (change)="onFullAccessChange(isFullAccess)"
+            [disabled]="isSaving"
+          >
+            All Programs (Full Access)
+          </mat-slide-toggle>
+        </div>
+
+        <div *ngIf="!isFullAccess" class="program-list">
+          <p class="programs-label">Select specific programs:</p>
+          <div class="programs-grid">
+            <div *ngFor="let program of programs" class="program-item">
+              <mat-checkbox
+                [checked]="hasProgram(program.program_id)"
+                (change)="toggleProgram(program.program_id)"
+                [disabled]="isSaving"
+              >
+              <div class="program-info">
+                <p class="program-code">{{ program.program_code }}</p>
+                <p class="program-title">{{ program.program_title }}</p>
+              </div>
+              </mat-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="isFullAccess" class="full-access-message">
+          <p>This admin has access to all programs.</p>
+        </div>
+      </div>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions class="dialog-actions">
+    <button
+      mat-button
+      class="cancel-button"
+      (click)="cancel()"
+      [disabled]="isSaving"
+    >
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      class="action-button"
+      (click)="savePermissions()"
+      [disabled]="isSaving"
+    >
+      <span *ngIf="!isSaving">Save Permissions</span>
+      <span *ngIf="isSaving">Saving...</span>
+    </button>
+  </mat-dialog-actions>
+</div>

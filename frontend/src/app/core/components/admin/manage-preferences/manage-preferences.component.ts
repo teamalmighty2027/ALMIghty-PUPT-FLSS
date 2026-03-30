@@ -141,6 +141,7 @@ export class ManagePreferencesComponent
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
+
     this.loadFacultyPreferences();
     this.setupFilterPredicate();
     this.searchSubject

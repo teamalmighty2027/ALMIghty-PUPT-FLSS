@@ -256,6 +256,8 @@ export class AuthService {
       'termsAccepted',
       'access_token',
       'refresh_token',
+      'permissions',
+      'allowed_programs',
     ];
 
     cookiesToClear.forEach((cookieName) => {
@@ -341,6 +343,9 @@ export class AuthService {
       code: user.code || user.user_code || '',
       faculty: user.faculty || null,
       roles: user.roles || [user.role],
+      permissions: user.permissions || [],
+      allowed_programs: user.allowed_programs || [],
+      is_full_access: user.is_full_access !== false,
     };
     // Save to localStorage (not cookies) if needed for page reloads
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
@@ -378,6 +383,23 @@ export class AuthService {
   getUserFacultyId(): string {
     const faculty = this.getUserData().faculty;
     return faculty?.faculty_id ?? '';
+  }
+
+  getPermissions(): string[] {
+    return this.getUserData().permissions || [];
+  }
+
+  hasPermission(key: string): boolean {
+    const permissions = this.getPermissions();
+    return permissions.includes(key);
+  }
+
+  getAllowedPrograms(): number[] {
+    return this.getUserData().allowed_programs || [];
+  }
+
+  isFullProgramAccess(): boolean {
+    return this.getUserData().is_full_access !== false;
   }
 
   isAuthenticated(): boolean {
