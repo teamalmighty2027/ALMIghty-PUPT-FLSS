@@ -40,3 +40,10 @@
     color: var(--primary-text);
   }
 }
+
+.pdf-iframe {
+  width: 100%;
+  height: 65vh;
+  min-height: 500px;
+  border: none;
+}

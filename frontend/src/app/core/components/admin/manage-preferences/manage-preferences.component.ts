@@ -763,6 +763,8 @@ export class ManagePreferencesComponent
             }
           });
 
+          this.reportHeaderService.addStandardFooter(doc);
+
           const pdfBlob = doc.output('blob');
           if (showPreview) {
             return pdfBlob;

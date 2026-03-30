@@ -60,7 +60,7 @@ export class AuthService {
   initiateIdpLogin(intendedRole: string[]): void {
     const clientId = environmentOAuth.clientId;
     this.cookieService.set('intended_role', JSON.stringify(intendedRole), undefined, '/');
-    window.location.href = `${environmentOAuth.idpUrl}/login?client_id=${clientId}`;
+    window.location.href = `${environmentOAuth.idpUrl}/api/v1/auth/authorize?client_id=${clientId}`;
   }
 
   // Pass the IDP callback parameters to the backend for processing
@@ -101,10 +101,9 @@ export class AuthService {
         const expiryDate = new Date();
         expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-        // Set individual user info cookies
+        // Store user data and Sanctum token for Authorization header
         this.setUserData(response.data);
-        this.setUserInfo(user, expiryDate.toISOString());
-        this.setSanctumToken(response.token.token, expiryDate.toISOString());
+        localStorage.setItem('token', response.token?.token || '');
         this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
@@ -117,19 +116,24 @@ export class AuthService {
   }
 
   /**
-   * Calls the session route and confirms whether the token is still valid
-   * (Placeholder)
+   * Calls the IDP's logout endpoint to invalidate the session
+   * then clears cookies as well
    */
-  checkIdpSession() {
-      this.http.get(`${environmentOAuth.idpUrl}/auth/session`).subscribe({
-        next: (response) => {
-          console.log('IDP session valid:', response);
-        },
-        error: (error) => {
-          console.error('IDP session invalid:', error);
-        }
-      });
-
+  logoutFromIdp(): void {
+    const clientId = environmentOAuth.clientId;
+    
+    // Proxy through backend to avoid browser CORS issues
+    this.http.request('DELETE', `${this.baseUrl}/auth/session`, {
+      body: { client_id: clientId },
+    }).subscribe({
+      next: () => {
+        this.clearCookies();
+      },
+      error: (error) => {
+        console.error('Error logging out from IDP:', error);
+        this.clearCookies();
+      }
+    });
   }
 
   // ==============================
@@ -151,6 +155,7 @@ export class AuthService {
   logout(): Observable<any> {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
       finalize(() => {
+        this.logoutFromIdp();
         this.clearCookies();
         this.router.navigate(['/login']);
       }),
@@ -215,7 +220,7 @@ export class AuthService {
   // Cookies handling methods
   // ==============================
   getToken(): string {
-    return this.cookieService.get('token');
+    return localStorage.getItem('token') || '';
   }
 
   private setIdpToken(access_token: string, refresh_token: string, expiresIn: number) {
@@ -235,58 +240,6 @@ export class AuthService {
       sameSite: 'Lax',
       secure: false,
     });
-  }
-
-  setUserInfo(user: any, expiresAt: string): void {
-    const expiryDate = new Date(expiresAt);
-    this.cookieService.set(
-      'user_id',
-      user.id,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
-    this.cookieService.set(
-      'user_name',
-      user.name,
-      expiryDate,
-      '/',
-      '',
-      true,
-      'Strict',
-    );
-
-    if (user.faculty) {
-      this.cookieService.set(
-        'faculty_id',
-        user.faculty.faculty_id,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-      this.cookieService.set(
-        'faculty_type',
-        user.faculty.faculty_type,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-      this.cookieService.set(
-        'faculty_units',
-        user.faculty.faculty_units,
-        expiryDate,
-        '/',
-        '',
-        true,
-        'Strict',
-      );
-    }
   }
 
   clearCookies(): void {
@@ -330,7 +283,6 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user);
-          this.setUserInfo(response.user, response.expires_at);
           localStorage.setItem('token', response.token);
         }
       }),

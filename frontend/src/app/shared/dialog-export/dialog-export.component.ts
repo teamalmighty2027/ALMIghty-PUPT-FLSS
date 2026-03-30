@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, Inject, OnInit, ElementRef, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
 
@@ -8,16 +8,15 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 
 import { LoadingComponent } from '../loading/loading.component';
-
 import { fadeAnimation } from '../../core/animations/animations';
 
 interface ExportDialogData {
   exportType: 'all' | 'single';
-  entity: string;
+  entity?: string;
   entityData?: any;
   customTitle?: string;
   subtitle?: string;
-  generatePdfFunction?: (showPreview: boolean) => Blob | void;
+  generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
   generateFileNameFunction?: () => string; 
 }
 
@@ -34,12 +33,15 @@ interface ExportDialogData {
     styleUrls: ['./dialog-export.component.scss'],
     animations: [fadeAnimation]
 })
-export class DialogExportComponent implements OnInit, AfterViewInit {
+export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
   title: string = '';
   subtitle: string = '';
   isLoading = true;
   exportType: 'all' | 'single' = 'single';
   pdfBlobUrl: SafeResourceUrl | null = null;
+  
+  // Track the raw URL so we can revoke it and prevent memory leaks
+  private currentRawBlobUrl: string | null = null;
 
   @ViewChild('pdfIframe') pdfIframe!: ElementRef<HTMLIFrameElement>;
 
@@ -50,17 +52,23 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
   ) {}
 
   ngOnInit(): void {
-    this.initializeExportData();
+    this.exportType = this.data.exportType || 'single';
+    this.setTitleAndSubtitle();
   }
 
   ngAfterViewInit(): void {
-    this.handlePdfPreview();
+    if (this.data.generatePdfFunction) {
+      setTimeout(() => this.renderPdfPreview(), 0);
+    } else {
+      this.isLoading = false;
+    }
   }
 
-  private initializeExportData(): void {
-    this.exportType = this.data.exportType || 'single';
-    this.setTitleAndSubtitle();
-    this.isLoading = false;
+  ngOnDestroy(): void {
+    // Revoke the blob URL when the dialog closes to free up memory
+    if (this.currentRawBlobUrl) {
+      URL.revokeObjectURL(this.currentRawBlobUrl);
+    }
   }
 
   private setTitleAndSubtitle(): void {
@@ -74,7 +82,6 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
       this.subtitle = subtitle || ''; 
     }
   }
-  
 
   private getSubtitle(entityData: any): string {
     if (entityData.academic_year && entityData.semester_label) {
@@ -85,44 +92,57 @@ export class DialogExportComponent implements OnInit, AfterViewInit {
     return '';
   }
 
-  private handlePdfPreview(): void {
-    if (this.data.generatePdfFunction) {
-      setTimeout(() => this.renderPdfPreview(), 0);
-    }
-  }
+  /**
+   * This function handles both generating the PDF blob and updating the iframe preview.
+   */
+  private async renderPdfPreview(): Promise<void> {
+    try {
+      const result = this.data.generatePdfFunction?.(true);
+      const pdfBlob = result instanceof Promise ? await result : result;
 
-  private renderPdfPreview(): void {
-    const pdfBlob = this.data.generatePdfFunction?.(true);
-    if (pdfBlob) {
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl); 
-  
-      if (this.pdfIframe?.nativeElement) {
-        this.pdfIframe.nativeElement.src = blobUrl; 
-      } else {
-        console.error('No PDF iframe element found.');
+      if (pdfBlob) {
+        // Clean up the previous URL if it exists
+        if (this.currentRawBlobUrl) {
+          URL.revokeObjectURL(this.currentRawBlobUrl);
+        }
+
+        this.currentRawBlobUrl = URL.createObjectURL(pdfBlob);
+        this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.currentRawBlobUrl); 
+    
+        if (this.pdfIframe?.nativeElement) {
+          this.pdfIframe.nativeElement.src = this.currentRawBlobUrl; 
+        }
       }
-    } else {
-      console.error('PDF Blob is undefined or null.');
+    } catch (error) {
+      console.error('Error generating PDF preview:', error);
+    } finally {
+      this.isLoading = false;
     }
   }
   
-  public downloadPdf(): void {
-    const pdfBlob = this.data.generatePdfFunction?.(false); 
-    if (pdfBlob) {
-      let fileName;
-      if (this.data.generateFileNameFunction) {
-        fileName = this.data.generateFileNameFunction();
-      } else {
-        fileName = `${this.title.replace(/ /g, '_').toLowerCase()}.pdf`;
+  /**
+   * This function is called when the user clicks the "Download PDF" button. 
+   * It generates the PDF blob and triggers the download.
+   */
+  public async downloadPdf(): Promise<void> {
+    try {
+      const result = this.data.generatePdfFunction?.(false); 
+      const pdfBlob = result instanceof Promise ? await result : result;
+
+      if (pdfBlob) {
+        let fileName = this.data.generateFileNameFunction 
+          ? this.data.generateFileNameFunction() 
+          : `${this.title.replace(/ /g, '_').toLowerCase()}.pdf`;
+    
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(blobUrl); 
       }
-  
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.click();
-      URL.revokeObjectURL(blobUrl); 
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
     }
   }
 

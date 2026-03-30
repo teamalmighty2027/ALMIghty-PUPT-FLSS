@@ -101,7 +101,6 @@ export class DialogAdminLoginComponent implements OnInit {
               response.token,
               response.expires_at,
             );
-            this.authService.setUserInfo(response.user, response.expires_at);
             const expirationTime = expiryDate.getTime() - Date.now();
             setTimeout(() => this.onAutoLogout(), expirationTime);
             const redirectUrl = this.roleService.getHomeUrlForRole(

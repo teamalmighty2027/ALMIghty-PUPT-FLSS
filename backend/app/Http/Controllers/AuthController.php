@@ -235,30 +235,26 @@ class AuthController extends Controller
             $firstName = $userData['first_name'] ?? '';
             $middleName = $userData['middle_name'] ?? '';
             $lastName = $userData['last_name'] ?? '';
-            $roles = $userData['roles'] ?? [];
-            $user = null;
 
-            // Validate roles data
-            if (empty($roles) || !is_array($roles)) {
-                return response()->json([
-                    'message' => 'Invalid roles data received from IDP.'
-                ], 401);
-            }
+            // Query user by email
+            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
 
-            // Check database for user with matching email and role
-            if (in_array('FLSS:faculty', $roles)) {
-                $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])->where('email', $email)->first();
-            } else if (in_array('FLSS:admin', $roles)) {
-                $user = User::with(['permissions', 'allowedPrograms'])->where('email', $email)->first();
-            } else {
-                $user = User::with(['permissions', 'allowedPrograms'])->where('email', $email)->first();
-            }
+            // Collect the roles of the user
+            $roles = $user ? [$user->role] : [];
 
             if (!$user) {
                 return response()->json([
                     'message' => 'User not found in system.',
                     'error'   => true
                 ], 401);
+            }
+
+            if (! in_array($user->role, $requestedRole)) {
+                return response()->json([
+                    'message' => 'Access forbidden. You are not authorized as ' . 
+                        implode(' or ', $requestedRole) . '.',
+                    'error'   => true
+                ], 403);
             }
 
             $tokenResult = $user->createToken('iDP-user-token');
@@ -284,7 +280,7 @@ class AuthController extends Controller
                 'is_full_access'   => $isFullAccess,
             ];
 
-            if (in_array('FLSS:faculty', $roles) && in_array('faculty', $requestedRole)) {                
+            if (in_array('faculty', $requestedRole)) {                
                 // Add to user data if faculty
                 $userDataArray['role'] = 'faculty';
                 $userDataArray['faculty'] = $user->faculty ? [
@@ -293,9 +289,9 @@ class AuthController extends Controller
                     'faculty_type'  => $user->faculty->facultyType->faculty_type ?? null,
                     'faculty_units' => $user->faculty->faculty_units,
                 ] : null;
-            } else if (in_array('FLSS:admin', $roles) && in_array('admin', $requestedRole)) {
+            } else if (in_array('admin', $requestedRole)) {
                 $userDataArray['role'] = 'admin';
-            } else if (in_array('FLSS:superadmin', $roles) && in_array('superadmin', $requestedRole)) {
+            } else if (in_array('superadmin', $requestedRole)) {
                 $userDataArray['role'] = 'superadmin';
             }
 
@@ -323,5 +319,47 @@ class AuthController extends Controller
                 'message' => 'Authentication failed.'
             ], 401);
         }    
+    }
+
+    /**
+     * Proxy logout request to the IDP to avoid browser CORS issues.
+     */
+    public function logoutIdpProxy(Request $request)
+    {
+        $baseUrl = env('IDP_BASE_URL');
+        $clientId = $request->input('client_id')
+            ?? $request->query('client_id')
+            ?? env('CLIENT_ID');
+        $logoutPath = env('IDP_LOGOUT_PATH', '/api/v1/auth/logout');
+
+        if (! $baseUrl || ! $clientId) {
+            return response()->json([
+                'message' => 'IDP configuration is missing.',
+            ], 500);
+        }
+
+        try {
+            $response = Http::withoutVerifying()->asJson()->post(
+                rtrim($baseUrl, '/') . '/api/v1/auth/logout',
+                ['client_id' => $clientId]
+            );
+
+            if (! $response->successful()) {
+                return response()->json([
+                    'message' => 'IDP logout failed.',
+                    'status' => $response->status(),
+                ], 502);
+            }
+
+            return response()->json([
+                'message' => 'IDP logout successful.',
+                'data' => $response->json(),
+            ], 200);
+        } catch (Exception $e) {
+            Log::error('Error during IDP logout proxy: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'IDP logout proxy failed.',
+            ], 502);
+        }
     }
 }

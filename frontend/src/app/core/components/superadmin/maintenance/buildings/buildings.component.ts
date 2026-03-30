@@ -256,7 +256,6 @@ export class BuildingsComponent implements OnInit, OnDestroy {
   // ======================
   // PDF Generation
   // ======================
-
   private createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const pageWidth = doc.internal.pageSize.width;
@@ -308,6 +307,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
           });
         });
 
+      this.reportHeaderService.addStandardFooter(doc);
       return doc.output('blob');
     } catch (error) {
       this.snackBar.open('Failed to generate PDF.', 'Close', {

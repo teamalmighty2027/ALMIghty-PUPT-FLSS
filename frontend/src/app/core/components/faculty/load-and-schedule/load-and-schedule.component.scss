@@ -7,6 +7,7 @@
   @include mixins.hide-scrollbar;
 }
 
+// ─── Page shell ────────────────────────────────────────────────
 .faculty-load-schedule-container {
   @include mixins.flex-layout(
     $direction: column,
@@ -21,6 +22,7 @@
   }
 }
 
+// ─── Row one ───────────────────────────────────────────────────
 .row-one {
   @include mixins.flex-layout(
     $align: stretch,
@@ -35,7 +37,6 @@
       @include mixins.reset-styles;
       font-size: var(--font-size-2xxl);
       font-weight: 700;
-
       @include mixins.gradient-primary-text(315deg);
 
       @media screen and (max-width: bp.$breakpoint-sm) {
@@ -46,10 +47,7 @@
     p {
       @include mixins.reset-styles;
       font-size: var(--font-size-mdx);
-
-      .highlight {
-        font-weight: 600;
-      }
+      .highlight { font-weight: 600; }
     }
   }
 
@@ -69,16 +67,10 @@
       border-radius: var(--border-radius-md);
 
       .mini-heading {
-        @include mixins.flex-layout(
-          $justify: flex-start,
-          $gap: var(--spacing-xxs)
-        );
+        @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-xxs));
         font-weight: 600;
         max-width: max-content;
-
-        span[mat-symbol] {
-          font-size: medium;
-        }
+        span[mat-symbol] { font-size: medium; }
       }
     }
 
@@ -91,45 +83,255 @@
       flex: 1;
       @include mixins.gradient-secondary(315deg);
       cursor: pointer;
-
-      p {
-        opacity: var(--opacity-semi-opaque);
-      }
+      p { opacity: var(--opacity-semi-opaque); }
     }
   }
 }
 
+// ─── Toggle bar + Export Button ────────────────────────────────
+.view-toggle-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; 
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-shrink: 0;
+
+  .toggle-left-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  // ── Material toggle group overrides ──
+  .schedule-toggle {
+    border-radius: var(--border-radius-lg) !important;
+    overflow: hidden;
+    border: 1px solid var(--neutral-fade) !important;
+
+    ::ng-deep .mat-button-toggle {
+      background-color: var(--neutral-light);
+      color: var(--secondary-text);
+      font-size: var(--font-size-sm);
+
+      .mat-button-toggle-button {
+        @include mixins.flex-layout($gap: var(--spacing-xs));
+        padding: var(--spacing-xs) var(--spacing-md);
+        height: 40px;
+
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+      }
+    }
+
+    ::ng-deep .mat-button-toggle-checked {
+      background-color: var(--primary-one) !important;
+      color: white !important;
+    }
+  }
+
+  // ── Hint chip ──
+  .toggle-hint {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    font-size: var(--font-size-sm);
+    color: var(--secondary-text);
+    background-color: var(--neutral-space);
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-xxs) var(--spacing-sm);
+
+    .hint-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      opacity: 0.7;
+    }
+
+    .inline-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      vertical-align: middle;
+      margin: 0 1px;
+    }
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+  }
+
+  // ── Export PDF Button ──
+  .export-pdf-btn {
+    background-color: var(--primary-one) !important;
+    color: white !important;
+    height: 40px;
+    border-radius: 20px;
+    padding: 0 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+
+    .btn-icon {
+      margin-right: 8px;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  @media screen and (max-width: bp.$breakpoint-sm) {
+    flex-direction: column;
+    align-items: flex-start;
+
+    .toggle-hint { display: none; }
+  }
+}
+
+// ─── Row two ───────────────────────────────────────────────────
 .row-two {
   flex: 1;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-  .unpublished-container {
-    @include mixins.flex-layout(
-      $direction: column,
-      $align: center,
-      $justify: center,
-      $gap: var(--spacing-xl)
-    );
-    height: 100%;
-    opacity: var(--opacity-semi-opaque);
+// ─── View wrappers ─────────────────────────────────────────────
+.view-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  height: 100%;
+  overflow: hidden;
+}
 
-    svg {
-      width: 13rem;
-      height: auto;
-    }
+// ─── Banners ───────────────────────────────────────────────────
+.view-banner {
+  @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+  flex-shrink: 0;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
 
-    .unpublished-text {
-      @include mixins.flex-layout($gap: var(--spacing-xs));
-      font-size: var(--font-size-md);
-      text-align: center;
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
 
-      span[mat-symbol] {
-        font-size: var(--font-size-md);
-      }
-    }
+  .inline-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+
+  span { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+
+  &.official-banner {
+    background-color: #fff8e1;
+    border: 1px solid #ffe082;
+    color: #795548;
+    mat-icon { color: #f9a825; }
+  }
+
+  &.internal-banner {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    color: #2e7d32;
+    mat-icon { color: #388e3c; }
   }
 }
 
+// ─── Empty internal state ──────────────────────────────────────
+.empty-internal {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center,
+    $gap: var(--spacing-sm)
+  );
+  flex: 1;
+  opacity: 0.75;
+  text-align: center;
+  padding: var(--spacing-xl);
+
+  .empty-icon {
+    font-size: 3.5rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    color: var(--primary-one);
+    opacity: 0.5;
+  }
+
+  .empty-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--primary-text);
+    margin: 0;
+  }
+
+  .empty-sub {
+    font-size: var(--font-size-sm);
+    color: var(--secondary-text);
+    max-width: 360px;
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .go-official-btn {
+    margin-top: var(--spacing-xs);
+    color: var(--primary-one);
+    border-color: var(--primary-one);
+
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+    &:hover { background-color: var(--primary-one-fade); }
+  }
+}
+
+// ─── Not-published state ───────────────────────────────────────
+.unpublished-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center,
+    $gap: var(--spacing-xl)
+  );
+  height: 100%;
+  opacity: var(--opacity-semi-opaque);
+
+  svg {
+    width: 13rem;
+    height: auto;
+  }
+
+  .unpublished-text {
+    @include mixins.flex-layout($gap: var(--spacing-xs));
+    font-size: var(--font-size-md);
+    text-align: center;
+    span[mat-symbol] { font-size: var(--font-size-md); }
+  }
+}
+
+// ─── Loading ───────────────────────────────────────────────────
+.loading-wrapper {
+  @include mixins.flex-layout($align: center, $justify: center);
+  height: 100%;
+}
+
+// ─── Responsive ────────────────────────────────────────────────
 @media screen and (max-width: bp.$breakpoint-md) {
   .row-one {
     @include mixins.flex-layout(
@@ -137,17 +339,12 @@
       $align: stretch,
       $gap: var(--spacing-md)
     );
-
-    .schedule-overview {
-      width: auto;
-    }
+    .schedule-overview { width: auto; }
   }
 }
 
 @media screen and (max-width: bp.$breakpoint-sm) {
-  .row-two {
-    margin-bottom: var(--spacing-lg);
-  }
+  .row-two { margin-bottom: var(--spacing-lg); }
 
   .row-one {
     .schedule-overview {
@@ -156,12 +353,8 @@
         $align: stretch,
         $gap: var(--spacing-sm)
       );
-
       .summary-numbers {
-        @include mixins.flex-layout(
-          $justify: flex-start,
-          $gap: var(--spacing-md)
-        );
+        @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-md));
       }
     }
   }

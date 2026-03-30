@@ -321,7 +321,6 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   // ======================
   // PDF Generation
   // ======================
-
   createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const margin = 10;
@@ -390,6 +389,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
           });
         });
 
+      this.reportHeaderService.addStandardFooter(doc);
       return doc.output('blob');
     } catch (error) {
       this.snackBar.open('Failed to generate PDF.', 'Close', {

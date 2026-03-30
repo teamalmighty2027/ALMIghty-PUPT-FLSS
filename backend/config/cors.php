@@ -19,7 +19,7 @@ return [
 
     'allowed_methods'          => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins'          => [env('FRONTEND_URL'), 'http://localhost:4200'],
+    'allowed_origins'          => [env('FRONTEND_URL'), 'http://localhost:4200', 'http://localhost:4201'],
 
     'allowed_origins_patterns' => [],
 

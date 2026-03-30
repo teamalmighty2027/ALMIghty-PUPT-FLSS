@@ -100,8 +100,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  fetchCurriculum(year: string) {
-    this.isLoading = true;
+  // isSilentRefresh flag to prevent full page reload
+  fetchCurriculum(year: string, isSilentRefresh: boolean = false) {
+    if (!isSilentRefresh) {
+      this.isLoading = true;
+    }
 
     this.curriculumService
       .getCurriculumByYear(year)
@@ -115,7 +118,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             this.updateCustomExportOptions();
             this.cdr.markForCheck();
           }
-          this.isLoading = false;
+          this.isLoading = false; // Clear loading overlay
         },
         error: (error) => {
           console.error('Error fetching curriculum:', error);
@@ -322,7 +325,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         this.curriculumService.updateCourse(course.course_id, updatedCourse).subscribe({
           next: () => {
             this.snackBar.open(`Course updated successfully.`, 'Close', { duration: 3000 });
-            this.fetchCurriculum(this.curriculum!.curriculum_year.toString());
+            this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true); 
           },
           error: (error) => {
             console.error('Error updating course:', error);
@@ -337,7 +340,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService.deleteCourse(course.course_id).subscribe({
       next: () => {
         this.snackBar.open(`Course deleted successfully.`, 'Close', { duration: 3000 });
-        this.fetchCurriculum(this.curriculum!.curriculum_year.toString());
+        this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true); 
       },
       error: (error) => {
         console.error('Error deleting course:', error);
@@ -382,7 +385,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         this.curriculumService.addCourse(newCourse).subscribe({
           next: () => {
             this.snackBar.open(`Course added successfully.`, 'Close', { duration: 3000 });
-            this.fetchCurriculum(this.curriculum!.curriculum_year.toString());
+            this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true);
           },
           error: (error) => {
             console.error('Error adding course:', error);
@@ -543,6 +546,34 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     return this.curriculumService.mapSemesterToEnum(semester);
   }
 
+  // Check if a program actually has matching courses BEFORE rendering
+  private programHasCourses(
+    program: Program, 
+    filterYear: string | number, 
+    filterSemester: string | number
+  ): boolean {
+    let yearLevels = program.year_levels;
+    
+    if (filterYear !== 'All') {
+      yearLevels = yearLevels.filter(yl => yl.year === Number(filterYear));
+    }
+
+    for (const yl of yearLevels) {
+      let semesters = yl.semesters;
+      
+      if (filterSemester !== 'All') {
+        semesters = semesters.filter(sem => sem.semester === Number(filterSemester));
+      }
+      
+      // If ANY semester in this program matches the filters and has courses
+      if (semesters.some(sem => sem.courses && sem.courses.length > 0)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   // ===========================
   // PDF Export
   // ===========================
@@ -565,24 +596,36 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(() => {});
   }
 
-  generatePDF(showPreview: boolean = false, exportAll: boolean = false): void {
+  generatePDF(
+    showPreview: boolean = false, exportAll: boolean = false
+  ): void | Blob {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
 
-      if (exportAll) {
-        this.curriculum.programs.forEach((program, index) => {
-          this.addProgramToPDF(doc, program, index === 0, 'All', 'All');
-        });
-      } else {
-        const programsToExport = this.selectedProgram === 'All'
-          ? this.curriculum.programs
-          : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram));
+      const yearFilter = exportAll ? 'All' : this.selectedYear;
+      const semFilter = exportAll ? 'All' : this.selectedSemester;
 
-        programsToExport.forEach((program, index) => {
-          this.addProgramToPDF(doc, program, index === 0, this.selectedYear, this.selectedSemester);
+      let programsToExport = exportAll 
+        ? this.curriculum.programs 
+        : (this.selectedProgram === 'All'
+            ? this.curriculum.programs
+            : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram)));
+
+      // Filter the programs to exclude empty headers
+      const activePrograms = programsToExport.filter(p => this.programHasCourses(p, yearFilter, semFilter));
+
+      if (activePrograms.length === 0) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(14);
+        doc.text("No courses available for the selected filters.", 10, 20);
+      } else {
+        activePrograms.forEach((program, index) => {
+          this.addProgramToPDF(doc, program, index === 0, yearFilter, semFilter);
         });
       }
+
+      this.reportHeaderService.addStandardFooter(doc); 
 
       const pdfBlob = doc.output('blob');
       
@@ -604,13 +647,19 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const pageHeight = doc.internal.pageSize.height;
     const margin = 10;
     const topMargin = 15;
-    const bottomMargin = 15;
+    const bottomMargin = 20; 
 
-    if (!isFirstProgram) doc.addPage();
+    if (!isFirstProgram) {
+      this.reportHeaderService.addStandardFooter(doc); 
+      doc.addPage();
+    }
 
     let currentY = topMargin;
 
-    this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY)
+    this.reportHeaderService.addHeader(
+      doc, 
+      `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY
+    )
       .subscribe((newY) => {
         currentY = newY;
 
@@ -628,12 +677,19 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             sortedSemesters = sortedSemesters.filter(sem => sem.semester === Number(filterSemester));
           }
 
-          const hasCoursesInYear = sortedSemesters.some(sem => sem.courses && sem.courses.length > 0);
-          if (!hasCoursesInYear) continue;
+          const populatedSemesters = sortedSemesters.filter(sem => sem.courses && sem.courses.length > 0);
+
+          if (populatedSemesters.length === 0) {
+            continue; 
+          }
 
           if (currentY + 20 > pageHeight - bottomMargin) {
+            this.reportHeaderService.addStandardFooter(doc); 
             doc.addPage();
-            this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
+            )
               .subscribe((newPageY) => currentY = newPageY);
           }
 
@@ -642,12 +698,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           doc.text(`${program.name} - Year ${yearLevel.year}`, margin, currentY);
           currentY += 10;
 
-          for (const semester of sortedSemesters) {
-            if (!semester.courses || semester.courses.length === 0) continue;
+          for (const semester of populatedSemesters) {
             
             if (currentY + 40 > pageHeight - bottomMargin) {
+              this.reportHeaderService.addStandardFooter(doc); 
               doc.addPage();
-              this.reportHeaderService.addHeader(doc, `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin)
+              this.reportHeaderService.addHeader(
+                doc, 
+                `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
+              )
                 .subscribe((newPageY) => currentY = newPageY);
               doc.setFont('helvetica', 'bold');
               doc.setFontSize(15);
@@ -692,6 +751,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
               bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
               styles: { lineWidth: 0.1, overflow: 'linebreak', cellPadding: 0.5 },
               columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } },
+              
               didParseCell: function (data: any) {
                 if (data.row.index === tableData.length - 1) {
                   data.cell.styles.fontStyle = 'bold';

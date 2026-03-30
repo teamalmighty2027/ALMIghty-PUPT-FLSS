@@ -78,13 +78,10 @@ class User extends Authenticatable
         return $formattedName;
     }
 
-    /**
-     * Hash the password before saving to the database.
-     * Only hash if the password is not already hashed.
-     */
     public function setPasswordAttribute($value)
     {
-        $this->attributes['password'] = Hash::make($value);
+        $this->attributes['password'] = Hash::needsRehash($value) 
+          ? Hash::make($value) : $value;
     }
 
     public function faculty()

@@ -2,6 +2,14 @@
 @use '../../../styles/mixins';
 @use '../../../styles/breakpoints.scss' as bp;
 
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
 $day-colors: (
   monday: (var(--primary-text), var(--primary-text-two)),
   tuesday: (var(--secondary-text), var(--secondary-text-two)),
@@ -26,154 +34,136 @@ $day-colors: (
 }
 
 .faculty-schedule-timetable-container {
-  height: 100%;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  border-radius: var(--border-radius-md);
-  position: relative;
-  overflow: hidden;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
 
   .table-wrapper {
     @include mixins.hide-scrollbar;
-    height: 100%;
     width: 100%;
-    overflow-y: auto;
+    flex: 1;
+    min-height: 0; // 👈 THE MAGIC FIX: Forces Flexbox to allow scrolling!
+    overflow: auto;
+    
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--neutral-fade);
 
-    .export-pdf-fab {
-      position: absolute;
-      right: var(--spacing-lg);
-      bottom: var(--spacing-lg);
-      z-index: 100;
-      color: white;
-      background-color: var(--primary-one);
-      transform-origin: center;
-      overflow: hidden;
-      min-width: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .faculty-schedule-timetable-table {
+      @include mixins.default-transition;
+      
+      min-width: 1100px; // Forces table to expand, protecting Sunday
+      width: 100%;
+      
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: var(--neutral-space);
+      position: relative;
 
-      .fab-label {
-        display: inline-block;
-        text-wrap: nowrap;
-        opacity: 0;
-        width: 0;
-        visibility: hidden;
-      }
+      th, td { text-align: center; font-weight: 500; }
 
-      &.mat-mdc-extended-fab .fab-label {
-        opacity: 1;
-        width: auto;
-        visibility: visible;
-      }
-
-      .fab-icon { display: inline-flex; align-items: center; }
-    }
-  }
-
-  .faculty-schedule-timetable-table {
-    @include mixins.default-transition;
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    background-color: var(--neutral-space);
-    position: relative;
-
-    th, td { text-align: center; font-weight: 500; }
-
-    .faculty-schedule-timetable-table-header {
-      @include mixins.sticky;
-      background-color: var(--primary-one);
-      z-index: 2;
-
-      th {
-        color: white;
-        padding: var(--spacing-xs);
-        border-right: 1px solid var(--neutral-fade);
-        border-bottom: 1px solid var(--neutral-fade);
-      }
-    }
-
-    .faculty-schedule-timetable-table-body {
-      td {
-        padding: 0;
-        border-bottom: 1px solid var(--neutral-fade);
-        border-right: 1px solid var(--neutral-fade);
-        min-width: 13rem;
-        max-width: 13rem;
-        height: 1.5rem;
-        position: relative;
-      }
-
-      tr td:last-child { border-right: none; }
-
-      .time-slot {
-        @include mixins.default-transition;
-        font-weight: 500;
-        border-right: 1px solid var(--neutral-fade);
-        background-color: var(--neutral-light);
-        z-index: 1;
-        padding: var(--spacing-xxxs);
-        min-width: 5rem !important;
-        max-width: 5rem !important;
-      }
-
-      .schedule-cell {
-        position: relative;
-
-        &.schedule-block-start {
-          border-bottom: none;
-
-          & + .schedule-cell { border-top: none; }
-
-          .schedule-content {
-            @include mixins.hide-scrollbar;
-            @include mixins.flex-layout(
-              $direction: column,
-              $align: center,
-              $justify: flex-start,
-              $gap: var(--spacing-xs)
-            );
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            z-index: 1;
-            height: 100%;
-            overflow-y: auto;
-            word-break: break-word;
-            font-size: var(--font-size-md);
-            padding: var(--spacing-sm);
-            padding-bottom: var(--spacing-sm);
-
-            > div { width: 100%; text-align: center; min-height: fit-content; }
-
-            .course-text {
-              font-weight: 600;
-              display: -webkit-box;
-              -webkit-line-clamp: 3;
-              line-clamp: 3;
-              -webkit-box-orient: vertical;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: normal;
-            }
-
-            // Time + buttons at the very bottom of the content flow
-            .time-actions {
-              margin-top: auto;
-              width: 100%;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              gap: 4px;
-              padding-bottom: var(--spacing-xs);
-            }
+      .faculty-schedule-timetable-table-header {
+        th {
+          position: sticky;
+          top: 0;
+          z-index: 20; 
+          background-color: var(--primary-one); 
+          color: white;
+          padding: var(--spacing-xs);
+          border-right: 1px solid rgba(255, 255, 255, 0.2);
+          border-bottom: 1px solid var(--neutral-fade);
+          
+          &:first-child {
+            left: 0;
+            z-index: 30; // Keeps top-left corner above everything
           }
         }
+      }
 
-        &[style*='background-color'] {
-          border-bottom: none;
-          border-top: none;
+      .faculty-schedule-timetable-table-body {
+        td {
+          padding: 0;
+          border-bottom: 1px solid var(--neutral-fade);
+          border-right: 1px solid var(--neutral-fade);
+          min-width: 140px; 
+          height: 2.5rem;
+          position: relative;
+        }
 
-          & + .schedule-cell[style*='background-color'] { border-left: none; }
+        tr td:last-child { border-right: none; }
+
+        .time-slot {
+          @include mixins.default-transition;
+          font-weight: 500;
+          border-right: 1px solid var(--neutral-fade);
+          background-color: var(--neutral-light); 
+          padding: var(--spacing-xxxs);
+          min-width: 80px !important;
+          max-width: 80px !important;
+          
+          position: sticky;
+          left: 0;
+          z-index: 10; 
+        }
+
+        .schedule-cell {
+          position: relative;
+
+          &.schedule-block-start {
+            border-bottom: none;
+
+            & + .schedule-cell { border-top: none; }
+
+            .schedule-content {
+              @include mixins.hide-scrollbar;
+              @include mixins.flex-layout(
+                $direction: column,
+                $align: center,
+                $justify: flex-start,
+                $gap: var(--spacing-xs)
+              );
+              position: absolute;
+              top: 0; left: 0; right: 0;
+              z-index: 1;
+              height: 100%;
+              overflow-y: auto;
+              word-break: break-word;
+              font-size: var(--font-size-md);
+              padding: var(--spacing-sm);
+              padding-bottom: var(--spacing-sm);
+
+              > div { width: 100%; text-align: center; min-height: fit-content; }
+
+              .course-text {
+                font-weight: 600;
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: normal;
+              }
+
+              .time-actions {
+                margin-top: auto;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                padding-bottom: var(--spacing-xs);
+              }
+            }
+          }
+
+          &[style*='background-color'] {
+            border-bottom: none;
+            border-top: none;
+            & + .schedule-cell[style*='background-color'] { border-left: none; }
+          }
         }
       }
     }
@@ -187,8 +177,7 @@ $day-colors: (
   justify-content: center;
   gap: 4px;
 
-  // Flag / appeal button
-  .edit-button {
+  .edit-button, .appeals-status-button {
     color: var(--secondary-text);
     width: 36px;
     height: 36px;
@@ -196,16 +185,5 @@ $day-colors: (
     mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
 
     &:hover { background-color: rgba(0,0,0,0.06); }
-  }
-
-  // My Appeals history button
-  .appeals-status-button {
-    color: var(--secondary-text); // Matches the flag icon color
-    width: 36px;
-    height: 36px;
-
-    mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
-
-    &:hover { background-color: rgba(0,0,0,0.06); } // Matches the flag hover effect
   }
 }
