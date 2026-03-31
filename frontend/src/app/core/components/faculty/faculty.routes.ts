@@ -37,6 +37,16 @@ export const FACULTY_ROUTES: Routes = [
           ),
         data: { pageTitle: 'Load and Schedule' },
       },
+      // --- ADD THIS BLOCK ---
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('../../../shared/profile-page/profile-page.component').then(
+            (m) => m.ProfilePageComponent,
+          ),
+        data: { pageTitle: 'My Profile' },
+      },
+      // ---------------------
       {
         path: '**',
         redirectTo: 'home',

@@ -66,6 +66,13 @@
       <div
         matRipple
         class="bottom-sheet-item"
+        (click)="onBottomSheetAction('profile')">
+        <span mat-symbol="account_circle"></span>
+        My Profile
+      </div>
+      <div
+        matRipple
+        class="bottom-sheet-item"
         (click)="onBottomSheetAction('theme')">
         <span
           [mat-symbol]="
@@ -144,6 +151,10 @@
       </div>
     </div>
     <div class="mobile-dropdown-content">
+      <button matRipple class="mobile-dropdown-item" (click)="navigateToProfile()">
+        <span mat-symbol="account_circle"></span>
+        My Profile
+      </button>
       <button matRipple class="mobile-dropdown-item" (click)="toggleTheme()">
         <span
           [mat-symbol]="

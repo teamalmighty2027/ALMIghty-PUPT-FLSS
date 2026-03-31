@@ -1,0 +1,79 @@
+<div class="profile-page-container">
+  <div class="header-section">
+    <h1 class="trajan-header">My Profile</h1>
+    <p>View and update your personal and account information</p>
+  </div>
+
+  <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form-card">
+    <div class="split-layout">
+      
+      <div class="left-section">
+        <div class="photo-upload-area">
+          <div class="profile-avatar">
+             <span mat-symbol>person</span>
+          </div>
+          <button type="button" class="sienna-btn pop-small">Update Photo</button>
+        </div>
+
+        <div class="name-fields">
+          <div class="form-control-group">
+            <label>First Name</label>
+            <input formControlName="first_name" class="pill-input">
+          </div>
+          <div class="form-control-group">
+            <label>Last Name</label>
+            <input formControlName="last_name" class="pill-input">
+          </div>
+        </div>
+      </div>
+
+      <div class="v-divider"></div>
+
+      <div class="right-section">
+        <div class="field-row">
+          <div class="form-control-group">
+            <label>Faculty Code</label>
+            <input formControlName="code" class="pill-input readonly">
+          </div>
+          <div class="form-control-group">
+            <label>Program ID</label>
+            <input formControlName="program_id" class="pill-input">
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="form-control-group">
+            <label>Birthdate</label>
+            <input formControlName="birthdate" type="date" class="pill-input">
+          </div>
+          <div class="form-control-group">
+            <label>Sex</label>
+            <select formControlName="sex" class="pill-input">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="form-separator">
+
+    <div class="address-group">
+      <h3 class="trajan-header sub-header">Address Details</h3>
+      <div class="address-grid">
+        <input formControlName="house_num" placeholder="House #" class="pill-input">
+        <input formControlName="street" placeholder="Street" class="pill-input">
+        <input formControlName="barangay" placeholder="Barangay" class="pill-input">
+        <input formControlName="city" placeholder="City" class="pill-input">
+        <input formControlName="province" placeholder="Province" class="pill-input">
+        <input formControlName="zipcode" placeholder="Zipcode" class="pill-input">
+      </div>
+    </div>
+
+    <div class="action-row">
+       <button type="button" class="btn-secondary-outline pop">Change Password</button>
+       <button type="submit" class="sienna-btn pop" [disabled]="profileForm.invalid">Save Changes</button>
+    </div>
+  </form>
+</div>

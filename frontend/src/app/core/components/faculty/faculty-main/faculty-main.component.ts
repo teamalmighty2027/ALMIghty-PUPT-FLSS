@@ -75,6 +75,11 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private bottomSheet: MatBottomSheet,
   ) {}
 
+  navigateToProfile() {
+  this.router.navigate(['/faculty/profile']);
+  this.isDropdownOpen = false;
+  }
+
   ngOnInit(): void {
     this.loadFacultyInfo();
     if (this.cookieService.get('termsAccepted') !== 'true') {
@@ -304,12 +309,18 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onBottomSheetAction(action: string) {
-    if (action === 'theme') {
+    if (action === 'profile') {
+      this.navigateToProfile();
+      this.bottomSheet.dismiss();
+    } else if (action === 'theme' || action === 'toggle-theme') {
       this.toggleTheme();
+      this.bottomSheet.dismiss();
     } else if (action === 'logout') {
       this.logout();
+      this.bottomSheet.dismiss();
     } else if (action === 'change-password') {
       this.openChangePasswordDialog();
+      this.bottomSheet.dismiss();
     }
   }
 
