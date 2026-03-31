@@ -763,7 +763,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           (room) => room.status === 'Available'
         );
 
-        const roomOptions = availableRooms.map((room) => room.room_code);
+        const roomOptions = [...availableRooms.map((room) => room.room_code), 'TBA'].filter(
+          (value, index, array) => array.indexOf(value) === index
+        );
         const professorOptions = faculty.faculty.map(
           (professor) => professor.name
         );
@@ -1155,6 +1157,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   private shouldSkipDialog(): boolean {
     return localStorage.getItem(this.DIALOG_INFO_PREF_KEY) === 'true';
+  }
+
+  protected formatRoomForDisplay(room: string | null | undefined): string {
+    return room && room !== 'Not set' ? room : 'TBA';
+  }
+
+  protected isRoomNotSet(room: string | null | undefined): boolean {
+    return !room || room === 'Not set';
   }
 
   private setSkipDialogFlag(): void {
