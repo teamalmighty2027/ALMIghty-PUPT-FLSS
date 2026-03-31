@@ -23,6 +23,7 @@
     <button
       mat-button
       (click)="onActionClick(data.action)"
+      (keydown.enter)="onActionClick(data.action)"
       class="dialog-action"
       [ngStyle]="{
         color: data.actionTextColor,

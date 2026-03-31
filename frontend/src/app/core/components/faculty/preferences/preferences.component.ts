@@ -21,6 +21,7 @@ import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { DialogDayTimeComponent } from '../../../../shared/dialog-day-time/dialog-day-time.component';
 import { DialogPrefComponent } from '../../../../shared/dialog-pref/dialog-pref.component';
 import { DialogRequestAccessComponent } from '../../../../shared/dialog-request-access/dialog-request-access.component';
+import { DialogGenericComponent } from '../../../../shared/dialog-generic/dialog-generic.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ThemeService } from '../../../services/theme/theme.service';
@@ -56,6 +57,7 @@ interface TableData extends Course {
     MatProgressSpinnerModule,
     MatMenuModule,
     MatRippleModule,
+    DialogGenericComponent,
   ],
   templateUrl: './preferences.component.html',
   styleUrls: ['./preferences.component.scss'],
@@ -587,6 +589,41 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Remove course from table and send backend signal to delete preference.
    */
   private removeSubmittedCourse(course: TableData) {
+    // Check if course has preferred days with time set
+    const hasPreferredTime = course.preferredDays.some(
+      (day) => day.start_time && day.end_time
+    );
+
+    if (hasPreferredTime) {
+      // Show confirmation dialog for courses with preferred times
+      const dialogRef = this.dialog.open(DialogGenericComponent, {
+        data: {
+          title: 'Remove Preference',
+          content: `Are you sure you want to remove "${course.course_code}"? This action cannot be undone.`,
+          actionText: 'Remove',
+          cancelText: 'Cancel',
+          action: 'Remove',
+        },
+        disableClose: true,
+        panelClass: 'dialog-base',
+        autoFocus: true,
+      });
+
+      dialogRef.afterClosed().subscribe((result) => {
+        if (result === 'Remove') {
+          this.proceedWithRemoval(course);
+        }
+      });
+    } else {
+      // No time set, proceed directly
+      this.proceedWithRemoval(course);
+    }
+  }
+
+  /**
+   * Proceed with the actual removal of the preference
+   */
+  private proceedWithRemoval(course: TableData) {
     const { course_assignment_id } = course;
     const { section_id } = course.section;
     if (!this.facultyId() || !this.activeSemesterId()) {
