@@ -257,6 +257,10 @@ class ReportsController extends Controller
             ->where('ca_semesters.semester', $activeSemester->semester->semester)
             ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
             ->whereNotNull('schedules.room_id')
+            ->whereNotNull('schedules.day')
+            ->whereNotNull('schedules.start_time')
+            ->whereNotNull('schedules.end_time')
+            ->whereNotNull('schedules.faculty_id')
             ->select(
                 'schedules.schedule_id',
                 'schedules.room_id',
@@ -329,6 +333,10 @@ class ReportsController extends Controller
             ->where('ca_semesters.semester', $activeSemester->semester->semester)
             ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
             ->whereNull('schedules.room_id')
+            ->whereNotNull('schedules.day')
+            ->whereNotNull('schedules.start_time')
+            ->whereNotNull('schedules.end_time')
+            ->whereNotNull('schedules.faculty_id')
             ->select(
                 'schedules.schedule_id',
                 'schedules.day',

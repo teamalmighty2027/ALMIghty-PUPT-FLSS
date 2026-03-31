@@ -56,9 +56,8 @@ interface TableData extends Course {
     MatDialogModule,
     MatProgressSpinnerModule,
     MatMenuModule,
-    MatRippleModule,
-    DialogGenericComponent,
-  ],
+    MatRippleModule
+],
   templateUrl: './preferences.component.html',
   styleUrls: ['./preferences.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

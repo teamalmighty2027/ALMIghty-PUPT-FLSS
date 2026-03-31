@@ -15,7 +15,7 @@ import { DialogExportComponent } from '../../../../../../shared/dialog-export/di
 import { LoadingComponent } from '../../../../../../shared/loading/loading.component';
 import { fadeAnimation, pageFloatUpAnimation } from '../../../../../animations/animations';
 
-import { CurriculumService, Curriculum, Program, YearLevel, Semester, Course, CourseRequirement } from '../../../../../services/superadmin/curriculum/curriculum.service';
+import { CurriculumService, Curriculum, Program, Course } from '../../../../../services/superadmin/curriculum/curriculum.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
 import { jsPDF } from 'jspdf';

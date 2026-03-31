@@ -199,10 +199,18 @@ export class DialogDayTimeComponent implements OnInit {
    */
   toggleAnyDay(): void {
     if (this.anyDayMode) {
-      // Enable: Select all days and hide time fields
+      // Enable: Select all days and apply default times
       this.dayButtons.forEach((day) => {
         day.selected = true;
-        // Clear time fields when Any Day is enabled
+        // Apply default times to ensure Confirm button stays enabled
+        day.startTime = '07:00 AM';
+        day.endTime = '09:00 PM';
+        this.updateEndTimeOptions(day);
+      });
+    } else {
+      // Disable: Deselect all days and clear times
+      this.dayButtons.forEach((day) => {
+        day.selected = false;
         day.startTime = '';
         day.endTime = '';
         day.endTimeOptions = [...this.timeOptions];
