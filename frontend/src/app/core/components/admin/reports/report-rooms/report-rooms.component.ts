@@ -198,9 +198,21 @@ export class ReportRoomsComponent
           ),
         }));
 
+        // ===== Separate TBA from regular rooms and sort alphabetically =====
+        const regularRooms = rooms.filter((r: Room) => r.roomCode !== 'TBA');
+        const tbaRoom = rooms.find((r: Room) => r.roomCode === 'TBA');
+
+        // Sort regular rooms alphabetically by room code
+        const sortedRooms = regularRooms.sort((a: Room, b: Room) =>
+          a.roomCode.localeCompare(b.roomCode)
+        );
+
+        // Add TBA at the end if it exists
+        const finalRooms = tbaRoom ? [...sortedRooms, tbaRoom] : sortedRooms;
+
         this.isLoading = false;
-        this.dataSource.data = rooms;
-        this.filteredData = [...rooms];
+        this.dataSource.data = finalRooms;
+        this.filteredData = [...finalRooms];
         this.dataSource.paginator = this.paginator;
 
         this.hasAnySchedules = this.filteredData.some((room) =>

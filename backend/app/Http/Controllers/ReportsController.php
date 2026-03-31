@@ -273,8 +273,44 @@ class ReportsController extends Controller
             )
             ->get();
 
+        // Step 4: Get schedules with NULL room_id (TBA)
+        $tbaSchedules = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('faculty', 'schedules.faculty_id', '=', 'faculty.id')
+            ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
+            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
+            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->where('ca_semesters.semester', '=', $activeSemester->semester)
+            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->whereNull('schedules.room_id')
+            ->select(
+                'schedules.schedule_id',
+                'schedules.day',
+                'schedules.start_time',
+                'schedules.end_time',
+                'faculty.user_id',
+                'users.code as faculty_code',
+                'programs.program_code',
+                'programs.program_title',
+                'sections_per_program_year.year_level',
+                'sections_per_program_year.section_name',
+                'course_assignments.course_assignment_id',
+                'courses.course_title',
+                'courses.course_code',
+                'courses.lec_hours as lec',
+                'courses.lab_hours as lab',
+                'courses.units',
+                'courses.tuition_hours'
+            )
+            ->get();
+
         $userIds = $roomSchedules->pluck('user_id')->unique()->filter()->toArray();
-        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+        $tbaUserIds = $tbaSchedules->pluck('user_id')->unique()->filter()->toArray();
+        $allUserIds = array_unique(array_merge($userIds, $tbaUserIds));
+        $users = User::whereIn('id', $allUserIds)->get()->keyBy('id');
 
         $rooms = [];
         foreach ($roomSchedules as $schedule) {
@@ -314,6 +350,45 @@ class ReportsController extends Controller
                 ];
             }
         }
+
+        // Add TBA schedules (room_id = NULL)
+        $tbaMappedSchedules = [];
+        foreach ($tbaSchedules as $schedule) {
+            if ($schedule->schedule_id) {
+                $facultyName = isset($users[$schedule->user_id]) ? $users[$schedule->user_id]->formatted_name : 'N/A';
+                $tbaMappedSchedules[] = [
+                    'schedule_id' => $schedule->schedule_id,
+                    'day' => $schedule->day,
+                    'start_time' => $schedule->start_time,
+                    'end_time' => $schedule->end_time,
+                    'faculty_name' => $facultyName,
+                    'faculty_code' => $schedule->faculty_code,
+                    'program_code' => $schedule->program_code,
+                    'program_title' => $schedule->program_title,
+                    'year_level' => $schedule->year_level,
+                    'section_name' => $schedule->section_name,
+                    'course_details' => [
+                        'course_assignment_id' => $schedule->course_assignment_id,
+                        'course_title' => $schedule->course_title,
+                        'course_code' => $schedule->course_code,
+                        'lec' => $schedule->lec,
+                        'lab' => $schedule->lab,
+                        'units' => $schedule->units,
+                        'tuition_hours' => $schedule->tuition_hours,
+                    ],
+                ];
+            }
+        }
+
+        // Always add TBA entry (even if empty)
+        $rooms[null] = [
+            'room_id' => null,
+            'room_code' => 'TBA',
+            'location' => null,
+            'floor_level' => null,
+            'capacity' => null,
+            'schedules' => $tbaMappedSchedules,
+        ];
 
         return response()->json([
             'room_schedule_reports' => [
