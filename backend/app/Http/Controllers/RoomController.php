@@ -16,6 +16,7 @@ class RoomController extends Controller
         $rooms = Room::with('building')
           ->orderBy('room_code')
           ->get();
+
         return response()->json([
             'success' => true,
             'message' => 'Rooms fetched successfully.',
@@ -36,7 +37,7 @@ class RoomController extends Controller
                 'room_code' => $room->room_code,
                 'building_name' => $room->building->building_name ?? 'N/A',
                 'floor_level' => $room->floor_level,
-                'room_type' => $room->room_type, // Assuming this is an accessor or relation
+                'room_type' => $room->room_type,
                 'capacity' => $room->capacity,
                 'status' => $room->status,
             ];
