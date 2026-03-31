@@ -177,14 +177,26 @@ export class DialogDayTimeComponent implements OnInit {
   // Event Handlers
   // ===========================
 
+  /**
+   * Sets selected state of a day button and clears times if deselected
+   * @param day 
+   */
   toggleDay(day: DayButton): void {
     day.selected = !day.selected;
-    if (!day.selected) {
+    if (day.selected && this.anyTimeMode) {
+      // If Any Time mode is on and we're selecting a day, apply the time range
+      day.startTime = '07:00 AM';
+      day.endTime = '09:00 PM';
+      this.updateEndTimeOptions(day);
+    } else if (!day.selected) {
       day.startTime = '';
       day.endTime = '';
     }
   }
 
+  /**
+   * Enable/Disable all days when toggling "Any Day" mode
+   */
   toggleAnyDay(): void {
     if (this.anyDayMode) {
       // Enable: Select all days and hide time fields
@@ -195,17 +207,20 @@ export class DialogDayTimeComponent implements OnInit {
         day.endTime = '';
         day.endTimeOptions = [...this.timeOptions];
       });
-    } else {
-      // Disable: Keep current selection, allow manual editing
-      // No action needed on disable
     }
   }
 
+  /**
+   * Apply 07:00 AM - 09:00 PM to already-selected days only
+   * Or if anyDayMode is on, apply to all days
+   */
   toggleAnyTime(): void {
     if (this.anyTimeMode) {
-      // Enable: Set all days to 07:00 AM - 09:00 PM
-      this.dayButtons.forEach((day) => {
-        day.selected = true;
+      const daysToUpdate = this.anyDayMode 
+        ? this.dayButtons 
+        : this.dayButtons.filter(day => day.selected);
+      
+      daysToUpdate.forEach((day) => {
         day.startTime = '07:00 AM';
         day.endTime = '09:00 PM';
         this.updateEndTimeOptions(day);
@@ -216,7 +231,9 @@ export class DialogDayTimeComponent implements OnInit {
     }
   }
 
-  // Apply the first day's times to all other days
+  /**
+   * Apply the first day's times to all other days
+   */
   applyTimeToAllDays(): void {
     if (this.dayButtons.length > 0 && this.dayButtons[0].startTime && this.dayButtons[0].endTime) {
       const startTime = this.dayButtons[0].startTime;
@@ -230,6 +247,10 @@ export class DialogDayTimeComponent implements OnInit {
     }
   }
 
+  /**
+   * Updates end time options when start time changes
+   * @param day 
+   */
   onStartTimeChange(day: DayButton): void {
     this.updateEndTimeOptions(day);
   }
@@ -238,6 +259,10 @@ export class DialogDayTimeComponent implements OnInit {
     this.dialogRef.close();
   }
 
+  /**
+   * Builds the payload for preferred days based on the current selection
+   * @returns 
+   */
   private buildPreferredDaysPayload(): Array<{ day: string; start_time: string; end_time: string }> {
     let daysToProcess: DayButton[] = [];
 
@@ -245,8 +270,8 @@ export class DialogDayTimeComponent implements OnInit {
       // Use all days
       daysToProcess = this.dayButtons;
     } else if (this.anyTimeMode) {
-      // Use all days
-      daysToProcess = this.dayButtons;
+      // Use only selected days (any time applies to those specific days)
+      daysToProcess = this.dayButtons.filter((day) => day.selected);
     } else {
       // Use only selected days
       daysToProcess = this.dayButtons.filter((day) => day.selected);
@@ -261,6 +286,10 @@ export class DialogDayTimeComponent implements OnInit {
       }));
   }
 
+  /**
+   * Handles the confirmation of preferred days and submits the data
+   * @returns 
+   */
   onConfirm(): void {
     this.isSaving = true;
     const selectedDays = this.buildPreferredDaysPayload();
@@ -314,6 +343,15 @@ export class DialogDayTimeComponent implements OnInit {
     });
   }
 
+  // ===========================
+  // Utility Methods
+  // ===========================
+
+    /**
+   * Helper method to convert 12-hour time format to 24-hour format for API submission
+   * @param time12 
+   * @returns 
+   */
   convertTo24HourFormat(time12: string): string {
     const [time, modifier] = time12.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
@@ -334,11 +372,18 @@ export class DialogDayTimeComponent implements OnInit {
     return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
   }
 
-  // ===========================
-  // Utility Methods (Updated)
-  // ===========================
-
   isAnyDaySelected(): boolean {
+    // If Any Day mode is enabled, we need times set
+    if (this.anyDayMode) {
+      return this.dayButtons[0].startTime !== '' && this.dayButtons[0].endTime !== '';
+    }
+    
+    // If Any Time mode is enabled without Any Day, need at least one day selected
+    if (this.anyTimeMode) {
+      return this.dayButtons.some((day) => day.selected);
+    }
+
+    // Normal mode: need at least one day with both times set
     const anyDaySelected = this.dayButtons.some((day) => day.selected);
     if (!anyDaySelected) {
       return false;

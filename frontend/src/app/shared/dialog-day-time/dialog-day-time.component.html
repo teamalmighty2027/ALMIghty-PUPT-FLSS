@@ -40,7 +40,6 @@
     </div>
 
     <!-- Day Picker -->
-    @if (!anyTimeMode) {
     <div class="day-buttons-container">
       @for (day of dayButtons; track day.name) {
       <div
@@ -54,7 +53,6 @@
       </div>
       }
     </div>
-    }
 
     <!-- Time Fields -->
     @if (!anyTimeMode) {
