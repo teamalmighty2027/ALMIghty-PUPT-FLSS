@@ -459,32 +459,38 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.cdr.markForCheck();
 
-    this.schedulingService
-      .assignSchedule(
-        this.data.schedule_id,
-        selectedFaculty?.faculty_id ?? null,
-        selectedRoom?.room_id ?? null,
-        formValues.day ?? null,
-        formattedStartTime,
-        formattedEndTime,
-        this.data.program.id,
-        this.data.academic.year_level,
-        this.data.academic.section_id
-      )
-      .pipe(
-        tap(() => {
-          this.isLoading = false;
-          this.originalDay = this.selectedDay;
-          this.dialogRef.close(true);
-        }),
-        catchError((error) => {
-          this.isLoading = false;
-          this.handleAssignmentError(error);
-          return of(null);
-        }),
-        takeUntil(this.destroy$)
-      )
-      .subscribe();
+    let selectedRoomId: number | null = null;
+
+    // If roomValue === 'TBA', selectedRoomId stays null
+    if (formValues.room !== 'TBA') {
+      selectedRoomId = selectedRoom?.room_id ?? null;
+    }
+
+    this.schedulingService.assignSchedule(
+      this.data.schedule_id,
+      selectedFaculty?.faculty_id ?? null,
+      selectedRoomId,
+      formValues.day ?? null,
+      formattedStartTime,
+      formattedEndTime,
+      this.data.program.id,
+      this.data.academic.year_level,
+      this.data.academic.section_id
+    )
+    .pipe(
+      tap(() => {
+        this.isLoading = false;
+        this.originalDay = this.selectedDay;
+        this.dialogRef.close(true);
+      }),
+      catchError((error) => {
+        this.isLoading = false;
+        this.handleAssignmentError(error);
+        return of(null);
+      }),
+      takeUntil(this.destroy$)
+    )
+    .subscribe();
   }
 
   private handleAssignmentError(error: any): void {

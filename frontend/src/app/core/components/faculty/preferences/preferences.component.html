@@ -258,7 +258,8 @@
                 mat-icon-button
                 matTooltip="Remove this course from your preference"
                 class="remove-button"
-                (click)="removeCourse(element)">
+                (click)="removeCourse(element); $event.stopPropagation()"
+                (keydown.enter)="$event.stopPropagation()">
                 @if (isRemoving()[element.course_code]) {
                 <mat-spinner class="custom-spinner" diameter="20"></mat-spinner>
                 } @else {

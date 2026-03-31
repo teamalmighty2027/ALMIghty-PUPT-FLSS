@@ -188,25 +188,15 @@ class ReportsController extends Controller
      */
     public function getRoomSchedulesReport(Request $request)
     {
-        // Step 1: Retrieve the requested semester or fallback to current active
+        // Step 1: Get active semester - handle request parameter or use current active
         $requestedSemesterId = $request->query('active_semester_id');
-
-        $activeSemesterQuery = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->select(
-                'active_semesters.active_semester_id',
-                'active_semesters.semester_id',
-                'academic_years.academic_year_id',
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester'
-            );
-
+        
+        $activeSemesterQuery = ActiveSemester::with('academicYear', 'semester');
+        
         if ($requestedSemesterId && $requestedSemesterId !== 'null') {
-            $activeSemesterQuery->where('active_semesters.active_semester_id', $requestedSemesterId);
+            $activeSemesterQuery->where('active_semester_id', $requestedSemesterId);
         } else {
-            $activeSemesterQuery->where('active_semesters.is_active', 1);
+            $activeSemesterQuery->where('is_active', 1);
         }
 
         $activeSemester = $activeSemesterQuery->first();
@@ -215,48 +205,143 @@ class ReportsController extends Controller
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
-        // Step 2: Prepare a subquery to get schedules (USING ORIGINAL TEXT-BASED JOIN)
+        // Step 2: Get room schedules (excluding TBA)
+        $roomSchedules = $this->getRoomSchedulesForSemester($activeSemester);
+
+        // Step 3: Get TBA schedules (NULL rooms)
+        $tbaSchedules = $this->getTBASchedulesForSemester($activeSemester);
+
+        // Step 4: Cache users from both result sets
+        $users = $this->getCachedUsers($roomSchedules, $tbaSchedules);
+
+        // Step 5: Group and format room data
+        $rooms = $this->groupRoomSchedules($roomSchedules, $users);
+        
+        // Step 6: Add TBA entry
+        $rooms[] = [
+            'room_id' => null,
+            'room_code' => 'TBA',
+            'location' => null,
+            'floor_level' => null,
+            'capacity' => null,
+            'schedules' => $this->formatScheduleList($tbaSchedules, $users),
+        ];
+
+        return response()->json([
+            'room_schedule_reports' => [
+                'academic_year_id' => $activeSemester->academic_year_id,
+                'year_start' => $activeSemester->academicYear->year_start,
+                'year_end' => $activeSemester->academicYear->year_end,
+                'active_semester_id' => $activeSemester->active_semester_id,
+                'semester' => $activeSemester->semester->semester,
+                'rooms' => $rooms,
+            ],
+        ]);
+    }
+
+    /**
+     * Get room schedules for the active semester (where room_id is not null)
+     */
+    private function getRoomSchedulesForSemester(ActiveSemester $activeSemester)
+    {
+        // Get all available rooms, then left join with schedules for this semester
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->where('ca_semesters.semester', '=', $activeSemester->semester)
-            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->leftJoin('faculty', 'schedules.faculty_id', '=', 'faculty.id')
+            ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
+            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
+            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->where('ca_semesters.semester', $activeSemester->semester->semester)
+            ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
+            ->whereNotNull('schedules.room_id')
+            ->whereNotNull('schedules.day')
+            ->whereNotNull('schedules.start_time')
+            ->whereNotNull('schedules.end_time')
+            ->whereNotNull('schedules.faculty_id')
             ->select(
                 'schedules.schedule_id',
                 'schedules.room_id',
                 'schedules.day',
                 'schedules.start_time',
                 'schedules.end_time',
-                'schedules.faculty_id',
-                'schedules.section_course_id'
+                'faculty.user_id',
+                'users.code as faculty_code',
+                'programs.program_code',
+                'programs.program_title',
+                'sections_per_program_year.year_level',
+                'sections_per_program_year.section_name',
+                'course_assignments.course_assignment_id',
+                'courses.course_title',
+                'courses.course_code',
+                'courses.lec_hours as lec',
+                'courses.lab_hours as lab',
+                'courses.units',
+                'courses.tuition_hours'
             );
 
-        // Step 3: Join rooms with current schedules
-        $roomSchedules = DB::table('rooms')
-            ->leftJoinSub($schedulesSub, 'current_schedules', function ($join) {
-                $join->on('current_schedules.room_id', '=', 'rooms.room_id');
-            })
+        // Get all available rooms and left join with schedules
+        return DB::table('rooms')
             ->leftJoin('buildings', 'buildings.building_id', '=', 'rooms.building_id')
-            ->leftJoin('faculty', 'current_schedules.faculty_id', '=', 'faculty.id')
-            ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
-            ->leftJoin('section_courses', 'current_schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->leftJoin('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->where('rooms.status', '=', 'Available')
+            ->leftJoinSub($schedulesSub, 'schedules', function ($join) {
+                $join->on('schedules.room_id', '=', 'rooms.room_id');
+            })
+            ->where('rooms.status', 'Available')
             ->select(
+                'schedules.schedule_id',
                 'rooms.room_id',
                 'rooms.room_code',
                 'buildings.building_name as location',
                 'rooms.floor_level',
                 'rooms.capacity',
-                'current_schedules.schedule_id',
-                'current_schedules.day',
-                'current_schedules.start_time',
-                'current_schedules.end_time',
+                'schedules.day',
+                'schedules.start_time',
+                'schedules.end_time',
+                'schedules.user_id',
+                'schedules.faculty_code',
+                'schedules.program_code',
+                'schedules.program_title',
+                'schedules.year_level',
+                'schedules.section_name',
+                'schedules.course_assignment_id',
+                'schedules.course_title',
+                'schedules.course_code',
+                'schedules.lec',
+                'schedules.lab',
+                'schedules.units',
+                'schedules.tuition_hours'
+            )
+            ->get();
+    }
+
+    /**
+     * Get TBA schedules for the active semester (where room_id is null)
+     */
+    private function getTBASchedulesForSemester(ActiveSemester $activeSemester)
+    {
+        return DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('faculty', 'schedules.faculty_id', '=', 'faculty.id')
+            ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
+            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
+            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->where('ca_semesters.semester', $activeSemester->semester->semester)
+            ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
+            ->whereNull('schedules.room_id')
+            ->whereNotNull('schedules.day')
+            ->whereNotNull('schedules.start_time')
+            ->whereNotNull('schedules.end_time')
+            ->whereNotNull('schedules.faculty_id')
+            ->select(
+                'schedules.schedule_id',
+                'schedules.day',
+                'schedules.start_time',
+                'schedules.end_time',
                 'faculty.user_id',
                 'users.code as faculty_code',
                 'programs.program_code',
@@ -272,12 +357,24 @@ class ReportsController extends Controller
                 'courses.tuition_hours'
             )
             ->get();
+    }
 
-        $userIds = $roomSchedules->pluck('user_id')->unique()->filter()->toArray();
-        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+    /**
+     * Cache users from schedule results
+     */
+    private function getCachedUsers($roomSchedules, $tbaSchedules)
+    {
+        $userIds = $roomSchedules->pluck('user_id')->merge($tbaSchedules->pluck('user_id'))->filter()->unique()->toArray();
+        return User::whereIn('id', $userIds)->get()->keyBy('id');
+    }
 
+    /**
+     * Group room schedules by room
+     */
+    private function groupRoomSchedules($schedules, $users)
+    {
         $rooms = [];
-        foreach ($roomSchedules as $schedule) {
+        foreach ($schedules as $schedule) {
             if (!isset($rooms[$schedule->room_id])) {
                 $rooms[$schedule->room_id] = [
                     'room_id' => $schedule->room_id,
@@ -290,41 +387,48 @@ class ReportsController extends Controller
             }
 
             if ($schedule->schedule_id) {
-                $facultyName = isset($users[$schedule->user_id]) ? $users[$schedule->user_id]->formatted_name : 'N/A';
-                $rooms[$schedule->room_id]['schedules'][] = [
-                    'schedule_id' => $schedule->schedule_id,
-                    'day' => $schedule->day,
-                    'start_time' => $schedule->start_time,
-                    'end_time' => $schedule->end_time,
-                    'faculty_name' => $facultyName,
-                    'faculty_code' => $schedule->faculty_code,
-                    'program_code' => $schedule->program_code,
-                    'program_title' => $schedule->program_title,
-                    'year_level' => $schedule->year_level,
-                    'section_name' => $schedule->section_name,
-                    'course_details' => [
-                        'course_assignment_id' => $schedule->course_assignment_id,
-                        'course_title' => $schedule->course_title,
-                        'course_code' => $schedule->course_code,
-                        'lec' => $schedule->lec,
-                        'lab' => $schedule->lab,
-                        'units' => $schedule->units,
-                        'tuition_hours' => $schedule->tuition_hours,
-                    ],
-                ];
+                $rooms[$schedule->room_id]['schedules'][] = $this->formatScheduleRecord($schedule, $users);
             }
         }
+        return array_values($rooms);
+    }
 
-        return response()->json([
-            'room_schedule_reports' => [
-                'academic_year_id' => $activeSemester->academic_year_id,
-                'year_start' => $activeSemester->year_start,
-                'year_end' => $activeSemester->year_end,
-                'active_semester_id' => $activeSemester->active_semester_id,
-                'semester' => $activeSemester->semester,
-                'rooms' => array_values($rooms),
+    /**
+     * Format schedule list
+     */
+    private function formatScheduleList($schedules, $users)
+    {
+        return $schedules->filter(fn($s) => $s->schedule_id)
+            ->map(fn($s) => $this->formatScheduleRecord($s, $users))
+            ->toArray();
+    }
+
+    /**
+     * Format individual schedule record
+     */
+    private function formatScheduleRecord($schedule, $users)
+    {
+        return [
+            'schedule_id' => $schedule->schedule_id,
+            'day' => $schedule->day,
+            'start_time' => $schedule->start_time,
+            'end_time' => $schedule->end_time,
+            'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
+            'faculty_code' => $schedule->faculty_code,
+            'program_code' => $schedule->program_code,
+            'program_title' => $schedule->program_title,
+            'year_level' => $schedule->year_level,
+            'section_name' => $schedule->section_name,
+            'course_details' => [
+                'course_assignment_id' => $schedule->course_assignment_id,
+                'course_title' => $schedule->course_title,
+                'course_code' => $schedule->course_code,
+                'lec' => $schedule->lec,
+                'lab' => $schedule->lab,
+                'units' => $schedule->units,
+                'tuition_hours' => $schedule->tuition_hours,
             ],
-        ]);
+        ];
     }
 
     /**

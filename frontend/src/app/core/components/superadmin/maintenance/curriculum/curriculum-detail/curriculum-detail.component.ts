@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 
 import { forkJoin, Observable, Subject } from 'rxjs';
-import { finalize, switchMap, takeUntil, tap } from 'rxjs/operators';
+import { finalize, switchMap, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -15,7 +15,7 @@ import { DialogExportComponent } from '../../../../../../shared/dialog-export/di
 import { LoadingComponent } from '../../../../../../shared/loading/loading.component';
 import { fadeAnimation, pageFloatUpAnimation } from '../../../../../animations/animations';
 
-import { CurriculumService, Curriculum, Program, YearLevel, Semester, Course, CourseRequirement } from '../../../../../services/superadmin/curriculum/curriculum.service';
+import { CurriculumService, Curriculum, Program, Course } from '../../../../../services/superadmin/curriculum/curriculum.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
 import { jsPDF } from 'jspdf';
@@ -44,11 +44,13 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public selectedProgram: string | number = 'All';
   public selectedYear: string | number = 'All';
   public selectedSemester: string | number = 'All';
+  public searchQuery: string = '';
   
   public renderGroups: any[] = []; 
   
   public customExportOptions: { all: string; current: string } | null = null;
   private destroy$ = new Subject<void>();
+  private searchQuery$ = new Subject<string>();
   public showPreview: boolean = false;
   public isLoading: boolean = true;
   public isManagingPrograms: boolean = false;
@@ -91,6 +93,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     const curriculumYear = this.route.snapshot.paramMap.get('year');
+
+    // Setup debounced search
+    this.searchQuery$
+      .pipe(
+        debounceTime(300),
+        distinctUntilChanged(),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((query) => {
+        this.searchQuery = query;
+        this.updateRenderGroups();
+      });
 
     if (curriculumYear) this.fetchCurriculum(curriculumYear);
   }
@@ -174,6 +188,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     ];
 
     this.headerInputFields = [
+      { type: 'text', label: 'Search Course', key: 'courseSearch', placeholder: 'Search by code or title' },
       { type: 'select', label: 'Program', key: 'program', options: programOptions },
       { type: 'select', label: 'Year Level', key: 'yearLevel', options: yearLevelOptions },
       { type: 'select', label: 'Semester', key: 'semester', options: semesterOptions },
@@ -201,6 +216,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     if (!this.curriculum) return;
 
     let groups: any[] = [];
+    const searchLower = this.searchQuery.toLowerCase().trim();
 
     const programsToProcess = this.selectedProgram === 'All'
       ? this.curriculum.programs
@@ -223,20 +239,32 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
              heading = `${prog.name} - Year ${yl.year} - ${heading}`;
           }
 
-          const processedCourses = sem.courses.map(course => ({
-            ...course,
-            pre_req: course.prerequisites?.map(p => p.course_code).join(', ') || 'None',
-            co_req: course.corequisites?.map(c => c.course_code).join(', ') || 'None',
-          }));
+          const processedCourses = sem.courses
+            .filter(course => {
+              // If no search query, include all courses
+              if (!searchLower) return true;
+              // Filter by course code or course title
+              const courseCodeMatch = course.course_code.toLowerCase().includes(searchLower);
+              const courseTitleMatch = course.course_title.toLowerCase().includes(searchLower);
+              return courseCodeMatch || courseTitleMatch;
+            })
+            .map(course => ({
+              ...course,
+              pre_req: course.prerequisites?.map(p => p.course_code).join(', ') || 'None',
+              co_req: course.corequisites?.map(c => c.course_code).join(', ') || 'None',
+            }));
 
-          groups.push({
-            id: `${prog.curricula_program_id}-${yl.year}-${sem.semester}`,
-            heading: heading,
-            courses: processedCourses,
-            originalSemester: sem,
-            program: prog,
-            yearLevel: yl
-          });
+          // Only add group if it has courses after filtering
+          if (processedCourses.length > 0) {
+            groups.push({
+              id: `${prog.curricula_program_id}-${yl.year}-${sem.semester}`,
+              heading: heading,
+              courses: processedCourses,
+              originalSemester: sem,
+              program: prog,
+              yearLevel: yl
+            });
+          }
         }
       }
     }
@@ -248,6 +276,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   onInputChange(values: { [key: string]: any }) {
     let resetYear = false;
 
+    if (values['courseSearch'] !== undefined) {
+      // Emit to debounced search subject instead of directly updating
+      this.searchQuery$.next(values['courseSearch']);
+    }
     if (values['program'] !== undefined && values['program'] !== this.selectedProgram) {
       this.selectedProgram = values['program'];
       resetYear = true;
@@ -263,9 +295,12 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.selectedYear = 'All';
     }
 
-    this.updateHeaderInputFields();
-    this.updateRenderGroups();
-    this.updateCustomExportOptions();
+    // Only update if search didn't change (dropdown-only updates)
+    if (values['courseSearch'] === undefined) {
+      this.updateHeaderInputFields();
+      this.updateRenderGroups();
+      this.updateCustomExportOptions();
+    }
   }
 
   // ===========================

@@ -29,6 +29,7 @@
           </mat-slide-toggle>
         </div>
       </div>
+      @if (anyDayMode || anyTimeMode) {
       <div class="modifier-summaries">
         @if (anyDayMode) {
           <span class="modifier-summary">All Days Selected</span>
@@ -37,10 +38,10 @@
           <span class="modifier-summary">7:00 AM - 9:00 PM</span>
         }
       </div>
+      }
     </div>
 
     <!-- Day Picker -->
-    @if (!anyTimeMode) {
     <div class="day-buttons-container">
       @for (day of dayButtons; track day.name) {
       <div
@@ -54,7 +55,6 @@
       </div>
       }
     </div>
-    }
 
     <!-- Time Fields -->
     @if (!anyTimeMode) {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Building;
 use App\Models\Room;
+use App\Models\RoomType;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 
@@ -12,7 +13,10 @@ class RoomController extends Controller
     // Fetch all rooms
     public function getRooms()
     {
-        $rooms = Room::with('building')->get();
+        $rooms = Room::with('building')
+          ->orderBy('room_code')
+          ->get();
+
         return response()->json([
             'success' => true,
             'message' => 'Rooms fetched successfully.',
@@ -23,7 +27,9 @@ class RoomController extends Controller
     // Get all rooms (with a wrapper)
     public function getAllRooms()
     {
-        $rooms = Room::with('building')->get();
+        $rooms = Room::with('building')
+          ->orderBy('room_code')
+          ->get();
 
         $response = $rooms->map(function ($room) {
             return [
@@ -31,7 +37,7 @@ class RoomController extends Controller
                 'room_code' => $room->room_code,
                 'building_name' => $room->building->building_name ?? 'N/A',
                 'floor_level' => $room->floor_level,
-                'room_type' => $room->room_type, // Assuming this is an accessor or relation
+                'room_type' => $room->room_type,
                 'capacity' => $room->capacity,
                 'status' => $room->status,
             ];
@@ -59,7 +65,7 @@ class RoomController extends Controller
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Room Created
         // ═══════════════════════════════════════════════════════
-        $room->load('building'); // Load building for better description
+        $room->load('building');
         AuditLogger::logCreate(
             model: 'Room',
             modelId: $room->room_id,
@@ -108,8 +114,8 @@ class RoomController extends Controller
         if (isset($validated['status'])) $room->status = $validated['status'];
 
         // Get Names for Logs
-        $buildingsMap = \App\Models\Building::pluck('building_name', 'building_id')->toArray();
-        $roomTypesMap = \App\Models\RoomType::pluck('type_name', 'room_type_id')->toArray();
+        $buildingsMap = Building::pluck('building_name', 'building_id')->toArray();
+        $roomTypesMap = RoomType::pluck('type_name', 'room_type_id')->toArray();
 
         // 3. TRACK CHANGES
         $changes = [];
