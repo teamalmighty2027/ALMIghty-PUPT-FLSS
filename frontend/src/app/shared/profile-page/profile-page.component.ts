@@ -1,14 +1,16 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Faculty } from '../../core/services/superadmin/management/faculty/faculty.service'; // Path based on your faculty.component.ts
+import { Faculty } from '../../core/services/superadmin/management/faculty/faculty.service'; 
+import { pageFloatUpAnimation } from '../../core/animations/animations';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './profile-page.component.html',
-  styleUrls: ['./profile-page.component.scss']
+  styleUrls: ['./profile-page.component.scss'],
+  animations: [pageFloatUpAnimation]
 })
 export class ProfilePageComponent implements OnInit {
   profileForm!: FormGroup;
@@ -24,7 +26,7 @@ export class ProfilePageComponent implements OnInit {
       suffix_name: [''],
       email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
       
-      // System IDs (Set to read-only as per your rough sketch)
+      // System IDs
       code: [{ value: '', disabled: true }],
       faculty_profile_id: [{ value: '', disabled: true }],
       program_id: [''],
@@ -46,8 +48,9 @@ export class ProfilePageComponent implements OnInit {
 
   onSubmit() {
     if (this.profileForm.valid) {
-      // Use getRawValue() to include disabled fields like 'email' if needed for the API
-      console.log('Update Payload:', this.profileForm.getRawValue());
+      const payload: Faculty = this.profileForm.getRawValue(); 
+      
+      console.log('Update Payload:', payload);
     }
   }
 }

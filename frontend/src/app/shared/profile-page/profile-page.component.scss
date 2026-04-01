@@ -1,52 +1,136 @@
+@use '../../../styles/mixins' as mixins;
+
 .profile-page-container {
   padding: var(--spacing-xl);
   max-width: 1100px;
   margin: 0 auto;
+  @include mixins.custom-scrollbar;
 
-  .trajan-header {
-    font-family: var(--font-header);
-    color: var(--sienna-primary-color); // #800000 from styles.scss
-  }
+  .page-header {
+    margin-bottom: var(--spacing-2xl);
+    
+    h1 {
+      font-family: var(--font-base) !important; 
+      font-weight: 800; 
+      font-size: var(--font-size-2xxl);
+      color: var(--sienna-primary-color);
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
 
-  .sub-header {
-    font-size: var(--font-size-lg);
-    margin-bottom: var(--spacing-md);
+    p {
+      color: var(--m3-neutral-40);
+      font-size: var(--font-size-md);
+      margin-top: var(--spacing-xs);
+    }
   }
 }
 
 .profile-form-card {
   background: white;
   padding: var(--spacing-2xl);
-  border-radius: var(--border-radius-lg); // 1rem
-  box-shadow: var(--shadow-level-1); //
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-level-1);
 }
+
+/* --- Layout Structures --- */
 
 .split-layout {
   display: grid;
-  grid-template-columns: 1fr 1px 1.5fr;
-  gap: var(--spacing-2xl);
+  /* CHANGE: This forces columns to be ONLY as wide as your inputs */
+  grid-template-columns: min-content 1px min-content; 
+  
+  /* ADJUST THIS: Increase the gap to 5rem to push the 'tight' sections 
+     away from the divider line evenly */
+  gap: 5rem; 
+  
+  justify-content: center;
   align-items: start;
 }
 
 .v-divider {
   background-color: var(--m3-neutral-90);
   height: 100%;
-  min-height: 250px;
+  min-height: 350px;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  /* CHANGE: Go back to center now that the column is tight */
+  align-items: center; 
+  gap: var(--spacing-xl);
+  width: 100%;
+
+  .avatar-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    /* ADJUST THIS: Change this value to move the button up or down */
+    gap: var(--spacing-md); 
+    
+    /* If you don't want to use variables, use pixels like: gap: 15px; */
+  }
+}
+.right-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem; 
+  /* 'flex-start' glues these fields to the divider */
+  align-items: flex-start; 
+  margin-left: -1.8rem; /* Small breathing room from the line */
+  padding-top: 7.5rem; 
+  width: 100%;
+}
+
+/* --- Address Section Styles --- */
+
+.address-section-header {
+  text-align: center;
+  max-width: 900px; 
+  margin: var(--spacing-2xl) auto var(--spacing-md); 
+  color: var(--sienna-primary-color);
+  font-family: var(--font-base);
+  font-weight: 700;
+  width: 100%;
+}
+
+.address-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 250px); /* Adjust field width here */
+  justify-content: center; /* Centers the columns */
+  column-gap: 4rem; 
+  row-gap: 1.5rem; 
+  margin: 0 auto; 
+  width: 100%;
+}
+
+/* --- Form Components --- */
+
+.form-control-group {
+  /* ADJUST THIS: Change the value to increase/decrease space between rows */
+  margin-bottom: var(--spacing-md); 
+  
+  width: 320px; 
+
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: var(--font-size-smx);
+    margin-bottom: var(--spacing-xxs); /* Space between label and its input box */
+    color: var(--m3-neutral-20);
+    text-align: left;
+  }
 }
 
 .pill-input {
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--border-radius-xl); // 2rem
+  border-radius: var(--border-radius-xl);
   border: 1px solid var(--m3-neutral-80);
-  font-family: var(--font-base); // Inter Tight
-  margin-top: var(--spacing-xxs);
-
-  &.readonly {
-    background-color: var(--m3-neutral-95);
-    cursor: not-allowed;
-    opacity: 0.8;
-  }
+  font-family: var(--font-base);
+  @include mixins.default-transition;
 
   &:focus {
     outline: none;
@@ -54,39 +138,114 @@
   }
 }
 
-.profile-avatar {
-  width: 110px;
-  height: 110px;
-  background: var(--m3-neutral-90);
-  border-radius: 50%;
+.compact-row {
   display: flex;
-  align-items: center;
+  gap: 3rem; /* Horizontal space between paired fields */
+  width: 100%;
+  max-width: 600px; 
   justify-content: center;
-  margin-bottom: var(--spacing-md);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  
+  label {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+}
+
+/* Specific Widths for ID Section */
+.faculty-code { flex: 0 0 210px; }
+.program-id   { flex: 0 0 180px; }
+.birthdate    { flex: 0 0 210px; }
+.sex          { flex: 0 0 180px; }
+
+/* --- Elements & Buttons --- */
+
+.profile-avatar {
+  width: 130px;
+  height: 130px;
+  background: var(--m3-neutral-95);
+  border-radius: 50%;
+  @include mixins.flex-layout();
+  border: 1px solid var(--m3-neutral-90);
   
   span[mat-symbol] {
-    font-size: 50px;
+    font-size: 60px;
     color: var(--sienna-primary-color);
   }
 }
 
-.address-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-md);
+.preferences-btn {
+  background: linear-gradient(315deg, #8a3333 0%, #b34242 100%) !important;
+  border-radius: 50px !important; 
+  color: white !important;
+  font-weight: 500;
+  border: none !important;
+  padding: 0.6rem 2.5rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
 }
 
 .action-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-}
+  @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--m3-neutral-95);
 
-.btn-secondary-outline {
-  padding: var(--spacing-sm) var(--spacing-xl);
-  border-radius: var(--border-radius-xl);
-  border: 1px solid var(--m3-neutral-70);
-  background: transparent;
-  cursor: pointer;
+  button {
+    /* 1. The Shared Shape (Pill) */
+    border-radius: 50px !important; 
+    padding: 0.6rem 2.5rem !important;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    border: none; /* Removes default browser borders */
+
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  /* 2. Primary Button (Save Changes) - Matching Update Photo */
+  .sienna-btn {
+    background: linear-gradient(315deg, #8a3333 0%, #b34242 100%) !important;
+    color: white !important;
+    box-shadow: var(--shadow-level-1);
+    
+    &:disabled {
+      background: var(--m3-neutral-90) !important;
+      color: var(--m3-neutral-60) !important;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  /* 3. Secondary Button (Change Password) - Outlined version */
+  .btn-secondary-outline {
+    background: white !important;
+    color: #8a3333 !important;
+    border: 1.5px solid #8a3333 !important;
+    
+    &:hover {
+      background: #fff5f5 !important;
+    }
+  }
 }

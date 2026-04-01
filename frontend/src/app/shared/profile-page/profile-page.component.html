@@ -1,6 +1,6 @@
-<div class="profile-page-container">
-  <div class="header-section">
-    <h1 class="trajan-header">My Profile</h1>
+<div class="profile-page-container" @pageFloatUpAnimation>
+  <div class="page-header">
+    <h1>My Profile</h1>
     <p>View and update your personal and account information</p>
   </div>
 
@@ -8,21 +8,26 @@
     <div class="split-layout">
       
       <div class="left-section">
-        <div class="photo-upload-area">
+        <div class="avatar-container">
           <div class="profile-avatar">
-             <span mat-symbol>person</span>
+            <span mat-symbol>person</span>
           </div>
-          <button type="button" class="sienna-btn pop-small">Update Photo</button>
+          <button 
+            type="button"
+            mat-flat-button 
+            class="preferences-btn">
+            Update Photo
+          </button>
         </div>
 
-        <div class="name-fields">
+        <div style="width: 100%">
           <div class="form-control-group">
             <label>First Name</label>
-            <input formControlName="first_name" class="pill-input">
+            <input formControlName="first_name" class="pill-input" placeholder="Enter first name">
           </div>
           <div class="form-control-group">
             <label>Last Name</label>
-            <input formControlName="last_name" class="pill-input">
+            <input formControlName="last_name" class="pill-input" placeholder="Enter last name">
           </div>
         </div>
       </div>
@@ -30,23 +35,23 @@
       <div class="v-divider"></div>
 
       <div class="right-section">
-        <div class="field-row">
-          <div class="form-control-group">
+        <div class="compact-row">
+          <div class="field-group faculty-code">
             <label>Faculty Code</label>
-            <input formControlName="code" class="pill-input readonly">
+            <input formControlName="faculty_code" class="pill-input" placeholder="e.g., 1234">
           </div>
-          <div class="form-control-group">
+          <div class="field-group program-id">
             <label>Program ID</label>
-            <input formControlName="program_id" class="pill-input">
+            <input formControlName="program_id" class="pill-input" placeholder="e.g., BSIT">
           </div>
         </div>
 
-        <div class="field-row">
-          <div class="form-control-group">
+        <div class="compact-row">
+          <div class="field-group birthdate">
             <label>Birthdate</label>
-            <input formControlName="birthdate" type="date" class="pill-input">
+            <input formControlName="birthdate" class="pill-input" placeholder="dd/mm/yyyy">
           </div>
-          <div class="form-control-group">
+          <div class="field-group sex">
             <label>Sex</label>
             <select formControlName="sex" class="pill-input">
               <option value="Male">Male</option>
@@ -55,20 +60,15 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <hr class="form-separator">
-
-    <div class="address-group">
-      <h3 class="trajan-header sub-header">Address Details</h3>
-      <div class="address-grid">
-        <input formControlName="house_num" placeholder="House #" class="pill-input">
-        <input formControlName="street" placeholder="Street" class="pill-input">
-        <input formControlName="barangay" placeholder="Barangay" class="pill-input">
-        <input formControlName="city" placeholder="City" class="pill-input">
-        <input formControlName="province" placeholder="Province" class="pill-input">
-        <input formControlName="zipcode" placeholder="Zipcode" class="pill-input">
-      </div>
+    </div> <h3 class="address-section-header">Address Details</h3>
+    
+    <div class="address-grid">
+      <input formControlName="house_num" placeholder="House #" class="pill-input">
+      <input formControlName="street" placeholder="Street" class="pill-input">
+      <input formControlName="barangay" placeholder="Barangay" class="pill-input">
+      <input formControlName="city" placeholder="City" class="pill-input">
+      <input formControlName="province" placeholder="Province" class="pill-input">
+      <input formControlName="zipcode" placeholder="Zipcode" class="pill-input">
     </div>
 
     <div class="action-row">
