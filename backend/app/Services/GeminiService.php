@@ -22,7 +22,7 @@ class GeminiService
             'contents' => [[
                 'parts' => [
                     ['text' => "You are an assistant for a university scheduling system. Read this uploaded schedule appeal document. Extract and summarize the exact reason the faculty member is requesting a schedule change. Keep the summary professional, accurate, and under 2 sentences."],
-                    ['inline_data' => ['mime_type' => 'application/pdf', 'data' => $base64Data]]
+                    ['inlineData' => ['mimeType' => 'application/pdf', 'data' => $base64Data]]
                 ]
             ]]
         ];

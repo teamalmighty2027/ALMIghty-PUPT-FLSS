@@ -205,6 +205,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * Rescheduling Appeals — Admin
      */
     Route::middleware('permission:rescheduling')->group(function () {
+        Route::post('/rescheduling-appeals/upload',         [RescheduleController::class, 'uploadDocument']);
         Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
         Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
