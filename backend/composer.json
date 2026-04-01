@@ -10,7 +10,8 @@
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.8",
-        "league/csv": "^9.20"
+        "league/csv": "^9.20",
+        "matthewbdaly/laravel-azure-storage": "^2.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
@@ -63,7 +64,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        }
+        },
+        "disable-tls": false,
+        "secure-http": true
     },
     "minimum-stability": "stable",
     "prefer-stable": true
