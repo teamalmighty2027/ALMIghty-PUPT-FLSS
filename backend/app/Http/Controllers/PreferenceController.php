@@ -26,7 +26,8 @@ class PreferenceController extends Controller
         $validatedData = $request->validate([
             'faculty_id'                  => 'required|exists:faculty,id',
             'active_semester_id'          => 'required|exists:active_semesters,active_semester_id',
-            'course_assignment_id'        => 'required|exists:course_assignments,course_assignment_id',
+            'course_assignment_id'        => 'nullable|exists:course_assignments,course_assignment_id',
+            'temporary_course_offering_id'=> 'nullable|exists:temporary_course_offerings,temporary_course_offering_id',
             'sections_per_program_year_id'=> 'required|exists:sections_per_program_year,sections_per_program_year_id',
             'preferred_days'              => 'required|array',
             'preferred_days.*.day'        => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
@@ -36,7 +37,8 @@ class PreferenceController extends Controller
 
         $facultyId          = $validatedData['faculty_id'];
         $activeSemesterId   = $validatedData['active_semester_id'];
-        $courseAssignmentId = $validatedData['course_assignment_id'];
+        $courseAssignmentId = $validatedData['course_assignment_id'] ?? null;
+        $temporaryCourseOfferingId = $validatedData['temporary_course_offering_id'] ?? null;
         $sectionsPerProgramYearId = $validatedData['sections_per_program_year_id'];
         $preferenceSetting  = PreferencesSetting::where('faculty_id', $facultyId)->first();
         $globalDeadline     = $preferenceSetting->global_deadline;
@@ -51,15 +53,46 @@ class PreferenceController extends Controller
             ], 403);
         }
 
+        if (($courseAssignmentId && $temporaryCourseOfferingId) || (! $courseAssignmentId && ! $temporaryCourseOfferingId)) {
+            return response()->json([
+                'message' => 'Provide either course_assignment_id or temporary_course_offering_id, but not both.',
+            ], 422);
+        }
+
+        if ($temporaryCourseOfferingId) {
+            $activeSemester = ActiveSemester::where('active_semester_id', $activeSemesterId)->first();
+
+            if (! $activeSemester) {
+                return response()->json([
+                    'message' => 'Invalid active semester provided.',
+                ], 422);
+            }
+
+            $temporaryOffering = DB::table('temporary_course_offerings')
+                ->where('temporary_course_offering_id', $temporaryCourseOfferingId)
+                ->where('academic_year_id', $activeSemester->academic_year_id)
+                ->where('semester_id', $activeSemester->semester_id)
+                ->where('is_archived', 0)
+                ->where('status', 'Approved')
+                ->first();
+
+            if (! $temporaryOffering) {
+                return response()->json([
+                    'message' => 'Temporary course offering is not available for this semester.',
+                ], 422);
+            }
+        }
+
         $preferenceRecord = null;
         $isUpdate = false;
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
+        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $temporaryCourseOfferingId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
             
             $existingPreference = Preference::where([
                 'faculty_id' => $facultyId,
                 'active_semester_id' => $activeSemesterId,
                 'course_assignment_id' => $courseAssignmentId,
+                'temporary_course_offering_id' => $temporaryCourseOfferingId,
                 'sections_per_program_year_id' => $sectionsPerProgramYearId,
             ])->first();
 
@@ -70,6 +103,7 @@ class PreferenceController extends Controller
                     'faculty_id'                   => $facultyId,
                     'active_semester_id'           => $activeSemesterId,
                     'course_assignment_id'         => $courseAssignmentId,
+                    'temporary_course_offering_id' => $temporaryCourseOfferingId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
                 ]
             );
@@ -117,13 +151,17 @@ class PreferenceController extends Controller
         })->first();
         $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
 
+        $courseReference = $courseAssignmentId
+            ? "Course Assignment ID: {$courseAssignmentId}"
+            : "Temporary Offering ID: {$temporaryCourseOfferingId}";
+
         if ($isUpdate) {
             AuditLogger::logUpdate(
                 model: 'Preference',
                 modelId: $preferenceRecord->preferences_id,
                 oldData: [], // Days comparison is too complex for basic Old/New array, stick to description
                 newData: ['days' => $validatedData['preferred_days']],
-                description: "Updated schedule preference for {$facultyName} (Course Assignment ID: {$courseAssignmentId})"
+                description: "Updated schedule preference for {$facultyName} ({$courseReference})"
             );
         } else {
             AuditLogger::logCreate(
@@ -169,12 +207,32 @@ class PreferenceController extends Controller
             ->select('faculty.*', 'preferences.*', 'course_assignments.*', 'courses.*', 'sections_per_program_year.year_level as pref_year_level', 'sections_per_program_year.section_name as pref_section_name')
             ->get();
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester) {
+        $temporaryOfferingIds = $faculty->pluck('temporary_course_offering_id')->filter()->unique()->values();
+        $temporaryOfferingsById = collect();
+        if ($temporaryOfferingIds->isNotEmpty()) {
+            $temporaryOfferingsById = DB::table('temporary_course_offerings as tco')
+                ->join('courses as co', 'tco.course_id', '=', 'co.course_id')
+                ->join('programs as p', 'tco.program_id', '=', 'p.program_id')
+                ->select(
+                    'tco.*',
+                    'co.course_code',
+                    'co.course_title',
+                    'co.lec_hours',
+                    'co.lab_hours',
+                    'co.units',
+                    'p.program_code'
+                )
+                ->whereIn('tco.temporary_course_offering_id', $temporaryOfferingIds)
+                ->get()
+                ->keyBy('temporary_course_offering_id');
+        }
+
+        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
             $faculty           = $facultyGroup->first();
             $facultyUser       = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
-            $courses = $facultyGroup->map(function ($preference) {
+            $courses = $facultyGroup->map(function ($preference) use ($temporaryOfferingsById) {
                 if ($preference->course_assignment_id) {
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
                         ->orderBy('preferred_day')
@@ -196,6 +254,7 @@ class PreferenceController extends Controller
 
                     return [
                         'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
+                        'temporary_course_offering_id' => null,
                         'course_details'       => [
                             'course_id'    => $preference->course_id ?? 'N/A',
                             'course_code'  => $preference->course_code ?? null,
@@ -210,6 +269,53 @@ class PreferenceController extends Controller
                         'lab_hours'            => is_numeric($preference->lab_hours) ? (int) $preference->lab_hours : 0,
                         'units'                => $preference->units ?? 0,
                         'preferred_days'       => $preferenceDays,
+                        'is_temporary'          => false,
+                        'temporary_type'        => null,
+                        'temporary_status'      => null,
+                        'petition_required'     => false,
+                        'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
+                        'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
+                    ];
+                }
+                if ($preference->temporary_course_offering_id) {
+                    $temporaryOffering = $temporaryOfferingsById->get($preference->temporary_course_offering_id);
+
+                    if (! $temporaryOffering) {
+                        return [];
+                    }
+
+                    $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
+                        ->orderBy('preferred_day')
+                        ->get()
+                        ->map(function ($day) {
+                            return [
+                                'day'        => $day->preferred_day,
+                                'start_time' => $day->preferred_start_time,
+                                'end_time'   => $day->preferred_end_time,
+                            ];
+                        })->values()->toArray();
+
+                    return [
+                        'course_assignment_id' => null,
+                        'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
+                        'course_details'       => [
+                            'course_id'    => $temporaryOffering->course_id ?? 'N/A',
+                            'course_code'  => $temporaryOffering->course_code ?? null,
+                            'course_title' => $temporaryOffering->course_title ?? null,
+                            'year_level'   => $temporaryOffering->year_level ?? $preference->pref_year_level ?? null,
+                            'section_id'   => $preference->sections_per_program_year_id ?? null,
+                            'section_name' => $preference->pref_section_name ?? null,
+                            'program_id'   => $temporaryOffering->program_id ?? null,
+                            'program_code' => $temporaryOffering->program_code ?? null,
+                        ],
+                        'lec_hours'            => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
+                        'lab_hours'            => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
+                        'units'                => $temporaryOffering->units ?? 0,
+                        'preferred_days'       => $preferenceDays,
+                        'is_temporary'          => true,
+                        'temporary_type'        => $temporaryOffering->type ?? null,
+                        'temporary_status'      => $temporaryOffering->status ?? null,
+                        'petition_required'     => in_array($temporaryOffering->type, ['petition', 'tutorial'], true),
                         'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
                         'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
                     ];
@@ -284,12 +390,32 @@ class PreferenceController extends Controller
             ->select('faculty.*', 'preferences.*', 'course_assignments.*', 'courses.*')
             ->get();
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester) {
+        $temporaryOfferingIds = $faculty->pluck('temporary_course_offering_id')->filter()->unique()->values();
+        $temporaryOfferingsById = collect();
+        if ($temporaryOfferingIds->isNotEmpty()) {
+            $temporaryOfferingsById = DB::table('temporary_course_offerings as tco')
+                ->join('courses as co', 'tco.course_id', '=', 'co.course_id')
+                ->join('programs as p', 'tco.program_id', '=', 'p.program_id')
+                ->select(
+                    'tco.*',
+                    'co.course_code',
+                    'co.course_title',
+                    'co.lec_hours',
+                    'co.lab_hours',
+                    'co.units',
+                    'p.program_code'
+                )
+                ->whereIn('tco.temporary_course_offering_id', $temporaryOfferingIds)
+                ->get()
+                ->keyBy('temporary_course_offering_id');
+        }
+
+        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
             $faculty           = $facultyGroup->first();
             $facultyUser       = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
-            $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester) {
+            $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester, $temporaryOfferingsById) {
                 if ($preference->course_assignment_id) {
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
                         ->orderBy('preferred_day')
@@ -318,6 +444,7 @@ class PreferenceController extends Controller
                     return $submittedCourse
                         ? [[
                             'course_assignment_id' => $submittedCourse->course_assignment_id ?? 'N/A',
+                            'temporary_course_offering_id' => null,
                             'course_details'       => [
                                 'course_id'    => $submittedCourse->course_id ?? 'N/A',
                                 'course_code'  => $submittedCourse->course_code ?? null,
@@ -329,10 +456,54 @@ class PreferenceController extends Controller
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
                             'units'          => $submittedCourse->units ?? 0,
                             'preferred_days' => $preferenceDays,
+                            'is_temporary'          => false,
+                            'temporary_type'        => null,
+                            'temporary_status'      => null,
+                            'petition_required'     => false,
                             'created_at'     => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
                             'updated_at'     => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
                         ]]
                         : collect();
+                }
+                if ($preference->temporary_course_offering_id) {
+                    $temporaryOffering = $temporaryOfferingsById->get($preference->temporary_course_offering_id);
+
+                    if (! $temporaryOffering) {
+                        return collect();
+                    }
+
+                    $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
+                        ->orderBy('preferred_day')
+                        ->get()
+                        ->map(function ($day) {
+                            return [
+                                'day'        => $day->preferred_day,
+                                'start_time' => $day->preferred_start_time,
+                                'end_time'   => $day->preferred_end_time,
+                            ];
+                        })->values()->toArray();
+
+                    return [[
+                        'course_assignment_id' => null,
+                        'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
+                        'course_details'       => [
+                            'course_id'    => $temporaryOffering->course_id ?? 'N/A',
+                            'course_code'  => $temporaryOffering->course_code ?? null,
+                            'course_title' => $temporaryOffering->course_title ?? null,
+                            'program_id'   => $temporaryOffering->program_id ?? null,
+                            'program_code' => $temporaryOffering->program_code ?? null,
+                        ],
+                        'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
+                        'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
+                        'units'          => $temporaryOffering->units ?? 0,
+                        'preferred_days' => $preferenceDays,
+                        'is_temporary'          => true,
+                        'temporary_type'        => $temporaryOffering->type ?? null,
+                        'temporary_status'      => $temporaryOffering->status ?? null,
+                        'petition_required'     => in_array($temporaryOffering->type, ['petition', 'tutorial'], true),
+                        'created_at'     => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
+                        'updated_at'     => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
+                    ]];
                 }
                 return collect();
             })->filter();
@@ -395,7 +566,13 @@ class PreferenceController extends Controller
                 'preferenceSetting',
                 'preferences' => function ($query) use ($activeSemester) {
                     $query->where('active_semester_id', $activeSemester->active_semester_id)
-                        ->with(['courseAssignment.course', 'preferenceDays', 'section']);
+                        ->with([
+                            'courseAssignment.course',
+                            'temporaryCourseOffering.course',
+                            'temporaryCourseOffering.program',
+                            'preferenceDays',
+                            'section'
+                        ]);
                 },
             ])
             ->first();
@@ -436,10 +613,47 @@ class PreferenceController extends Controller
                 ];
             })->sortBy('day')->values()->toArray();
 
+            if ($preference->temporary_course_offering_id && $preference->temporaryCourseOffering) {
+                $temporaryOffering = $preference->temporaryCourseOffering;
+                $program = $temporaryOffering->program;
+
+                return [
+                    'course_assignment_id' => null,
+                    'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
+                    'course_details'       => [
+                        'course_id'    => $temporaryOffering->course?->course_id ?? 'N/A',
+                        'course_code'  => $temporaryOffering->course?->course_code ?? null,
+                        'course_title' => $temporaryOffering->course?->course_title ?? null,
+                        'year_level'   => $preference->section?->year_level ?? $temporaryOffering->year_level ?? null,
+                    ],
+                    'section_details'     => [
+                        'section_id'   => $preference->sections_per_program_year_id ?? null,
+                        'section_name' => $preference->section?->section_name ?? null
+                    ],
+                    'program_details'      => [
+                        'program_id'    => $program?->program_id ?? null,
+                        'program_code'  => $program?->program_code ?? null,
+                        'program_title' => $program?->program_title ?? null,
+                        'year_levels'   => [],
+                    ],
+                    'lec_hours'            => is_numeric($temporaryOffering->course?->lec_hours) ? (int) $temporaryOffering->course->lec_hours : 0,
+                    'lab_hours'            => is_numeric($temporaryOffering->course?->lab_hours) ? (int) $temporaryOffering->course->lab_hours : 0,
+                    'units'                => $temporaryOffering->course?->units ?? 0,
+                    'preferred_days'       => $preferenceDays,
+                    'is_temporary'          => true,
+                    'temporary_type'        => $temporaryOffering->type ?? null,
+                    'temporary_status'      => $temporaryOffering->status ?? null,
+                    'petition_required'     => in_array($temporaryOffering->type, ['petition', 'tutorial'], true),
+                    'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
+                    'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
+                ];
+            }
+
             $program = $programDetailsByCourseAssignment->get($preference->course_assignment_id);
 
             return [
                 'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
+                'temporary_course_offering_id' => null,
                 'course_details'       => [
                     'course_id'    => $preference->courseAssignment->course->course_id ?? 'N/A',
                     'course_code'  => $preference->courseAssignment->course->course_code ?? null,
@@ -460,6 +674,10 @@ class PreferenceController extends Controller
                 'lab_hours'            => is_numeric($preference->courseAssignment->course->lab_hours) ? (int) $preference->courseAssignment->course->lab_hours : 0,
                 'units'                => $preference->courseAssignment->course->units ?? 0,
                 'preferred_days'       => $preferenceDays,
+                'is_temporary'          => false,
+                'temporary_type'        => null,
+                'temporary_status'      => null,
+                'petition_required'     => false,
                 'created_at'           => $preference->created_at ? Carbon::parse($preference->created_at)->toDateTimeString() : 'N/A',
                 'updated_at'           => $preference->updated_at ? Carbon::parse($preference->updated_at)->toDateTimeString() : 'N/A',
             ];
@@ -505,7 +723,13 @@ class PreferenceController extends Controller
             return response()->json(['error' => 'Faculty not found'], 404);
         }
 
-        $preferences = Preference::with(['preferenceDays', 'courseAssignment.course'])
+        $preferences = Preference::with([
+                'preferenceDays',
+                'courseAssignment.course',
+                'temporaryCourseOffering.course',
+                'temporaryCourseOffering.program',
+                'section'
+            ])
             ->where('faculty_id', $faculty_id)
             ->get();
 
@@ -592,10 +816,16 @@ class PreferenceController extends Controller
                 ->values()
                 ->toArray();
 
-            $course = $pref->courseAssignment->course ?? null;
+            $isTemporary = ! empty($pref->temporary_course_offering_id);
+            $temporaryOffering = $isTemporary ? $pref->temporaryCourseOffering : null;
+            $course = $isTemporary
+                ? $temporaryOffering?->course
+                : ($pref->courseAssignment->course ?? null);
 
             $program = null;
-            if (! empty($pref->course_assignment_id)) {
+            if ($isTemporary) {
+                $program = $temporaryOffering?->program;
+            } else if (! empty($pref->course_assignment_id)) {
                 $program = DB::table('course_assignments')
                     ->join('curricula_program', 'course_assignments.curricula_program_id', '=', 'curricula_program.curricula_program_id')
                     ->join('programs', 'curricula_program.program_id', '=', 'programs.program_id')
@@ -613,7 +843,8 @@ class PreferenceController extends Controller
             }
 
             $preferencePayload = [
-                'course_assignment_id' => $pref->course_assignment_id ?? 'N/A',
+                'course_assignment_id' => $isTemporary ? null : ($pref->course_assignment_id ?? 'N/A'),
+                'temporary_course_offering_id' => $isTemporary ? $pref->temporary_course_offering_id : null,
                 'course_details'       => [
                     'course_id'    => $course->course_id ?? 'N/A',
                     'course_code'  => $course->course_code ?? null,
@@ -630,6 +861,10 @@ class PreferenceController extends Controller
                 'lab_hours'      => $course && is_numeric($course->lab_hours) ? (int) $course->lab_hours : 0,
                 'units'          => $course->units ?? 0,
                 'preferred_days' => $preferenceDays,
+                'is_temporary'          => $isTemporary,
+                'temporary_type'        => $temporaryOffering?->type ?? null,
+                'temporary_status'      => $temporaryOffering?->status ?? null,
+                'petition_required'     => $temporaryOffering ? in_array($temporaryOffering->type, ['petition', 'tutorial'], true) : false,
                 'created_at'     => $pref->created_at ? Carbon::parse($pref->created_at)->toDateTimeString() : 'N/A',
                 'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
             ];
@@ -668,6 +903,7 @@ class PreferenceController extends Controller
         $facultyId        = $request->query('faculty_id');
         $activeSemesterId = $request->query('active_semester_id');
         $sectionsPerProgramYearId = $request->query('sections_per_program_year_id');
+        $temporaryCourseOfferingId = $request->query('temporary_course_offering_id');
 
         if (! $facultyId) {
             return response()->json(['message' => 'Faculty ID is required.'], 400);
@@ -688,11 +924,17 @@ class PreferenceController extends Controller
         }
 
         // Find and delete the specific preference along with its associated days
-        $preference = Preference::where('faculty_id', $facultyId)
+        $preferenceQuery = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
-            ->where('course_assignment_id', $preference_id)
-            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
-            ->first();
+            ->where('sections_per_program_year_id', $sectionsPerProgramYearId);
+
+        if ($temporaryCourseOfferingId) {
+            $preferenceQuery->where('temporary_course_offering_id', $temporaryCourseOfferingId);
+        } else {
+            $preferenceQuery->where('course_assignment_id', $preference_id);
+        }
+
+        $preference = $preferenceQuery->first();
 
         if (! $preference) {
             return response()->json(['message' => 'Preference not found.'], 404);
@@ -716,11 +958,15 @@ class PreferenceController extends Controller
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Preference Deleted
         // ═══════════════════════════════════════════════════════
+        $courseReference = $temporaryCourseOfferingId
+            ? "Temporary Offering ID: {$temporaryCourseOfferingId}"
+            : "Course Assignment ID: {$preference_id}";
+
         AuditLogger::logDelete(
             model: 'Preference',
             modelId: $originalData['preferences_id'],
             data: $originalData,
-            description: "Deleted a schedule preference for {$facultyName} (Course Assignment ID: {$preference_id})"
+            description: "Deleted a schedule preference for {$facultyName} ({$courseReference})"
         );
 
         return response()->json(['message' => 'Preference deleted successfully.'], 200);

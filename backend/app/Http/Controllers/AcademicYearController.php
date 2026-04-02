@@ -1050,6 +1050,30 @@ class AcademicYearController extends Controller
             ->orderBy('s.semester')
             ->get();
 
+        $temporaryOfferings = DB::table('temporary_course_offerings as tco')
+            ->join('courses as co', 'tco.course_id', '=', 'co.course_id')
+            ->join('programs as p', 'tco.program_id', '=', 'p.program_id')
+            ->leftJoin('sections_per_program_year as sp', 'tco.section_per_program_year_id', '=', 'sp.sections_per_program_year_id')
+            ->where('tco.academic_year_id', $activeSemester->academic_year_id)
+            ->where('tco.semester_id', $activeSemester->semester_id)
+            ->where('tco.is_archived', 0)
+            ->where('tco.status', 'Approved')
+            ->orderBy('tco.program_id')
+            ->orderBy('tco.year_level')
+            ->select(
+                'tco.*',
+                'co.course_code',
+                'co.course_title',
+                'co.lec_hours',
+                'co.lab_hours',
+                'co.units',
+                'co.tuition_hours',
+                'p.program_code',
+                'p.program_title',
+                'sp.section_name'
+            )
+            ->get();
+
         $response = [
             'active_semester_id' => $activeSemester->active_semester_id,
             'academic_year_id' => $activeSemester->academic_year_id,
@@ -1104,6 +1128,73 @@ class AcademicYearController extends Controller
                     'units' => $row->units,
                     'tuition_hours' => $row->tuition_hours,
                     'year_level' => $row->year_level,
+                ];
+            }
+        }
+
+        foreach ($temporaryOfferings as $offering) {
+            $programIndex = array_search($offering->program_id, array_column($response['programs'], 'program_id'));
+
+            if ($programIndex === false) {
+                $response['programs'][] = [
+                    'program_id' => $offering->program_id,
+                    'program_code' => $offering->program_code,
+                    'program_title' => $offering->program_title,
+                    'year_levels' => [],
+                ];
+                $programIndex = count($response['programs']) - 1;
+            }
+
+            $yearLevelIndexes = [];
+            foreach ($response['programs'][$programIndex]['year_levels'] as $index => $yearLevel) {
+                if ((int) $yearLevel['year_level'] === (int) $offering->year_level) {
+                    $yearLevelIndexes[] = $index;
+                }
+            }
+
+            if (empty($yearLevelIndexes)) {
+                $sections = $sectionsGrouped[$offering->program_id][$offering->year_level] ?? [];
+                $response['programs'][$programIndex]['year_levels'][] = [
+                    'year_level' => $offering->year_level,
+                    'curriculum_id' => null,
+                    'curriculum_year' => null,
+                    'sections' => $sections,
+                    'semester' => [
+                        'semester' => $activeSemester->semester_id,
+                        'courses' => [],
+                    ],
+                ];
+                $yearLevelIndexes[] = count($response['programs'][$programIndex]['year_levels']) - 1;
+            }
+
+            foreach ($yearLevelIndexes as $yearLevelIndex) {
+                $courses = $response['programs'][$programIndex]['year_levels'][$yearLevelIndex]['semester']['courses'];
+                $alreadyAdded = array_search(
+                    $offering->temporary_course_offering_id,
+                    array_column($courses, 'temporary_course_offering_id')
+                );
+
+                if ($alreadyAdded !== false) {
+                    continue;
+                }
+
+                $response['programs'][$programIndex]['year_levels'][$yearLevelIndex]['semester']['courses'][] = [
+                    'course_assignment_id' => null,
+                    'temporary_course_offering_id' => $offering->temporary_course_offering_id,
+                    'course_id' => $offering->course_id,
+                    'course_code' => $offering->course_code,
+                    'course_title' => $offering->course_title,
+                    'lec_hours' => $offering->lec_hours,
+                    'lab_hours' => $offering->lab_hours,
+                    'units' => $offering->units,
+                    'tuition_hours' => $offering->tuition_hours,
+                    'year_level' => $offering->year_level,
+                    'is_temporary' => true,
+                    'temporary_type' => $offering->type,
+                    'temporary_status' => $offering->status,
+                    'petition_required' => in_array($offering->type, ['petition', 'tutorial'], true),
+                    'applies_to_all_sections' => (bool) $offering->applies_to_all_sections,
+                    'section_per_program_year_id' => $offering->section_per_program_year_id,
                 ];
             }
         }

@@ -1114,32 +1114,56 @@ class ScheduleController extends Controller
 
         $query = DB::table('preferences as p')
             ->join('preference_days as pd', 'p.preferences_id', '=', 'pd.preference_id')
-            ->join('course_assignments as ca', 'p.course_assignment_id', '=', 'ca.course_assignment_id')
-            ->join('curricula_program as cp', 'ca.curricula_program_id', '=', 'cp.curricula_program_id')
+            ->leftJoin('course_assignments as ca', 'p.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->leftJoin('curricula_program as cp', 'ca.curricula_program_id', '=', 'cp.curricula_program_id')
             ->leftJoin('section_courses as sc', 'ca.course_assignment_id', '=', 'sc.course_assignment_id')
             ->leftJoin('sections_per_program_year as sp', 'sc.sections_per_program_year_id', '=', 'sp.sections_per_program_year_id')
-            ->join('semesters as s', 'ca.semester_id', '=', 's.semester_id')
-            ->join('year_levels as yl', 's.year_level_id', '=', 'yl.year_level_id')
+            ->leftJoin('semesters as s', 'ca.semester_id', '=', 's.semester_id')
+            ->leftJoin('year_levels as yl', 's.year_level_id', '=', 'yl.year_level_id')
+            ->leftJoin('temporary_course_offerings as tco', 'p.temporary_course_offering_id', '=', 'tco.temporary_course_offering_id')
+            ->leftJoin('sections_per_program_year as psp', 'p.sections_per_program_year_id', '=', 'psp.sections_per_program_year_id')
             ->join('faculty as f', 'p.faculty_id', '=', 'f.id')
             ->join('users as u', 'f.user_id', '=', 'u.id')
             ->leftJoin('faculty_type as ft', 'f.faculty_type_id', '=', 'ft.faculty_type_id')
-            ->where('cp.program_id', $programId)
-            ->where('yl.year', $yearLevel)
-            ->where(function ($q) use ($sectionId) {
-                $q->where('sp.sections_per_program_year_id', $sectionId)
-                  ->orWhereNull('sp.sections_per_program_year_id');
-            })
-            ->where('p.active_semester_id', $activeSemester->active_semester_id);
+            ->where('p.active_semester_id', $activeSemester->active_semester_id)
+            ->where(function ($q) use ($programId, $yearLevel, $sectionId, $activeSemester) {
+                $q->where(function ($q) use ($programId, $yearLevel, $sectionId) {
+                    $q->whereNotNull('p.course_assignment_id')
+                        ->where('cp.program_id', $programId)
+                        ->where('yl.year', $yearLevel)
+                        ->where(function ($q) use ($sectionId) {
+                            $q->where('sp.sections_per_program_year_id', $sectionId)
+                                ->orWhereNull('sp.sections_per_program_year_id');
+                        });
+                })->orWhere(function ($q) use ($programId, $yearLevel, $sectionId, $activeSemester) {
+                    $q->whereNotNull('p.temporary_course_offering_id')
+                        ->where('tco.program_id', $programId)
+                        ->where('tco.year_level', $yearLevel)
+                        ->where('p.sections_per_program_year_id', $sectionId)
+                        ->where(function ($q) use ($sectionId) {
+                            $q->where('tco.applies_to_all_sections', 1)
+                                ->orWhere('tco.section_per_program_year_id', $sectionId);
+                        })
+                        ->where('tco.academic_year_id', $activeSemester->academic_year_id)
+                        ->where('tco.semester_id', $activeSemester->semester_id)
+                        ->where('tco.is_archived', 0)
+                        ->where('tco.status', 'Approved');
+                });
+            });
 
         if (!is_null($courseId)) {
-            $query->where('ca.course_id', $courseId);
+            $query->where(function ($q) use ($courseId) {
+                $q->where('ca.course_id', $courseId)
+                    ->orWhere('tco.course_id', $courseId);
+            });
         }
 
         $query->select(
             'p.preferences_id',
             'p.faculty_id',
             'p.course_assignment_id',
-            'ca.course_id',
+            'p.temporary_course_offering_id',
+            DB::raw('COALESCE(ca.course_id, tco.course_id) as course_id'),
             'p.created_at as submitted_at',
             'pd.preferred_day',
             'pd.preferred_start_time',
