@@ -94,6 +94,9 @@
 
   .add-button {
     background-color: var(--primary-one);
+    width: 90%;
+    max-width: 240px;
+    margin: 0 var(--spacing-md);
   }
 
   .button-wrapper {
@@ -121,18 +124,19 @@
 @media screen and (max-width: bp.$breakpoint-lgx) {
   .header-container {
     @include mixins.flex-layout(
-      $direction: column,
-      $align: stretch,
+      $direction: row,
+      $align: center,
       $justify: space-between,
       $gap: var(--spacing-md)
     );
+    flex-wrap: wrap;
   }
 
   .header-container .object-container {
     @include mixins.flex-layout(
-      $direction: column,
-      $align: flex-end,
-      $justify: space-between,
+      $direction: row,
+      $align: center,
+      $justify: flex-end,
       $gap: var(--spacing-md)
     );
 
@@ -143,8 +147,8 @@
 
   .header-container .button-container {
     @include mixins.flex-layout(
-      $align: stretch,
-      $justify: flex-end,
+      $align: center,
+      $justify: center,
       $gap: var(--spacing-md)
     );
   }
