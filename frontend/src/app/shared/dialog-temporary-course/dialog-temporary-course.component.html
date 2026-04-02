@@ -1,0 +1,127 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>Add Temporary Course</h2>
+    <button mat-icon-button (click)="onCancel()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <div class="scope-summary">
+      <div class="summary-row">
+        <span class="label">Program:</span>
+        <span class="value">{{ data.programLabel }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Year Level:</span>
+        <span class="value">{{ data.yearLevel }}</span>
+      </div>
+      <div class="summary-row">
+        <span class="label">Section:</span>
+        <span class="value">{{ getSectionLabel(form.get('section_per_program_year_id')?.value) }}</span>
+      </div>
+    </div>
+
+    <form [formGroup]="form" class="temp-course-form">
+      <mat-form-field appearance="fill" class="form-field">
+        <mat-label>Course</mat-label>
+        <mat-select formControlName="course_id">
+          @for (course of data.courses; track course.course_id) {
+          <mat-option [value]="course.course_id">
+            {{ course.course_code }} - {{ course.course_title }}
+          </mat-option>
+          }
+        </mat-select>
+        <mat-error>Course is required.</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="fill" class="form-field">
+        <mat-label>Type</mat-label>
+        <mat-select formControlName="type">
+          @for (type of typeOptions; track type.value) {
+          <mat-option [value]="type.value">{{ type.label }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Type is required.</mat-error>
+      </mat-form-field>
+
+      @if (isPetitionTypeSelected()) {
+      <div class="file-upload-section">
+        <label class="file-label">
+          Petition file (PDF, JPG, PNG)
+          <span class="required-asterisk">*</span>
+        </label>
+        <div class="file-input-wrapper">
+          <input
+            type="file"
+            #fileInput
+            class="file-input"
+            accept=".pdf,.jpg,.jpeg,.png"
+            (change)="onFileSelected($event)"
+            title="Petition file"
+          />
+          <button mat-stroked-button type="button" (click)="fileInput.click()">
+            <mat-icon>upload_file</mat-icon>
+            Choose File
+          </button>
+          <span class="file-info" *ngIf="!selectedFileName">No file chosen</span>
+          <span class="file-info selected" *ngIf="selectedFileName">
+            {{ selectedFileName }}
+            <mat-icon class="remove-icon" (click)="removeFile()">close</mat-icon>
+          </span>
+        </div>
+        <mat-error *ngIf="form.get('petition_file')?.hasError('required')">
+          Petition file is required for this type.
+        </mat-error>
+      </div>
+      }
+
+      <mat-checkbox formControlName="applies_to_all_sections" class="checkbox">
+        Apply to all sections in this year level
+      </mat-checkbox>
+
+      <mat-form-field appearance="fill" class="form-field">
+        <mat-label>Section</mat-label>
+        <mat-select formControlName="section_per_program_year_id">
+          @for (section of data.sections; track section.section_id) {
+          <mat-option [value]="section.section_id">{{ section.section_name }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>Section is required when not applying to all sections.</mat-error>
+      </mat-form-field>
+
+      <div class="petition-row">
+        <mat-form-field appearance="fill" class="form-field">
+          <mat-label>Minimum petitioners</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="min_petitioners"
+            min="0"
+            placeholder="0"
+          />
+          <mat-error>Minimum petitioners must be 0 or more.</mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="form-field">
+          <mat-label>Petitioners count</mat-label>
+          <input
+            matInput
+            type="number"
+            formControlName="petitioners_count"
+            min="0"
+            placeholder="0"
+          />
+          <mat-error>Petitioners count must be 0 or more.</mat-error>
+        </mat-form-field>
+      </div>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions>
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-flat-button color="primary" (click)="onSubmit()" [disabled]="form.invalid">
+      Create
+    </button>
+  </mat-dialog-actions>
+</div>
