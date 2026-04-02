@@ -30,7 +30,8 @@ interface DialogData {
   courseTitle: string;
   facultyId: string;
   activeSemesterId: number;
-  courseAssignmentId: number;
+  courseAssignmentId?: number | null;
+  temporaryCourseOfferingId?: number | null;
   section_id: number;
   allSelectedCourses: any[];
 }
@@ -313,10 +314,16 @@ export class DialogDayTimeComponent implements OnInit {
     const preferenceData: any = {
       faculty_id: parseInt(this.data.facultyId),
       active_semester_id: this.data.activeSemesterId,
-      course_assignment_id: this.data.courseAssignmentId,
       sections_per_program_year_id: this.data.section_id,
       preferred_days: selectedDays,
     };
+
+    if (this.data.temporaryCourseOfferingId) {
+      preferenceData.temporary_course_offering_id =
+        this.data.temporaryCourseOfferingId;
+    } else {
+      preferenceData.course_assignment_id = this.data.courseAssignmentId;
+    }
 
     // Include "any" flags if modifiers are enabled
     if (this.anyDayMode) {

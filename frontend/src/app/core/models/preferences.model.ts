@@ -5,7 +5,8 @@ export interface PreferredDay {
 }
 
 export interface Course {
-  course_assignment_id: number;
+  course_assignment_id: number | null;
+  temporary_course_offering_id?: number | null;
   course_id: number;
   course_code: string;
   pre_req: string;
@@ -15,6 +16,10 @@ export interface Course {
   lab_hours: number;
   units: number;
   tuition_hours: number;
+  is_temporary?: boolean;
+  temporary_type?: string | null;
+  temporary_status?: string | null;
+  petition_required?: boolean;
   preferred_days?: PreferredDay[];
   year_level: number | null;
   section: Section

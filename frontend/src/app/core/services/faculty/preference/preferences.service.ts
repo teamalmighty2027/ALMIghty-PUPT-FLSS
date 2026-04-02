@@ -85,10 +85,17 @@ export class PreferencesService {
    * If preferences for the given faculty_id are already cached, returns the cached Observable.
    * Otherwise, makes an API call, caches the result, and returns the Observable.
    */
-  getPreferencesByFacultyId(facultyId: string): Observable<any> {
+  getPreferencesByFacultyId(
+    facultyId: string,
+    forceRefresh: boolean = false
+  ): Observable<any> {
     if (!facultyId) {
       console.error('Invalid faculty ID provided.');
       return throwError(() => new Error('Invalid faculty ID'));
+    }
+
+    if (forceRefresh) {
+      this.preferencesCache.delete(facultyId);
     }
 
     if (this.preferencesCache.has(facultyId)) {
@@ -136,7 +143,8 @@ export class PreferencesService {
   submitSinglePreference(preference: {
     faculty_id: number;
     active_semester_id: number;
-    course_assignment_id: number;
+    course_assignment_id?: number | null;
+    temporary_course_offering_id?: number | null;
     sections_per_program_year_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
