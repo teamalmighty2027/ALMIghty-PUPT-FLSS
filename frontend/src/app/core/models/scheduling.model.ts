@@ -48,6 +48,11 @@ export interface Schedule {
   room_id?: number;
   section_course_id: number;
   is_copy: number;
+  is_temporary?: boolean;
+  temporary_type?: string | null;
+  temporary_status?: string | null;
+  petition_required?: boolean;
+  temporary_course_offering_id?: number | null;
 }
 
 export interface Semester {
@@ -108,7 +113,8 @@ export interface SectionResponse {
 }
 
 export interface CourseResponse {
-  course_assignment_id: number;
+  course_assignment_id: number | null;
+  temporary_course_offering_id?: number | null;
   course_id: number;
   course_code: string;
   course_title: string;
@@ -132,6 +138,36 @@ export interface CourseResponse {
   };
   section_course_id: number;
   is_copy?: number;
+  is_temporary?: boolean;
+  temporary_type?: string | null;
+  temporary_status?: string | null;
+  petition_required?: boolean;
+  applies_to_all_sections?: boolean;
+  section_per_program_year_id?: number | null;
+}
+
+export interface CourseCatalogItem {
+  course_id: number;
+  course_code: string;
+  course_title: string;
+  lec_hours: number;
+  lab_hours: number;
+  units: number;
+  tuition_hours: number;
+}
+
+export interface TemporaryCourseOfferingPayload {
+  course_id: number;
+  academic_year_id: number;
+  semester_id: number;
+  program_id: number;
+  year_level: number;
+  section_per_program_year_id?: number | null;
+  applies_to_all_sections: boolean;
+  type: string;
+  min_petitioners?: number | null;
+  petitioners_count?: number | null;
+  petition_file?: File | null;
 }
 
 export interface Room {

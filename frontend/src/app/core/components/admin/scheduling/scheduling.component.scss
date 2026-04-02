@@ -92,6 +92,15 @@
         .course-code-wrapper {
           @include mixins.flex-layout($gap: var(--spacing-xs));
 
+          .temporary-badge {
+            background-color: var(--secondary-hover);
+            color: var(--secondary-text);
+            border-radius: var(--border-radius-lg);
+            padding: 0 var(--spacing-xs);
+            font-size: var(--font-size-xs);
+            text-wrap: nowrap;
+          }
+
           .copy-icon,
           .remove-icon {
             background: var(--neutral-option);

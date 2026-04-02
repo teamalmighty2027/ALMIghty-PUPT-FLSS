@@ -11,9 +11,17 @@
     <app-table-header
       [inputFields]="headerInputFields"
       [showExportButton]="false"
-      [showAddButton]="false"
+      [showAddButton]="true"
       [showActiveYearAndSem]="true"
-      [showButtons]="false"
+      [showButtons]="true"
+      [addButtonLabel]="'Add Temporary Course'"
+      [addIconName]="'add'"
+      (add)="openAddTemporaryCourseDialog()"
+      [buttonDisabled]="!selectedSection || isCreatingTemporaryCourse"
+      [addButtonTooltip]="
+        selectedSection ? '' : 'Select a program, year level, and section first.'
+      "
+      [isLoading]="isCreatingTemporaryCourse"
       (inputChange)="onInputChange($event)"
       [selectedValues]="{
         program: selectedProgram,
@@ -52,6 +60,15 @@
           >
             <div class="course-code-wrapper">
               {{ element.course_code }}
+
+              @if (element.is_temporary) {
+              <span
+                class="temporary-badge"
+                [matTooltip]="getTemporaryTooltip(element)"
+              >
+                {{ getTemporaryBadgeText(element) }}
+              </span>
+              }
               
               <!-- Add Icon for Original Courses -->
               @if (!element.is_copy) { @if (processingCourseId ===

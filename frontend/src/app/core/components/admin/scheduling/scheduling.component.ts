@@ -15,6 +15,7 @@ import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { TableHeaderComponent, InputField } from '../../../../shared/table-header/table-header.component';
 import { TableDialogComponent } from '../../../../shared/table-dialog/table-dialog.component';
 import { DialogSchedulingComponent } from '../../../../shared/dialog-scheduling/dialog-scheduling.component';
+import { DialogTemporaryCourseComponent } from '../../../../shared/dialog-temporary-course/dialog-temporary-course.component';
 import { DialogGenericComponent } from '../../../../shared/dialog-generic/dialog-generic.component';
 import { DialogInfoComponent } from '../../../../shared/dialog-info/dialog-info.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
@@ -34,6 +35,7 @@ import {
   ProgramOption,
   SectionOption,
   YearLevelOption,
+  TemporaryCourseOfferingPayload,
 } from '../../../models/scheduling.model';
 
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
@@ -85,6 +87,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   activeYear: string = '';
   activeSemester: number = 0;
+  activeAcademicYearId: number | null = null;
+  activeSemesterId: number | null = null;
   startDate: string = '';
   endDate: string = '';
 
@@ -94,6 +98,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   loadingScheduleId: number | null = null;
   isSubmissionEnabled: number = 0;
   processingCourseId: number | null = null;
+  isCreatingTemporaryCourse: boolean = false;
 
   private destroy$ = new Subject<void>();
   private readonly DIALOG_INFO_PREF_KEY = 'doNotShowDialogInfo';
@@ -437,6 +442,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         }
 
         this.isSubmissionEnabled = response.is_submission_enabled;
+        this.activeAcademicYearId = response.academic_year_id;
+        this.activeSemesterId = response.semester_id;
 
         this.schedules = sectionData.courses.map(
           (course: CourseResponse, index, array) => {
@@ -467,6 +474,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               curriculum: yearLevelData.curriculum_year,
               section: sectionData.section_name,
               is_copy: course.is_copy || 0,
+              is_temporary: !!course.is_temporary,
+              temporary_type: course.temporary_type ?? null,
+              temporary_status: course.temporary_status ?? null,
+              petition_required: !!course.petition_required,
+              temporary_course_offering_id:
+                course.temporary_course_offering_id ?? null,
               isLastInGroup,
             };
           }
@@ -738,6 +751,119 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         error: this.handleError('Error fetching academic years'),
+      });
+  }
+
+  openAddTemporaryCourseDialog(): void {
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
+    if (!program || !section) {
+      this.snackBar.open('Select a program, year level, and section first.', 'Close', {
+        duration: 3000,
+      });
+      return;
+    }
+
+    this.isCreatingTemporaryCourse = true;
+
+    forkJoin({
+      courses: this.schedulingService.getProgramCourses(program.id),
+      schedules: this.schedulingService.populateSchedules(),
+    })
+      .pipe(
+        finalize(() => {
+          this.isCreatingTemporaryCourse = false;
+        })
+      )
+      .subscribe({
+        next: ({ courses, schedules }) => {
+          this.activeAcademicYearId = schedules.academic_year_id;
+          this.activeSemesterId = schedules.semester_id;
+
+          if (!courses.length) {
+            this.snackBar.open('No courses available for this program.', 'Close', {
+              duration: 3000,
+            });
+            return;
+          }
+
+          const sortedCourses = courses.sort((a, b) =>
+            a.course_code.localeCompare(b.course_code)
+          );
+
+          const dialogRef = this.dialog.open(DialogTemporaryCourseComponent, {
+            maxWidth: '45rem',
+            width: '100%',
+            disableClose: true,
+            data: {
+              programLabel: program.display,
+              yearLevel: this.selectedYear,
+              sections: this.sectionOptions,
+              defaultSectionId: section.section_id,
+              courses: sortedCourses,
+            },
+          });
+
+          dialogRef.afterClosed().subscribe((result) => {
+            if (!result) {
+              return;
+            }
+
+            if (!this.activeAcademicYearId || !this.activeSemesterId) {
+              this.snackBar.open('Active academic year or semester missing.', 'Close', {
+                duration: 3000,
+              });
+              return;
+            }
+
+            const payload: TemporaryCourseOfferingPayload = {
+              course_id: result.course_id,
+              academic_year_id: this.activeAcademicYearId,
+              semester_id: this.activeSemesterId,
+              program_id: program.id,
+              year_level: this.selectedYear,
+              section_per_program_year_id: result.applies_to_all_sections
+                ? null
+                : result.section_per_program_year_id,
+              applies_to_all_sections: result.applies_to_all_sections,
+              type: result.type,
+              min_petitioners: result.min_petitioners,
+              petitioners_count: result.petitioners_count,
+              petition_file: result.petition_file,
+            };
+
+            this.schedulingService
+              .createTemporaryCourseOffering(payload)
+              .pipe(
+                switchMap(() => {
+                  this.schedulingService.resetCaches([CacheType.Schedules]);
+                  return this.fetchCourses(
+                    program.id,
+                    this.selectedYear,
+                    section.section_id
+                  );
+                })
+              )
+              .subscribe({
+                next: (updatedSchedules) => {
+                  this.schedules = updatedSchedules;
+                  this.cdr.detectChanges();
+                  this.snackBar.open(
+                    'Temporary course offering created successfully.',
+                    'Close',
+                    { duration: 3000 }
+                  );
+                },
+                error: this.handleError('Failed to create temporary course offering'),
+              });
+          });
+        },
+        error: this.handleError('Failed to load courses for temporary offering'),
       });
   }
 
@@ -1153,6 +1279,34 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       this.hasCopies(element) &&
       element.course_code !== nextSchedule.course_code
     );
+  }
+
+  protected getTemporaryBadgeText(element: Schedule): string {
+    if (!element.is_temporary) {
+      return '';
+    }
+
+    const status = this.formatTempValue(element.temporary_status);
+    return status ? `Temporary ${status}` : 'Temporary';
+  }
+
+  protected getTemporaryTooltip(element: Schedule): string {
+    if (!element.is_temporary) {
+      return '';
+    }
+
+    const type = this.formatTempValue(element.temporary_type) || 'Temporary';
+    const status = this.formatTempValue(element.temporary_status) || 'Unknown status';
+    const petitionNote = element.petition_required ? 'Petition required' : 'No petition required';
+    return `${type} · ${status} · ${petitionNote}`;
+  }
+
+  private formatTempValue(value?: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
   }
 
   private shouldSkipDialog(): boolean {
