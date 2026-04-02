@@ -17,6 +17,7 @@ class Preference extends Model
         'faculty_id',
         'active_semester_id',
         'course_assignment_id',
+        'temporary_course_offering_id',
         'sections_per_program_year_id'
     ];
 
@@ -33,6 +34,11 @@ class Preference extends Model
     public function courseAssignment()
     {
         return $this->belongsTo(CourseAssignment::class, 'course_assignment_id');
+    }
+
+    public function temporaryCourseOffering()
+    {
+        return $this->belongsTo(TemporaryCourseOffering::class, 'temporary_course_offering_id', 'temporary_course_offering_id');
     }
 
     public function course()

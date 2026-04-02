@@ -13,13 +13,24 @@ class SectionCourse extends Model
 
     protected $fillable = [
         'sections_per_program_year_id',
-        'course_id',
+        'course_assignment_id',
+        'temporary_course_offering_id',
         'is_copy',
     ];
 
     public function section()
     {
         return $this->belongsTo(SectionsPerProgramYear::class, 'sections_per_program_year_id', 'sections_per_program_year_id');
+    }
+
+    public function courseAssignment()
+    {
+        return $this->belongsTo(CourseAssignment::class, 'course_assignment_id', 'course_assignment_id');
+    }
+
+    public function temporaryCourseOffering()
+    {
+        return $this->belongsTo(TemporaryCourseOffering::class, 'temporary_course_offering_id', 'temporary_course_offering_id');
     }
 
     public function course()
