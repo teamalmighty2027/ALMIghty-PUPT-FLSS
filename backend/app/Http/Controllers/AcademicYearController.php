@@ -1120,6 +1120,7 @@ class AcademicYearController extends Controller
             if ($row->course_id !== null) {
                 $response['programs'][$programIndex]['year_levels'][$yearLevelIndex]['semester']['courses'][] = [
                     'course_assignment_id' => $row->course_assignment_id,
+                    'temporary_course_offering_id' => null,
                     'course_id' => $row->course_id,
                     'course_code' => $row->course_code,
                     'course_title' => $row->course_title,
@@ -1128,6 +1129,10 @@ class AcademicYearController extends Controller
                     'units' => $row->units,
                     'tuition_hours' => $row->tuition_hours,
                     'year_level' => $row->year_level,
+                    'is_temporary' => false,
+                    'temporary_type' => null,
+                    'temporary_status' => null,
+                    'petition_required' => false,
                 ];
             }
         }
