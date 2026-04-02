@@ -23,6 +23,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
+use App\Http\Controllers\TemporaryCourseOfferingController;
 
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
@@ -269,9 +270,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
 
     /**
-     * AI Assisted Scheduling
+     * Temporary Course Offerings
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::apiResource('temporary-course-offerings', TemporaryCourseOfferingController::class)
+        ->only(['index', 'show', 'store', 'update']);
+    Route::patch('/temporary-course-offerings/{id}/archive', [TemporaryCourseOfferingController::class, 'archive']);
 
     /**
      * Semester
@@ -281,6 +284,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/semesters/{id}', [SemesterController::class, 'show']);
     Route::put('/updateSemester/{id}', [SemesterController::class, 'update']);
     Route::delete('/deleteSemester/{id}', [SemesterController::class, 'destroy']);
+
+    /**
+     * AI Assisted Scheduling
+     */
+    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
 
     /**
      * Year Level
