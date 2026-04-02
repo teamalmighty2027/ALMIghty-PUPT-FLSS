@@ -810,6 +810,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           });
 
           dialogRef.afterClosed().subscribe((result) => {
+            this.snackBar.open('Processing temporary course offering...', 'Close', {
+              duration: 2000,
+            });
+
             if (!result) {
               return;
             }
@@ -836,6 +840,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               petitioners_count: result.petitioners_count,
               petition_file: result.petition_file,
             };
+
+            this.snackBar.open(
+              payload.petition_file
+                ? 'Uploading petition file and creating temporary course...'
+                : 'Creating temporary course...',
+              'Close',
+              { duration: 2000 }
+            );
 
             this.schedulingService
               .createTemporaryCourseOffering(payload)

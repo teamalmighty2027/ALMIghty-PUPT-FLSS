@@ -107,6 +107,11 @@ export class DialogTemporaryCourseComponent {
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      if (this.isPetitionTypeSelected() && !this.selectedFile) {
+        this.showSnackBar('Petition file is required for this type.');
+      } else {
+        this.showSnackBar('Please complete the required fields.');
+      }
       return;
     }
 
@@ -227,5 +232,11 @@ export class DialogTemporaryCourseComponent {
 
     const parsed = Number(value);
     return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  private showSnackBar(message: string): void {
+    this.snackBar.open(message, 'Close', {
+      duration: 3000,
+    });
   }
 }
