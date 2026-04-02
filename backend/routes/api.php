@@ -108,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/update-sections', [AcademicYearController::class, 'updateSections']);
     Route::delete('/remove-program', [AcademicYearController::class, 'removeProgramFromAcademicYear']);
     Route::get('/offered-courses-sem', [AcademicYearController::class, 'getOfferedCoursesBySem']);
+    Route::get('/program-courses', [AcademicYearController::class, 'getProgramCourses']);
 
     /**
      * Admin

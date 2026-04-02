@@ -1201,4 +1201,54 @@ class AcademicYearController extends Controller
 
         return response()->json($response);
     }
+
+    /**
+     * Get all offered courses for a program across all semesters in the active academic year
+     */
+    public function getProgramCourses(Request $request)
+    {
+        $validated = $request->validate([
+            'program_id' => 'required|integer|exists:programs,program_id',
+        ]);
+
+        $activeSemester = DB::table('active_semesters')
+            ->where('is_active', 1)
+            ->first();
+
+        if (! $activeSemester) {
+            return response()->json(['error' => 'No active semester found'], 404);
+        }
+
+        $courses = DB::table('program_year_level_curricula as pylc')
+            ->join('curricula_program as cp', function ($join) {
+                $join->on('pylc.program_id', '=', 'cp.program_id')
+                    ->on('pylc.curriculum_id', '=', 'cp.curriculum_id');
+            })
+            ->join('year_levels as yl', function ($join) {
+                $join->on('cp.curricula_program_id', '=', 'yl.curricula_program_id')
+                    ->on('pylc.year_level', '=', 'yl.year');
+            })
+            ->join('semesters as s', 'yl.year_level_id', '=', 's.year_level_id')
+            ->join('course_assignments as ca', function ($join) {
+                $join->on('ca.semester_id', '=', 's.semester_id')
+                    ->on('ca.curricula_program_id', '=', 'cp.curricula_program_id');
+            })
+            ->join('courses as co', 'ca.course_id', '=', 'co.course_id')
+            ->where('pylc.academic_year_id', $activeSemester->academic_year_id)
+            ->where('pylc.program_id', $validated['program_id'])
+            ->distinct()
+            ->orderBy('co.course_code')
+            ->select(
+                'co.course_id',
+                'co.course_code',
+                'co.course_title',
+                'co.lec_hours',
+                'co.lab_hours',
+                'co.units',
+                'co.tuition_hours'
+            )
+            ->get();
+
+        return response()->json($courses);
+    }
 }
