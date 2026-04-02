@@ -35,7 +35,14 @@ class SectionCourse extends Model
 
     public function course()
     {
-        return $this->belongsTo(Course::class, 'course_id', 'course_id');
+        return $this->hasOneThrough(
+            Course::class,
+            CourseAssignment::class,
+            'course_assignment_id',
+            'course_id',
+            'course_assignment_id',
+            'course_id'
+        );
     }
 
     public function schedules()
