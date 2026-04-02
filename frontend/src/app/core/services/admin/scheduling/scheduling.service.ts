@@ -167,6 +167,23 @@ export class SchedulingService {
   }
 
   /**
+   * Archives a temporary course offering.
+   */
+  archiveTemporaryCourseOffering(
+    offeringId: number,
+    isArchived: boolean = true
+  ): Observable<any> {
+    return this.http
+      .patch(`${this.baseUrl}/temporary-course-offerings/${offeringId}/archive`, {
+        is_archived: isArchived,
+      })
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
    * Retrieves and caches all available rooms. 
    * Subsequent calls return the cached data unless reset.
    */

@@ -1039,6 +1039,65 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
   }
 
+  openArchiveTemporaryCourseDialog(schedule: Schedule): void {
+    if (schedule.temporary_course_offering_id == null) {
+      this.snackBar.open('Temporary offering ID is missing.', 'Close', {
+        duration: 3000,
+      });
+      return;
+    }
+
+    const offeringId = schedule.temporary_course_offering_id;
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Archive Temporary Course',
+        content: `Archive ${schedule.course_code} - ${schedule.course_title}? This will hide it from scheduling and preferences.`,
+        actionText: 'Archive',
+        cancelText: 'Cancel',
+        action: 'archive',
+      },
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result !== 'archive') {
+        return;
+      }
+
+      this.schedulingService
+        .archiveTemporaryCourseOffering(offeringId)
+        .pipe(
+          switchMap(() => {
+            this.schedulingService.resetCaches([CacheType.Schedules]);
+            const program = this.programOptions.find(
+              (p) => p.display === this.selectedProgram
+            );
+            const section = this.sectionOptions.find(
+              (s) => s.section_name === this.selectedSection
+            );
+            return program && section
+              ? this.fetchCourses(
+                  program.id,
+                  this.selectedYear,
+                  section.section_id
+                )
+              : of([]);
+          })
+        )
+        .subscribe({
+          next: (updatedSchedules) => {
+            this.schedules = updatedSchedules;
+            this.cdr.detectChanges();
+            this.snackBar.open('Temporary course archived successfully.', 'Close', {
+              duration: 3000,
+            });
+          },
+          error: this.handleError('Failed to archive temporary course'),
+        });
+    });
+  }
+
   // ====================
   // Course Copy Methods
   // ====================
@@ -1155,7 +1214,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   private handleError(message: string) {
     return (error: any): void => {
-      this.snackBar.open(`${message}. Please try again.`, 'Close', {
+      console.error(error);
+      const detail = error?.message ? ` ${error.message}` : '';
+      this.snackBar.open(`${message}. Please try again.${detail}`, 'Close', {
         duration: 3000,
       });
     };
