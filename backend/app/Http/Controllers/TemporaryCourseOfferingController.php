@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BridgingCourse;
 use App\Models\TemporaryCourseOffering;
 use App\Services\AuditLogger;
 use App\Services\FileService;
@@ -91,6 +92,7 @@ class TemporaryCourseOfferingController extends Controller
     {
         $validated = $request->validate([
             'course_id' => 'required|integer|exists:courses,course_id',
+            'bridging_course_id' => 'nullable|integer|exists:bridging_courses,bridging_course_id',
             'academic_year_id' => 'required|integer|exists:academic_years,academic_year_id',
             'semester_id' => 'required|integer|exists:semesters,semester_id',
             'program_id' => 'required|integer|exists:programs,program_id',
@@ -106,6 +108,31 @@ class TemporaryCourseOfferingController extends Controller
 
         $type = $validated['type'];
         $appliesToAll = filter_var($validated['applies_to_all_sections'], FILTER_VALIDATE_BOOLEAN);
+
+        if ($type === 'bridging') {
+            if (empty($validated['bridging_course_id'])) {
+                return response()->json([
+                    'message' => 'Bridging course is required for bridging type.',
+                ], 422);
+            }
+
+            $bridgingCourse = BridgingCourse::find($validated['bridging_course_id']);
+
+            if (! $bridgingCourse
+                || (int) $bridgingCourse->program_id !== (int) $validated['program_id']
+                || (int) $bridgingCourse->year_level !== (int) $validated['year_level']
+            ) {
+                return response()->json([
+                    'message' => 'Selected bridging course does not match the program or year level.',
+                ], 422);
+            }
+
+            if ((int) $bridgingCourse->course_id !== (int) $validated['course_id']) {
+                $validated['course_id'] = $bridgingCourse->course_id;
+            }
+        } else {
+            $validated['bridging_course_id'] = null;
+        }
 
         if (in_array($type, self::PETITION_TYPES, true) && ! $request->hasFile('petition_file')) {
             return response()->json([
@@ -176,6 +203,7 @@ class TemporaryCourseOfferingController extends Controller
 
         $validated = $request->validate([
             'course_id' => 'sometimes|required|integer|exists:courses,course_id',
+            'bridging_course_id' => 'nullable|integer|exists:bridging_courses,bridging_course_id',
             'academic_year_id' => 'sometimes|required|integer|exists:academic_years,academic_year_id',
             'semester_id' => 'sometimes|required|integer|exists:semesters,semester_id',
             'program_id' => 'sometimes|required|integer|exists:programs,program_id',
@@ -199,6 +227,34 @@ class TemporaryCourseOfferingController extends Controller
         $programId = $validated['program_id'] ?? $offering->program_id;
         $yearLevel = $validated['year_level'] ?? $offering->year_level;
         $sectionId = $validated['section_per_program_year_id'] ?? $offering->section_per_program_year_id;
+        $bridgingCourseId = $validated['bridging_course_id'] ?? $offering->bridging_course_id;
+
+        if ($type === 'bridging') {
+            if (empty($bridgingCourseId)) {
+                return response()->json([
+                    'message' => 'Bridging course is required for bridging type.',
+                ], 422);
+            }
+
+            $bridgingCourse = BridgingCourse::find($bridgingCourseId);
+
+            if (! $bridgingCourse
+                || (int) $bridgingCourse->program_id !== (int) $programId
+                || (int) $bridgingCourse->year_level !== (int) $yearLevel
+            ) {
+                return response()->json([
+                    'message' => 'Selected bridging course does not match the program or year level.',
+                ], 422);
+            }
+
+            if ((int) $bridgingCourse->course_id !== (int) ($validated['course_id'] ?? $offering->course_id)) {
+                $validated['course_id'] = $bridgingCourse->course_id;
+            }
+
+            $validated['bridging_course_id'] = $bridgingCourseId;
+        } else {
+            $validated['bridging_course_id'] = null;
+        }
 
         if (! $appliesToAll && empty($sectionId)) {
             return response()->json([

@@ -142,6 +142,9 @@ export class SchedulingService {
   ): Observable<any> {
     const formData = new FormData();
     formData.append('course_id', payload.course_id.toString());
+    if (payload.bridging_course_id !== undefined && payload.bridging_course_id !== null) {
+      formData.append('bridging_course_id', payload.bridging_course_id.toString());
+    }
     formData.append('academic_year_id', payload.academic_year_id.toString());
     formData.append('semester_id', payload.semester_id.toString());
     formData.append('program_id', payload.program_id.toString());

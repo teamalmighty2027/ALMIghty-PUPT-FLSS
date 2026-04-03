@@ -24,10 +24,12 @@ interface DialogData {
   defaultSectionId?: number;
   courses: CourseCatalogItem[];
   bridgingCourses?: BridgingCourseOption[];
+  curriculumId?: number | null;
 }
 
 interface DialogResult {
   course_id: number;
+  bridging_course_id: number | null;
   type: string;
   applies_to_all_sections: boolean;
   section_per_program_year_id: number | null;
@@ -150,8 +152,19 @@ export class DialogTemporaryCourseComponent {
       return;
     }
 
+    const courseId = this.form.value.course_id;
+    const bridgingCourseId = this.isBridgingTypeSelected()
+      ? this.bridgingCourseByCourseId.get(courseId)?.bridging_course_id ?? null
+      : null;
+
+    if (this.isBridgingTypeSelected() && !bridgingCourseId) {
+      this.showSnackBar('No bridging course is configured for this scope.');
+      return;
+    }
+
     const result: DialogResult = {
-      course_id: this.form.value.course_id,
+      course_id: courseId,
+      bridging_course_id: bridgingCourseId,
       type: this.form.value.type,
       applies_to_all_sections: this.form.value.applies_to_all_sections,
       section_per_program_year_id: this.form.value.section_per_program_year_id,

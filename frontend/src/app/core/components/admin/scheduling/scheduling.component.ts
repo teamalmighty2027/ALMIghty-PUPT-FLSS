@@ -817,6 +817,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               defaultSectionId: section.section_id,
               courses: sortedCourses,
               bridgingCourses,
+              curriculumId: this.selectedCurriculumId,
             },
           });
 
@@ -834,6 +835,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
             const payload: TemporaryCourseOfferingPayload = {
               course_id: result.course_id,
+              bridging_course_id: result.bridging_course_id ?? null,
               academic_year_id: this.activeAcademicYearId,
               semester_id: this.activeSemesterId,
               program_id: program.id,

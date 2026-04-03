@@ -172,6 +172,7 @@ export interface BridgingCourseOption {
 
 export interface TemporaryCourseOfferingPayload {
   course_id: number;
+  bridging_course_id?: number | null;
   academic_year_id: number;
   semester_id: number;
   program_id: number;
