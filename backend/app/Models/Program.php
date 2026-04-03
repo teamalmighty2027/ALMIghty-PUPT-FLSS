@@ -17,6 +17,11 @@ class Program extends Model
         'program_info',
         'status',
         'number_of_years',
+        'last_synced_at',
+    ];
+
+    protected $casts = [
+        'last_synced_at' => 'datetime',
     ];
 
     public function curricula()

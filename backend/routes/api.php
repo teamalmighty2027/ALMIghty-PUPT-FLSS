@@ -18,6 +18,7 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\ProgramController;
+use App\Http\Controllers\ProgramSyncController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
@@ -73,6 +74,8 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::delete('/deleteAdmins/{admin}', [AccountController::class, 'destroyAdmin']);
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
+
+    Route::post('/programs/sync', [ProgramSyncController::class, 'syncProgramsManual']);
 
     /*
     |----------------------------------
