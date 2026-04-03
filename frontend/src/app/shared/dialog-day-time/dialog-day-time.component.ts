@@ -318,11 +318,21 @@ export class DialogDayTimeComponent implements OnInit {
       preferred_days: selectedDays,
     };
 
-    if (this.data.temporaryCourseOfferingId) {
-      preferenceData.temporary_course_offering_id =
-        this.data.temporaryCourseOfferingId;
+    const temporaryCourseOfferingId = this.data.temporaryCourseOfferingId;
+    const courseAssignmentId = this.data.courseAssignmentId;
+
+    if (temporaryCourseOfferingId != null) {
+      preferenceData.temporary_course_offering_id = temporaryCourseOfferingId;
+    } else if (courseAssignmentId != null) {
+      preferenceData.course_assignment_id = courseAssignmentId;
     } else {
-      preferenceData.course_assignment_id = this.data.courseAssignmentId;
+      this.snackBar.open(
+        'Unable to submit preference: missing course identifiers.', 
+        'Close',
+        { duration: 5000,}
+      );
+      this.isSaving = false;
+      return;
     }
 
     // Include "any" flags if modifiers are enabled

@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, ElementRef, Inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -53,6 +53,7 @@ export class DialogTemporaryCourseComponent {
   form: FormGroup;
   selectedFile: File | null = null;
   selectedFileName: string = '';
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   private readonly defaultSectionId: number | null;
 
   readonly typeOptions = [
@@ -161,6 +162,11 @@ export class DialogTemporaryCourseComponent {
     this.selectedFile = null;
     this.selectedFileName = '';
     this.form.patchValue({ petition_file: null });
+    
+    // Clear the file input element value
+    if (this.fileInput?.nativeElement) {
+      this.fileInput.nativeElement.value = '';
+    }
   }
 
   isPetitionTypeSelected(): boolean {

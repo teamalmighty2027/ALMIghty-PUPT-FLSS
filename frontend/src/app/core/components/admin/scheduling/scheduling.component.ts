@@ -810,10 +810,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           });
 
           dialogRef.afterClosed().subscribe((result) => {
-            this.snackBar.open('Processing temporary course offering...', 'Close', {
-              duration: 2000,
-            });
-
             if (!result) {
               return;
             }

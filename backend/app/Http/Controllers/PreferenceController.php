@@ -926,13 +926,13 @@ class PreferenceController extends Controller
         // Find and delete the specific preference along with its associated days
         $preferenceQuery = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
-            ->where('sections_per_program_year_id', $sectionsPerProgramYearId);
-
-        if ($temporaryCourseOfferingId) {
-            $preferenceQuery->where('temporary_course_offering_id', $temporaryCourseOfferingId);
-        } else {
-            $preferenceQuery->where('course_assignment_id', $preference_id);
-        }
+            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
+            ->where(function ($query) use ($preference_id) {
+                // try matching by course_assignment_id first, 
+                // then by temporary_course_offering_id.
+                $query->where('course_assignment_id', $preference_id)
+                      ->orWhere('temporary_course_offering_id', $preference_id);
+            });
 
         $preference = $preferenceQuery->first();
 
