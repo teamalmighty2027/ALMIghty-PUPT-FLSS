@@ -24,6 +24,15 @@ export interface CourseRequirement {
   course_title: string;
 }
 
+export interface CourseRequirementLink {
+  requirement_type: 'pre' | 'co';
+  required_course_id: number;
+}
+
+export interface CourseWithRequirements extends Course {
+  requirements?: CourseRequirementLink[];
+}
+
 export interface Semester {
   semester_id: number;
   semester: number;
@@ -176,6 +185,11 @@ export class CurriculumService {
   //Add course
   addCourse(courseData: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/addCourse`, courseData);
+  }
+
+  // Fetch all courses with requirement links
+  getAllCourses(): Observable<CourseWithRequirements[]> {
+    return this.http.get<CourseWithRequirements[]>(`${this.baseUrl}/courses`);
   }
 
   // For Bridging Courses

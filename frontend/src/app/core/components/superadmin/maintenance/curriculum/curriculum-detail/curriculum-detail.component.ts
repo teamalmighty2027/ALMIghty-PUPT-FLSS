@@ -13,7 +13,6 @@ import { TableHeaderComponent, InputField } from '../../../../../../shared/table
 import {
   TableDialogComponent,
   DialogConfig,
-  SelectOption,
 } from '../../../../../../shared/table-dialog/table-dialog.component';
 import { DialogExportComponent } from '../../../../../../shared/dialog-export/dialog-export.component';
 import { LoadingComponent } from '../../../../../../shared/loading/loading.component';
@@ -25,6 +24,8 @@ import {
   Program,
   Course,
   BridgingCourse,
+  CourseWithRequirements,
+  CourseRequirementLink,
 } from '../../../../../services/superadmin/curriculum/curriculum.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
@@ -66,7 +67,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public isManagingPrograms: boolean = false;
   public isManagingBridging: boolean = false;
   public isLoadingBridging: boolean = false;
-  public bridgingCourses: BridgingCourse[] = [];
+  public bridgingCourses: Array<
+    BridgingCourse & { pre_req: string; co_req: string }
+  > = [];
 
   headerInputFields: InputField[] = [];
 
@@ -98,13 +101,25 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   bridgingColumns = [
     { key: 'index', label: '#' },
     { key: 'course_code', label: 'Course Code' },
+    { key: 'pre_req', label: 'Pre-requisites' },
+    { key: 'co_req', label: 'Co-requisites' },
     { key: 'course_title', label: 'Course Title' },
+    { key: 'lec_hours', label: 'Lec Hours' },
+    { key: 'lab_hours', label: 'Lab Hours' },
+    { key: 'units', label: 'Units' },
+    { key: 'tuition_hours', label: 'Tuition Hours' },
   ];
 
   bridgingDisplayedColumns: string[] = [
     'index',
     'course_code',
+    'pre_req',
+    'co_req',
     'course_title',
+    'lec_hours',
+    'lab_hours',
+    'units',
+    'tuition_hours',
     'action',
   ];
 
@@ -531,26 +546,120 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     );
   }
 
-  private getBridgingCourseOptions(
+  private getBridgingDialogConfig(
     program: Program,
     yearLevel: number,
-    currentCourseId?: number
-  ): SelectOption[] {
-    const courses = this.getProgramYearCourses(program, yearLevel);
-    const existingCourseIds = new Set(
-      this.bridgingCourses.map((course) => course.course_id)
+    course?: BridgingCourse,
+    preReqTitles: string[] = [],
+    coReqTitles: string[] = []
+  ): DialogConfig {
+    const availableCourseTitles = this.getProgramYearCourses(program, yearLevel).map(
+      (item) => `${item.course_code} - ${item.course_title}`
     );
 
-    if (currentCourseId) {
-      existingCourseIds.delete(currentCourseId);
+    return {
+      title: course ? 'Edit Bridging Course' : 'Add Bridging Course',
+      isEdit: !!course,
+      fields: [
+        {
+          label: 'Course Code',
+          formControlName: 'course_code',
+          type: 'text',
+          maxLength: 50,
+          required: true,
+        },
+        {
+          label: 'Pre-requisite',
+          formControlName: 'pre_req',
+          type: 'multiselect',
+          options: availableCourseTitles,
+          required: false,
+        },
+        {
+          label: 'Co-requisite',
+          formControlName: 'co_req',
+          type: 'multiselect',
+          options: availableCourseTitles,
+          required: false,
+        },
+        {
+          label: 'Course Title',
+          formControlName: 'course_title',
+          type: 'text',
+          maxLength: 100,
+          required: true,
+        },
+        {
+          label: 'Lecture Hours',
+          formControlName: 'lec_hours',
+          type: 'number',
+          min: 0,
+          maxLength: 2,
+          required: true,
+        },
+        {
+          label: 'Laboratory Hours',
+          formControlName: 'lab_hours',
+          type: 'number',
+          min: 0,
+          maxLength: 2,
+          required: true,
+        },
+        {
+          label: 'Units',
+          formControlName: 'units',
+          type: 'number',
+          min: 0,
+          maxLength: 2,
+          required: true,
+        },
+        {
+          label: 'Tuition Hours',
+          formControlName: 'tuition_hours',
+          type: 'number',
+          min: 0,
+          maxLength: 2,
+          required: true,
+        },
+      ],
+      initialValue: course
+        ? {
+            course_code: course.course_code,
+            course_title: course.course_title,
+            lec_hours: course.lec_hours,
+            lab_hours: course.lab_hours,
+            units: course.units,
+            tuition_hours: course.tuition_hours,
+            pre_req: preReqTitles,
+            co_req: coReqTitles,
+          }
+        : {
+            pre_req: preReqTitles,
+            co_req: coReqTitles,
+          },
+    };
+  }
+
+  private mapRequirementTitles(
+    requirements: CourseRequirementLink[] | undefined,
+    courses: CourseWithRequirements[],
+    type: 'pre' | 'co'
+  ): string[] {
+    if (!requirements?.length) {
+      return [];
     }
 
-    return courses
-      .filter((course) => !existingCourseIds.has(course.course_id))
-      .map((course) => ({
-        value: course.course_id,
-        label: `${course.course_code} - ${course.course_title}`,
-      }));
+    return requirements
+      .filter((req) => req.requirement_type === type)
+      .map((req) => {
+        const course = courses.find(
+          (candidate) => candidate.course_id === req.required_course_id
+        );
+        return course
+          ? `${course.course_code} - ${course.course_title}`
+          : null;
+      })
+      .filter((title): title is string => !!title);
   }
 
   private loadBridgingCourses(): void {
@@ -580,7 +689,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .pipe(finalize(() => (this.isLoadingBridging = false)))
       .subscribe({
         next: (courses) => {
-          this.bridgingCourses = courses;
+          this.bridgingCourses = courses.map((course) => ({
+            ...course,
+            pre_req: 'None',
+            co_req: 'None',
+          }));
           this.cdr.markForCheck();
         },
         error: (error) => {
@@ -604,15 +717,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (this.bridgingCourses.length > 0) {
-      this.snackBar.open(
-        'A bridging course already exists for this program and year level.',
-        'Close',
-        { duration: 3000 }
-      );
-      return;
-    }
-
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
 
@@ -622,49 +726,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const courseOptions = this.getBridgingCourseOptions(program, yearLevel);
-
-    if (!courseOptions.length) {
-      this.snackBar.open(
-        'No available courses found for this program and year level.',
-        'Close',
-        { duration: 3000 }
-      );
-      return;
-    }
-
-    const dialogConfig: DialogConfig = {
-      title: 'Add Bridging Course',
-      isEdit: false,
-      fields: [
-        {
-          label: 'Program',
-          formControlName: 'program_label',
-          type: 'text',
-          required: false,
-          disabled: true,
-        },
-        {
-          label: 'Year Level',
-          formControlName: 'year_level',
-          type: 'number',
-          required: false,
-          disabled: true,
-        },
-        {
-          label: 'Course',
-          formControlName: 'course_id',
-          type: 'select',
-          required: true,
-          options: courseOptions,
-        },
-      ],
-      initialValue: {
-        program_label: `${program.program_code || program.name} - ${program.program_title}`,
-        year_level: yearLevel,
-        course_id: courseOptions[0]?.value ?? null,
-      },
-    };
+    const dialogConfig = this.getBridgingDialogConfig(program, yearLevel);
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
@@ -676,15 +738,62 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         return;
       }
 
+      if (this.bridgingCourses.length > 0) {
+        this.snackBar.open(
+          'A bridging course already exists for this program and year level.',
+          'Close',
+          { duration: 3000 }
+        );
+        return;
+      }
+
+      if (this.isCourseDuplicate(result.course_code)) {
+        this.snackBar.open(
+          `Error: Course Code '${result.course_code}' is already used in this curriculum!`,
+          'Close',
+          { duration: 4000 }
+        );
+        return;
+      }
+
+      const preReqIds = this.mapTitlesToIds(result.pre_req);
+      const coReqIds = this.mapTitlesToIds(result.co_req);
+
       this.isManagingBridging = true;
 
       this.curriculumService
-        .addBridgingCourse({
-          curriculum_id: this.curriculum!.curriculum_id,
-            program_id: programId,
-          year_level: yearLevel,
-          course_id: Number(result.course_id),
+        .addCourse({
+          course_code: result.course_code,
+          course_title: result.course_title,
+          lec_hours: Number(result.lec_hours),
+          lab_hours: Number(result.lab_hours),
+          units: Number(result.units),
+          tuition_hours: Number(result.tuition_hours),
+          requirements: [
+            ...preReqIds.map((id: number) => ({
+              requirement_type: 'pre',
+              required_course_id: id,
+            })),
+            ...coReqIds.map((id: number) => ({
+              requirement_type: 'co',
+              required_course_id: id,
+            })),
+          ],
         })
+        .pipe(
+          switchMap((response) => {
+            const createdCourseId = response?.course?.course_id;
+            if (!createdCourseId) {
+              throw new Error('Course creation response missing course id.');
+            }
+            return this.curriculumService.addBridgingCourse({
+              curriculum_id: this.curriculum!.curriculum_id,
+              program_id: programId,
+              year_level: yearLevel,
+              course_id: createdCourseId,
+            });
+          })
+        )
         .pipe(finalize(() => (this.isManagingBridging = false)))
         .subscribe({
           next: () => {
@@ -697,6 +806,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             console.error('Error adding bridging course:', error);
             this.snackBar.open(
               error?.error?.message ||
+                error?.message ||
                 'Error adding bridging course. Please try again.',
               'Close',
               { duration: 3000 }
@@ -720,88 +830,104 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const courseOptions = this.getBridgingCourseOptions(
-      program,
-      yearLevel,
-      bridgingCourse.course_id
-    );
+    this.curriculumService.getAllCourses().subscribe({
+      next: (courses) => {
+        const currentCourse = courses.find(
+          (course) => course.course_id === bridgingCourse.course_id
+        );
+        const preReqTitles = this.mapRequirementTitles(
+          currentCourse?.requirements,
+          courses,
+          'pre'
+        );
+        const coReqTitles = this.mapRequirementTitles(
+          currentCourse?.requirements,
+          courses,
+          'co'
+        );
 
-    const dialogConfig: DialogConfig = {
-      title: 'Edit Bridging Course',
-      isEdit: true,
-      fields: [
-        {
-          label: 'Program',
-          formControlName: 'program_label',
-          type: 'text',
-          required: false,
-          disabled: true,
-        },
-        {
-          label: 'Year Level',
-          formControlName: 'year_level',
-          type: 'number',
-          required: false,
-          disabled: true,
-        },
-        {
-          label: 'Course',
-          formControlName: 'course_id',
-          type: 'select',
-          required: true,
-          options: [
-            {
-              value: bridgingCourse.course_id,
-              label: `${bridgingCourse.course_code} - ${bridgingCourse.course_title}`,
-            },
-            ...courseOptions,
-          ],
-        },
-      ],
-      initialValue: {
-        program_label: `${program.program_code || program.name} - ${program.program_title}`,
-        year_level: yearLevel,
-        course_id: bridgingCourse.course_id,
-      },
-    };
+        const dialogConfig = this.getBridgingDialogConfig(
+          program,
+          yearLevel,
+          bridgingCourse,
+          preReqTitles,
+          coReqTitles
+        );
 
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: dialogConfig,
-      disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      if (!result) {
-        return;
-      }
-
-      this.isManagingBridging = true;
-
-      this.curriculumService
-        .updateBridgingCourse(bridgingCourse.bridging_course_id, {
-          curriculum_id: this.curriculum!.curriculum_id,
-            program_id: programId,
-          year_level: yearLevel,
-          course_id: Number(result.course_id),
-        })
-        .pipe(finalize(() => (this.isManagingBridging = false)))
-        .subscribe({
-          next: () => {
-            this.snackBar.open('Bridging course updated successfully.', 'Close', {
-              duration: 3000,
-            });
-            this.loadBridgingCourses();
-          },
-          error: (error) => {
-            console.error('Error updating bridging course:', error);
-            this.snackBar.open(
-              error?.error?.message ||
-                'Error updating bridging course. Please try again.',
-              'Close',
-              { duration: 3000 }
-            );
-          },
+        const dialogRef = this.dialog.open(TableDialogComponent, {
+          data: dialogConfig,
+          disableClose: true,
         });
+
+        dialogRef.afterClosed().subscribe((result) => {
+          if (!result) {
+            return;
+          }
+
+          if (this.isCourseDuplicate(result.course_code, bridgingCourse.course_id)) {
+            this.snackBar.open(
+              `Error: Course Code '${result.course_code}' is already used in this curriculum!`,
+              'Close',
+              { duration: 4000 }
+            );
+            return;
+          }
+
+          const preReqIds = this.mapTitlesToIds(result.pre_req);
+          const coReqIds = this.mapTitlesToIds(result.co_req);
+
+          this.isManagingBridging = true;
+
+          this.curriculumService
+            .updateCourse(bridgingCourse.course_id, {
+              course_code: result.course_code,
+              course_title: result.course_title,
+              lec_hours: Number(result.lec_hours),
+              lab_hours: Number(result.lab_hours),
+              units: Number(result.units),
+              tuition_hours: Number(result.tuition_hours),
+              requirements: [
+                ...preReqIds.map((id: number) => ({
+                  requirement_type: 'pre',
+                  required_course_id: id,
+                })),
+                ...coReqIds.map((id: number) => ({
+                  requirement_type: 'co',
+                  required_course_id: id,
+                })),
+              ],
+            })
+            .pipe(finalize(() => (this.isManagingBridging = false)))
+            .subscribe({
+              next: () => {
+                this.snackBar.open(
+                  'Bridging course updated successfully.',
+                  'Close',
+                  { duration: 3000 }
+                );
+                this.loadBridgingCourses();
+              },
+              error: (error) => {
+                console.error('Error updating bridging course:', error);
+                this.snackBar.open(
+                  error?.error?.message ||
+                    error?.message ||
+                    'Error updating bridging course. Please try again.',
+                  'Close',
+                  { duration: 3000 }
+                );
+              },
+            });
+        });
+      },
+      error: (error) => {
+        console.error('Error loading course details:', error);
+        this.snackBar.open(
+          'Error loading course details. Please try again.',
+          'Close',
+          { duration: 3000 }
+        );
+      },
     });
   }
 
