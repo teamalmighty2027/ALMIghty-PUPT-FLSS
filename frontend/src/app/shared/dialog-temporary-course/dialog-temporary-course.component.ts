@@ -11,7 +11,11 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
-import { CourseCatalogItem, SectionOption } from '../../core/models/scheduling.model';
+import {
+  BridgingCourseOption,
+  CourseCatalogItem,
+  SectionOption,
+} from '../../core/models/scheduling.model';
 
 interface DialogData {
   programLabel: string;
@@ -19,6 +23,7 @@ interface DialogData {
   sections: SectionOption[];
   defaultSectionId?: number;
   courses: CourseCatalogItem[];
+  bridgingCourses?: BridgingCourseOption[];
 }
 
 interface DialogResult {
@@ -53,8 +58,15 @@ export class DialogTemporaryCourseComponent {
   form: FormGroup;
   selectedFile: File | null = null;
   selectedFileName: string = '';
+  availableCourses: CourseCatalogItem[] = [];
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   private readonly defaultSectionId: number | null;
+  private readonly bridgingCourses: BridgingCourseOption[];
+  private readonly bridgingCourseItems: CourseCatalogItem[];
+  private readonly bridgingCourseByCourseId = new Map<
+    number,
+    BridgingCourseOption
+  >();
 
   readonly typeOptions = [
     { value: 'summer', label: 'Summer' },
@@ -86,6 +98,22 @@ export class DialogTemporaryCourseComponent {
     this.defaultSectionId =
       data.defaultSectionId ?? data.sections[0]?.section_id ?? null;
 
+    this.bridgingCourses = [...(data.bridgingCourses ?? [])].sort((a, b) =>
+      a.course_code.localeCompare(b.course_code)
+    );
+    this.bridgingCourseItems = this.bridgingCourses.map((course) => ({
+      course_id: course.course_id,
+      course_code: course.course_code,
+      course_title: course.course_title,
+      lec_hours: course.lec_hours,
+      lab_hours: course.lab_hours,
+      units: course.units,
+      tuition_hours: course.tuition_hours,
+    }));
+    this.bridgingCourses.forEach((course) => {
+      this.bridgingCourseByCourseId.set(course.course_id, course);
+    });
+
     this.form = this.fb.group({
       course_id: [null, Validators.required],
       type: ['summer', Validators.required],
@@ -97,6 +125,7 @@ export class DialogTemporaryCourseComponent {
     });
 
     this.setupFormListeners();
+    this.updateCourseOptions();
     this.updateSectionValidators();
     this.updatePetitionValidators();
   }
@@ -106,6 +135,11 @@ export class DialogTemporaryCourseComponent {
   }
 
   onSubmit(): void {
+    if (this.isBridgingTypeSelected() && !this.hasBridgingCourses()) {
+      this.showSnackBar('No bridging course is configured for this scope.');
+      return;
+    }
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       if (this.isPetitionTypeSelected() && !this.selectedFile) {
@@ -174,6 +208,14 @@ export class DialogTemporaryCourseComponent {
     return type === 'petition' || type === 'tutorial';
   }
 
+  isBridgingTypeSelected(): boolean {
+    return this.form.get('type')?.value === 'bridging';
+  }
+
+  hasBridgingCourses(): boolean {
+    return this.bridgingCourseItems.length > 0;
+  }
+
   getSectionLabel(sectionId: number | null): string {
     if (!sectionId) {
       return 'All sections';
@@ -188,8 +230,37 @@ export class DialogTemporaryCourseComponent {
     });
 
     this.form.get('type')?.valueChanges.subscribe(() => {
+      this.updateCourseOptions();
       this.updatePetitionValidators();
     });
+
+    this.form.get('course_id')?.valueChanges.subscribe(() => {
+      this.updateBridgingSelection();
+    });
+  }
+
+  private updateCourseOptions(): void {
+    if (this.isBridgingTypeSelected()) {
+      this.availableCourses = this.bridgingCourseItems;
+    } else {
+      this.availableCourses = this.data.courses;
+    }
+
+    const courseControl = this.form.get('course_id');
+
+    if (this.isBridgingTypeSelected()) {
+      const selectedCourseId = courseControl?.value;
+      const hasMatch = selectedCourseId
+        ? this.bridgingCourseByCourseId.has(selectedCourseId)
+        : false;
+
+      if (!hasMatch) {
+        const nextCourseId = this.availableCourses[0]?.course_id ?? null;
+        courseControl?.setValue(nextCourseId);
+      }
+    }
+
+    this.updateBridgingSelection();
   }
 
   private updateSectionValidators(): void {
@@ -228,6 +299,22 @@ export class DialogTemporaryCourseComponent {
 
     if (minControl && !minControl.dirty) {
       minControl.setValue(this.petitionDefaults[type] ?? 0);
+    }
+  }
+
+  private updateBridgingSelection(): void {
+    if (!this.isBridgingTypeSelected()) {
+      return;
+    }
+
+    const selectedCourseId = this.form.get('course_id')?.value;
+    const hasMatch = selectedCourseId
+      ? this.bridgingCourseByCourseId.has(selectedCourseId)
+      : false;
+
+    if (!hasMatch) {
+      const nextCourseId = this.availableCourses[0]?.course_id ?? null;
+      this.form.get('course_id')?.setValue(nextCourseId, { emitEvent: false });
     }
   }
 

@@ -12,6 +12,7 @@ import {
   Faculty,
   SubmittedPrefResponse,
   CourseCatalogItem,
+  BridgingCourseOption,
   TemporaryCourseOfferingPayload,
 } from '../../../models/scheduling.model';
 
@@ -112,6 +113,24 @@ export class SchedulingService {
     const params = new HttpParams().set('program_id', programId.toString());
     return this.http
       .get<CourseCatalogItem[]>(`${this.baseUrl}/program-courses`, { params })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Retrieves bridging courses for a curriculum/program/year level scope.
+   */
+  getBridgingCourses(
+    curriculumId: number,
+    programId: number,
+    yearLevel: number
+  ): Observable<BridgingCourseOption[]> {
+    const params = new HttpParams()
+      .set('curriculum_id', curriculumId.toString())
+      .set('program_id', programId.toString())
+      .set('year_level', yearLevel.toString());
+
+    return this.http
+      .get<BridgingCourseOption[]>(`${this.baseUrl}/bridging-courses`, { params })
       .pipe(catchError(this.handleError));
   }
 

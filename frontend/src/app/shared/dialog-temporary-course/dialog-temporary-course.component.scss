@@ -85,6 +85,21 @@ mat-dialog-content {
   }
 }
 
+.bridging-note {
+  font-size: var(--font-size-sm);
+  color: var(--secondary-text);
+  padding: var(--spacing-xxs) var(--spacing-xs);
+  background-color: var(--neutral-space);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--neutral-fade);
+
+  &.warning {
+    color: var(--error-color, #d32f2f);
+    background-color: rgba(211, 47, 47, 0.08);
+    border-color: rgba(211, 47, 47, 0.2);
+  }
+}
+
 .file-upload-section {
   margin-top: var(--spacing-xs);
 

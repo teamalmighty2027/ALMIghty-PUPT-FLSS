@@ -156,6 +156,20 @@ export interface CourseCatalogItem {
   tuition_hours: number;
 }
 
+export interface BridgingCourseOption {
+  bridging_course_id: number;
+  curriculum_id: number;
+  program_id: number;
+  year_level: number;
+  course_id: number;
+  course_code: string;
+  course_title: string;
+  lec_hours: number;
+  lab_hours: number;
+  units: number;
+  tuition_hours: number;
+}
+
 export interface TemporaryCourseOfferingPayload {
   course_id: number;
   academic_year_id: number;

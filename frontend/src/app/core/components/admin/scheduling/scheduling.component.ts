@@ -771,9 +771,19 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     this.isCreatingTemporaryCourse = true;
 
+    const curriculumId = this.selectedCurriculumId;
+    const bridgingCourses$ = curriculumId
+      ? this.schedulingService.getBridgingCourses(
+          curriculumId,
+          program.id,
+          this.selectedYear
+        )
+      : of([]);
+
     forkJoin({
       courses: this.schedulingService.getProgramCourses(program.id),
       schedules: this.schedulingService.populateSchedules(),
+      bridgingCourses: bridgingCourses$,
     })
       .pipe(
         finalize(() => {
@@ -781,7 +791,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: ({ courses, schedules }) => {
+        next: ({ courses, schedules, bridgingCourses }) => {
           this.activeAcademicYearId = schedules.academic_year_id;
           this.activeSemesterId = schedules.semester_id;
 
@@ -806,6 +816,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               sections: this.sectionOptions,
               defaultSectionId: section.section_id,
               courses: sortedCourses,
+              bridgingCourses,
             },
           });
 
