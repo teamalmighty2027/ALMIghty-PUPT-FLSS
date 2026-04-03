@@ -7,6 +7,7 @@ use App\Services\AuditLogger;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
@@ -34,11 +35,11 @@ class SyncPuptasProgramsJob implements ShouldQueue
 
     /**
      * The number of seconds to wait before retrying the job.
-     * Exponential backoff: 60s, 300s, 600s
+        * Exponential backoff: 120s, 600s
      *
      * @var array
      */
-    public $backoff = [60, 300, 600];
+        public $backoff = [120, 600];
 
     /**
      * Execute the job.
@@ -53,22 +54,62 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'base_url_set' => (bool) $baseUrl,
                 'api_key_set' => (bool) $apiKey,
             ]);
+            AuditLogger::log(
+                action: 'sync_failed',
+                description: 'PUPTAS sync failed: missing configuration',
+                model: 'Program',
+                modelId: null,
+                metadata: [
+                    'base_url_set' => (bool) $baseUrl,
+                    'api_key_set' => (bool) $apiKey,
+                ]
+            );
             $this->fail(new RuntimeException('PUPTAS configuration is missing.'));
             return;
         }
 
         $url = rtrim($baseUrl, '/') . '/api/v1/programs';
 
-        $response = Http::withToken($apiKey)
-            ->acceptJson()
-            ->timeout(30)
-            ->get($url);
+        try {
+            $response = Http::withToken($apiKey)
+                ->acceptJson()
+                ->timeout(30)
+                ->get($url);
+        } catch (ConnectionException $error) {
+            Log::error('PUPTAS sync connection error.', [
+                'message' => $error->getMessage(),
+            ]);
+            AuditLogger::log(
+                action: 'sync_failed',
+                description: 'PUPTAS sync failed: connection error',
+                model: 'Program',
+                modelId: null,
+                metadata: [
+                    'error' => $error->getMessage(),
+                ]
+            );
+            throw $error;
+        }
+
+        Log::info('PUPTAS sync response received.', [
+            'status' => $response->status(),
+        ]);
 
         if ($response->status() === 401) {
             Log::critical('PUPTAS sync unauthorized.', [
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
+            AuditLogger::log(
+                action: 'sync_failed',
+                description: 'PUPTAS sync failed: unauthorized',
+                model: 'Program',
+                modelId: null,
+                metadata: [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]
+            );
             $this->fail(new RuntimeException('PUPTAS API unauthorized.'));
             return;
         }
@@ -78,6 +119,16 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'status' => $response->status(),
                 'retry_after' => $response->header('Retry-After'),
             ]);
+            AuditLogger::log(
+                action: 'sync_failed',
+                description: 'PUPTAS sync failed: rate limited',
+                model: 'Program',
+                modelId: null,
+                metadata: [
+                    'status' => $response->status(),
+                    'retry_after' => $response->header('Retry-After'),
+                ]
+            );
             throw new RuntimeException('PUPTAS API rate limited.');
         }
 
@@ -86,6 +137,16 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
+            AuditLogger::log(
+                action: 'sync_failed',
+                description: 'PUPTAS sync failed: request error',
+                model: 'Program',
+                modelId: null,
+                metadata: [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]
+            );
             throw new RuntimeException('PUPTAS API request failed.');
         }
 
