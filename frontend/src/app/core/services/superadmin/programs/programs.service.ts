@@ -20,6 +20,7 @@ export interface Program {
   number_of_years: number;
   curricula: Curriculum[];
   curriculum_years?: string;
+  last_synced_at?: string | null;
 }
 
 export interface AddProgramRequest {
@@ -36,6 +37,11 @@ export interface UpdateProgramRequest {
   program_info: string;
   status: string;
   number_of_years: number;
+}
+
+export interface SyncProgramsResponse {
+  message: string;
+  queued_at: string;
 }
 
 @Injectable({
@@ -75,5 +81,10 @@ export class ProgramsService {
   ): Observable<{ message: string; success: boolean }> {
     const url = `${this.baseUrl}/deleteProgram/${program_id}`;
     return this.http.delete<{ message: string; success: boolean }>(url);
+  }
+
+  // Trigger manual PUPTAS sync
+  triggerManualSync(): Observable<SyncProgramsResponse> {
+    return this.http.post<SyncProgramsResponse>(`${this.baseUrl}/programs/sync`, {});
   }
 }
