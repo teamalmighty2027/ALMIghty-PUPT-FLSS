@@ -38,6 +38,20 @@
     @include mixins.hide-scrollbar;
   }
 
+  .bridging-section {
+    @include mixins.flex-layout($direction: column, $align: stretch, $justify: none);
+    border-radius: var(--border-radius-md);
+  }
+
+  .bridging-note {
+    padding: var(--spacing-md);
+    background-color: var(--neutral-space);
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-md);
+    color: var(--secondary-text);
+    font-size: var(--font-size-sm);
+  }
+
   .semester-container {
     @include mixins.flex-layout($direction: column, $align: none, $justify: none);
     @include mixins.hide-scrollbar;
