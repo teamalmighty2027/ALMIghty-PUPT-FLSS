@@ -562,7 +562,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
 
-    if (!program || !yearLevel) {
+    const programId = program?.program_id;
+
+    if (!program || !programId || !yearLevel) {
       this.bridgingCourses = [];
       return;
     }
@@ -572,7 +574,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService
       .getBridgingCourses(
         this.curriculum.curriculum_id,
-        program.program_id,
+        programId,
         yearLevel
       )
       .pipe(finalize(() => (this.isLoadingBridging = false)))
@@ -614,7 +616,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
 
-    if (!program || !yearLevel) {
+    const programId = program?.program_id;
+
+    if (!program || !programId || !yearLevel) {
       return;
     }
 
@@ -677,7 +681,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.curriculumService
         .addBridgingCourse({
           curriculum_id: this.curriculum!.curriculum_id,
-          program_id: program.program_id,
+            program_id: programId,
           year_level: yearLevel,
           course_id: Number(result.course_id),
         })
@@ -710,7 +714,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
 
-    if (!program || !yearLevel) {
+    const programId = program?.program_id;
+
+    if (!program || !programId || !yearLevel) {
       return;
     }
 
@@ -774,7 +780,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.curriculumService
         .updateBridgingCourse(bridgingCourse.bridging_course_id, {
           curriculum_id: this.curriculum!.curriculum_id,
-          program_id: program.program_id,
+            program_id: programId,
           year_level: yearLevel,
           course_id: Number(result.course_id),
         })

@@ -24,7 +24,9 @@ class CurriculumDetailsController extends Controller
             'programs' => $curriculaPrograms->map(function ($curriculaProgram) {
                 return [
                     'curricula_program_id' => $curriculaProgram->curricula_program_id,
+                    'program_id' => $curriculaProgram->program->program_id,
                     'name' => $curriculaProgram->program->program_code,
+                    'program_code' => $curriculaProgram->program->program_code,
                     'program_title' => $curriculaProgram->program->program_title, // Add program_title here
                     'number_of_years' => $curriculaProgram->program->number_of_years,
                     'year_levels' => $this->getYearLevels($curriculaProgram),
