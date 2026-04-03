@@ -4,6 +4,7 @@ use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuildingController;
+use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
@@ -84,6 +85,15 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::get('/admins/{admin}/permissions', [AccountController::class, 'getAdminPermissions']);
     Route::post('/admins/{admin}/permissions', [AccountController::class, 'updateAdminPermissions']);
     Route::get('/programs', [ProgramController::class, 'index']);
+
+    /*
+    |----------------------------------
+    | Bridging Courses Management Routes
+    |----------------------------------
+    */
+    Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
+    Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
+    Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
 });
 
 /*
@@ -130,6 +140,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addCourse', [CourseController::class, 'addCourse']);
     Route::put('/courses/{id}', [CourseController::class, 'updateCourse']);
     Route::delete('/courses/{id}', [CourseController::class, 'deleteCourse']);
+
+    /**
+     * Bridging Courses
+     */
+    Route::get('/bridging-courses', [BridgingCourseController::class, 'index']);
 
     /**
      * Curriculum & Curriculum Details

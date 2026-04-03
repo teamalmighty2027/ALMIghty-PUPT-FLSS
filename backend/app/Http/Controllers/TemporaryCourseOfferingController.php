@@ -239,7 +239,7 @@ class TemporaryCourseOfferingController extends Controller
 
         if (! array_key_exists('min_petitioners', $validated)) {
             $validated['min_petitioners'] = $offering->min_petitioners
-                ?? self::DEFAULT_MIN_PETITIONERS[$type];
+                ?: self::DEFAULT_MIN_PETITIONERS[$type];
         }
 
         if (! array_key_exists('petitioners_count', $validated)) {
