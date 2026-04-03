@@ -35,6 +35,7 @@ class ProgramController extends Controller
                 'number_of_years' => $program->number_of_years,
                 'curricula_version' => implode(', ', $curriculumYears), // Comma-separated list of curriculum years
                 'status' => $program->status,
+                'last_synced_at' => $program->last_synced_at,
                 'created_at' => $program->created_at,
                 'updated_at' => $program->updated_at,
                 'curricula' => $sortedCurricula->values()->all(), // Return the sorted curricula

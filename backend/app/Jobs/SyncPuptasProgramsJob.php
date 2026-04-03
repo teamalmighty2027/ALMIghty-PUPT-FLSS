@@ -35,11 +35,11 @@ class SyncPuptasProgramsJob implements ShouldQueue
 
     /**
      * The number of seconds to wait before retrying the job.
-        * Exponential backoff: 120s, 600s
+      * Exponential backoff: 120s, 600s
      *
      * @var array
      */
-        public $backoff = [120, 600];
+     public $backoff = [120, 600];
 
     /**
      * Execute the job.
@@ -55,7 +55,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'api_key_set' => (bool) $apiKey,
             ]);
             AuditLogger::log(
-                action: 'sync_failed',
+                action: 'update',
                 description: 'PUPTAS sync failed: missing configuration',
                 model: 'Program',
                 modelId: null,
@@ -80,7 +80,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'message' => $error->getMessage(),
             ]);
             AuditLogger::log(
-                action: 'sync_failed',
+                action: 'update',
                 description: 'PUPTAS sync failed: connection error',
                 model: 'Program',
                 modelId: null,
@@ -101,7 +101,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'body' => $response->json(),
             ]);
             AuditLogger::log(
-                action: 'sync_failed',
+                action: 'update',
                 description: 'PUPTAS sync failed: unauthorized',
                 model: 'Program',
                 modelId: null,
@@ -120,7 +120,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'retry_after' => $response->header('Retry-After'),
             ]);
             AuditLogger::log(
-                action: 'sync_failed',
+                action: 'update',
                 description: 'PUPTAS sync failed: rate limited',
                 model: 'Program',
                 modelId: null,
@@ -138,7 +138,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
                 'body' => $response->json(),
             ]);
             AuditLogger::log(
-                action: 'sync_failed',
+                action: 'update',
                 description: 'PUPTAS sync failed: request error',
                 model: 'Program',
                 modelId: null,
@@ -170,24 +170,56 @@ class SyncPuptasProgramsJob implements ShouldQueue
             &$skippedCount
         ) {
             foreach ($programs as $programData) {
-                $code = trim((string) ($programData['program_code'] ?? $programData['code'] ?? ''));
+                $rawCode = trim((string) ($programData['program_code'] ?? $programData['code'] ?? ''));
 
-                if ($code === '') {
+                if ($rawCode === '') {
                     $skippedCount++;
                     continue;
                 }
 
-                $seenCodes[] = $code;
+                $normalizedCode = $this->normalizeProgramCode($rawCode);
 
-                $existing = Program::where('program_code', $code)->first();
+                if ($normalizedCode !== $rawCode) {
+                    Log::info('PUPTAS program_code truncated.', [
+                        'original_code' => $rawCode,
+                        'truncated_code' => $normalizedCode,
+                    ]);
+                }
 
-                $programTitle = $programData['program_title'] ?? $programData['title'] ?? $existing?->program_title ?? $code;
-                $programInfo = $programData['program_info'] ?? $programData['info'] ?? $existing?->program_info ?? $programTitle;
-                $numberOfYears = $programData['number_of_years'] ?? $programData['years'] ?? $existing?->number_of_years ?? 1;
+                $incomingTitle = trim((string) ($programData['program_title']
+                    ?? $programData['program_name']
+                    ?? $programData['name']
+                    ?? $programData['title']
+                    ?? ''));
+                $programInfo = $programData['program_info'] ?? $programData['info'] ?? null;
+                $numberOfYears = $programData['number_of_years'] ?? $programData['years'] ?? 1;
+
+                $existing = Program::where('program_code', $normalizedCode)->first();
+
+                if (! $existing && $incomingTitle !== '') {
+                    $existing = Program::whereRaw('LOWER(program_title) LIKE ?', [
+                        '%' . strtolower($incomingTitle) . '%',
+                    ])->first();
+
+                    if ($existing) {
+                        Log::info('PUPTAS title-based match used.', [
+                            'incoming_title' => $incomingTitle,
+                            'matched_program_id' => $existing->program_id,
+                            'matched_program_code' => $existing->program_code,
+                            'incoming_code' => $rawCode,
+                            'normalized_code' => $normalizedCode,
+                        ]);
+                    }
+                }
+
+                $programTitle = $incomingTitle !== '' ? $incomingTitle : ($existing?->program_title ?? $normalizedCode);
+                $programInfo = $programInfo ?? $existing?->program_info ?? $programTitle;
+                $numberOfYears = $numberOfYears ?: ($existing?->number_of_years ?? 1);
 
                 if ($existing) {
+                    $seenCodes[] = $existing->program_code;
                     $existing->update([
-                        'program_title' => $programTitle,
+                        'program_title' => $incomingTitle !== '' ? $programTitle : $existing->program_title,
                         'program_info' => $programInfo,
                         'number_of_years' => $numberOfYears,
                         'status' => 'Active',
@@ -197,8 +229,9 @@ class SyncPuptasProgramsJob implements ShouldQueue
                     continue;
                 }
 
+                $seenCodes[] = $normalizedCode;
                 Program::create([
-                    'program_code' => $code,
+                    'program_code' => $normalizedCode,
                     'program_title' => $programTitle,
                     'program_info' => $programInfo,
                     'number_of_years' => $numberOfYears,
@@ -219,7 +252,7 @@ class SyncPuptasProgramsJob implements ShouldQueue
         });
 
         AuditLogger::log(
-            action: 'sync',
+            action: 'update',
             description: 'Synced programs from PUPTAS',
             model: 'Program',
             modelId: null,
@@ -261,5 +294,16 @@ class SyncPuptasProgramsJob implements ShouldQueue
         }
 
         return [];
+    }
+
+    private function normalizeProgramCode(string $code): string
+    {
+        $trimmed = trim($code);
+
+        if (strlen($trimmed) <= 10) {
+            return $trimmed;
+        }
+
+        return substr($trimmed, 0, 10);
     }
 }
