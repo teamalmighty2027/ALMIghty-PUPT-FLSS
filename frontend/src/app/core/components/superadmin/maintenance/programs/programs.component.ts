@@ -248,6 +248,10 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   // CRU Operations
   // ======================
 
+  /**
+   * This method is no longer used in the UI, but is kept here for reference
+   * (Deprecated)
+   */
   openAddProgramDialog() {
     const config = this.getDialogConfig();
     const dialogRef = this.dialog.open(TableDialogComponent, {

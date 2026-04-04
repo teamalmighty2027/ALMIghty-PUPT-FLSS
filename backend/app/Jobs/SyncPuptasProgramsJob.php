@@ -10,12 +10,14 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
+use \Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-class SyncPuptasProgramsJob implements ShouldQueue
+class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -42,9 +44,56 @@ class SyncPuptasProgramsJob implements ShouldQueue
      public $backoff = [120, 600];
 
     /**
+     * Get the unique ID for the job.
+     * Ensures only one PUPTAS sync job can run at a time.
+     *
+     * @return string
+     */
+    public function uniqueId(): string
+    {
+        return static::class;
+    }
+
+    /**
+     * The number of seconds the unique job lock should be held.
+     * Set to 1 hour to prevent duplicate runs within this window.
+     *
+     * @var int
+     */
+    public $uniqueFor = 3600;
+
+    /**
      * Execute the job.
      */
     public function handle(): void
+    {
+        // Use a cache lock to prevent concurrent execution at runtime
+        $lockKey = 'puptas_sync_lock';
+        $lockTimeout = 3600; // 1 hour
+
+        if (! Cache::lock($lockKey, $lockTimeout)->get()) {
+            Log::warning('PUPTAS sync already in progress, skipping this run.');
+            AuditLogger::log(
+                action: 'update',
+                description: 'PUPTAS sync skipped: another sync already in progress',
+                model: 'Program',
+                modelId: null,
+                metadata: []
+            );
+            return;
+        }
+
+        try {
+            $this->executeSyncWithLock();
+        } finally {
+            Cache::lock($lockKey)->forceRelease();
+        }
+    }
+
+    /**
+     * Execute the actual sync logic.
+     */
+    private function executeSyncWithLock(): void
     {
         $baseUrl = config('services.puptas.base_url');
         $apiKey = config('services.puptas.api_key');
@@ -153,6 +202,35 @@ class SyncPuptasProgramsJob implements ShouldQueue
         $payload = $response->json();
         $programs = $this->extractPrograms($payload);
 
+        // Guard against empty program list: only proceed if we can confirm it's intentional
+        if (empty($programs)) {
+            $hasConfirmation = isset($payload['total_count']) && $payload['total_count'] === 0;
+
+            if (! $hasConfirmation) {
+                Log::critical('PUPTAS sync aborted: extracted program list is empty without confirmation.', [
+                    'payload_keys' => array_keys($payload),
+                    'total_count' => $payload['total_count'] ?? null,
+                ]);
+                AuditLogger::log(
+                    action: 'update',
+                    description: 'PUPTAS sync failed: empty program list without confirmation',
+                    model: 'Program',
+                    modelId: null,
+                    metadata: [
+                        'payload_keys' => array_keys($payload),
+                        'total_count' => $payload['total_count'] ?? null,
+                        'error' => 'Cannot confirm if zero programs is intentional or API failure',
+                    ]
+                );
+                $this->fail(new RuntimeException('PUPTAS API returned empty program list. Aborting to prevent mass deactivation.'));
+                return;
+            }
+
+            Log::info('PUPTAS sync confirmed zero programs from API.', [
+                'total_count' => $payload['total_count'],
+            ]);
+        }
+
         $now = now();
         $seenCodes = [];
         $createdCount = 0;
@@ -244,9 +322,6 @@ class SyncPuptasProgramsJob implements ShouldQueue
             if (count($seenCodes) > 0) {
                 $deactivatedCount = Program::whereNotIn('program_code', $seenCodes)
                     ->where('status', '!=', 'Inactive')
-                    ->update(['status' => 'Inactive']);
-            } else {
-                $deactivatedCount = Program::where('status', '!=', 'Inactive')
                     ->update(['status' => 'Inactive']);
             }
         });
