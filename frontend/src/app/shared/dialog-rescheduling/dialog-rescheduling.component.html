@@ -1,0 +1,75 @@
+<div class="dialog-content-wrapper">
+  <div class="modal-header">
+    <h2 class="modal-title">Review Appeal</h2>
+    <button class="modal-close-btn" (click)="onCancel()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="modal-scrollable-content">
+    <div class="modal-top">
+      <div class="schedule-summary">
+        <div class="section-label">CURRENT SCHEDULE</div>
+        <div class="current-schedule-grid">
+          <div class="info-row"><span class="label">Course:</span> <span class="value">{{ data.appeal.programCode }} - {{ data.appeal.courseTitle }}</span></div>
+          <div class="info-row"><span class="label">Faculty:</span> <span class="value">{{ data.appeal.facultyName }}</span></div>
+          <div class="info-row"><span class="label">Time:</span> <span class="value">{{ data.appeal.originalDay }} | {{ data.appeal.originalStartTime }} – {{ data.appeal.originalEndTime }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-left">
+        <div class="schedule-summary requested-schedule">
+          <div class="section-label">REQUESTED SCHEDULE</div>
+          <p><strong>Day:</strong> {{ data.appeal.preferredDay || '—' }}</p>
+          <p><strong>Time:</strong> {{ data.appeal.preferredStartTime }} – {{ data.appeal.preferredEndTime }}</p>
+        </div>
+        <div class="reason-section">
+          <div class="section-label">REASON</div>
+          <p class="reason-text">{{ data.appeal.reasoning || 'No reason provided.' }}</p>
+        </div>
+      </div>
+
+      <div class="modal-right">
+        <div class="edit-mode-section">
+          <div class="section-label">ADJUSTMENTS</div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Day</mat-label>
+            <mat-select [(ngModel)]="data.appeal.preferredDay">
+              <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{ day }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <div class="time-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Start</mat-label>
+              <mat-select [(ngModel)]="data.appeal.preferredStartTime">
+                <mat-option *ngFor="let t of data.timeOptions" [value]="t">{{t}}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>End</mat-label>
+              <mat-select [(ngModel)]="data.appeal.preferredEndTime">
+                <mat-option *ngFor="let t of data.timeOptions" [value]="t">{{t}}</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-remarks-section">
+      <div class="section-label">ADMIN REMARKS</div>
+      <mat-form-field appearance="outline" class="full-width">
+        <textarea matInput [(ngModel)]="adminRemarks" rows="3"></textarea>
+      </mat-form-field>
+    </div>
+  </div>
+
+  <div class="modal-footer">
+    <button mat-button (click)="clearAll()">Clear</button>
+    <button mat-button (click)="onCancel()">Cancel</button>
+    <button mat-flat-button color="warn" (click)="onAction('Deny')">Deny</button>
+    <button mat-flat-button color="primary" (click)="onAction('Approve')">Approve</button>
+  </div>
+</div>
