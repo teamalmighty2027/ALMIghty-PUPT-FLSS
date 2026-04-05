@@ -36,4 +36,19 @@ return [
         'api_key' => env('PUPTAS_API_KEY'),
     ],
 
+    'idp' => [
+        'base_url' => env('IDP_BASE_URL'),
+        'client_id' => env('CLIENT_ID'),
+        'client_secret' => env('CLIENT_SECRET'),
+    ],
+
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+    ],
+
+    'app' => [
+        'env' => env('APP_ENV'),
+        'url' => env('APP_URL'),
+    ],
+
 ];
