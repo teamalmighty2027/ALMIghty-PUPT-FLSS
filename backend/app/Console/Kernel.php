@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Console\Commands\DeployBackend;
+use App\Jobs\SyncPuptasProgramsJob;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -23,6 +24,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('preferences:check-deadline')
         // ->everyMinute()
             ->dailyAt('00:01')
+            ->timezone('Asia/Manila');
+
+        $schedule->job(new SyncPuptasProgramsJob())
+            ->dailyAt('02:00')
             ->timezone('Asia/Manila');
     }
 

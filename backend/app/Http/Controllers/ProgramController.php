@@ -7,6 +7,8 @@ use App\Models\Program;
 use App\Models\Curriculum;
 use App\Models\ProgramYearLevelCurricula;
 use App\Services\AuditLogger;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ProgramController extends Controller
 {
@@ -33,6 +35,7 @@ class ProgramController extends Controller
                 'number_of_years' => $program->number_of_years,
                 'curricula_version' => implode(', ', $curriculumYears), // Comma-separated list of curriculum years
                 'status' => $program->status,
+                'last_synced_at' => $program->last_synced_at,
                 'created_at' => $program->created_at,
                 'updated_at' => $program->updated_at,
                 'curricula' => $sortedCurricula->values()->all(), // Return the sorted curricula
@@ -54,6 +57,12 @@ class ProgramController extends Controller
             'status' => 'required|in:Active,Inactive',
             'number_of_years' => 'required|integer|min:1',
         ]);
+
+        if ($this->puptasProgramExists($validatedData['program_code'])) {
+            return response()->json([
+                'message' => 'This program is synced from PUPTAS. Use the manual sync to ensure it is current.'
+            ], 422);
+        }
     
         // Check for uniqueness
         $existingProgram = Program::where('program_code', $validatedData['program_code'])
@@ -216,6 +225,67 @@ class ProgramController extends Controller
         $programs = $curriculum->programs;
 
         return response()->json($programs);
+    }
+
+    private function puptasProgramExists(string $programCode): bool
+    {
+        $baseUrl = config('services.puptas.base_url');
+        $apiKey = config('services.puptas.api_key');
+
+        if (! $baseUrl || ! $apiKey) {
+            Log::warning('PUPTAS check skipped: missing configuration.');
+            return false;
+        }
+
+        $url = rtrim($baseUrl, '/') . '/api/v1/programs';
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->acceptJson()
+                ->timeout(15)
+                ->get($url);
+
+            if (! $response->successful()) {
+                Log::warning('PUPTAS check failed.', [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]);
+                return false;
+            }
+
+            $payload = $response->json();
+            $programs = $this->extractPuptasPrograms($payload);
+
+            foreach ($programs as $program) {
+                $code = trim((string) ($program['program_code'] ?? $program['code'] ?? ''));
+                if ($code !== '' && strcasecmp($code, $programCode) === 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable $error) {
+            Log::warning('PUPTAS check error.', [
+                'message' => $error->getMessage(),
+            ]);
+        }
+
+        return false;
+    }
+
+    private function extractPuptasPrograms($payload): array
+    {
+        if (is_array($payload) && array_is_list($payload)) {
+            return $payload;
+        }
+
+        if (is_array($payload)) {
+            foreach (['programs', 'data', 'items'] as $key) {
+                if (isset($payload[$key]) && is_array($payload[$key])) {
+                    return $payload[$key];
+                }
+            }
+        }
+
+        return [];
     }
 
 }

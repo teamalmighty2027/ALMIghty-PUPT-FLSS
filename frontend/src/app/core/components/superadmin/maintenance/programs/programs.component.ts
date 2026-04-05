@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 
 import { Subject, BehaviorSubject, EMPTY } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, catchError, map, finalize, take } from 'rxjs/operators';
@@ -27,6 +28,7 @@ import 'jspdf-autotable';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    MatButtonModule,
     TableGenericComponent,
     TableHeaderComponent,
     LoadingComponent,
@@ -40,6 +42,9 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   programStatuses = ['Active', 'Inactive'];
   programYears = [1, 2, 3, 4, 5];
   isLoading = true;
+  isSyncing = false;
+  lastSyncTime: Date | null = null;
+  private hasShownRecentSyncToast = false;
 
   private destroy$ = new Subject<void>();
   private allPrograms: Program[] = [];
@@ -113,6 +118,8 @@ export class ProgramsComponent implements OnInit, OnDestroy {
       .subscribe((formattedPrograms: Program[]) => {
         this.allPrograms = formattedPrograms;
         this.programsSubject.next(this.allPrograms);
+        this.updateLastSyncTime(this.allPrograms);
+        this.maybeShowRecentSyncToast();
       });
   }
 
@@ -141,6 +148,46 @@ export class ProgramsComponent implements OnInit, OnDestroy {
         .map((c) => c.curriculum_year)
         .join(', '),
     }));
+  }
+
+  get lastSyncLabel(): string {
+    if (!this.lastSyncTime) {
+      return 'Never';
+    }
+
+    return this.lastSyncTime.toLocaleString();
+  }
+
+  triggerManualSync() {
+    if (this.isSyncing) {
+      return;
+    }
+
+    this.isSyncing = true;
+    this.programService
+      .triggerManualSync()
+      .pipe(
+        take(1),
+        catchError(() => {
+          this.snackBar.open('Failed to queue program sync.', 'Close', {
+            duration: 3000,
+          });
+          return EMPTY;
+        }),
+        finalize(() => {
+          this.isSyncing = false;
+          this.cdr.markForCheck();
+        }),
+      )
+      .subscribe((response) => {
+        if (!response) {
+          return;
+        }
+
+        this.snackBar.open(response.message, 'Close', {
+          duration: 3000,
+        });
+      });
   }
 
   onInputChange(values: { [key: string]: any }) {
@@ -201,6 +248,10 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   // CRU Operations
   // ======================
 
+  /**
+   * This method is no longer used in the UI, but is kept here for reference
+   * (Deprecated)
+   */
   openAddProgramDialog() {
     const config = this.getDialogConfig();
     const dialogRef = this.dialog.open(TableDialogComponent, {
@@ -413,5 +464,38 @@ export class ProgramsComponent implements OnInit, OnDestroy {
         generateFileNameFunction: () => 'pup_taguig_programs_offered.pdf',
       },
     });
+  }
+
+  private updateLastSyncTime(programs: Program[]): void {
+    const timestamps = programs
+      .map((program) => program.last_synced_at)
+      .filter((value): value is string => !!value)
+      .map((value) => new Date(value))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .map((date) => date.getTime());
+
+    if (timestamps.length === 0) {
+      this.lastSyncTime = null;
+      return;
+    }
+
+    this.lastSyncTime = new Date(Math.max(...timestamps));
+  }
+
+  private maybeShowRecentSyncToast(): void {
+    if (this.hasShownRecentSyncToast || !this.lastSyncTime) {
+      return;
+    }
+
+    const hoursSinceSync = (Date.now() - this.lastSyncTime.getTime()) / (1000 * 60 * 60);
+
+    if (hoursSinceSync <= 24) {
+      const hoursLabel = hoursSinceSync < 1 ? 'less than an hour' : `${Math.round(hoursSinceSync)} hour(s)`;
+      this.snackBar.open(`Programs synced from PUPTAS ${hoursLabel} ago.`, 'Close', {
+        duration: 4000,
+      });
+    }
+
+    this.hasShownRecentSyncToast = true;
   }
 }

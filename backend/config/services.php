@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'puptas' => [
+        'base_url' => env('PUPTAS_BASE_URL'),
+        'api_key' => env('PUPTAS_API_KEY'),
+    ],
+
 ];
