@@ -206,6 +206,7 @@ export class LogosComponent implements OnInit {
         action: 'delete',
       },
       panelClass: 'dialog-base',
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

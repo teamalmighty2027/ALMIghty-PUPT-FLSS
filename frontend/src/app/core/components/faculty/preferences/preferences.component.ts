@@ -732,6 +732,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       data: { 
         sections: targetYear.sections
       },
+      autoFocus: true,
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -765,7 +766,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           allSelectedCourses: this.allSelectedCourses(),
         },
         disableClose: true,
-        autoFocus: false,
+        autoFocus: true,
       })
       .afterClosed()
       .subscribe((result) => {
@@ -805,6 +806,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         isViewHistory: true,
       },
       disableClose: true,
+      autoFocus: true,
     });
   }
 

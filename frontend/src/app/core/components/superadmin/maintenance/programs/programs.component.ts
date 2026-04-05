@@ -257,6 +257,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef
@@ -295,6 +296,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef
@@ -454,6 +456,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'Programs',

@@ -164,6 +164,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
   openAddBuildingDialog() {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -194,6 +195,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
   openEditBuildingDialog(building: Building) {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(building),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -321,6 +323,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'Buildings',

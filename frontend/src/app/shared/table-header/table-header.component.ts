@@ -113,6 +113,7 @@ export class TableHeaderComponent implements OnInit, OnChanges {
           customExportOptions: this.customExportOptions,
         },
         disableClose: true,
+        autoFocus: true,
       });
 
       dialogRef.afterClosed().subscribe((result) => {

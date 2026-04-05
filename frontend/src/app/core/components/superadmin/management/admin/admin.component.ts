@@ -242,6 +242,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         const dialogRef = this.dialog.open(TableDialogComponent, {
           data: config,
           disableClose: true,
+          autoFocus: true,
         });
 
         dialogRef.afterClosed().subscribe((result) => {
@@ -298,6 +299,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -315,6 +317,7 @@ export class AdminComponent implements OnInit, OnDestroy {
       },
       width: '600px',
       disableClose: false,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

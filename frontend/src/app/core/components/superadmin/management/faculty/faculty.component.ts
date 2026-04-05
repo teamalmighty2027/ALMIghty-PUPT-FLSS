@@ -351,6 +351,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
+      autoFocus: true,
     });
 
     this.handleFacultyTypeConfig(dialogRef);
@@ -394,6 +395,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
+      autoFocus: true,
     });
 
     this.handleFacultyTypeConfig(dialogRef);

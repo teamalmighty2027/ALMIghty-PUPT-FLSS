@@ -110,7 +110,7 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openScheduleHistory(): void {
     this.dialog.open(DialogScheduleHistoryComponent, {
-      maxWidth: '90vw', width: '100%', disableClose: true, autoFocus: false,
+      maxWidth: '90vw', width: '100%', disableClose: true, autoFocus: true,
     });
   }
 
@@ -129,6 +129,7 @@ export class LoadAndScheduleComponent implements OnInit {
 
     const dialogRef = this.dialog.open(DialogAppealScheduleComponent, {
       width: '520px', maxWidth: '95vw', maxHeight: '90vh', disableClose: true,
+      autoFocus: true,
       data: {
         isEditMode: true,
         facultyName: this.facultySchedule?.faculty_name ?? '',
@@ -161,6 +162,7 @@ export class LoadAndScheduleComponent implements OnInit {
   openMyAppealsDialog(block: any): void {
     this.dialog.open(DialogMyAppealsComponent, {
       width: '620px', maxWidth: '95vw', maxHeight: '90vh', disableClose: true,
+      autoFocus: true,
       data: { scheduleId: block.schedule_id },
     });
   }
