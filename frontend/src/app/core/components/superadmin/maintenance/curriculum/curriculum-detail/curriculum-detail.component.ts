@@ -733,7 +733,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
       disableClose: true,
-      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -860,7 +859,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         const dialogRef = this.dialog.open(TableDialogComponent, {
           data: dialogConfig,
           disableClose: true,
-          autoFocus: true,
         });
 
         dialogRef.afterClosed().subscribe((result) => {
