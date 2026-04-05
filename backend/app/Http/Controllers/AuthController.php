@@ -327,7 +327,7 @@ class AuthController extends Controller
     public function logoutIdpProxy(Request $request)
     {
         $baseUrl = config('services.idp.base_url');
-        $clientId = $request->input('client_id')
+        $clientId = config('services.idp.client_id')
             ?? $request->query('client_id')
             ?? config('services.idp.client_id');
         $logoutPath = '/api/v1/auth/logout';
@@ -339,12 +339,19 @@ class AuthController extends Controller
         }
 
         try {
+            $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
+            
             $response = Http::withoutVerifying()->asJson()->post(
-                rtrim($baseUrl, '/') . '/api/v1/auth/logout',
+                $logoutUrl,
                 ['client_id' => $clientId]
             );
 
             if (! $response->successful()) {
+                Log::warning('IDP logout proxy failed with status ' . 
+                  $response->status() . 
+                  ': ' . 
+                  $response->body()
+                );
                 return response()->json([
                     'message' => 'IDP logout failed.',
                     'status' => $response->status(),
