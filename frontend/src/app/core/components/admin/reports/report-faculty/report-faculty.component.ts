@@ -296,6 +296,7 @@ AfterViewChecked, OnDestroy {
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'single',
         entity: 'faculty',
@@ -327,6 +328,7 @@ AfterViewChecked, OnDestroy {
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'faculty',
@@ -385,6 +387,7 @@ AfterViewChecked, OnDestroy {
         sendEmail: this.sendEmail,
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -424,6 +427,7 @@ AfterViewChecked, OnDestroy {
         semester: element.semester,
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

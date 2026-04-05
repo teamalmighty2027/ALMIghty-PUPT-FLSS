@@ -84,7 +84,8 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadFacultyInfo();
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
-        disableClose: true
+        disableClose: true,
+        autoFocus: true,
       });
     }
   }
@@ -273,6 +274,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       data: dialogConfig,
       disableClose: true,
       panelClass: 'dialog-base',
+      autoFocus: true,
     });
 
     confirmDialogRef.afterClosed().subscribe((result) => {
@@ -286,6 +288,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         const loadingDialogRef = this.dialog.open(DialogGenericComponent, {
           data: loadingDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
 
         this.authService.logout().subscribe({
@@ -331,6 +334,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -345,6 +349,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
       }
     });

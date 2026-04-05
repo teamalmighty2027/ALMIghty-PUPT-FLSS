@@ -50,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
  */
 Route::prefix('auth')->group(function () {
     Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
-    Route::delete('/session', [AuthController::class, 'logoutIdpProxy']);
+    Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
 });
 
 

@@ -150,6 +150,7 @@ export class RoomTypesComponent implements OnInit, OnDestroy {
   openAddRoomTypeDialog() {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -186,6 +187,7 @@ export class RoomTypesComponent implements OnInit, OnDestroy {
   openEditRoomTypeDialog(roomType: RoomType) {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(roomType),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

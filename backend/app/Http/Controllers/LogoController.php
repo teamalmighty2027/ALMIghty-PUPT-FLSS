@@ -179,8 +179,8 @@ class LogoController extends Controller
 
     private function addUrlToLogo(array $logo): array
     {
-        $logo['url'] = env('APP_ENV') === 'production'
-        ? env('APP_URL') . '/logos/' . $logo['file_path']
+        $logo['url'] = config('services.app.env') === 'production'
+        ? config('services.app.url') . '/logos/' . $logo['file_path']
         : asset('logos/' . $logo['file_path']);
 
         return $logo;

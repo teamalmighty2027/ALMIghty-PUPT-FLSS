@@ -289,6 +289,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       width: '90vw',
       maxWidth: '1200px',
       disableClose: true,
+      autoFocus: true,
       data: {
         exportType: 'single', 
         customTitle: `${facultyName} Schedule`,

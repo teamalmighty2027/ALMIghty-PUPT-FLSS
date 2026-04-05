@@ -138,6 +138,7 @@ export class CallbackComponent implements OnInit, OnDestroy {
   private showAccessDeniedDialog() {
     const dialogRef = this.dialog.open(AccessDeniedDialogComponent, {
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

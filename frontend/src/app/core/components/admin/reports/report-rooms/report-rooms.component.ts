@@ -270,6 +270,7 @@ export class ReportRoomsComponent
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'single',
         entity: 'room',
@@ -292,6 +293,7 @@ export class ReportRoomsComponent
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'room',

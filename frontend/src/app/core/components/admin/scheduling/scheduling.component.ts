@@ -510,6 +510,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   openInfoDialog(): void {
     const dialogRef = this.dialog.open(DialogInfoComponent, {
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -580,6 +581,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               },
             },
             disableClose: true,
+            autoFocus: true,
           });
 
           dialogRef.componentInstance.form
@@ -810,6 +812,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             maxWidth: '45rem',
             width: '100%',
             disableClose: true,
+            autoFocus: true,
             data: {
               programLabel: program.display,
               yearLevel: this.selectedYear,
@@ -990,6 +993,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           maxWidth: '50rem',
           width: '100%',
           disableClose: true,
+          autoFocus: true,
           data: {
             program: {
               id: program?.id || 0,
@@ -1067,6 +1071,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         action: 'archive',
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -1168,6 +1173,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         action: 'remove',
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

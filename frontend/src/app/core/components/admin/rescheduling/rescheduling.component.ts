@@ -345,6 +345,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         showViewToggle: false,
       },
       disableClose: true,
+      autoFocus: true,
     });
   }
 
@@ -367,6 +368,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         previewMode: true,
       },
       disableClose: true,
+      autoFocus: true,
     });
   }
 
@@ -704,7 +706,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dialog.open(this.viewDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
-      panelClass: 'custom-dialog-container'
+      panelClass: 'custom-dialog-container',
+      autoFocus: true,
     });
   }
 
@@ -727,7 +730,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dialog.open(this.appealDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
-      panelClass: 'custom-dialog-container'
+      panelClass: 'custom-dialog-container',
+      autoFocus: true,
     });
   }
 

@@ -87,7 +87,8 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
-        disableClose: true
+        disableClose: true,
+        autoFocus: true,
       });
     }
 
@@ -193,6 +194,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
         cancelText: 'Cancel',
         action: 'Log Out',
       },
+      autoFocus: true,
       disableClose: true,
       panelClass: 'dialog-base',
     });
@@ -230,6 +232,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   public openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -244,6 +247,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
       }
     });

@@ -318,7 +318,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
       disableClose: true,
-      autoFocus: false,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
