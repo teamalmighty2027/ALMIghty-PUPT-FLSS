@@ -812,6 +812,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             maxWidth: '45rem',
             width: '100%',
             disableClose: true,
+            autoFocus: true,
             data: {
               programLabel: program.display,
               yearLevel: this.selectedYear,
@@ -1070,6 +1071,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         action: 'archive',
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
