@@ -30,7 +30,8 @@ interface DialogData {
   courseTitle: string;
   facultyId: string;
   activeSemesterId: number;
-  courseAssignmentId: number;
+  courseAssignmentId?: number | null;
+  temporaryCourseOfferingId?: number | null;
   section_id: number;
   allSelectedCourses: any[];
 }
@@ -313,10 +314,26 @@ export class DialogDayTimeComponent implements OnInit {
     const preferenceData: any = {
       faculty_id: parseInt(this.data.facultyId),
       active_semester_id: this.data.activeSemesterId,
-      course_assignment_id: this.data.courseAssignmentId,
       sections_per_program_year_id: this.data.section_id,
       preferred_days: selectedDays,
     };
+
+    const temporaryCourseOfferingId = this.data.temporaryCourseOfferingId;
+    const courseAssignmentId = this.data.courseAssignmentId;
+
+    if (temporaryCourseOfferingId != null) {
+      preferenceData.temporary_course_offering_id = temporaryCourseOfferingId;
+    } else if (courseAssignmentId != null) {
+      preferenceData.course_assignment_id = courseAssignmentId;
+    } else {
+      this.snackBar.open(
+        'Unable to submit preference: missing course identifiers.', 
+        'Close',
+        { duration: 5000,}
+      );
+      this.isSaving = false;
+      return;
+    }
 
     // Include "any" flags if modifiers are enabled
     if (this.anyDayMode) {

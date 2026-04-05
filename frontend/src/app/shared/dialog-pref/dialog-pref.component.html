@@ -143,7 +143,16 @@
               Course Title
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
-              {{ element.course_title }}
+              <div class="course-title-cell">
+                <span>{{ element.course_title }}</span>
+                @if (element.is_temporary) {
+                <span
+                  class="temp-pill"
+                  [attr.title]="getTemporaryTooltip(element)">
+                  {{ getTemporaryBadgeText(element) }}
+                </span>
+                }
+              </div>
             </td>
           </ng-container>
 

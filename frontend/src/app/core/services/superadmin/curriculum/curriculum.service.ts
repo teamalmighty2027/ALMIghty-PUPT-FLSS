@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { environment } from '../../../../../environments/environment.dev';
 
@@ -22,6 +22,15 @@ export interface CourseRequirement {
   course_id: number;
   course_code: string;
   course_title: string;
+}
+
+export interface CourseRequirementLink {
+  requirement_type: 'pre' | 'co';
+  required_course_id: number;
+}
+
+export interface CourseWithRequirements extends Course {
+  requirements?: CourseRequirementLink[];
 }
 
 export interface Semester {
@@ -52,6 +61,20 @@ export interface Curriculum {
   curriculum_year: string;
   status: string;
   programs: Program[];
+}
+
+export interface BridgingCourse {
+  bridging_course_id: number;
+  curriculum_id: number;
+  program_id: number;
+  year_level: number;
+  course_id: number;
+  course_code: string;
+  course_title: string;
+  lec_hours: number;
+  lab_hours: number;
+  units: number;
+  tuition_hours: number;
 }
 
 @Injectable({
@@ -162,6 +185,57 @@ export class CurriculumService {
   //Add course
   addCourse(courseData: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/addCourse`, courseData);
+  }
+
+  // Fetch all courses with requirement links
+  getAllCourses(): Observable<CourseWithRequirements[]> {
+    return this.http.get<CourseWithRequirements[]>(`${this.baseUrl}/courses`);
+  }
+
+  // For Bridging Courses
+  getBridgingCourses(
+    curriculumId: number,
+    programId: number,
+    yearLevel: number
+  ): Observable<BridgingCourse[]> {
+    const params = new HttpParams()
+      .set('curriculum_id', curriculumId.toString())
+      .set('program_id', programId.toString())
+      .set('year_level', yearLevel.toString());
+
+    return this.http.get<BridgingCourse[]>(`${this.baseUrl}/bridging-courses`, {
+      params,
+    });
+  }
+
+  addBridgingCourse(payload: {
+    curriculum_id: number;
+    program_id: number;
+    year_level: number;
+    course_id: number;
+  }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/bridging-courses`, payload);
+  }
+
+  updateBridgingCourse(
+    bridgingCourseId: number,
+    payload: {
+      curriculum_id: number;
+      program_id: number;
+      year_level: number;
+      course_id: number;
+    }
+  ): Observable<any> {
+    return this.http.put(
+      `${this.baseUrl}/bridging-courses/${bridgingCourseId}`,
+      payload
+    );
+  }
+
+  deleteBridgingCourse(bridgingCourseId: number): Observable<any> {
+    return this.http.delete(
+      `${this.baseUrl}/bridging-courses/${bridgingCourseId}`
+    );
   }
 
   // Update course

@@ -92,6 +92,15 @@
         .course-code-wrapper {
           @include mixins.flex-layout($gap: var(--spacing-xs));
 
+          .temporary-badge {
+            background-color: var(--secondary-hover);
+            color: var(--secondary-text);
+            border-radius: var(--border-radius-lg);
+            padding: 0 var(--spacing-xs);
+            font-size: var(--font-size-xs);
+            text-wrap: nowrap;
+          }
+
           .copy-icon,
           .remove-icon {
             background: var(--neutral-option);
@@ -124,7 +133,26 @@
 
       &.action {
         .action-button-container {
-          @include mixins.flex-layout($align: stretch);
+          @include mixins.flex-layout($direction: column, $align: center);
+          gap: var(--spacing-xs);
+        }
+
+        .archive-button {
+          @include mixins.flex-layout;
+          color: var(--primary-text);
+
+          .button-content {
+            @include mixins.flex-layout($gap: var(--spacing-xs));
+
+            mat-icon {
+              @include mixins.flex-layout;
+              font-size: var(--font-size-lg);
+            }
+          }
+
+          &:hover {
+            background-color: var(--primary-fade);
+          }
         }
 
         .edit-button {

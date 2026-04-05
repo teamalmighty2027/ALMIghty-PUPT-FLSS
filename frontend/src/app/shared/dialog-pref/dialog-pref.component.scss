@@ -96,6 +96,26 @@
         white-space: pre-line;
       }
 
+      .course-title-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-xs);
+        flex-wrap: wrap;
+      }
+
+      .temp-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: var(--primary-text);
+        background-color: var(--primary-fade);
+        white-space: nowrap;
+      }
+
       .no-data-cell {
         text-align: center;
         padding: var(--spacing-lg);

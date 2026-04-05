@@ -17,9 +17,15 @@ return [
 
     'paths'                    => ['api/*', 'sanctum/csrf-cookie', 'storage/*'],
 
-    'allowed_methods'          => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    'allowed_methods'          => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins'          => [env('FRONTEND_URL'), 'http://localhost:4200', 'http://localhost:4201'],
+    'allowed_origins'          => [
+        env('FRONTEND_URL'),
+        'http://localhost:4200',
+        'http://localhost:4201',
+        'http://127.0.0.1:4200',
+        'http://127.0.0.1:4201',
+    ],
 
     'allowed_origins_patterns' => [],
 
