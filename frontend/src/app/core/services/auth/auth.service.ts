@@ -118,14 +118,19 @@ export class AuthService {
   /**
    * Calls the IDP's logout endpoint to invalidate the session
    * then clears cookies as well
+   * Skipped in dev mode to avoid IDP logout during testing
    */
   logoutFromIdp(): void {
-    const clientId = environmentOAuth.clientId;
+    // Skip IDP logout in dev mode
+    if (!environment.production) {
+      console.log('[DEV MODE] IDP logout skipped - clearCookies still called');
+      this.clearCookies();
+      return;
+    }
     
     // Proxy through backend to avoid browser CORS issues
-    this.http.request('DELETE', `${this.baseUrl}/auth/session`, {
-      body: { client_id: clientId },
-    }).subscribe({
+    this.http.request('POST', `${this.baseUrl}/auth/session`, {})
+    .subscribe({
       next: () => {
         this.clearCookies();
       },
