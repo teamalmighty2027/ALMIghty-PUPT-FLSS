@@ -4,6 +4,12 @@ import { HttpClient } from '@angular/common/http';
 import { catchError } from 'rxjs/internal/operators/catchError';
 import { throwError } from 'rxjs/internal/observable/throwError';
 import { Observable } from 'rxjs/internal/Observable';
+import {
+  PopulateSchedulesResponse,
+  Room,
+  ScheduleArrangementOverride,
+} from '../../../models/scheduling.model';
+import { ScheduleValidationService } from '../../admin/scheduling/schedule-validation.service';
 
 export interface AppealResponse {
   appeal_id: number;
@@ -32,7 +38,10 @@ export interface AppealResponse {
 export class ReschedulingService {
   private baseUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private scheduleValidationService: ScheduleValidationService
+  ) {}
 
   private to24Hour(time: string): string {
     if (!time) return '';
@@ -121,5 +130,40 @@ export class ReschedulingService {
         admin_remarks: adminRemarks,
       })
       .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
+  validateAppealBeforeApproval(
+    appealId: number,
+    proposedDay: string,
+    proposedStartTime: string,
+    proposedEndTime: string,
+    proposedRoomId: number | null,
+    schedules: PopulateSchedulesResponse,
+    rooms: { rooms: Room[] },
+    arrangements: ScheduleArrangementOverride[],
+    scheduleContext: {
+      schedule_id: number;
+      program_id: number;
+      year_level: number;
+      section_id: number;
+      faculty_id: number | null;
+    }
+  ): { hasConflicts: boolean; messages: string[] } {
+    return this.scheduleValidationService.validateScheduleConflictsWithArrangements(
+      schedules,
+      rooms,
+      arrangements,
+      {
+        schedule_id: scheduleContext.schedule_id,
+        program_id: scheduleContext.program_id,
+        year_level: scheduleContext.year_level,
+        day: proposedDay,
+        start_time: this.to24Hour(proposedStartTime),
+        end_time: this.to24Hour(proposedEndTime),
+        section_id: scheduleContext.section_id,
+        faculty_id: scheduleContext.faculty_id,
+        room_id: proposedRoomId,
+      }
+    );
   }
 }

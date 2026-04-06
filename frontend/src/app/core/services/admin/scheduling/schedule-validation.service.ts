@@ -6,6 +6,7 @@ import {
   Room,
   ConflictingCourseDetail,
   ConflictingScheduleDetail,
+  ScheduleArrangementOverride,
 } from '../../../models/scheduling.model';
 
 @Injectable({
@@ -90,6 +91,34 @@ export class ScheduleValidationService {
     }
 
     return { hasConflicts: conflicts.length > 0, messages: conflicts };
+  }
+
+  /**
+   * Validates schedule conflicts using a merged view of schedules + arrangements.
+   */
+  public validateScheduleConflictsWithArrangements(
+    schedules: PopulateSchedulesResponse,
+    rooms: { rooms: Room[] },
+    arrangements: ScheduleArrangementOverride[],
+    params: {
+      schedule_id: number;
+      program_id: number;
+      year_level: number;
+      day: string;
+      start_time: string;
+      end_time: string;
+      section_id: number;
+      faculty_id: number | null;
+      room_id: number | null;
+    }
+  ): { hasConflicts: boolean; messages: string[] } {
+    const mergedSchedules = this.mergeSchedulesWithArrangements(
+      schedules,
+      rooms,
+      arrangements
+    );
+
+    return this.validateScheduleConflicts(mergedSchedules, rooms, params);
   }
 
   /**
@@ -427,5 +456,103 @@ export class ScheduleValidationService {
     }
 
     return { isValid: true, message: '' };
+  }
+
+  private mergeSchedulesWithArrangements(
+    schedules: PopulateSchedulesResponse,
+    rooms: { rooms: Room[] },
+    arrangements: ScheduleArrangementOverride[]
+  ): PopulateSchedulesResponse {
+    if (!arrangements || arrangements.length === 0) {
+      return schedules;
+    }
+
+    const mergedSchedules = JSON.parse(
+      JSON.stringify(schedules)
+    ) as PopulateSchedulesResponse;
+
+    const arrangementsByScheduleId = new Map<number, ScheduleArrangementOverride>();
+    arrangements.forEach((arrangement) => {
+      if (arrangement?.schedule_id) {
+        arrangementsByScheduleId.set(arrangement.schedule_id, arrangement);
+      }
+    });
+
+    const scheduleById = this.buildScheduleIndex(mergedSchedules);
+
+    const roomByCode = new Map<string, Room>();
+    rooms.rooms.forEach((room) => {
+      if (room.room_code) {
+        roomByCode.set(room.room_code.toLowerCase(), room);
+      }
+    });
+
+    arrangementsByScheduleId.forEach((arrangement, scheduleId) => {
+      const course = scheduleById.get(scheduleId);
+      if (!course?.schedule) return;
+
+      if (arrangement.day) {
+        course.schedule.day = arrangement.day;
+      }
+      if (arrangement.start_time) {
+        course.schedule.start_time = arrangement.start_time;
+      }
+      if (arrangement.end_time) {
+        course.schedule.end_time = arrangement.end_time;
+      }
+
+      const room = this.resolveArrangementRoom(arrangement, roomByCode, rooms);
+
+      if (room) {
+        course.schedule.room_id = room.room_id;
+        course.room = {
+          room_id: room.room_id,
+          room_code: room.room_code,
+        };
+      } else if (arrangement.room_id) {
+        course.schedule.room_id = arrangement.room_id;
+      }
+    });
+
+    return mergedSchedules;
+  }
+
+  private resolveArrangementRoom(
+    arrangement: ScheduleArrangementOverride,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ): Room | undefined {
+    if (arrangement.room_id) {
+      return rooms.rooms.find((room) => room.room_id === arrangement.room_id);
+    }
+
+    if (arrangement.room_code) {
+      return roomByCode.get(arrangement.room_code.toLowerCase());
+    }
+
+    return undefined;
+  }
+
+  private buildScheduleIndex(
+    schedules: PopulateSchedulesResponse
+  ): Map<number, CourseResponse> {
+    const scheduleById = new Map<number, CourseResponse>();
+
+    for (const program of schedules.programs) {
+      for (const yearLevel of program.year_levels) {
+        for (const semester of yearLevel.semesters) {
+          for (const section of semester.sections) {
+            for (const course of section.courses) {
+              const scheduleId = course.schedule?.schedule_id;
+              if (scheduleId) {
+                scheduleById.set(scheduleId, course);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return scheduleById;
   }
 }

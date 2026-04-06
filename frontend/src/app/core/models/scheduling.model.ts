@@ -256,6 +256,15 @@ export interface ConflictingScheduleDetail {
   sectionName: string;
 }
 
+export interface ScheduleArrangementOverride {
+  schedule_id: number;
+  day?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  room_id?: number | null;
+  room_code?: string | null;
+}
+
 export interface ProgramOption {
   display: string;
   id: number;
