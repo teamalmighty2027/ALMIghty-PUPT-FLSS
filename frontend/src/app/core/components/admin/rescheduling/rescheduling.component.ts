@@ -135,6 +135,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedAppeal: ReschedulingAppeal | null = null;
   newSchedule: ReschedulingAppeal | null = null;
   adminRemarks = '';
+  conflictMessages: string[] = [];
 
   @ViewChild('viewDialog') viewDialog!: TemplateRef<any>;
   @ViewChild('appealDialog') appealDialog!: TemplateRef<any>;
@@ -267,6 +268,49 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         end_time: appeal.rawPreferredEndTime ?? undefined,
         room_code: appeal.room ?? undefined,
       }));
+  }
+
+  private getScheduleContext(scheduleId: number): {
+    schedule_id: number;
+    program_id: number;
+    year_level: number;
+    section_id: number;
+    faculty_id: number | null;
+  } | null {
+    if (!this.cachedSchedules) return null;
+
+    for (const program of this.cachedSchedules.programs) {
+      for (const yearLevel of program.year_levels) {
+        for (const semester of yearLevel.semesters) {
+          for (const section of semester.sections) {
+            for (const course of section.courses) {
+              if (course.schedule?.schedule_id === scheduleId) {
+                return {
+                  schedule_id: scheduleId,
+                  program_id: program.program_id,
+                  year_level: yearLevel.year_level,
+                  section_id: section.section_per_program_year_id,
+                  faculty_id: course.faculty_id ?? null,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private getRoomIdByCode(roomCode: string | null | undefined): number | null {
+    if (!roomCode || !this.cachedRooms) return null;
+    const normalized = roomCode.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const match = this.cachedRooms.rooms.find(
+      (room) => room.room_code.toLowerCase() === normalized
+    );
+    return match?.room_id ?? null;
   }
 
   private loadArrangementsForTerm(termId: number, mappedAppeals: ReschedulingAppeal[]): void {
@@ -763,6 +807,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       ? { ...this.selectedAppeal }
       : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
+    this.conflictMessages = [];
     
     // Load room options
     this.loadRoomOptions();
@@ -786,6 +831,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedAppeal = null;
     this.newSchedule    = null;
     this.adminRemarks   = '';
+    this.conflictMessages = [];
   }
 
   clearAll(): void {
@@ -796,6 +842,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newSchedule.room               = undefined;
     this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
+    this.conflictMessages = [];
   }
 
   private getErrorMessage(error: any, defaultMessage: string): string {
@@ -816,7 +863,39 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   approveAppeal(): void {
-    if (!this.selectedAppeal) return;
+    if (!this.selectedAppeal || !this.newSchedule) return;
+
+    this.conflictMessages = [];
+
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      this.snackBar.open('Validation data is not ready. Please try again.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    const scheduleContext = this.getScheduleContext(this.selectedAppeal.scheduleId);
+    if (!scheduleContext) {
+      this.snackBar.open('Unable to locate schedule context for validation.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+    const validation = this.reschedulingService.validateAppealBeforeApproval(
+      this.selectedAppeal.rawAppealId,
+      this.newSchedule.preferredDay ?? '',
+      this.newSchedule.preferredStartTime ?? '',
+      this.newSchedule.preferredEndTime ?? '',
+      proposedRoomId,
+      this.cachedSchedules,
+      this.cachedRooms,
+      this.cachedArrangements,
+      scheduleContext
+    );
+
+    if (validation.hasConflicts) {
+      this.conflictMessages = validation.messages;
+      return;
+    }
+
     this.reschedulingService.approveAppeal(
       this.selectedAppeal.rawAppealId,
       {
