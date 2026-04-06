@@ -316,6 +316,17 @@
     </div>
     <div class="modal-scrollable-content">
       <div class="modal-body">
+        @if (conflictMessages.length > 0) {
+          <div class="validation-message conflict">
+            <div class="validation-message-header">
+              <mat-icon>report_problem</mat-icon>
+              <span>Schedule conflicts detected</span>
+            </div>
+            <ul class="validation-message-list">
+              <li *ngFor="let message of conflictMessages">{{ message }}</li>
+            </ul>
+          </div>
+        }
         <div class="modal-left">
           <div class="schedule-summary requested-schedule">
             <div class="section-label">REQUESTED SCHEDULE</div>
@@ -352,7 +363,7 @@
             <div class="suggested-label"><span>NEW SCHEDULE</span></div>
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Day</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.preferredDay">
+              <mat-select [(ngModel)]="newSchedule!.preferredDay" (selectionChange)="onScheduleFieldChange()">
                 <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{ day }}</mat-option>
               </mat-select>
               <mat-icon matPrefix>today</mat-icon>
@@ -375,7 +386,7 @@
             </div>
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Room</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.room">
+              <mat-select [(ngModel)]="newSchedule!.room" (selectionChange)="onScheduleFieldChange()">
                 <mat-option *ngFor="let room of roomOptions" [value]="room">{{ room }}</mat-option>
               </mat-select>
               <mat-icon matPrefix>meeting_room</mat-icon>
@@ -392,7 +403,14 @@
         <button mat-button class="btn-cancel" (click)="closeDialog()">Cancel</button>
         @if (selectedAppeal?.appealVerification === 'Pending') {
           <button mat-flat-button class="btn-deny" (click)="denyAppeal()">Deny</button>
-          <button mat-flat-button class="btn-approve" (click)="approveAppeal()">Approve</button>
+          <button
+            mat-flat-button
+            class="btn-approve"
+            (click)="approveAppeal()"
+            [disabled]="conflictMessages.length > 0"
+            [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }">
+            Approve
+          </button>
         }
       </div>
     </div>

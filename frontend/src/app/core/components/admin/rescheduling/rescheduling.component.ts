@@ -708,7 +708,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  onScheduleFieldChange(): void {
+    this.conflictMessages = [];
+  }
+
   onStartTimeChange(): void {
+    this.conflictMessages = [];
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
       // Clear end time if it's no longer valid
@@ -723,6 +728,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onEndTimeChange(): void {
+    this.conflictMessages = [];
     // Validate that end time is after start time
     if (this.newSchedule?.preferredStartTime && this.newSchedule?.preferredEndTime) {
       const startIndex = this.timeOptions.indexOf(this.newSchedule.preferredStartTime);
