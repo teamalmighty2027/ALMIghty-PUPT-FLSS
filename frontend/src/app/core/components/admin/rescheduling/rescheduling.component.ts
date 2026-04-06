@@ -25,6 +25,11 @@ import { SchedulingService } from '../../../services/admin/scheduling/scheduling
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
+import {
+  PopulateSchedulesResponse,
+  Room,
+  ScheduleArrangementOverride,
+} from '../../../models/scheduling.model';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -33,6 +38,7 @@ import 'jspdf-autotable';
 interface ReschedulingAppeal {
   id: number;
   rawAppealId: number;
+  scheduleId: number;
   facultyName: string;
   programCode: string;
   courseTitle: string;
@@ -121,6 +127,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   private allFaculties: FacultyArrangement[] = [];
   hasAnyArrangements = false;
 
+  private cachedSchedules: PopulateSchedulesResponse | null = null;
+  private cachedRooms: { rooms: Room[] } | null = null;
+  private cachedArrangements: ScheduleArrangementOverride[] = [];
+
   // ── Dialog state ──
   selectedAppeal: ReschedulingAppeal | null = null;
   newSchedule: ReschedulingAppeal | null = null;
@@ -173,6 +183,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
           this.semester = this.getSemesterDisplay(activeTerm.semester);
           if (this.selectedTermId !== null) {
+            this.loadValidationCaches(mappedAppeals);
             this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
           } else {
             this.isLoading = false;
@@ -221,7 +232,41 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.isLoading = true;
     const mappedAppeals = this.dataSource.data;
+    this.loadValidationCaches(mappedAppeals);
     this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+  }
+
+  private loadValidationCaches(mappedAppeals: ReschedulingAppeal[]): void {
+    this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
+
+    if (this.cachedSchedules && this.cachedRooms) return;
+
+    forkJoin({
+      schedules: this.schedulingService.populateSchedules(),
+      rooms: this.schedulingService.getAllRooms(),
+    }).subscribe({
+      next: ({ schedules, rooms }) => {
+        this.cachedSchedules = schedules;
+        this.cachedRooms = rooms;
+      },
+      error: (err) => {
+        console.error('Failed to load validation caches:', err);
+      }
+    });
+  }
+
+  private buildArrangementOverrides(
+    mappedAppeals: ReschedulingAppeal[]
+  ): ScheduleArrangementOverride[] {
+    return mappedAppeals
+      .filter((appeal) => appeal.appealVerification === 'Approved')
+      .map((appeal) => ({
+        schedule_id: appeal.scheduleId,
+        day: appeal.preferredDay ?? undefined,
+        start_time: appeal.rawPreferredStartTime ?? undefined,
+        end_time: appeal.rawPreferredEndTime ?? undefined,
+        room_code: appeal.room ?? undefined,
+      }));
   }
 
   private loadArrangementsForTerm(termId: number, mappedAppeals: ReschedulingAppeal[]): void {
@@ -680,6 +725,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return {
       id:                 a.appeal_id,
       rawAppealId:        a.appeal_id,
+      scheduleId:         a.schedule_id,
       facultyName:        a.faculty_name,
       programCode:        a.program_code,
       courseTitle:        a.course_title,
