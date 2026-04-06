@@ -154,7 +154,24 @@ export class AuthService {
       password: password,
       allowed_roles: allowedRoles,
     };
-    return this.http.post(`${this.baseUrl}/login`, loginData);
+
+    // 1. Get the root URL (remove '/api' from the end of baseUrl if it exists)
+    // Sanctum's cookie route is usually at the base domain, not inside /api
+    const rootUrl = this.baseUrl.replace(/\/api$/, '');
+
+    console.log('BASE URL:', this.baseUrl);
+    console.log('ROOT URL:', rootUrl);
+
+    // 2. Do the Sanctum Handshake FIRST, then send the login data
+    return this.http.get(`${rootUrl}/sanctum/csrf-cookie`, { withCredentials: true }).pipe(
+      switchMap(() => {
+        console.log('Handshake successful, now logging in...');
+        // 3. Send the actual login request, explicitly attaching the cookies
+        return this.http.post(`${this.baseUrl}/login`, loginData, {
+          withCredentials: true // 🚨 THIS IS THE MAGIC KEY 🚨
+        });
+      })
+    );
   }
 
   logout(): Observable<any> {
