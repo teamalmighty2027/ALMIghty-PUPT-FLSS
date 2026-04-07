@@ -1,229 +1,380 @@
 <div class="rescheduling-container">
   @if (isInitLoading || isLoading) {
-  <div class="loading-wrapper">
-    <app-loading></app-loading>
-  </div>
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
   } @else {
+    <mat-tab-group
+      [(selectedIndex)]="selectedTabIndex"
+      animationDuration="250ms"
+      class="reports-tab bottom-tabs"
+      style="height: 100%; display: flex; flex-direction: column"
+    >
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <div
+            class="tab-label"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <mat-icon>assignment</mat-icon>
+            <span>Appeals Management</span>
+          </div>
+        </ng-template>
 
-  <mat-tab-group
-    [(selectedIndex)]="selectedTabIndex"
-    animationDuration="250ms"
-    class="reports-tab bottom-tabs"
-    style="height: 100%; display: flex; flex-direction: column;">
+        <div
+          class="tab-content-wrapper"
+          style="
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+          "
+        >
+          <div class="rescheduling-header-container">
+            <app-table-header
+              [inputFields]="headerInputFields"
+              [showExportButton]="false"
+              [showAddButton]="false"
+              (export)="onExportAll()"
+              (inputChange)="onInputChange($event)"
+              [buttonDisabled]="dataSource.data.length === 0"
+              [tooltipMessage]="
+                dataSource.data.length === 0 ? 'No appeals available' : ''
+              "
+            ></app-table-header>
+          </div>
 
-    <mat-tab>
-      <ng-template mat-tab-label>
-        <div class="tab-label" style="display: flex; gap: 8px; align-items: center;">
-          <mat-icon>assignment</mat-icon>
-          <span>Appeals Management</span>
-        </div>
-      </ng-template>
+          <div class="rescheduling-table-container">
+            <div class="table-container">
+              <table mat-table [dataSource]="dataSource" class="custom-table">
+                <ng-container matColumnDef="index">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header index"
+                  >
+                    #
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element; let i = index"
+                    class="index"
+                  >
+                    {{ getRowIndex(i) }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="facultyName">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Name
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell max-cell"
+                  >
+                    {{ element.facultyName }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="programCode">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Program / Course
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.programCode }} - {{ element.courseTitle }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="originalSchedule">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Original Schedule
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.originalSchedule }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="appealVerification">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Appeal Verification
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    <span
+                      class="status-badge"
+                      [ngClass]="{
+                        'status-pending':
+                          element.appealVerification === 'Pending',
+                        'status-approved':
+                          element.appealVerification === 'Approved',
+                        'status-denied':
+                          element.appealVerification === 'Denied',
+                      }"
+                    >
+                      {{ element.appealVerification }}
+                    </span>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="action">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Action
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell action"
+                  >
+                    <div class="action-button-container">
+                      <button
+                        mat-button
+                        class="view-button sec-ripple"
+                        (click)="openViewDialog(element)"
+                      >
+                        <div class="button-content">
+                          <mat-icon>visibility</mat-icon><span>View</span>
+                        </div>
+                      </button>
 
-      <div class="tab-content-wrapper" style="background: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        <div class="rescheduling-header-container">
-          <app-table-header
-            [inputFields]="headerInputFields"
-            [showExportButton]="false"
-            [showAddButton]="false"
-            (export)="onExportAll()"
-            (inputChange)="onInputChange($event)"
-            [buttonDisabled]="dataSource.data.length === 0"
-            [tooltipMessage]="dataSource.data.length === 0 ? 'No appeals available' : ''"
-          ></app-table-header>
-        </div>
-
-        <div class="rescheduling-table-container">
-          <div class="table-container">
-            <table mat-table [dataSource]="dataSource" class="custom-table">
-              <ng-container matColumnDef="index">
-                <th mat-header-cell *matHeaderCellDef class="custom-header index">#</th>
-                <td mat-cell *matCellDef="let element; let i = index" class="index">{{ getRowIndex(i) }}</td>
-              </ng-container>
-              <ng-container matColumnDef="facultyName">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Faculty Name</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell max-cell">{{ element.facultyName }}</td>
-              </ng-container>
-              <ng-container matColumnDef="programCode">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Program / Course</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">{{ element.programCode }} - {{ element.courseTitle }}</td>
-              </ng-container>
-              <ng-container matColumnDef="originalSchedule">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Original Schedule</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">{{ element.originalSchedule }}</td>
-              </ng-container>
-              <ng-container matColumnDef="appealVerification">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Appeal Verification</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">
-                  <span class="status-badge"
-                    [ngClass]="{
-                      'status-pending':  element.appealVerification === 'Pending',
-                      'status-approved': element.appealVerification === 'Approved',
-                      'status-denied':   element.appealVerification === 'Denied'
-                    }">
-                    {{ element.appealVerification }}
-                  </span>
-                </td>
-              </ng-container>
-              <ng-container matColumnDef="action">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Action</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell action">
-                  <div class="action-button-container">
-                    <button mat-button class="view-button sec-ripple" (click)="openViewDialog(element)">
-                      <div class="button-content"><mat-icon>visibility</mat-icon><span>View</span></div>
-                    </button>
-                    
-                    <button mat-button class="edit-button sec-ripple" 
-                      (click)="openEditDialog(element)"
-                      [disabled]="element.appealVerification !== 'Pending'"
-                      [ngClass]="{'disabled-button': element.appealVerification !== 'Pending'}">
-                      <div class="button-content"><mat-icon>edit</mat-icon><span>Edit</span></div>
-                    </button>
-                    
-                  </div>
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-
-              <tr *matNoDataRow>
-                <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
-                  <div class="flex-cell">
-                    <div class="no-data-text">
-                      <mat-icon>info</mat-icon><span> No appeals found.</span>
+                      <button
+                        mat-button
+                        class="edit-button sec-ripple"
+                        (click)="openEditDialog(element)"
+                        [disabled]="element.appealVerification !== 'Pending'"
+                        [ngClass]="{
+                          'disabled-button':
+                            element.appealVerification !== 'Pending',
+                        }"
+                      >
+                        <div class="button-content">
+                          <mat-icon>edit</mat-icon><span>Edit</span>
+                        </div>
+                      </button>
                     </div>
-                  </div>
-                </td>
-              </tr>
-            </table>
+                  </td>
+                </ng-container>
 
-            <mat-paginator
-              class="custom-paginator"
-              [length]="dataSource.data.length"
-              [pageSize]="25"
-              [pageSizeOptions]="[5, 10, 25, 50, 100]"
-              [showFirstLastButtons]="true"
-              aria-label="Select page">
-            </mat-paginator>
+                <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: displayedColumns"
+                ></tr>
+
+                <tr *matNoDataRow>
+                  <td
+                    class="no-data-cell"
+                    [attr.colspan]="displayedColumns.length"
+                  >
+                    <div class="flex-cell">
+                      <div class="no-data-text">
+                        <mat-icon>info</mat-icon><span> No appeals found.</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                class="custom-paginator"
+                [length]="dataSource.data.length"
+                [pageSize]="25"
+                [pageSizeOptions]="[5, 10, 25, 50, 100]"
+                [showFirstLastButtons]="true"
+                aria-label="Select page"
+              >
+              </mat-paginator>
+            </div>
           </div>
         </div>
-      </div>
-    </mat-tab>
+      </mat-tab>
 
-    <mat-tab>
-      <ng-template mat-tab-label>
-        <div class="tab-label" style="display: flex; gap: 8px; align-items: center;">
-          <mat-icon>event_available</mat-icon>
-          <span>Internal Arrangements</span>
-        </div>
-      </ng-template>
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <div
+            class="tab-label"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <mat-icon>event_available</mat-icon>
+            <span>Internal Arrangements</span>
+          </div>
+        </ng-template>
 
-      <div class="tab-content-wrapper" style="background: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;">
-        
-        <div class="report-header-container" style="margin-bottom: 15px;">
-          <app-reports-header
-            [(selectedTermId)]="selectedTermId"
-            [inputFields]="arrangementsInputFields"
-            [showExportButton]="true"
-            [showAddButton]="false"
-            (export)="onExportArrangements()"
-            (inputChange)="onArrangementsInputChange($event)"
-            (termChange)="onTermChange()"
-            [buttonDisabled]="!hasAnyArrangements"
-          ></app-reports-header>
-        </div>
+        <div
+          class="tab-content-wrapper"
+          style="
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+          "
+        >
+          <div class="report-header-container" style="margin-bottom: 15px">
+            <app-reports-header
+              [(selectedTermId)]="selectedTermId"
+              [inputFields]="arrangementsInputFields"
+              [showExportButton]="true"
+              [showAddButton]="false"
+              (export)="onExportArrangements()"
+              (inputChange)="onArrangementsInputChange($event)"
+              (termChange)="onTermChange()"
+              [buttonDisabled]="!hasAnyArrangements"
+            ></app-reports-header>
+          </div>
 
-        <div class="report-table-container">
-          <div class="table-container">
-            <table mat-table [dataSource]="arrangementsDataSource" class="custom-table">
+          <div class="report-table-container">
+            <div class="table-container">
+              <table
+                mat-table
+                [dataSource]="arrangementsDataSource"
+                class="custom-table"
+              >
+                <ng-container matColumnDef="index">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header index"
+                  >
+                    #
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element; let i = index"
+                    class="index"
+                  >
+                    <span>{{ getArrangementRowIndex(i) }}</span>
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="index">
-                <th mat-header-cell *matHeaderCellDef class="custom-header index">#</th>
-                <td mat-cell *matCellDef="let element; let i = index" class="index">
-                  <span>{{ getArrangementRowIndex(i) }}</span>
-                </td>
-              </ng-container>
+                <ng-container matColumnDef="facultyName">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Name
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell max-cell"
+                    style="text-align: left"
+                  >
+                    {{ element.facultyName }}
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="facultyName">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Faculty Name</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell max-cell" style="text-align: left;">
-                  {{ element.facultyName }}
-                </td>
-              </ng-container>
+                <ng-container matColumnDef="facultyCode">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Code
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.facultyCode }}
+                  </td>
+                </ng-container>
 
-              <ng-container matColumnDef="facultyCode">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Faculty Code</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">
-                  {{ element.facultyCode }}
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="facultyType">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Faculty Type</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">
-                  <div class="faculty-type" [ngClass]="getFacultyTypeClass(element.facultyType)">
-                    {{ element.facultyType }}
-                  </div>
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="facultyUnits">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Load<br/>(Units)</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell">
-                  {{ element.facultyUnits }}
-                </td>
-              </ng-container>
-
-              <ng-container matColumnDef="action">
-                <th mat-header-cell *matHeaderCellDef class="custom-header">Action</th>
-                <td mat-cell *matCellDef="let element" class="custom-cell action">
-                  
-                  <span [matTooltip]="element.schedules.length === 0 ? element.facultyName + ' has no schedules available' : ''" matTooltipDisabled="false">
-                    <button mat-button class="sec-ripple view-button" (click)="viewFacultyArrangements(element)" [disabled]="element.schedules.length === 0" [ngClass]="{ 'disabled-button': element.schedules.length === 0 }">
-                      <mat-icon>visibility</mat-icon><span>View Schedule</span>
-                    </button>
-                  </span>
-                  
-                  <span [matTooltip]="element.schedules.length === 0 ? element.facultyName + ' has no schedules available' : ''" matTooltipDisabled="false">
-                    <button mat-button class="sec-ripple export-button" (click)="downloadFacultyArrangements(element)" [disabled]="element.schedules.length === 0" [ngClass]="{ 'disabled-button': element.schedules.length === 0 }">
-                      <mat-icon>download</mat-icon><span>Download</span>
-                    </button>
-                  </span>
-
-                </td>
-              </ng-container>
-
-              <tr mat-header-row *matHeaderRowDef="arrangementsColumns"></tr>
-              <tr mat-row *matRowDef="let row; columns: arrangementsColumns;"></tr>
-
-              <tr *matNoDataRow>
-                <td class="no-data-cell" colspan="6">
-                  <div class="flex-cell">
-                    <div class="no-data-text">
-                      <mat-icon>info</mat-icon>
-                      <span> No faculty found.</span>
+                <ng-container matColumnDef="facultyType">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Type
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    <div
+                      class="faculty-type"
+                      [ngClass]="getFacultyTypeClass(element.facultyType)"
+                    >
+                      {{ element.facultyType }}
                     </div>
-                  </div>
-                </td>
-              </tr>
-            </table>
+                  </td>
+                </ng-container>
 
-            <mat-paginator
-              #arrangementsPaginator
-              class="custom-paginator"
-              [length]="arrangementsDataSource.data.length"
-              [pageSize]="25"
-              [pageSizeOptions]="[5, 10, 25, 50]"
-              [showFirstLastButtons]="true"
-              aria-label="Select page for arrangements">
-            </mat-paginator>
+                <ng-container matColumnDef="facultyUnits">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Load<br />(Units)
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.facultyUnits }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="action">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Action
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell action"
+                  >
+                    <span
+                      [matTooltip]="
+                        element.schedules.length === 0
+                          ? element.facultyName + ' has no schedules available'
+                          : ''
+                      "
+                      matTooltipDisabled="false"
+                    >
+                      <button
+                        mat-button
+                        class="sec-ripple view-button"
+                        (click)="viewFacultyArrangements(element)"
+                        [disabled]="element.schedules.length === 0"
+                        [ngClass]="{
+                          'disabled-button': element.schedules.length === 0,
+                        }"
+                      >
+                        <mat-icon>visibility</mat-icon
+                        ><span>View Schedule</span>
+                      </button>
+                    </span>
+
+                    <span
+                      [matTooltip]="
+                        element.schedules.length === 0
+                          ? element.facultyName + ' has no schedules available'
+                          : ''
+                      "
+                      matTooltipDisabled="false"
+                    >
+                      <button
+                        mat-button
+                        class="sec-ripple export-button"
+                        (click)="downloadFacultyArrangements(element)"
+                        [disabled]="element.schedules.length === 0"
+                        [ngClass]="{
+                          'disabled-button': element.schedules.length === 0,
+                        }"
+                      >
+                        <mat-icon>download</mat-icon><span>Download</span>
+                      </button>
+                    </span>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="arrangementsColumns"></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: arrangementsColumns"
+                ></tr>
+
+                <tr *matNoDataRow>
+                  <td class="no-data-cell" colspan="6">
+                    <div class="flex-cell">
+                      <div class="no-data-text">
+                        <mat-icon>info</mat-icon>
+                        <span> No faculty found.</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                #arrangementsPaginator
+                class="custom-paginator"
+                [length]="arrangementsDataSource.data.length"
+                [pageSize]="25"
+                [pageSizeOptions]="[5, 10, 25, 50]"
+                [showFirstLastButtons]="true"
+                aria-label="Select page for arrangements"
+              >
+              </mat-paginator>
+            </div>
           </div>
         </div>
-      </div>
-    </mat-tab>
-
-  </mat-tab-group>
-
+      </mat-tab>
+    </mat-tab-group>
   }
 </div>
 
@@ -242,7 +393,10 @@
           <div class="current-schedule-grid">
             <div class="info-row">
               <span class="label">Course:</span>
-              <span class="value">{{ selectedAppeal?.programCode }} - {{ selectedAppeal?.courseTitle }}</span>
+              <span class="value"
+                >{{ selectedAppeal?.programCode }} -
+                {{ selectedAppeal?.courseTitle }}</span
+              >
             </div>
             <div class="info-row">
               <span class="label">Faculty:</span>
@@ -254,11 +408,16 @@
             </div>
             <div class="info-row">
               <span class="label">Time:</span>
-              <span class="value">{{ selectedAppeal?.originalStartTime }} – {{ selectedAppeal?.originalEndTime }}</span>
+              <span class="value"
+                >{{ selectedAppeal?.originalStartTime }} –
+                {{ selectedAppeal?.originalEndTime }}</span
+              >
             </div>
             <div class="info-row">
               <span class="label">Room:</span>
-              <span class="value">{{ selectedAppeal?.originalRoom || '—' }}</span>
+              <span class="value">{{
+                selectedAppeal?.originalRoom || "—"
+              }}</span>
             </div>
           </div>
         </div>
@@ -268,12 +427,12 @@
           <div class="section-label">REQUESTED SCHEDULE</div>
           <div class="info-row">
             <span class="label">Day:</span>
-            <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
+            <span class="value">{{ selectedAppeal?.preferredDay || "—" }}</span>
           </div>
           <div class="info-row">
             <span class="label">Time:</span>
             <span class="value">
-              {{ selectedAppeal?.preferredStartTime || '—' }}
+              {{ selectedAppeal?.preferredStartTime || "—" }}
               <ng-container *ngIf="selectedAppeal?.preferredEndTime">
                 – {{ selectedAppeal?.preferredEndTime }}
               </ng-container>
@@ -281,7 +440,7 @@
           </div>
           <div class="info-row">
             <span class="label">Room:</span>
-            <span class="value">{{ selectedAppeal?.room || '—' }}</span>
+            <span class="value">{{ selectedAppeal?.room || "—" }}</span>
           </div>
         </div>
         <div class="document-section" *ngIf="selectedAppeal?.filePath">
@@ -289,19 +448,29 @@
           <div class="doc-row">
             <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
             <span class="doc-name">{{ selectedAppeal?.filePath }}</span>
-            <a mat-icon-button class="doc-view-btn" [href]="getFileUrl(selectedAppeal?.filePath)" target="_blank" rel="noopener">
+            <a
+              mat-icon-button
+              class="doc-view-btn"
+              [href]="getFileUrl(selectedAppeal?.filePath)"
+              target="_blank"
+              rel="noopener"
+            >
               <mat-icon>open_in_new</mat-icon>
             </a>
           </div>
         </div>
         <div class="reason-section">
-          <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE</div>
-          <p class="reason-text">{{ selectedAppeal?.reasoning || '—' }}</p>
+          <div class="section-label reason-title">
+            REASON FOR SCHEDULE CHANGE
+          </div>
+          <p class="reason-text">{{ selectedAppeal?.reasoning || "—" }}</p>
         </div>
       </div>
     </div>
     <div class="modal-footer">
-      <button mat-button class="btn-cancel" (click)="closeDialog()">Close</button>
+      <button mat-button class="btn-cancel" (click)="closeDialog()">
+        Close
+      </button>
     </div>
   </div>
 </ng-template>
@@ -316,99 +485,137 @@
     </div>
     <div class="modal-scrollable-content">
       <div class="modal-body">
-        @if (conflictMessages.length > 0) {
-          <div class="validation-message conflict">
-            <div class="validation-message-header">
-              <mat-icon>report_problem</mat-icon>
-              <span>Schedule conflicts detected</span>
-            </div>
-            <ul class="validation-message-list">
-              <li *ngFor="let message of conflictMessages">{{ message }}</li>
-            </ul>
+        <div class="schedule-summary requested-schedule">
+          <div class="section-label">REQUESTED SCHEDULE</div>
+          <div class="info-row">
+            <span class="label">Day:</span>
+            <span class="value">{{ selectedAppeal?.preferredDay || "—" }}</span>
           </div>
-        }
-        <div class="modal-left">
-          <div class="schedule-summary requested-schedule">
-            <div class="section-label">REQUESTED SCHEDULE</div>
-            <div class="info-row">
-              <span class="label">Day:</span>
-              <span class="value">{{ selectedAppeal?.preferredDay || '—' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Time:</span>
-              <span class="value">
-                {{ selectedAppeal?.preferredStartTime || '—' }}
-                <ng-container *ngIf="selectedAppeal?.preferredEndTime">
-                  – {{ selectedAppeal?.preferredEndTime }}
-                </ng-container>
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="label">Room:</span>
-              <span class="value">{{ selectedAppeal?.room || '—' }}</span>
-            </div>
+          <div class="info-row">
+            <span class="label">Time:</span>
+            <span class="value">
+              {{ selectedAppeal?.preferredStartTime || "—" }}
+              <ng-container *ngIf="selectedAppeal?.preferredEndTime">
+                – {{ selectedAppeal?.preferredEndTime }}
+              </ng-container>
+            </span>
           </div>
-          <div class="reason-section">
-            <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
-            <mat-form-field appearance="outline" class="full-width">
-              <textarea matInput [(ngModel)]="adminRemarks" placeholder="Add remarks for the faculty member (optional)..." rows="3"></textarea>
-              <button mat-icon-button matSuffix type="button" (click)="onSpeechRecognition()" [title]="isListening ? 'Stop recording' : 'Click to speak'" [color]="isListening ? 'warn' : null">
-                <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
-              </button>
-            </mat-form-field>
+          <div class="info-row">
+            <span class="label">Room:</span>
+            <span class="value">{{ selectedAppeal?.room || "—" }}</span>
           </div>
         </div>
-        <div class="modal-right">
-          <div class="edit-mode-section">
-            <div class="suggested-label"><span>NEW SCHEDULE</span></div>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Day</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.preferredDay" (selectionChange)="onScheduleFieldChange()">
-                <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{ day }}</mat-option>
+        <div class="reason-section">
+          <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
+          <mat-form-field appearance="outline" class="full-width">
+            <textarea
+              matInput
+              [(ngModel)]="adminRemarks"
+              placeholder="Add remarks for the faculty member (optional)..."
+              rows="3"
+            ></textarea>
+            <button
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="onSpeechRecognition()"
+              [title]="isListening ? 'Stop recording' : 'Click to speak'"
+              [color]="isListening ? 'warn' : null"
+            >
+              <mat-icon>{{ isListening ? "mic" : "mic_none" }}</mat-icon>
+            </button>
+          </mat-form-field>
+        </div>
+
+        <div class="edit-mode-section">
+          <div class="suggested-label"><span>NEW SCHEDULE</span></div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Day</mat-label>
+            <mat-select
+              [(ngModel)]="newSchedule!.preferredDay"
+              (selectionChange)="onScheduleFieldChange()"
+            >
+              <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{
+                day
+              }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>today</mat-icon>
+          </mat-form-field>
+          <div class="time-row">
+            <mat-form-field appearance="outline" class="time-field">
+              <mat-label>Start Time</mat-label>
+              <mat-select
+                [(ngModel)]="newSchedule!.preferredStartTime"
+                (selectionChange)="onStartTimeChange()"
+              >
+                <mat-option *ngFor="let time of timeOptions" [value]="time">{{
+                  time
+                }}</mat-option>
               </mat-select>
-              <mat-icon matPrefix>today</mat-icon>
+              <mat-icon matPrefix>schedule</mat-icon>
             </mat-form-field>
-            <div class="time-row">
-              <mat-form-field appearance="outline" class="time-field">
-                <mat-label>Start Time</mat-label>
-                <mat-select [(ngModel)]="newSchedule!.preferredStartTime" (selectionChange)="onStartTimeChange()">
-                  <mat-option *ngFor="let time of timeOptions" [value]="time">{{ time }}</mat-option>
-                </mat-select>
-                <mat-icon matPrefix>schedule</mat-icon>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="time-field">
-                <mat-label>End Time</mat-label>
-                <mat-select [(ngModel)]="newSchedule!.preferredEndTime" (selectionChange)="onEndTimeChange()">
-                  <mat-option *ngFor="let time of availableEndTimes" [value]="time">{{ time }}</mat-option>
-                </mat-select>
-                <mat-icon matPrefix>schedule</mat-icon>
-              </mat-form-field>
-            </div>
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Room</mat-label>
-              <mat-select [(ngModel)]="newSchedule!.room" (selectionChange)="onScheduleFieldChange()">
-                <mat-option *ngFor="let room of roomOptions" [value]="room">{{ room }}</mat-option>
+            <mat-form-field appearance="outline" class="time-field">
+              <mat-label>End Time</mat-label>
+              <mat-select
+                [(ngModel)]="newSchedule!.preferredEndTime"
+                (selectionChange)="onEndTimeChange()"
+              >
+                <mat-option
+                  *ngFor="let time of availableEndTimes"
+                  [value]="time"
+                  >{{ time }}</mat-option
+                >
               </mat-select>
-              <mat-icon matPrefix>meeting_room</mat-icon>
+              <mat-icon matPrefix>schedule</mat-icon>
             </mat-form-field>
           </div>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Room</mat-label>
+            <mat-select
+              [(ngModel)]="newSchedule!.room"
+              (selectionChange)="onScheduleFieldChange()"
+            >
+              <mat-option *ngFor="let room of roomOptions" [value]="room">{{
+                room
+              }}</mat-option>
+            </mat-select>
+            <mat-icon matPrefix>meeting_room</mat-icon>
+          </mat-form-field>
+          @if (conflictMessages.length > 0) {
+            <div class="validation-message conflict">
+              <div class="validation-message-header">
+                <mat-icon>report_problem</mat-icon>
+                <span>Schedule conflicts detected</span>
+              </div>
+              <ul class="validation-message-list">
+                <li *ngFor="let message of conflictMessages">{{ message }}</li>
+              </ul>
+            </div>
+          }
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <div class="modal-actions">
-        @if (selectedAppeal?.appealVerification === 'Pending') {
-          <button mat-button class="btn-clear" (click)="clearAll()">Clear All</button>
+        @if (selectedAppeal?.appealVerification === "Pending") {
+          <button mat-button class="btn-clear" (click)="clearAll()">
+            Clear All
+          </button>
         }
-        <button mat-button class="btn-cancel" (click)="closeDialog()">Cancel</button>
-        @if (selectedAppeal?.appealVerification === 'Pending') {
-          <button mat-flat-button class="btn-deny" (click)="denyAppeal()">Deny</button>
+        <button mat-button class="btn-cancel" (click)="closeDialog()">
+          Cancel
+        </button>
+        @if (selectedAppeal?.appealVerification === "Pending") {
+          <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
+            Deny
+          </button>
           <button
             mat-flat-button
             class="btn-approve"
             (click)="approveAppeal()"
             [disabled]="conflictMessages.length > 0"
-            [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }">
+            [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
+          >
             Approve
           </button>
         }
