@@ -149,6 +149,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   speechSupported = false;
   private destroy$ = new Subject<void>();
   private speechSession$ = new Subject<void>();
+  private validationTimeout: any;
 
   constructor(
     private reschedulingService: ReschedulingService,
@@ -709,11 +710,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onScheduleFieldChange(): void {
-    this.conflictMessages = [];
+    this.debounceValidation();
   }
 
   onStartTimeChange(): void {
-    this.conflictMessages = [];
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
       // Clear end time if it's no longer valid
@@ -725,10 +725,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     }
+    this.debounceValidation();
   }
 
   onEndTimeChange(): void {
-    this.conflictMessages = [];
     // Validate that end time is after start time
     if (this.newSchedule?.preferredStartTime && this.newSchedule?.preferredEndTime) {
       const startIndex = this.timeOptions.indexOf(this.newSchedule.preferredStartTime);
@@ -738,6 +738,53 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.newSchedule.preferredEndTime = undefined;
       }
     }
+    this.debounceValidation();
+  }
+
+  private debounceValidation(): void {
+    // Clear previous timeout
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+    
+    // Set new timeout - waits 500ms after last change before validating
+    this.validationTimeout = setTimeout(() => {
+      this.validateConflicts();
+    }, 500);
+  }
+
+  private validateConflicts(): void {
+    // Only validate if all required fields are filled
+    if (!this.newSchedule?.preferredDay || 
+        !this.newSchedule?.preferredStartTime || 
+        !this.newSchedule?.preferredEndTime) {
+      this.conflictMessages = [];
+      return;
+    }
+
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      return;
+    }
+
+    const scheduleContext = this.getScheduleContext(this.selectedAppeal?.scheduleId ?? 0);
+    if (!scheduleContext) {
+      return;
+    }
+
+    const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+    const validation = this.reschedulingService.validateAppealBeforeApproval(
+      this.selectedAppeal?.rawAppealId ?? 0,
+      this.newSchedule.preferredDay,
+      this.newSchedule.preferredStartTime,
+      this.newSchedule.preferredEndTime,
+      proposedRoomId,
+      this.cachedSchedules,
+      this.cachedRooms,
+      this.cachedArrangements,
+      scheduleContext
+    );
+
+    this.conflictMessages = validation.hasConflicts ? validation.messages : [];
   }
 
   private updateAvailableEndTimes(startTime: string): void {
@@ -833,6 +880,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeDialog(): void {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
     this.dialog.closeAll();
     this.selectedAppeal = null;
     this.newSchedule    = null;
@@ -1003,8 +1053,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+
     this.destroy$.next();
     this.destroy$.complete();
+    
     if (this.isListening) {
       this.speechSession$.next();
       this.speechSession$.complete();
