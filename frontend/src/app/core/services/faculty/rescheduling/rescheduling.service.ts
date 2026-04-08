@@ -1,9 +1,8 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../../../../environments/environment.dev';
 import { HttpClient } from '@angular/common/http';
-import { catchError } from 'rxjs/internal/operators/catchError';
-import { throwError } from 'rxjs/internal/observable/throwError';
-import { Observable } from 'rxjs/internal/Observable';
+import { catchError } from 'rxjs/operators';
+import { throwError, Observable } from 'rxjs';
 import {
   PopulateSchedulesResponse,
   Room,

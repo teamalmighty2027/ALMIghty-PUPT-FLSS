@@ -458,6 +458,9 @@ export class ScheduleValidationService {
     return { isValid: true, message: '' };
   }
 
+  /**
+   * Merges the original schedules with arrangement overrides.
+   */
   private mergeSchedulesWithArrangements(
     schedules: PopulateSchedulesResponse,
     rooms: { rooms: Room[] },
@@ -467,18 +470,12 @@ export class ScheduleValidationService {
       return schedules;
     }
 
-    const mergedSchedules = JSON.parse(
-      JSON.stringify(schedules)
-    ) as PopulateSchedulesResponse;
-
     const arrangementsByScheduleId = new Map<number, ScheduleArrangementOverride>();
     arrangements.forEach((arrangement) => {
       if (arrangement?.schedule_id) {
         arrangementsByScheduleId.set(arrangement.schedule_id, arrangement);
       }
     });
-
-    const scheduleById = this.buildScheduleIndex(mergedSchedules);
 
     const roomByCode = new Map<string, Room>();
     rooms.rooms.forEach((room) => {
@@ -487,36 +484,80 @@ export class ScheduleValidationService {
       }
     });
 
-    arrangementsByScheduleId.forEach((arrangement, scheduleId) => {
-      const course = scheduleById.get(scheduleId);
-      if (!course?.schedule) return;
-
-      if (arrangement.day) {
-        course.schedule.day = arrangement.day;
-      }
-      if (arrangement.start_time) {
-        course.schedule.start_time = arrangement.start_time;
-      }
-      if (arrangement.end_time) {
-        course.schedule.end_time = arrangement.end_time;
-      }
-
-      const room = this.resolveArrangementRoom(arrangement, roomByCode, rooms);
-
-      if (room) {
-        course.schedule.room_id = room.room_id;
-        course.room = {
-          room_id: room.room_id,
-          room_code: room.room_code,
-        };
-      } else if (arrangement.room_id) {
-        course.schedule.room_id = arrangement.room_id;
-      }
-    });
-
-    return mergedSchedules;
+    return {
+      ...schedules,
+      programs: schedules.programs.map(program =>
+        this.applyArrangementsToProgram(
+          program,
+          arrangementsByScheduleId,
+          roomByCode,
+          rooms
+        )
+      ),
+    };
   }
 
+  /**
+   * Applies arrangement overrides to all courses within a program.
+   */
+  private applyArrangementsToProgram(
+    program: any,
+    arrangements: Map<number, ScheduleArrangementOverride>,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ) {
+    return {
+      ...program,
+      year_levels: program.year_levels.map((yl: any) => ({
+        ...yl,
+        semesters: yl.semesters.map((sem: any) => ({
+          ...sem,
+          sections: sem.sections.map((sec: any) => ({
+            ...sec,
+            courses: sec.courses.map((course: CourseResponse) =>
+              this.applyArrangementToCourse(
+                course,
+                arrangements.get(course.schedule?.schedule_id || 0),
+                roomByCode,
+                rooms
+              )
+            ),
+          })),
+        })),
+      })),
+    };
+  }
+
+  /**
+   * Applies a single arrangement override to a course.
+  */
+  private applyArrangementToCourse(
+    course: CourseResponse,
+    arrangement: ScheduleArrangementOverride | undefined,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ): CourseResponse {
+    if (!arrangement || !course.schedule) return course;
+
+    const room = this.resolveArrangementRoom(arrangement, roomByCode, rooms);
+
+    return {
+      ...course,
+      schedule: {
+        ...course.schedule,
+        day: arrangement.day ?? course.schedule.day,
+        start_time: arrangement.start_time ?? course.schedule.start_time,
+        end_time: arrangement.end_time ?? course.schedule.end_time,
+        room_id: room?.room_id ?? arrangement.room_id ?? course.schedule.room_id,
+      },
+      room: room ? { room_id: room.room_id, room_code: room.room_code } : course.room,
+    };
+  }
+
+  /**
+   * Resolves the room object for a given arrangement based on its ID or code.
+   * @returns The resolved room object or undefined if not found
+   */
   private resolveArrangementRoom(
     arrangement: ScheduleArrangementOverride,
     roomByCode: Map<string, Room>,
@@ -533,6 +574,11 @@ export class ScheduleValidationService {
     return undefined;
   }
 
+  /**
+   * Builds an index of all schedules by their ID for quick lookup.
+   * @param schedules 
+   * @returns 
+   */
   private buildScheduleIndex(
     schedules: PopulateSchedulesResponse
   ): Map<number, CourseResponse> {

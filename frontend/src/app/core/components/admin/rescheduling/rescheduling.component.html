@@ -613,7 +613,13 @@
             mat-flat-button
             class="btn-approve"
             (click)="approveAppeal()"
-            [disabled]="conflictMessages.length > 0"
+             [disabled]="
+              conflictMessages.length > 0 ||
+              !newSchedule?.preferredDay ||
+              !newSchedule?.preferredStartTime ||
+              !newSchedule?.preferredEndTime ||
+              !newSchedule?.room
+            "
             [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
           >
             Approve
