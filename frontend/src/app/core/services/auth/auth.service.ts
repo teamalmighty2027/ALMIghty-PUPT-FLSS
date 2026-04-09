@@ -141,7 +141,7 @@ export class AuthService {
     });
   }
 
-  // ==============================
+// ==============================
   // Internal FLSS auth methods
   // ==============================
   flssLogin(
@@ -150,13 +150,11 @@ export class AuthService {
     allowedRoles: string[],
   ): Observable<any> {
     const loginData = {
-      email,
-      password,
-      allowed_roles: allowedRoles
+      email: email,
+      password: password,
+      allowed_roles: allowedRoles,
     };
-    return this.http.post(`${this.baseUrl}/login`, loginData, {
-      withCredentials: true
-    });
+    return this.http.post(`${this.baseUrl}/login`, loginData);
   }
 
   logout(): Observable<any> {
