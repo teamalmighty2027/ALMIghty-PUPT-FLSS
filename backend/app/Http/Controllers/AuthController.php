@@ -179,11 +179,11 @@ class AuthController extends Controller
             'request_role.*'=> 'string|in:faculty,admin,superadmin',
         ]);
 
-        $baseUrl = env('IDP_BASE_URL');
+        $baseUrl = config('services.idp.base_url');
         $code = $request->input('code');
         $requestedRole = $request->input('request_role', []);
-        $clientId = env('CLIENT_ID');
-        $clientSecret = env('CLIENT_SECRET');
+        $clientId = config('services.idp.client_id');
+        $clientSecret = config('services.idp.client_secret');
 
         // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
         $tokenResponse = Http::withoutVerifying()->asJson()->post(
@@ -329,11 +329,11 @@ class AuthController extends Controller
      */
     public function logoutIdpProxy(Request $request)
     {
-        $baseUrl = env('IDP_BASE_URL');
-        $clientId = $request->input('client_id')
+        $baseUrl = config('services.idp.base_url');
+        $clientId = config('services.idp.client_id')
             ?? $request->query('client_id')
-            ?? env('CLIENT_ID');
-        $logoutPath = env('IDP_LOGOUT_PATH', '/api/v1/auth/logout');
+            ?? config('services.idp.client_id');
+        $logoutPath = '/api/v1/auth/logout';
 
         if (! $baseUrl || ! $clientId) {
             return response()->json([
@@ -342,12 +342,19 @@ class AuthController extends Controller
         }
 
         try {
+            $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
+            
             $response = Http::withoutVerifying()->asJson()->post(
-                rtrim($baseUrl, '/') . '/api/v1/auth/logout',
+                $logoutUrl,
                 ['client_id' => $clientId]
             );
 
             if (! $response->successful()) {
+                Log::warning('IDP logout proxy failed with status ' . 
+                  $response->status() . 
+                  ': ' . 
+                  $response->body()
+                );
                 return response()->json([
                     'message' => 'IDP logout failed.',
                     'status' => $response->status(),
