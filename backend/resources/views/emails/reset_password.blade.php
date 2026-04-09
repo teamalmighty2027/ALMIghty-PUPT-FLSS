@@ -139,12 +139,12 @@
 
             <p>This password reset link will expire in 24 hours. If you did not request a password reset, please ignore this email or contact us if you have concerns.</p>
 
-            <p class="important-note">Need help? Contact us at <a href="mailto:pupt.flss2025@gmail.com">pupt.flss2025@gmail.com</a></p>
+            <p class="important-note">Need help? Contact us at <a href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2024 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>
@@ -152,4 +152,4 @@
     </div>
 </body>
 
-</html> 
+</html>

@@ -172,17 +172,17 @@
                 Your input is highly valued and helps ensure a smooth scheduling process.</p>
 
             <div class="button-container">
-                <a href="https://pupt-flss.com" class="button">Submit Preferences Now</a>
+                <a href="{{ url('/') }}" class="button">Submit Preferences Now</a>
             </div>
 
             <p class="important-note">Note: If you experience any technical difficulties or have questions about the
                 submission process, please don't hesitate to contact our support team at <a
-                    href="mailto:pupt.flss2025@gmail.com">pupt.flss2025@gmail.com</a></p>
+                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2024 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>
