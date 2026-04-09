@@ -211,6 +211,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           id: program.program_id,
           year_levels: program.year_levels.map((year: YearLevel) => ({
             year_level: year.year_level,
+            year_level_id: year.year_level_id,
+            semester_id: year.semester_id,
             curriculum_id: year.curriculum_id,
             sections: year.sections,
           })),
@@ -369,18 +371,27 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       a.section_name.localeCompare(b.section_name)
     );
 
+    const yearLevelId = selectedYearLevelObj.year_level_id;
+    const semesterId = selectedYearLevelObj.semester_id;
+
     // Check if there are bridging courses
-    if (this.selectedCurriculumId && selectedProgram) {
+    if (
+      this.selectedCurriculumId &&
+      selectedProgram &&
+      yearLevelId &&
+      semesterId
+    ) {
       this.schedulingService.getBridgingCourses(
         this.selectedCurriculumId,
         selectedProgram.id,
-        this.selectedYear
+        yearLevelId,
+        semesterId
       ).subscribe((bridgingCourses) => {
         this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
         this.cdr.detectChanges();
       });
     } else {
-      this.hasBridgingCourses = true; // or false, depending on your logic
+      this.hasBridgingCourses = false;
     }
 
     this.headerInputFields.find((field) => field.key === 'section')!.options =
@@ -715,6 +726,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                             year_levels: program.year_levels.map(
                               (year: YearLevel) => ({
                                 year_level: year.year_level,
+                                year_level_id: year.year_level_id,
+                                semester_id: year.semester_id,
                                 curriculum_id: year.curriculum_id,
                                 sections: year.sections,
                               })
@@ -797,13 +810,18 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.isCreatingTemporaryCourse = true;
 
     const curriculumId = this.selectedCurriculumId;
-    const bridgingCourses$ = curriculumId
-      ? this.schedulingService.getBridgingCourses(
-          curriculumId,
-          program.id,
-          this.selectedYear
-        )
-      : of([]);
+    const yearLevelData = this.yearLevelOptions.find(
+      (year) => year.year_level === this.selectedYear
+    );
+    const bridgingCourses$ =
+      curriculumId && yearLevelData?.year_level_id && yearLevelData?.semester_id
+        ? this.schedulingService.getBridgingCourses(
+            curriculumId,
+            program.id,
+            yearLevelData.year_level_id,
+            yearLevelData.semester_id
+          )
+        : of([]);
 
     forkJoin({
       courses: this.schedulingService.getProgramCourses(program.id),

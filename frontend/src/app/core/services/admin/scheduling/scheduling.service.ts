@@ -122,12 +122,14 @@ export class SchedulingService {
   getBridgingCourses(
     curriculumId: number,
     programId: number,
-    yearLevel: number
+    yearLevelId: number,
+    semesterId: number
   ): Observable<BridgingCourseOption[]> {
     const params = new HttpParams()
       .set('curriculum_id', curriculumId.toString())
       .set('program_id', programId.toString())
-      .set('year_level', yearLevel.toString());
+      .set('year_level_id', yearLevelId.toString())
+      .set('semester_id', semesterId.toString());
 
     return this.http
       .get<BridgingCourseOption[]>(`${this.baseUrl}/bridging-courses`, { params })
