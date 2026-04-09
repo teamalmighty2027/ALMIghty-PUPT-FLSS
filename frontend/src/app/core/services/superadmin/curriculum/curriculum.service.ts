@@ -67,7 +67,8 @@ export interface BridgingCourse {
   bridging_course_id: number;
   curriculum_id: number;
   program_id: number;
-  year_level: number;
+  year_level_id: number;
+  semester_id: number;
   course_id: number;
   course_code: string;
   course_title: string;
@@ -196,12 +197,14 @@ export class CurriculumService {
   getBridgingCourses(
     curriculumId: number,
     programId: number,
-    yearLevel: number
+    yearLevelId: number,
+    semesterId: number
   ): Observable<BridgingCourse[]> {
     const params = new HttpParams()
       .set('curriculum_id', curriculumId.toString())
       .set('program_id', programId.toString())
-      .set('year_level', yearLevel.toString());
+      .set('year_level_id', yearLevelId.toString())
+      .set('semester_id', semesterId.toString());
 
     return this.http.get<BridgingCourse[]>(`${this.baseUrl}/bridging-courses`, {
       params,
@@ -211,7 +214,8 @@ export class CurriculumService {
   addBridgingCourse(payload: {
     curriculum_id: number;
     program_id: number;
-    year_level: number;
+    year_level_id: number;
+    semester_id: number;
     course_id: number;
   }): Observable<any> {
     return this.http.post(`${this.baseUrl}/bridging-courses`, payload);
@@ -222,7 +226,8 @@ export class CurriculumService {
     payload: {
       curriculum_id: number;
       program_id: number;
-      year_level: number;
+      year_level_id: number;
+      semester_id: number;
       course_id: number;
     }
   ): Observable<any> {
