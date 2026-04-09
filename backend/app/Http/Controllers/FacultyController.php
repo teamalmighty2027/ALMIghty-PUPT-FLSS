@@ -86,6 +86,7 @@ class FacultyController extends Controller
             );
 
             DB::commit();
+            \App\Jobs\SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
 
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {
