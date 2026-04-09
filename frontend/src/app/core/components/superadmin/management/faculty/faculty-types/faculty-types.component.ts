@@ -180,6 +180,7 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
               additional_units: 0,
             },
       },
+      autoFocus: true,
     });
 
     dialogRef

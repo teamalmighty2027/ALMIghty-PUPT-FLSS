@@ -105,7 +105,16 @@
                 (click)="addCourseToTable(course)"
                 matRipple>
                 <div class="course-info">
-                  <span class="course-code">{{ course.course_code }}</span>
+                  <div class="course-meta">
+                    <span class="course-code">{{ course.course_code }}</span>
+                    @if (course.is_temporary) {
+                    <span
+                      class="temp-pill"
+                      [matTooltip]="getTemporaryTooltip(course)">
+                      {{ getTemporaryBadgeText(course) }}
+                    </span>
+                    }
+                  </div>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
@@ -136,7 +145,16 @@
                 (click)="addCourseToTable(course)"
                 matRipple>
                 <div class="course-info">
-                  <span class="course-code">{{ course.course_code }}</span>
+                  <div class="course-meta">
+                    <span class="course-code">{{ course.course_code }}</span>
+                    @if (course.is_temporary) {
+                    <span
+                      class="temp-pill"
+                      [matTooltip]="getTemporaryTooltip(course)">
+                      {{ getTemporaryBadgeText(course) }}
+                    </span>
+                    }
+                  </div>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
@@ -161,7 +179,16 @@
                 (click)="addCourseToTable(course)"
                 matRipple>
                 <div class="course-info">
-                  <span class="course-code">{{ course.course_code }}</span>
+                  <div class="course-meta">
+                    <span class="course-code">{{ course.course_code }}</span>
+                    @if (course.is_temporary) {
+                    <span
+                      class="temp-pill"
+                      [matTooltip]="getTemporaryTooltip(course)">
+                      {{ getTemporaryBadgeText(course) }}
+                    </span>
+                    }
+                  </div>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
@@ -186,7 +213,16 @@
                 (click)="addCourseToTable(course)"
                 matRipple>
                 <div class="course-info">
-                  <span class="course-code">{{ course.course_code }}</span>
+                  <div class="course-meta">
+                    <span class="course-code">{{ course.course_code }}</span>
+                    @if (course.is_temporary) {
+                    <span
+                      class="temp-pill"
+                      [matTooltip]="getTemporaryTooltip(course)">
+                      {{ getTemporaryBadgeText(course) }}
+                    </span>
+                    }
+                  </div>
                   <span class="course-title">{{ course.course_title }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
@@ -295,7 +331,16 @@
               Course Code
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.course_code }}
+              <div class="course-code-cell">
+                <span>{{ element.course_code }}</span>
+                @if (element.is_temporary) {
+                <span
+                  class="temp-pill"
+                  [matTooltip]="getTemporaryTooltip(element)">
+                  {{ getTemporaryBadgeText(element) }}
+                </span>
+                }
+              </div>
             </td>
           </ng-container>
 

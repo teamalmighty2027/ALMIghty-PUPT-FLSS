@@ -360,6 +360,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
         schedule,
         color,
       },
+      autoFocus: true,
     });
   }
 

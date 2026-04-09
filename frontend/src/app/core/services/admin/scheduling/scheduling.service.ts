@@ -1,11 +1,20 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
 import { Observable, throwError, forkJoin } from 'rxjs';
 import { catchError, map, shareReplay, tap } from 'rxjs/operators';
 
 import { ScheduleValidationService } from './schedule-validation.service';
-import { Schedule, PopulateSchedulesResponse, Room, Faculty, SubmittedPrefResponse } from '../../../models/scheduling.model';
+import {
+  Schedule,
+  PopulateSchedulesResponse,
+  Room,
+  Faculty,
+  SubmittedPrefResponse,
+  CourseCatalogItem,
+  BridgingCourseOption,
+  TemporaryCourseOfferingPayload,
+} from '../../../models/scheduling.model';
 
 import { environment } from '../../../../../environments/environment.dev';
 
@@ -86,6 +95,114 @@ export class SchedulingService {
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.schedulesCache$;
+  }
+
+  /**
+   * Retrieves the full course catalog for selection.
+   */
+  getCourses(): Observable<CourseCatalogItem[]> {
+    return this.http
+      .get<CourseCatalogItem[]>(`${this.baseUrl}/courses`)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Retrieves courses for a program across all semesters in the active academic year.
+   */
+  getProgramCourses(programId: number): Observable<CourseCatalogItem[]> {
+    const params = new HttpParams().set('program_id', programId.toString());
+    return this.http
+      .get<CourseCatalogItem[]>(`${this.baseUrl}/program-courses`, { params })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Retrieves bridging courses for a curriculum/program/year level scope.
+   */
+  getBridgingCourses(
+    curriculumId: number,
+    programId: number,
+    yearLevel: number
+  ): Observable<BridgingCourseOption[]> {
+    const params = new HttpParams()
+      .set('curriculum_id', curriculumId.toString())
+      .set('program_id', programId.toString())
+      .set('year_level', yearLevel.toString());
+
+    return this.http
+      .get<BridgingCourseOption[]>(`${this.baseUrl}/bridging-courses`, { params })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Creates a temporary course offering for the active term.
+   */
+  createTemporaryCourseOffering(
+    payload: TemporaryCourseOfferingPayload
+  ): Observable<any> {
+    const formData = new FormData();
+    formData.append('course_id', payload.course_id.toString());
+    if (payload.bridging_course_id !== undefined && payload.bridging_course_id !== null) {
+      formData.append('bridging_course_id', payload.bridging_course_id.toString());
+    }
+    formData.append('academic_year_id', payload.academic_year_id.toString());
+    formData.append('semester_id', payload.semester_id.toString());
+    formData.append('program_id', payload.program_id.toString());
+    formData.append('year_level', payload.year_level.toString());
+    formData.append(
+      'applies_to_all_sections',
+      payload.applies_to_all_sections ? '1' : '0'
+    );
+    formData.append('type', payload.type);
+
+    if (
+      payload.section_per_program_year_id !== undefined &&
+      payload.section_per_program_year_id !== null
+    ) {
+      formData.append(
+        'section_per_program_year_id',
+        payload.section_per_program_year_id.toString()
+      );
+    }
+
+    if (payload.min_petitioners !== undefined && payload.min_petitioners !== null) {
+      formData.append('min_petitioners', payload.min_petitioners.toString());
+    }
+
+    if (
+      payload.petitioners_count !== undefined &&
+      payload.petitioners_count !== null
+    ) {
+      formData.append('petitioners_count', payload.petitioners_count.toString());
+    }
+
+    if (payload.petition_file) {
+      formData.append('petition_file', payload.petition_file);
+    }
+
+    return this.http
+      .post(`${this.baseUrl}/temporary-course-offerings`, formData)
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
+   * Archives a temporary course offering.
+   */
+  archiveTemporaryCourseOffering(
+    offeringId: number,
+    isArchived: boolean = true
+  ): Observable<any> {
+    return this.http
+      .patch(`${this.baseUrl}/temporary-course-offerings/${offeringId}/archive`, {
+        is_archived: isArchived,
+      })
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
   }
 
   /**

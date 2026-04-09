@@ -68,7 +68,8 @@ export class AuditLogComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogAuditlogDetailsComponent, { 
       width: '850px', 
       data: log,
-      panelClass: 'custom-audit-log-panel' 
+      panelClass: 'custom-audit-log-panel',
+      autoFocus: true,
     });
   }
 

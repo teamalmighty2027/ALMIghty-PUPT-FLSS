@@ -4,12 +4,30 @@
     <app-loading></app-loading>
   </div>
   } @else {
+  <div class="programs-banner" [@fadeAnimation]>
+    <div class="banner-content">
+      <div class="banner-text">
+        <h3>Programs are synced from PUPTAS</h3>
+        <p>Programs are automatically synced daily from PUPTAS. Manual additions are not supported.</p>
+        <p class="sync-meta">Last sync: {{ lastSyncLabel }}</p>
+      </div>
+      <div class="banner-actions">
+        <button
+          mat-flat-button
+          class="sync-button"
+          (click)="triggerManualSync()"
+          [disabled]="isSyncing || isLoading">
+          {{ isSyncing ? 'Syncing...' : 'Sync Now' }}
+        </button>
+      </div>
+    </div>
+  </div>
   <div class="programs-header-container" [@fadeAnimation]>
     <app-table-header
       [inputFields]="headerInputFields"
       [addButtonLabel]="'Add Program'"
+      [showAddButton]="false"
       (inputChange)="onInputChange($event)"
-      (add)="openAddProgramDialog()"
       (export)="onExport()"
     ></app-table-header>
   </div>

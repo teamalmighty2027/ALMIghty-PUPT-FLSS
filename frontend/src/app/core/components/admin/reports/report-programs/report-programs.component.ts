@@ -334,6 +334,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'program',
@@ -419,6 +420,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -499,6 +501,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
+      autoFocus: true,
       data: {
         entity: 'program',
         scheduleGroups: scheduleGroups,

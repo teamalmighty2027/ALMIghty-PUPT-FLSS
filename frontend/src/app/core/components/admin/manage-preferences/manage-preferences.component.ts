@@ -441,7 +441,7 @@ export class ManagePreferencesComponent
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
       disableClose: true,
-      autoFocus: false,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
@@ -495,7 +495,7 @@ export class ManagePreferencesComponent
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
       disableClose: true,
-      autoFocus: false,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
@@ -539,6 +539,7 @@ export class ManagePreferencesComponent
         generatePdfFunction: generatePdfFunction,
       },
       disableClose: true,
+      autoFocus: true,
     });
   }
 
@@ -575,6 +576,7 @@ export class ManagePreferencesComponent
     const dialogRef = this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'faculty',

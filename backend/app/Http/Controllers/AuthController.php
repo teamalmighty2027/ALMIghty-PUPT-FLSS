@@ -17,6 +17,7 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        Log::info("Login initiated");
         $loginUserData = $request->validate([
             'email'         => 'required|string|email|max:254',
             'password'      => 'required|string|min:8|max:128',
@@ -48,12 +49,15 @@ class AuthController extends Controller
                 'message' => 'Your account is currently inactive. Please contact the system administrator.',
             ], 403);
         }
+        
+        Log::info("User role checked");
 
         $tokenResult = $user->createToken('user-token');
         $token       = $tokenResult->plainTextToken;
         $expiration  = Carbon::now()->addHours(24);
 
         $faculty = $user->faculty;
+        Log::info("Faculty role: {$faculty}");
 
         // Get permissions and allowed programs for response
         $permissions = $user->permissions->pluck('permission_key')->toArray();
@@ -72,7 +76,7 @@ class AuthController extends Controller
             'faculty'          => $faculty ? [
                 'faculty_id'    => $faculty->id,
                 'faculty_email' => $user->email,
-                'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
+                'faculty_type'  => $faculty->facultyType?->faculty_type ?? null,
                 'faculty_units' => $faculty->faculty_units,
             ] : null,
         ]);
@@ -82,7 +86,8 @@ class AuthController extends Controller
         Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
         // AuditLogger automatically grabs their Name, Role, and ID
-        Auth::setUser($user);
+        Auth::login($user);
+        $request->session()->regenerate();
 
         // ══════════════════════════════════════════════════════════
         // ← LOG LOGIN ACTION
@@ -94,8 +99,7 @@ class AuthController extends Controller
             'expires_at' => $expiration,
             'token'      => $token,
             'user'       => json_decode($userData, true),
-        ])
-        ->cookie('token', $token, 1440, null, null, true, true);
+        ]);
     }
 
     public function logout(Request $request)
@@ -311,7 +315,6 @@ class AuthController extends Controller
                 ],
                 'data'       => $userDataArray,
             ])
-            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
             ->cookie('user_info', $userDataJson, $expiration);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());

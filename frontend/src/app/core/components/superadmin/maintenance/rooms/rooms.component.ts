@@ -299,6 +299,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
   openAddRoomDialog() {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -327,6 +328,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
   openEditRoomDialog(room: RoomWithDetails) {
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: this.getDialogConfig(room),
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -501,6 +503,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
       width: '100%',
+      autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'Rooms',

@@ -4,6 +4,7 @@ use App\Http\Controllers\AcademicYearController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuildingController;
+use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
@@ -18,11 +19,13 @@ use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\RescheduleController;
 use App\Http\Controllers\ProgramController;
+use App\Http\Controllers\ProgramSyncController;
 use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
+use App\Http\Controllers\TemporaryCourseOfferingController;
 
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
@@ -47,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
  */
 Route::prefix('auth')->group(function () {
     Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
-    Route::delete('/session', [AuthController::class, 'logoutIdpProxy']);
+    Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
 });
 
 
@@ -74,6 +77,8 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
+    Route::post('/programs/sync', [ProgramSyncController::class, 'syncProgramsManual']);
+
     /*
     |----------------------------------
     | Permission Management Routes
@@ -83,6 +88,15 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::get('/admins/{admin}/permissions', [AccountController::class, 'getAdminPermissions']);
     Route::post('/admins/{admin}/permissions', [AccountController::class, 'updateAdminPermissions']);
     Route::get('/programs', [ProgramController::class, 'index']);
+
+    /*
+    |----------------------------------
+    | Bridging Courses Management Routes
+    |----------------------------------
+    */
+    Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
+    Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
+    Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
 });
 
 /*
@@ -107,6 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/update-sections', [AcademicYearController::class, 'updateSections']);
     Route::delete('/remove-program', [AcademicYearController::class, 'removeProgramFromAcademicYear']);
     Route::get('/offered-courses-sem', [AcademicYearController::class, 'getOfferedCoursesBySem']);
+    Route::get('/program-courses', [AcademicYearController::class, 'getProgramCourses']);
 
     /**
      * Admin
@@ -128,6 +143,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addCourse', [CourseController::class, 'addCourse']);
     Route::put('/courses/{id}', [CourseController::class, 'updateCourse']);
     Route::delete('/courses/{id}', [CourseController::class, 'deleteCourse']);
+
+    /**
+     * Bridging Courses
+     */
+    Route::get('/bridging-courses', [BridgingCourseController::class, 'index']);
 
     /**
      * Curriculum & Curriculum Details
@@ -269,9 +289,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
 
     /**
-     * AI Assisted Scheduling
+     * Temporary Course Offerings
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::apiResource('temporary-course-offerings', TemporaryCourseOfferingController::class)
+        ->only(['index', 'show', 'store', 'update']);
+    Route::patch('/temporary-course-offerings/{id}/archive', [TemporaryCourseOfferingController::class, 'archive']);
 
     /**
      * Semester
@@ -281,6 +303,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/semesters/{id}', [SemesterController::class, 'show']);
     Route::put('/updateSemester/{id}', [SemesterController::class, 'update']);
     Route::delete('/deleteSemester/{id}', [SemesterController::class, 'destroy']);
+
+    /**
+     * AI Assisted Scheduling
+     */
+    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
 
     /**
      * Year Level

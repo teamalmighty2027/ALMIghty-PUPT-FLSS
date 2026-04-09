@@ -126,6 +126,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     this.isRedirectDialogOpen = true;
     const dialogRef = this.dialog.open(DialogRedirectComponent, {
       disableClose: true,
+      autoFocus: true,
       data: { checkingIDP: true, redirecting: true, intendedRole: ['faculty'] },
     });
 

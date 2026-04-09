@@ -82,7 +82,8 @@ export class AdminMainComponent implements OnInit {
     
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
-        disableClose: true
+        disableClose: true,
+        autoFocus: true,
       });
     }
 
@@ -129,6 +130,7 @@ export class AdminMainComponent implements OnInit {
         cancelText: 'Cancel',
         action: 'Log Out',
       },
+      autoFocus: true,
       disableClose: true,
       panelClass: 'dialog-base',
     });
@@ -148,6 +150,7 @@ export class AdminMainComponent implements OnInit {
         showProgressBar: true,
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     this.authService.logout().subscribe({
@@ -165,8 +168,7 @@ export class AdminMainComponent implements OnInit {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,
-    });
+      disableClose: true,      autoFocus: true,    });
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.message) {
@@ -180,6 +182,7 @@ export class AdminMainComponent implements OnInit {
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
       }
     });

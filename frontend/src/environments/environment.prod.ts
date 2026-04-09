@@ -1,9 +1,8 @@
 export const environment = {
   production: true,
+  // Hostinger BACKEND URL
+  apiUrl: 'https://flss.alquatrilixbsit2027.com/api',
   
-  // Your new Hostinger Backend API
-  apiUrl: 'https://api-flss.alquatrilixbsit2027.com/api',
-  
-  // Your new Hostinger Frontend URL
+  // Hostinger FRONTEND URL
   appUrl: 'https://flss.alquatrilixbsit2027.com', 
 };

@@ -34,6 +34,10 @@ interface Course {
   preferred_days: { day: string; start_time: string; end_time: string }[];
   year_section: string;
   program_code: string | null;
+  is_temporary?: boolean;
+  temporary_type?: string | null;
+  temporary_status?: string | null;
+  petition_required?: boolean;
 }
 
 interface DialogPrefData {
@@ -126,7 +130,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
 
     this.preferencesService
-      .getPreferencesByFacultyId(this.data.faculty_id.toString())
+      .getPreferencesByFacultyId(this.data.faculty_id.toString(), true)
       .subscribe(
         (response) => {
           const faculty = response.preferences;
@@ -146,6 +150,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               preferred_days: course.preferred_days,
               year_section: `${course.course_details.year_level}-${course.section_details.section_name}`,
               program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+              is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
+              temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
+              temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
+              petition_required: course.petition_required ?? course.course_details?.petition_required ?? null,
             }));
           }
 
@@ -263,6 +271,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       preferred_days: course.preferred_days ?? course.preferredDays ?? [],
       year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.section_details?.section_name ?? 'N/A'}`,
       program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+      is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
+      temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
+      temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
+      petition_required: course.petition_required ?? course.course_details?.petition_required ?? null,
     }));
 
     this.isLoading = false;
@@ -495,6 +507,38 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         return `${pref.day} (${time})`;
       })
       .join('\n');
+  }
+
+  public getTemporaryBadgeText(course: Course): string {
+    if (!course.is_temporary) {
+      return '';
+    }
+
+    const typeLabel = this.formatTemporaryType(course.temporary_type);
+    return typeLabel ? `Temporary (${typeLabel})` : 'Temporary';
+  }
+
+  public getTemporaryTooltip(course: Course): string {
+    if (!course.is_temporary) {
+      return '';
+    }
+
+    const parts: string[] = [this.getTemporaryBadgeText(course)];
+    if (course.temporary_status) {
+      parts.push(`Status: ${this.formatTemporaryType(course.temporary_status)}`);
+    }
+    if (course.petition_required) {
+      parts.push('Petition required');
+    }
+    return parts.join(' | ');
+  }
+
+  private formatTemporaryType(type?: string | null): string {
+    if (!type) return '';
+    return type
+      .toString()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   /**

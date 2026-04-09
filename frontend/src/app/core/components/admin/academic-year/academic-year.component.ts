@@ -339,6 +339,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
           useHorizontalLayout: true,
         },
         disableClose: true,
+        autoFocus: true,
       });
 
       dialogRef.afterClosed().subscribe((result) => {
@@ -469,6 +470,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
         useHorizontalLayout: true,
       },
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -540,6 +542,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
       data: dialogData,
       disableClose: true,
       panelClass: 'dialog-base',
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -701,6 +704,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
         const dialogRef = this.dialog.open(TableDialogComponent, {
           data: dialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
 
         dialogRef.afterClosed().subscribe((result) => {

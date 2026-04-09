@@ -75,11 +75,17 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private bottomSheet: MatBottomSheet,
   ) {}
 
+  navigateToProfile() {
+  this.router.navigate(['/faculty/profile']);
+  this.isDropdownOpen = false;
+  }
+
   ngOnInit(): void {
     this.loadFacultyInfo();
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
-        disableClose: true
+        disableClose: true,
+        autoFocus: true,
       });
     }
   }
@@ -268,6 +274,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       data: dialogConfig,
       disableClose: true,
       panelClass: 'dialog-base',
+      autoFocus: true,
     });
 
     confirmDialogRef.afterClosed().subscribe((result) => {
@@ -281,6 +288,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         const loadingDialogRef = this.dialog.open(DialogGenericComponent, {
           data: loadingDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
 
         this.authService.logout().subscribe({
@@ -304,12 +312,18 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onBottomSheetAction(action: string) {
-    if (action === 'theme') {
+    if (action === 'profile') {
+      this.navigateToProfile();
+      this.bottomSheet.dismiss();
+    } else if (action === 'theme' || action === 'toggle-theme') {
       this.toggleTheme();
+      this.bottomSheet.dismiss();
     } else if (action === 'logout') {
       this.logout();
+      this.bottomSheet.dismiss();
     } else if (action === 'change-password') {
       this.openChangePasswordDialog();
+      this.bottomSheet.dismiss();
     }
   }
 
@@ -320,6 +334,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
       disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -334,6 +349,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
           disableClose: true,
+          autoFocus: true,
         });
       }
     });

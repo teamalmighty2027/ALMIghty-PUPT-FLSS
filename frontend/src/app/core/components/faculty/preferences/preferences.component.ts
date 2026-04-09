@@ -129,14 +129,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         course.course_title.toLowerCase().includes(query),
     );
 
-    const uniqueTitlesMap = new Map<string, Course>();
+    const uniqueCoursesMap = new Map<string, Course>();
     filteredCourses.forEach((course) => {
-      if (!uniqueTitlesMap.has(course.course_title.toLowerCase())) {
-        uniqueTitlesMap.set(course.course_title.toLowerCase(), course);
+      const key = this.getCourseListKey(course);
+      if (!uniqueCoursesMap.has(key)) {
+        uniqueCoursesMap.set(key, course);
       }
     });
 
-    return Array.from(uniqueTitlesMap.values());
+    return Array.from(uniqueCoursesMap.values());
   });
   @ViewChild('searchInput') searchInput!: ElementRef;
    @ViewChild('tableContainer') tableContainer!: ElementRef<HTMLDivElement>;
@@ -297,8 +298,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   private mapPreferencesToTableData(courses: any[]): TableData[] {
     return courses.map((course) => ({
       course_id: course.course_details.course_id,
-      course_assignment_id: course.course_assignment_id,
+      course_assignment_id: course.course_assignment_id ?? null,
       course_code: course.course_details.course_code,
+      temporary_course_offering_id: course.temporary_course_offering_id ?? null,
       course_title: course.course_details.course_title,
       lec_hours: course.lec_hours,
       lab_hours: course.lab_hours,
@@ -317,6 +319,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       pre_req: course.course_details.pre_req ?? null,
       co_req: course.course_details.co_req ?? null,
       tuition_hours: course.course_details.tuition_hours ?? 0,
+      is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
+      temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
+      temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
+      petition_required: course.petition_required ?? course.course_details?.petition_required ?? null,
       program_details: course.program_details ?? undefined,
       year_section:  `${course.course_details.year_level}-${course.section_details?.section_name ?? ''}`
     }));
@@ -356,7 +362,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   ): void {    
     program.year_levels.forEach((yearLevel) => {
       yearLevel.semester.courses.forEach((course) => {
-        coursesMap.set(course.course_code, course);
+        const key = this.getCourseListKey(course);
+        coursesMap.set(key, course);
       });
     });
   }
@@ -371,8 +378,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     this.programs().forEach((program) => {
       const hasCourseInProgram = program.year_levels.some((yearLevel) =>
-        yearLevel.semester.courses.some(
-          (c) => c.course_code === course.course_code,
+        yearLevel.semester.courses.some((c) =>
+          this.isSameCourseOffering(c, course),
         ),
       );
 
@@ -401,7 +408,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     for (const yearLevel of program.year_levels) {
       for (const course of yearLevel.semester.courses) {
-        if (course.course_code === this.selectedCourse()!.course_code) {
+        if (this.isSameCourseOffering(course, this.selectedCourse()!)) {
           this.selectedCourse.set(course);
           await this.addCourseToTable(course);
           courseAdded = true;
@@ -623,10 +630,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Proceed with the actual removal of the preference
    */
   private proceedWithRemoval(course: TableData) {
-    const { course_assignment_id } = course;
+    const preferenceId = this.getPreferenceId(course);
     const { section_id } = course.section;
     if (!this.facultyId() || !this.activeSemesterId()) {
       this.showSnackBar('Error: Missing faculty or semester information.');
+      return;
+    }
+
+    if (!preferenceId) {
+      this.showSnackBar('Error: Missing preference identifier.');
       return;
     }
 
@@ -637,7 +649,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     this.preferencesService
       .deletePreference(
-        course_assignment_id,
+        preferenceId,
         this.facultyId()!,
         this.activeSemesterId()!,
         section_id ?? 0
@@ -645,8 +657,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.allSelectedCourses.update((courses) =>
-            courses.filter((c) => !(c.course_id === course.course_id 
-              && c.section.section_name === course.section.section_name)),
+            courses.filter((c) =>
+              this.getSelectionKey(c) !== this.getSelectionKey(course),
+            ),
           );
           this.isRemoving.update((value) => {
             const updatedValue = { ...value };
@@ -676,8 +689,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    */
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
-      courses.filter((c) => !(c.course_id === course.course_id 
-        && c.section.section_name === course.section.section_name)),
+      courses.filter((c) =>
+        this.getSelectionKey(c) !== this.getSelectionKey(course),
+      ),
     );
   }
 
@@ -685,11 +699,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Checks if the course is already added based on course_id and section_name
    */
   private isCourseAlreadyAdded(course: Course): boolean {
-    const isAdded = this.allSelectedCourses().some(      
-      (subject) => subject.course_id === course.course_id 
-      && subject.section.section_id === course.section.section_id,
+    return this.allSelectedCourses().some((subject) =>
+      this.getSelectionKey(subject) === this.getSelectionKey(course),
     );
-    return isAdded;
   }
 
   /**
@@ -720,6 +732,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       data: { 
         sections: targetYear.sections
       },
+      autoFocus: true,
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -748,18 +761,18 @@ export class PreferencesComponent implements OnInit, OnDestroy {
           facultyId: this.facultyId(),
           activeSemesterId: this.activeSemesterId(),
           courseAssignmentId: element.course_assignment_id,
+          temporaryCourseOfferingId: element.temporary_course_offering_id ?? null,
           section_id: element.section.section_id,
           allSelectedCourses: this.allSelectedCourses(),
         },
         disableClose: true,
-        autoFocus: false,
+        autoFocus: true,
       })
       .afterClosed()
       .subscribe((result) => {
         if (result) {
           const courseIndex = this.allSelectedCourses().findIndex(
-            (c) => c.course_id === element.course_id 
-              && c.section.section_id === element.section.section_id,
+            (c) => this.getSelectionKey(c) === this.getSelectionKey(element),
           );
 
           if (courseIndex !== -1) {
@@ -793,6 +806,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         isViewHistory: true,
       },
       disableClose: true,
+      autoFocus: true,
     });
   }
 
@@ -946,5 +960,71 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.selectedYearLevel.set(year);
     // Trigger recomputation of filtered courses
     this.filteredCourses(); 
+  }
+  public getTemporaryBadgeText(course: Course): string {
+    if (!course.is_temporary) {
+      return '';
+    }
+
+    const typeLabel = this.formatTemporaryType(course.temporary_type);
+    return typeLabel ? `Temporary (${typeLabel})` : 'Temporary';
+  }
+
+  public getTemporaryTooltip(course: Course): string {
+    if (!course.is_temporary) {
+      return '';
+    }
+
+    const parts: string[] = [this.getTemporaryBadgeText(course)];
+    if (course.temporary_status) {
+      parts.push(`Status: ${this.formatTemporaryType(course.temporary_status)}`);
+    }
+    if (course.petition_required) {
+      parts.push('Petition required');
+    }
+    return parts.join(' | ');
+  }
+
+  private formatTemporaryType(type?: string | null): string {
+    if (!type) return '';
+    return type
+      .toString()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  private isSameCourseOffering(candidate: Course, target: Course): boolean {
+    if (target.temporary_course_offering_id) {
+      return (
+        candidate.temporary_course_offering_id ===
+        target.temporary_course_offering_id
+      );
+    }
+
+    return candidate.course_code === target.course_code;
+  }
+
+  private getCourseListKey(course: Course): string {
+    if (course.temporary_course_offering_id) {
+      return `temp-${course.temporary_course_offering_id}`;
+    }
+
+    return `course-${course.course_code.toLowerCase()}`;
+  }
+
+  private getSelectionKey(course: Course): string {
+    const base = course.temporary_course_offering_id
+      ? `temp-${course.temporary_course_offering_id}`
+      : `course-${course.course_id}`;
+    const sectionId = course.section?.section_id ?? 'none';
+    return `${base}-section-${sectionId}`;
+  }
+
+  private getPreferenceId(course: Course): number | null {
+    if (course.temporary_course_offering_id) {
+      return course.temporary_course_offering_id;
+    }
+
+    return course.course_assignment_id ?? null;
   }
 }

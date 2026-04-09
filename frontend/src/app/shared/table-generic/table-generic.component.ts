@@ -120,6 +120,7 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
         cancelText: 'Cancel',
         action: 'delete',
       },
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
