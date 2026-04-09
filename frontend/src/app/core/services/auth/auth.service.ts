@@ -154,17 +154,9 @@ export class AuthService {
       password,
       allowed_roles: allowedRoles
     };
-    const rootUrl = this.baseUrl.replace(/\/api$/, '');
-
-    return this.http.get(`${rootUrl}/sanctum/csrf-cookie`, { 
-      withCredentials: true 
-    }).pipe(
-      switchMap(() => {
-        return this.http.post(`${this.baseUrl}/login`, loginData, {
-          withCredentials: true
-        });
-      })
-    );
+    return this.http.post(`${this.baseUrl}/login`, loginData, {
+      withCredentials: true
+    });
   }
 
   logout(): Observable<any> {
