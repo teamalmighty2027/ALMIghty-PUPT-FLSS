@@ -131,6 +131,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         next: () => {
           this.isLoading = false;
 
+          const selectedProgramObj = this.programOptions.find(
+            (p) => p.display === this.selectedProgram
+          );
+          const yearLevelObj = this.yearLevelOptions.find(
+            (y) => y.year_level === this.selectedYear
+          );
+
+          if (
+            this.selectedCurriculumId &&
+            selectedProgramObj &&
+            yearLevelObj?.year_level_id &&
+            yearLevelObj?.semester_id
+          ) {
+            this.checkBridgingCourses(
+              this.selectedCurriculumId,
+              selectedProgramObj,
+              yearLevelObj.year_level_id,
+              yearLevelObj.semester_id
+            );
+          } else {
+            this.hasBridgingCourses = false;
+          }
+
           if (this.isSubmissionEnabled === 1 && !this.shouldSkipDialog()) {
             this.openInfoDialog();
           }
@@ -381,27 +404,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       yearLevelId &&
       semesterId
     ) {
-      this.schedulingService.getBridgingCourses(
-        this.selectedCurriculumId,
-        selectedProgram.id,
-        yearLevelId,
+      this.checkBridgingCourses(
+        this.selectedCurriculumId, 
+        selectedProgram, 
+        yearLevelId, 
         semesterId
-      ).pipe(
-        takeUntil(this.destroy$),
-        catchError((error) => {
-          this.hasBridgingCourses = false;
-          this.cdr.detectChanges();
-          console.error('Failed to fetch bridging courses', error);
-          this.snackBar.open('Failed to check for bridging courses.', 
-            'Close', {
-            duration: 5000
-          });
-          return of([]);
-        })
-      ).subscribe((bridgingCourses) => {
-        this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
-        this.cdr.detectChanges();
-      });
+      );
     } else {
       this.hasBridgingCourses = false;
     }
@@ -439,6 +447,43 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
 
     this.previousProgram = this.selectedProgram;
+  }
+
+  /**
+   * Checks if there are bridging courses 
+   * for the selected curriculum, program, year level, and semester.
+   * @param curriculumId 
+   * @param selectedProgram 
+   * @param yearLevelId 
+   * @param semesterId 
+   */
+  private checkBridgingCourses(
+    curriculumId: number,
+    selectedProgram: ProgramOption, 
+    yearLevelId: number, 
+    semesterId: number
+  ) {
+    this.schedulingService.getBridgingCourses(
+      curriculumId,
+      selectedProgram.id,
+      yearLevelId,
+      semesterId
+    ).pipe(
+      takeUntil(this.destroy$),
+      catchError((error) => {
+        this.hasBridgingCourses = false;
+        this.cdr.detectChanges();
+        console.error('Failed to fetch bridging courses', error);
+        this.snackBar.open('Failed to check for bridging courses.',
+          'Close', {
+          duration: 5000
+        });
+        return of([]);
+      })
+    ).subscribe((bridgingCourses) => {
+      this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
+      this.cdr.detectChanges();
+    });
   }
 
   /**
@@ -691,6 +736,11 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               takeUntil(this.destroy$),
               switchMap((result) => {
                 if (result) {
+                  this.snackBar.open('Updating active year and semester...', 
+                    'Close', 
+                    { duration: 5000,}
+                  );
+
                   const selectedYearObj = academicYears.find(
                     (year) => year.academic_year === result.academicYear
                   );
@@ -765,13 +815,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                             const section = this.sectionOptions.find(
                               (s) => s.section_name === this.selectedSection
                             );
+
                             if (program && section) {
                               return this.fetchCourses(
                                 program.id,
                                 this.selectedYear,
                                 section.section_id
                               );
-                            }
+                            }                            
                           }
                           return of([]);
                         })
@@ -783,6 +834,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             )
             .subscribe({
               next: (result) => {
+                const selectedProgramObj = this.programOptions.find(
+                  (p) => p.display === this.selectedProgram
+                );
+                const yearLevelObj = this.yearLevelOptions.find(
+                  (y) => y.year_level === this.selectedYear
+                );
+                
+                if (
+                  this.selectedCurriculumId &&
+                  selectedProgramObj &&
+                  yearLevelObj?.year_level_id &&
+                  yearLevelObj?.semester_id
+                ) {
+                  this.checkBridgingCourses(
+                    this.selectedCurriculumId,
+                    selectedProgramObj,
+                    yearLevelObj.year_level_id,
+                    yearLevelObj.semester_id
+                  );
+                } else {
+                  this.hasBridgingCourses = false;
+                }
+
                 if (result) {
                   this.snackBar.open(
                     'New active year and semester has been set successfully.',
@@ -857,8 +931,22 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             return;
           }
 
+          if (yearLevelData == undefined) {
+            this.snackBar.open('Year level data is missing.', 'Close', {
+              duration: 3000,
+            });
+            return;
+          }
+
           const sortedCourses = courses.sort((a, b) =>
             a.course_code.localeCompare(b.course_code)
+          );
+
+          const filteredBridgingCourses = bridgingCourses.filter(
+            (course) =>
+              course.program_id === program.id &&
+              course.year_level_id === yearLevelData.year_level_id &&
+              course.semester_id === yearLevelData.semester_id
           );
 
           const dialogRef = this.dialog.open(DialogTemporaryCourseComponent, {
@@ -872,7 +960,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               sections: this.sectionOptions,
               defaultSectionId: section.section_id,
               courses: sortedCourses,
-              bridgingCourses,
+              bridgingCourses: filteredBridgingCourses,
               curriculumId: this.selectedCurriculumId,
             },
           });
