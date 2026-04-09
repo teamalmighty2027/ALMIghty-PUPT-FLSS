@@ -1515,8 +1515,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return '';
     }
 
-    const status = this.formatTempValue(element.temporary_status);
-    return status ? `Temporary ${status}` : 'Temporary';
+    const type = this.formatTempValue(element.temporary_type);
+    return type ? `Temporary ${type}` : 'Temporary';
   }
 
   protected get addButtonTooltip(): string {
