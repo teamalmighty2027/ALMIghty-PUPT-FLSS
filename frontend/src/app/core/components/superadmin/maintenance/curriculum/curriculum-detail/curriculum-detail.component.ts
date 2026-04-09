@@ -870,10 +870,16 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             if (!createdCourseId) {
               throw new Error('Course creation response missing course id.');
             }
+            
+            if (yearLevelData.year_level_id === undefined || 
+              semesterData.semester_id === undefined) {
+              throw new Error('Invalid year level or semester data.');
+            }
+
             return this.curriculumService.addBridgingCourse({
               curriculum_id: this.curriculum!.curriculum_id,
               program_id: programId,
-              year_level_id: yearLevelData.year_level_id || 0,
+              year_level_id: yearLevelData.year_level_id,
               semester_id: semesterData.semester_id,
               course_id: createdCourseId,
             });
