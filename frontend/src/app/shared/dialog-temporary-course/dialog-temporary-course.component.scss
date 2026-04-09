@@ -56,11 +56,11 @@ mat-dialog-content {
     .value {
       color: var(--primary-text);
       font-weight: 500;
-      text-align: right;
+      text-align: left;
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: normal;
-      max-width: 60%;
+      width: 60%;
     }
   }
 }

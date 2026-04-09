@@ -13,12 +13,8 @@
         <span class="value">{{ data.programLabel }}</span>
       </div>
       <div class="summary-row">
-        <span class="label">Year Level:</span>
-        <span class="value">{{ data.yearLevel }}</span>
-      </div>
-      <div class="summary-row">
-        <span class="label">Section:</span>
-        <span class="value">{{ getSectionLabel(form.get('section_per_program_year_id')?.value) }}</span>
+        <span class="label">Year and Section:</span>
+        <span class="value">{{ data.yearLevel }} - {{ getSectionLabel(form.get('section_per_program_year_id')?.value) }}</span>
       </div>
     </div>
 

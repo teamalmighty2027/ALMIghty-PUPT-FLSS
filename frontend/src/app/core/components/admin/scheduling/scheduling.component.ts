@@ -809,7 +809,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           );
 
           const dialogRef = this.dialog.open(DialogTemporaryCourseComponent, {
-            maxWidth: '45rem',
+            maxWidth: '35rem',
             width: '100%',
             disableClose: true,
             autoFocus: true,
