@@ -72,12 +72,12 @@
     <span
       class="tooltip-container"
       [matTooltip]="addButtonTooltip"
-      [matTooltipDisabled]="!buttonDisabled || !addButtonTooltip">
+      [matTooltipDisabled]="!addButtonTooltip">
       <button
         mat-flat-button
         class="custom-mat-button add-button"
-        [disabled]="buttonDisabled"
-        [ngClass]="{ 'disabled-button': buttonDisabled }"
+        [disabled]="buttonDisabled || addButtonDisabled"
+        [ngClass]="{ 'disabled-button': buttonDisabled || addButtonDisabled }"
         (click)="onAdd()">
         <div class="button-wrapper">
           @if (isLoading) {

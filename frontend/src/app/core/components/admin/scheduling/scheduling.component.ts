@@ -99,6 +99,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   isSubmissionEnabled: number = 0;
   processingCourseId: number | null = null;
   isCreatingTemporaryCourse: boolean = false;
+  hasBridgingCourses: boolean = false;
 
   private destroy$ = new Subject<void>();
   private readonly DIALOG_INFO_PREF_KEY = 'doNotShowDialogInfo';
@@ -368,9 +369,24 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       a.section_name.localeCompare(b.section_name)
     );
 
+    // Check if there are bridging courses
+    if (this.selectedCurriculumId && selectedProgram) {
+      this.schedulingService.getBridgingCourses(
+        this.selectedCurriculumId,
+        selectedProgram.id,
+        this.selectedYear
+      ).subscribe((bridgingCourses) => {
+        this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
+        this.cdr.detectChanges();
+      });
+    } else {
+      this.hasBridgingCourses = true; // or false, depending on your logic
+    }
+
     this.headerInputFields.find((field) => field.key === 'section')!.options =
       this.sectionOptions.map((section) => section.section_name);
 
+    // Finds the value of selected section
     if (programChanged || yearLevelChanged) {
       if (this.sectionOptions.length > 0) {
         this.selectedSection = this.sectionOptions[0].section_name;
@@ -402,6 +418,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.previousProgram = this.selectedProgram;
   }
 
+  /**
+   * Fetches the courses for the selected program, year level, and section.
+   * @param programId 
+   * @param yearLevel 
+   * @param sectionId 
+   * @returns 
+   */
   private fetchCourses(
     programId: number,
     yearLevel: number,
@@ -1376,6 +1399,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     const status = this.formatTempValue(element.temporary_status);
     return status ? `Temporary ${status}` : 'Temporary';
+  }
+
+  protected get addButtonTooltip(): string {
+    if (!this.selectedSection) {
+      return 'Select a program, year level, and section first.';
+    }
+    if (!this.hasBridgingCourses) {
+      return 'No bridging courses available for the selected program and year level.';
+    }
+    return '';
   }
 
   protected getTemporaryTooltip(element: Schedule): string {
