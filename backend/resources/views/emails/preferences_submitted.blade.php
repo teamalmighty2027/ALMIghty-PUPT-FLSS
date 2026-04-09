@@ -163,19 +163,16 @@
 
 <body>
     <div class="container">
-        <!-- Header Section -->
         <div class="header">
             <img src="https://images.pupt-flss.com/pup_logo_white_bg.png" alt="PUP Logo">
             <h1>PUP Taguig</h1>
             <h1>Faculty Loading and Scheduling System</h1>
         </div>
 
-        <!-- Content Section -->
         <div class="content">
             <p class="greeting"><strong>Dear {{ $faculty_name }},</strong></p>
             <p>Your preferences have been <strong style="color: green;">successfully</strong> submitted and are currently under review.</p>
 
-            <!-- Pending Status Section -->
             <div class="status-container">
                 <p class="status-title">Status: Pending</p>
                 <p class="status-description">
@@ -186,21 +183,19 @@
 
             <p>Thank you for submitting your preferences. If you have any questions or need further assistance, please feel free to contact us.</p>
 
-            <!-- Button Section -->
             <div class="button-container">
-            <a href="https://beta.pupt-flss.com/" class="button" style="text-decoration: none; color: white; background-color: #800000; padding: 14px 32px; border-radius: 9999px; font-size: 16px; display: inline-block; text-align: center;">Visit PUPT-FLSS Now</a>
+            <a href="{{ url('/') }}" class="button" style="text-decoration: none; color: white; background-color: #800000; padding: 14px 32px; border-radius: 9999px; font-size: 16px; display: inline-block; text-align: center;">Visit PUPT-FLSS Now</a>
             </div>
 
 
-            <!-- Important Note -->
             <p class="important-note">Note: If you experience any technical difficulties or have questions about the
                 submission process, please don't hesitate to contact our support team at <a
-                    href="mailto:pupt.flss2025@gmail.com">pupt.flss2025@gmail.com</a>.</p>
+                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a>.</p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2024 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>

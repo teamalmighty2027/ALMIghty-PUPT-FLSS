@@ -153,16 +153,13 @@
 </head>
 
 <body>
-    <!-- Email Container -->
     <div class="container">
-        <!-- Header Section -->
         <div class="header">
             <img src="https://images.pupt-flss.com/pup_logo_white_bg.png" alt="PUP Logo">
             <h1>PUP Taguig</h1>
             <h1>Faculty Loading and Scheduling System</h1>
         </div>
 
-        <!-- Content -->
         <div class="content">
             <p class="greeting"><b>Dear {{ $admin->last_name }}, {{ $admin->first_name }}</b></p>
             <p>The following faculty member has submitted a request to change their preferences:</p>
@@ -190,20 +187,17 @@
                 </tr>
             </table>
 
-       <!-- Button Section -->
-            <div class="button-container">
-                <a href="https://beta.pupt-flss.com/" class="button" style="text-decoration: none; color: white; background-color: #800000; padding: 14px 32px; border-radius: 9999px; font-size: 16px; display: inline-block; text-align: center;">Visit PUPT-FLSS Now</a>
+       <div class="button-container">
+                <a href="{{ url('/') }}" class="button" style="text-decoration: none; color: white; background-color: #800000; padding: 14px 32px; border-radius: 9999px; font-size: 16px; display: inline-block; text-align: center;">Visit PUPT-FLSS Now</a>
             </div>
-            <!-- Important Note -->
             <p class="important-note">Note: If you experience any technical difficulties or have questions about the
                 submission process, please don't hesitate to contact our support team at <a
-                    href="mailto:pupt.flss2025@gmail.com">pupt.flss2025@gmail.com</a>.</p>
+                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a>.</p>
         </div>
-        <!-- Footer -->
         <div class="footer">
             <div class="footer-divider"></div>
             <p class="copyright">
-                © 2024 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>
