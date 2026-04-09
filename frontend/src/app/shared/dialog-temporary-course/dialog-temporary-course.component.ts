@@ -70,6 +70,8 @@ export class DialogTemporaryCourseComponent {
     BridgingCourseOption
   >();
 
+  // Default petition counts for different types of temporary courses
+  // ! Postponed Implementation: These values can be made configurable in the future
   private readonly petitionDefaults: Record<string, number> = {
     petition: 45,
     tutorial: 1,
@@ -77,6 +79,8 @@ export class DialogTemporaryCourseComponent {
     bridging: 0,
   };
 
+  // ! Postponed Implementation: 
+  // These values are placeholders for file validation
   private readonly maxFileSizeBytes = 10 * 1024 * 1024;
   private readonly allowedFileTypes = [
     'application/pdf',
@@ -111,10 +115,10 @@ export class DialogTemporaryCourseComponent {
 
     this.form = this.fb.group({
       course_id: [null, Validators.required],
-      type: ['summer', Validators.required],
+      type: ['bridging', Validators.required],
       applies_to_all_sections: [false],
       section_per_program_year_id: [this.defaultSectionId],
-      min_petitioners: [this.petitionDefaults['summer'], [Validators.min(0)]],
+      min_petitioners: [this.petitionDefaults['bridging'], [Validators.min(0)]],
       petitioners_count: [0, [Validators.min(0)]],
       petition_file: [null],
     });
@@ -163,6 +167,12 @@ export class DialogTemporaryCourseComponent {
     this.dialogRef.close(result);
   }
 
+  /**
+   * ! Postponed Implementation
+   * Handles file selection and validation for petition files.
+   * @param event 
+   * @returns 
+   */
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -192,6 +202,10 @@ export class DialogTemporaryCourseComponent {
     this.form.patchValue({ petition_file: file });
   }
 
+  /**
+   * ! Postponed Implementation
+   * Handles removal of the selected petition file and resets the file input state.
+   */
   removeFile(): void {
     this.selectedFile = null;
     this.selectedFileName = '';
@@ -201,6 +215,16 @@ export class DialogTemporaryCourseComponent {
     if (this.fileInput?.nativeElement) {
       this.fileInput.nativeElement.value = '';
     }
+  }
+
+  /**
+   * ! Postponed Implementation
+   * Helper method to determine if the selected type requires petition details.
+   * @returns 
+   */
+  isPetitionTypeSelected(): boolean {
+    const type = this.form.get('type')?.value;
+    return type === 'petition' || type === 'tutorial';
   }
 
   hasBridgingCourses(): boolean {
@@ -271,6 +295,29 @@ export class DialogTemporaryCourseComponent {
     }
 
     sectionControl?.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /**
+   * ! Postponed Implementation
+   * Updates validators for the petition file input 
+   */
+  private updatePetitionValidators(): void {
+    const fileControl = this.form.get('petition_file');
+    const type = this.form.get('type')?.value;
+    const minControl = this.form.get('min_petitioners');
+
+    if (this.isPetitionTypeSelected()) {
+      fileControl?.setValidators([Validators.required]);
+    } else {
+      fileControl?.clearValidators();
+      this.removeFile();
+    }
+
+    fileControl?.updateValueAndValidity({ emitEvent: false });
+
+    if (minControl && !minControl.dirty) {
+      minControl.setValue(this.petitionDefaults[type] ?? 0);
+    }
   }
 
   /**

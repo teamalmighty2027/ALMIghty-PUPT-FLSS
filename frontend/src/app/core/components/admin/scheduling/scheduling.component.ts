@@ -386,6 +386,18 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         selectedProgram.id,
         yearLevelId,
         semesterId
+      ).pipe(
+        takeUntil(this.destroy$),
+        catchError((error) => {
+          this.hasBridgingCourses = false;
+          this.cdr.detectChanges();
+          console.error('Failed to fetch bridging courses', error);
+          this.snackBar.open('Failed to check for bridging courses.', 
+            'Close', {
+            duration: 5000
+          });
+          return of([]);
+        })
       ).subscribe((bridgingCourses) => {
         this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
         this.cdr.detectChanges();
@@ -1424,7 +1436,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return 'Select a program, year level, and section first.';
     }
     if (!this.hasBridgingCourses) {
-      return 'No bridging courses available for the selected program and year level.';
+      return 'No bridging courses available for the selected program, year level and semester.';
     }
     return '';
   }

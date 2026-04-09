@@ -21,7 +21,7 @@ return new class extends Migration
             $table->enum('status', ['Pending', 'Approved', 'Rejected'])->default('Approved');
 
             // ! Postponed Implementation
-            // Petition specifc fields
+            // Petition specific fields
             $table->integer('min_petitioners')->default(0);
             $table->integer('petitioners_count')->default(0);
             $table->string('petition_file_path')->nullable();
