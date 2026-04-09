@@ -15,7 +15,8 @@ class BridgingCourseController extends Controller
         $validated = $request->validate([
             'curriculum_id' => 'nullable|integer|exists:curricula,curriculum_id',
             'program_id' => 'nullable|integer|exists:programs,program_id',
-            'year_level' => 'nullable|integer|min:1',
+            'year_level_id' => 'nullable|integer|exists:year_levels,year_level_id',
+            'semester_id' => 'nullable|integer|exists:semesters,semester_id',
         ]);
 
         $query = DB::table('bridging_courses as bc')
@@ -24,7 +25,8 @@ class BridgingCourseController extends Controller
                 'bc.bridging_course_id',
                 'bc.curriculum_id',
                 'bc.program_id',
-                'bc.year_level',
+                'bc.year_level_id',
+                'bc.semester_id',
                 'bc.course_id',
                 'co.course_code',
                 'co.course_title',
@@ -42,13 +44,18 @@ class BridgingCourseController extends Controller
             $query->where('bc.program_id', $validated['program_id']);
         }
 
-        if (array_key_exists('year_level', $validated)) {
-            $query->where('bc.year_level', $validated['year_level']);
+        if (array_key_exists('year_level_id', $validated)) {
+            $query->where('bc.year_level_id', $validated['year_level_id']);
+        }
+
+        if (array_key_exists('semester_id', $validated)) {
+            $query->where('bc.semester_id', $validated['semester_id']);
         }
 
         return response()->json(
             $query
-                ->orderBy('bc.year_level')
+                ->orderBy('bc.year_level_id')
+                ->orderBy('bc.semester_id')
                 ->orderBy('co.course_code')
                 ->get()
         );
@@ -59,19 +66,21 @@ class BridgingCourseController extends Controller
         $validated = $request->validate([
             'curriculum_id' => 'required|integer|exists:curricula,curriculum_id',
             'program_id' => 'required|integer|exists:programs,program_id',
-            'year_level' => 'required|integer|min:1',
+            'year_level_id' => 'required|integer|exists:year_levels,year_level_id',
+            'semester_id' => 'required|integer|exists:semesters,semester_id',
             'course_id' => 'required|integer|exists:courses,course_id',
         ]);
 
         $existing = BridgingCourse::where([
             'curriculum_id' => $validated['curriculum_id'],
             'program_id' => $validated['program_id'],
-            'year_level' => $validated['year_level'],
+            'year_level_id' => $validated['year_level_id'],
+            'semester_id' => $validated['semester_id'],
         ])->first();
 
         if ($existing) {
             return response()->json([
-                'message' => 'A bridging course already exists for this curriculum, program, and year level.',
+                'message' => 'A bridging course already exists for this curriculum, program, year level, and semester.',
             ], 422);
         }
 
@@ -100,7 +109,8 @@ class BridgingCourseController extends Controller
         $validated = $request->validate([
             'curriculum_id' => 'required|integer|exists:curricula,curriculum_id',
             'program_id' => 'required|integer|exists:programs,program_id',
-            'year_level' => 'required|integer|min:1',
+            'year_level_id' => 'required|integer|exists:year_levels,year_level_id',
+            'semester_id' => 'required|integer|exists:semesters,semester_id',
             'course_id' => 'required|integer|exists:courses,course_id',
         ]);
 
@@ -108,13 +118,14 @@ class BridgingCourseController extends Controller
             ->where([
                 'curriculum_id' => $validated['curriculum_id'],
                 'program_id' => $validated['program_id'],
-                'year_level' => $validated['year_level'],
+                'year_level_id' => $validated['year_level_id'],
+                'semester_id' => $validated['semester_id'],
             ])
             ->first();
 
         if ($duplicate) {
             return response()->json([
-                'message' => 'A bridging course already exists for this curriculum, program, and year level.',
+                'message' => 'A bridging course already exists for this curriculum, program, year level, and semester.',
             ], 422);
         }
 
