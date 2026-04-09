@@ -19,6 +19,9 @@ return new class extends Migration
             $table->boolean('applies_to_all_sections')->default(false);
             $table->enum('type', ['summer', 'bridging', 'tutorial', 'petition']);
             $table->enum('status', ['Pending', 'Approved', 'Rejected'])->default('Approved');
+
+            // ! Postponed Implementation
+            // Petition specifc fields
             $table->integer('min_petitioners')->default(0);
             $table->integer('petitioners_count')->default(0);
             $table->string('petition_file_path')->nullable();
