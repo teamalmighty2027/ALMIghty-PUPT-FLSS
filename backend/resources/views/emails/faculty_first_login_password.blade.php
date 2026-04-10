@@ -145,12 +145,12 @@
             </ul>
 
             <p class="important-note">Need help? Contact us at <a
-                    href="mailto:pupt.flss2025@gmail.com">pupt.flss2025@gmail.com</a></p>
+                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2025 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>

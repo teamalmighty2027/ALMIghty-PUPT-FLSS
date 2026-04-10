@@ -6,6 +6,7 @@ import {
   Room,
   ConflictingCourseDetail,
   ConflictingScheduleDetail,
+  ScheduleArrangementOverride,
 } from '../../../models/scheduling.model';
 
 @Injectable({
@@ -90,6 +91,34 @@ export class ScheduleValidationService {
     }
 
     return { hasConflicts: conflicts.length > 0, messages: conflicts };
+  }
+
+  /**
+   * Validates schedule conflicts using a merged view of schedules + arrangements.
+   */
+  public validateScheduleConflictsWithArrangements(
+    schedules: PopulateSchedulesResponse,
+    rooms: { rooms: Room[] },
+    arrangements: ScheduleArrangementOverride[],
+    params: {
+      schedule_id: number;
+      program_id: number;
+      year_level: number;
+      day: string;
+      start_time: string;
+      end_time: string;
+      section_id: number;
+      faculty_id: number | null;
+      room_id: number | null;
+    }
+  ): { hasConflicts: boolean; messages: string[] } {
+    const mergedSchedules = this.mergeSchedulesWithArrangements(
+      schedules,
+      rooms,
+      arrangements
+    );
+
+    return this.validateScheduleConflicts(mergedSchedules, rooms, params);
   }
 
   /**
@@ -427,5 +456,149 @@ export class ScheduleValidationService {
     }
 
     return { isValid: true, message: '' };
+  }
+
+  /**
+   * Merges the original schedules with arrangement overrides.
+   */
+  private mergeSchedulesWithArrangements(
+    schedules: PopulateSchedulesResponse,
+    rooms: { rooms: Room[] },
+    arrangements: ScheduleArrangementOverride[]
+  ): PopulateSchedulesResponse {
+    if (!arrangements || arrangements.length === 0) {
+      return schedules;
+    }
+
+    const arrangementsByScheduleId = new Map<number, ScheduleArrangementOverride>();
+    arrangements.forEach((arrangement) => {
+      if (arrangement?.schedule_id) {
+        arrangementsByScheduleId.set(arrangement.schedule_id, arrangement);
+      }
+    });
+
+    const roomByCode = new Map<string, Room>();
+    rooms.rooms.forEach((room) => {
+      if (room.room_code) {
+        roomByCode.set(room.room_code.toLowerCase(), room);
+      }
+    });
+
+    return {
+      ...schedules,
+      programs: schedules.programs.map(program =>
+        this.applyArrangementsToProgram(
+          program,
+          arrangementsByScheduleId,
+          roomByCode,
+          rooms
+        )
+      ),
+    };
+  }
+
+  /**
+   * Applies arrangement overrides to all courses within a program.
+   */
+  private applyArrangementsToProgram(
+    program: any,
+    arrangements: Map<number, ScheduleArrangementOverride>,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ) {
+    return {
+      ...program,
+      year_levels: program.year_levels.map((yl: any) => ({
+        ...yl,
+        semesters: yl.semesters.map((sem: any) => ({
+          ...sem,
+          sections: sem.sections.map((sec: any) => ({
+            ...sec,
+            courses: sec.courses.map((course: CourseResponse) =>
+              this.applyArrangementToCourse(
+                course,
+                arrangements.get(course.schedule?.schedule_id || 0),
+                roomByCode,
+                rooms
+              )
+            ),
+          })),
+        })),
+      })),
+    };
+  }
+
+  /**
+   * Applies a single arrangement override to a course.
+  */
+  private applyArrangementToCourse(
+    course: CourseResponse,
+    arrangement: ScheduleArrangementOverride | undefined,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ): CourseResponse {
+    if (!arrangement || !course.schedule) return course;
+
+    const room = this.resolveArrangementRoom(arrangement, roomByCode, rooms);
+
+    return {
+      ...course,
+      schedule: {
+        ...course.schedule,
+        day: arrangement.day ?? course.schedule.day,
+        start_time: arrangement.start_time ?? course.schedule.start_time,
+        end_time: arrangement.end_time ?? course.schedule.end_time,
+        room_id: room?.room_id ?? arrangement.room_id ?? course.schedule.room_id,
+      },
+      room: room ? { room_id: room.room_id, room_code: room.room_code } : course.room,
+    };
+  }
+
+  /**
+   * Resolves the room object for a given arrangement based on its ID or code.
+   * @returns The resolved room object or undefined if not found
+   */
+  private resolveArrangementRoom(
+    arrangement: ScheduleArrangementOverride,
+    roomByCode: Map<string, Room>,
+    rooms: { rooms: Room[] }
+  ): Room | undefined {
+    if (arrangement.room_id) {
+      return rooms.rooms.find((room) => room.room_id === arrangement.room_id);
+    }
+
+    if (arrangement.room_code) {
+      return roomByCode.get(arrangement.room_code.toLowerCase());
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Builds an index of all schedules by their ID for quick lookup.
+   * @param schedules 
+   * @returns 
+   */
+  private buildScheduleIndex(
+    schedules: PopulateSchedulesResponse
+  ): Map<number, CourseResponse> {
+    const scheduleById = new Map<number, CourseResponse>();
+
+    for (const program of schedules.programs) {
+      for (const yearLevel of program.year_levels) {
+        for (const semester of yearLevel.semesters) {
+          for (const section of semester.sections) {
+            for (const course of section.courses) {
+              const scheduleId = course.schedule?.schedule_id;
+              if (scheduleId) {
+                scheduleById.set(scheduleId, course);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return scheduleById;
   }
 }

@@ -45,6 +45,7 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Input() addButtonLabel = 'Add';
   @Input() addIconName = 'add_box';
   @Input() buttonDisabled = false;
+  @Input() addButtonDisabled = false;
   @Input() showExportButton = true;
   @Input() showExportDialog = false;
   @Input() showAddButton = true;

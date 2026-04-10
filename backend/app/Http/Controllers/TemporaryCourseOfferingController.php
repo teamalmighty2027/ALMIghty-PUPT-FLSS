@@ -117,10 +117,11 @@ class TemporaryCourseOfferingController extends Controller
             }
 
             $bridgingCourse = BridgingCourse::find($validated['bridging_course_id']);
+            $bridgingYearLevel = $bridgingCourse?->yearLevel?->year;
 
             if (! $bridgingCourse
                 || (int) $bridgingCourse->program_id !== (int) $validated['program_id']
-                || (int) $bridgingCourse->year_level !== (int) $validated['year_level']
+                || (int) $bridgingYearLevel !== (int) $validated['year_level']
             ) {
                 return response()->json([
                     'message' => 'Selected bridging course does not match the program or year level.',
@@ -238,9 +239,11 @@ class TemporaryCourseOfferingController extends Controller
 
             $bridgingCourse = BridgingCourse::find($bridgingCourseId);
 
+            $bridgingYearLevel = $bridgingCourse?->yearLevel?->year;
+
             if (! $bridgingCourse
                 || (int) $bridgingCourse->program_id !== (int) $programId
-                || (int) $bridgingCourse->year_level !== (int) $yearLevel
+                || (int) $bridgingYearLevel !== (int) $yearLevel
             ) {
                 return response()->json([
                     'message' => 'Selected bridging course does not match the program or year level.',

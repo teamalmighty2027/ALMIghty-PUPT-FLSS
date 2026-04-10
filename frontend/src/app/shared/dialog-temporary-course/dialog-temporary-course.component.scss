@@ -40,7 +40,7 @@ mat-dialog-content {
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--spacing-xs);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-md);
     margin-bottom: var(--spacing-xxs);
 
     &:last-child {
@@ -56,11 +56,11 @@ mat-dialog-content {
     .value {
       color: var(--primary-text);
       font-weight: 500;
-      text-align: right;
+      text-align: left;
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: normal;
-      max-width: 60%;
+      width: 60%;
     }
   }
 }
