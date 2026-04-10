@@ -25,6 +25,11 @@ import { SchedulingService } from '../../../services/admin/scheduling/scheduling
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
+import {
+  PopulateSchedulesResponse,
+  Room,
+  ScheduleArrangementOverride,
+} from '../../../models/scheduling.model';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -33,6 +38,7 @@ import 'jspdf-autotable';
 interface ReschedulingAppeal {
   id: number;
   rawAppealId: number;
+  scheduleId: number;
   facultyName: string;
   programCode: string;
   courseTitle: string;
@@ -121,10 +127,15 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   private allFaculties: FacultyArrangement[] = [];
   hasAnyArrangements = false;
 
+  private cachedSchedules: PopulateSchedulesResponse | null = null;
+  private cachedRooms: { rooms: Room[] } | null = null;
+  private cachedArrangements: ScheduleArrangementOverride[] = [];
+
   // ── Dialog state ──
   selectedAppeal: ReschedulingAppeal | null = null;
   newSchedule: ReschedulingAppeal | null = null;
   adminRemarks = '';
+  conflictMessages: string[] = [];
 
   @ViewChild('viewDialog') viewDialog!: TemplateRef<any>;
   @ViewChild('appealDialog') appealDialog!: TemplateRef<any>;
@@ -138,6 +149,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   speechSupported = false;
   private destroy$ = new Subject<void>();
   private speechSession$ = new Subject<void>();
+  private validationTimeout: any;
 
   constructor(
     private reschedulingService: ReschedulingService,
@@ -173,6 +185,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
           this.semester = this.getSemesterDisplay(activeTerm.semester);
           if (this.selectedTermId !== null) {
+            this.loadValidationCaches(mappedAppeals);
             this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
           } else {
             this.isLoading = false;
@@ -221,7 +234,84 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.isLoading = true;
     const mappedAppeals = this.dataSource.data;
+    this.loadValidationCaches(mappedAppeals);
     this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+  }
+
+  private loadValidationCaches(mappedAppeals: ReschedulingAppeal[]): void {
+    this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
+
+    if (this.cachedSchedules && this.cachedRooms) return;
+
+    forkJoin({
+      schedules: this.schedulingService.populateSchedules(),
+      rooms: this.schedulingService.getAllRooms(),
+    }).subscribe({
+      next: ({ schedules, rooms }) => {
+        this.cachedSchedules = schedules;
+        this.cachedRooms = rooms;
+      },
+      error: (err) => {
+        console.error('Failed to load validation caches:', err);
+      }
+    });
+  }
+
+  private buildArrangementOverrides(
+    mappedAppeals: ReschedulingAppeal[]
+  ): ScheduleArrangementOverride[] {
+    return mappedAppeals
+      .filter((appeal) => appeal.appealVerification === 'Approved')
+      .map((appeal) => ({
+        schedule_id: appeal.scheduleId,
+        day: appeal.preferredDay ?? undefined,
+        start_time: appeal.rawPreferredStartTime ?? undefined,
+        end_time: appeal.rawPreferredEndTime ?? undefined,
+        room_code: appeal.room ?? undefined,
+      }));
+  }
+
+  private getScheduleContext(scheduleId: number): {
+    schedule_id: number;
+    program_id: number;
+    year_level: number;
+    section_id: number;
+    faculty_id: number | null;
+  } | null {
+    if (!this.cachedSchedules) return null;
+
+    for (const program of this.cachedSchedules.programs) {
+      for (const yearLevel of program.year_levels) {
+        for (const semester of yearLevel.semesters) {
+          for (const section of semester.sections) {
+            for (const course of section.courses) {
+              if (course.schedule?.schedule_id === scheduleId) {
+                return {
+                  schedule_id: scheduleId,
+                  program_id: program.program_id,
+                  year_level: yearLevel.year_level,
+                  section_id: section.section_per_program_year_id,
+                  faculty_id: course.faculty_id ?? null,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private getRoomIdByCode(roomCode: string | null | undefined): number | null {
+    if (!roomCode || !this.cachedRooms) return null;
+    const normalized = roomCode.trim().toLowerCase();
+    if (!normalized) return null;
+
+    const match = this.cachedRooms.rooms.find(
+      (room) => room.room_code.toLowerCase() === normalized
+    );
+    return match?.room_id ?? null;
   }
 
   private loadArrangementsForTerm(termId: number, mappedAppeals: ReschedulingAppeal[]): void {
@@ -619,6 +709,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  onScheduleFieldChange(): void {
+    this.debounceValidation();
+  }
+
   onStartTimeChange(): void {
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
@@ -631,6 +725,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
     }
+    this.debounceValidation();
   }
 
   onEndTimeChange(): void {
@@ -643,6 +738,53 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.newSchedule.preferredEndTime = undefined;
       }
     }
+    this.debounceValidation();
+  }
+
+  private debounceValidation(): void {
+    // Clear previous timeout
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+    
+    // Set new timeout - waits 500ms after last change before validating
+    this.validationTimeout = setTimeout(() => {
+      this.validateConflicts();
+    }, 500);
+  }
+
+  private validateConflicts(): void {
+    // Only validate if all required fields are filled
+    if (!this.newSchedule?.preferredDay || 
+        !this.newSchedule?.preferredStartTime || 
+        !this.newSchedule?.preferredEndTime) {
+      this.conflictMessages = [];
+      return;
+    }
+
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      return;
+    }
+
+    const scheduleContext = this.getScheduleContext(this.selectedAppeal?.scheduleId ?? 0);
+    if (!scheduleContext) {
+      return;
+    }
+
+    const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+    const validation = this.reschedulingService.validateAppealBeforeApproval(
+      this.selectedAppeal?.rawAppealId ?? 0,
+      this.newSchedule.preferredDay,
+      this.newSchedule.preferredStartTime,
+      this.newSchedule.preferredEndTime,
+      proposedRoomId,
+      this.cachedSchedules,
+      this.cachedRooms,
+      this.cachedArrangements,
+      scheduleContext
+    );
+
+    this.conflictMessages = validation.hasConflicts ? validation.messages : [];
   }
 
   private updateAvailableEndTimes(startTime: string): void {
@@ -680,6 +822,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return {
       id:                 a.appeal_id,
       rawAppealId:        a.appeal_id,
+      scheduleId:         a.schedule_id,
       facultyName:        a.faculty_name,
       programCode:        a.program_code,
       courseTitle:        a.course_title,
@@ -717,6 +860,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       ? { ...this.selectedAppeal }
       : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
+    this.conflictMessages = [];
     
     // Load room options
     this.loadRoomOptions();
@@ -736,10 +880,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeDialog(): void {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
     this.dialog.closeAll();
     this.selectedAppeal = null;
     this.newSchedule    = null;
     this.adminRemarks   = '';
+    this.conflictMessages = [];
   }
 
   clearAll(): void {
@@ -750,6 +898,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newSchedule.room               = undefined;
     this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
+    this.conflictMessages = [];
   }
 
   private getErrorMessage(error: any, defaultMessage: string): string {
@@ -770,7 +919,39 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   approveAppeal(): void {
-    if (!this.selectedAppeal) return;
+    if (!this.selectedAppeal || !this.newSchedule) return;
+
+    this.conflictMessages = [];
+
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      this.snackBar.open('Validation data is not ready. Please try again.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    const scheduleContext = this.getScheduleContext(this.selectedAppeal.scheduleId);
+    if (!scheduleContext) {
+      this.snackBar.open('Unable to locate schedule context for validation.', 'Close', { duration: 4000 });
+      return;
+    }
+
+    const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+    const validation = this.reschedulingService.validateAppealBeforeApproval(
+      this.selectedAppeal.rawAppealId,
+      this.newSchedule.preferredDay ?? '',
+      this.newSchedule.preferredStartTime ?? '',
+      this.newSchedule.preferredEndTime ?? '',
+      proposedRoomId,
+      this.cachedSchedules,
+      this.cachedRooms,
+      this.cachedArrangements,
+      scheduleContext
+    );
+
+    if (validation.hasConflicts) {
+      this.conflictMessages = validation.messages;
+      return;
+    }
+
     this.reschedulingService.approveAppeal(
       this.selectedAppeal.rawAppealId,
       {
@@ -872,8 +1053,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+
     this.destroy$.next();
     this.destroy$.complete();
+    
     if (this.isListening) {
       this.speechSession$.next();
       this.speechSession$.complete();
