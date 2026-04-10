@@ -72,6 +72,8 @@ export interface AcademicYear {
 
 export interface YearLevel {
   year_level: number;
+  year_level_id?: number;
+  semester_id?: number;
   curriculum_id: number;
   curriculum_year: string;
   number_of_sections: number;
@@ -96,6 +98,7 @@ export interface ProgramResponse {
 
 export interface YearLevelResponse {
   year_level: number;
+  year_level_id?: number;
   curriculum_id: number;
   curriculum_year: string;
   semesters: SemesterResponse[];
@@ -160,6 +163,8 @@ export interface BridgingCourseOption {
   bridging_course_id: number;
   curriculum_id: number;
   program_id: number;
+  year_level_id: number;
+  semester_id: number;
   year_level: number;
   course_id: number;
   course_code: string;
@@ -273,6 +278,8 @@ export interface ProgramOption {
 
 export interface YearLevelOption {
   year_level: number;
+  year_level_id?: number;
+  semester_id?: number;
   curriculum_id: number;
   sections: SectionOption[];
 }

@@ -602,19 +602,33 @@ class AcademicYearController extends Controller
                 'p.program_code',
                 'p.program_title',
                 'pylc.year_level',
+                'yl.year_level_id',
                 'c.curriculum_id',
                 'c.curriculum_year',
                 'ay.year_start',
                 'ay.year_end',
                 's.semester',
+                'sem.semester_id',
                 'sp.section_name',
                 'sp.sections_per_program_year_id as section_id'
             )
             ->join('programs as p', 'pylc.program_id', '=', 'p.program_id')
             ->join('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
+            ->join('curricula_program as cp', function ($join) {
+                $join->on('cp.curriculum_id', '=', 'c.curriculum_id')
+                    ->on('cp.program_id', '=', 'p.program_id');
+            })
+            ->join('year_levels as yl', function ($join) {
+                $join->on('yl.curricula_program_id', '=', 'cp.curricula_program_id')
+                    ->on('yl.year', '=', 'pylc.year_level');
+            })
             ->join('academic_years as ay', 'pylc.academic_year_id', '=', 'ay.academic_year_id')
             ->join('active_semesters as ase', 'ay.academic_year_id', '=', 'ase.academic_year_id')
             ->join('semesters as s', 'ase.semester_id', '=', 's.semester_id')
+            ->join('semesters as sem', function ($join) {
+                $join->on('sem.year_level_id', '=', 'yl.year_level_id')
+                    ->on('sem.semester', '=', 's.semester');
+            })
             ->join('sections_per_program_year as sp', function ($join) {
                 $join->on('pylc.program_id', '=', 'sp.program_id')
                     ->on('pylc.year_level', '=', 'sp.year_level')
@@ -646,6 +660,8 @@ class AcademicYearController extends Controller
             if ($yearLevelIndex === false) {
                 $response[$programIndex]['year_levels'][] = [
                     'year_level' => $row->year_level,
+                    'year_level_id' => $row->year_level_id,
+                    'semester_id' => $row->semester_id,
                     'curriculum_id' => $row->curriculum_id,
                     'curriculum_year' => $row->curriculum_year,
                     'sections' => [],

@@ -14,13 +14,12 @@
       [showAddButton]="true"
       [showActiveYearAndSem]="true"
       [showButtons]="true"
-      [addButtonLabel]="'Add Temporary Course'"
+      [addButtonLabel]="'Add Bridging Course'"
       [addIconName]="'add'"
       (add)="openAddTemporaryCourseDialog()"
+      [addButtonDisabled]="!hasBridgingCourses || !selectedSection || isCreatingTemporaryCourse"
       [buttonDisabled]="!selectedSection || isCreatingTemporaryCourse"
-      [addButtonTooltip]="
-        selectedSection ? '' : 'Select a program, year level, and section first.'
-      "
+      [addButtonTooltip]="addButtonTooltip"
       [isLoading]="isCreatingTemporaryCourse"
       (inputChange)="onInputChange($event)"
       [selectedValues]="{

@@ -99,6 +99,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   isSubmissionEnabled: number = 0;
   processingCourseId: number | null = null;
   isCreatingTemporaryCourse: boolean = false;
+  hasBridgingCourses: boolean = false;
 
   private destroy$ = new Subject<void>();
   private readonly DIALOG_INFO_PREF_KEY = 'doNotShowDialogInfo';
@@ -129,6 +130,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       .subscribe({
         next: () => {
           this.isLoading = false;
+
+          const selectedProgramObj = this.programOptions.find(
+            (p) => p.display === this.selectedProgram
+          );
+          const yearLevelObj = this.yearLevelOptions.find(
+            (y) => y.year_level === this.selectedYear
+          );
+
+          if (
+            this.selectedCurriculumId &&
+            selectedProgramObj &&
+            yearLevelObj?.year_level_id &&
+            yearLevelObj?.semester_id
+          ) {
+            this.checkBridgingCourses(
+              this.selectedCurriculumId,
+              selectedProgramObj,
+              yearLevelObj.year_level_id,
+              yearLevelObj.semester_id
+            );
+          } else {
+            this.hasBridgingCourses = false;
+          }
 
           if (this.isSubmissionEnabled === 1 && !this.shouldSkipDialog()) {
             this.openInfoDialog();
@@ -210,6 +234,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           id: program.program_id,
           year_levels: program.year_levels.map((year: YearLevel) => ({
             year_level: year.year_level,
+            year_level_id: year.year_level_id,
+            semester_id: year.semester_id,
             curriculum_id: year.curriculum_id,
             sections: year.sections,
           })),
@@ -368,9 +394,30 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       a.section_name.localeCompare(b.section_name)
     );
 
+    const yearLevelId = selectedYearLevelObj.year_level_id;
+    const semesterId = selectedYearLevelObj.semester_id;
+
+    // Check if there are bridging courses
+    if (
+      this.selectedCurriculumId &&
+      selectedProgram &&
+      yearLevelId &&
+      semesterId
+    ) {
+      this.checkBridgingCourses(
+        this.selectedCurriculumId, 
+        selectedProgram, 
+        yearLevelId, 
+        semesterId
+      );
+    } else {
+      this.hasBridgingCourses = false;
+    }
+
     this.headerInputFields.find((field) => field.key === 'section')!.options =
       this.sectionOptions.map((section) => section.section_name);
 
+    // Finds the value of selected section
     if (programChanged || yearLevelChanged) {
       if (this.sectionOptions.length > 0) {
         this.selectedSection = this.sectionOptions[0].section_name;
@@ -402,6 +449,50 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.previousProgram = this.selectedProgram;
   }
 
+  /**
+   * Checks if there are bridging courses 
+   * for the selected curriculum, program, year level, and semester.
+   * @param curriculumId 
+   * @param selectedProgram 
+   * @param yearLevelId 
+   * @param semesterId 
+   */
+  private checkBridgingCourses(
+    curriculumId: number,
+    selectedProgram: ProgramOption, 
+    yearLevelId: number, 
+    semesterId: number
+  ) {
+    this.schedulingService.getBridgingCourses(
+      curriculumId,
+      selectedProgram.id,
+      yearLevelId,
+      semesterId
+    ).pipe(
+      takeUntil(this.destroy$),
+      catchError((error) => {
+        this.hasBridgingCourses = false;
+        this.cdr.detectChanges();
+        console.error('Failed to fetch bridging courses', error);
+        this.snackBar.open('Failed to check for bridging courses.',
+          'Close', {
+          duration: 5000
+        });
+        return of([]);
+      })
+    ).subscribe((bridgingCourses) => {
+      this.hasBridgingCourses = bridgingCourses && bridgingCourses.length > 0;
+      this.cdr.detectChanges();
+    });
+  }
+
+  /**
+   * Fetches the courses for the selected program, year level, and section.
+   * @param programId 
+   * @param yearLevel 
+   * @param sectionId 
+   * @returns 
+   */
   private fetchCourses(
     programId: number,
     yearLevel: number,
@@ -645,6 +736,11 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               takeUntil(this.destroy$),
               switchMap((result) => {
                 if (result) {
+                  this.snackBar.open('Updating active year and semester...', 
+                    'Close', 
+                    { duration: 5000,}
+                  );
+
                   const selectedYearObj = academicYears.find(
                     (year) => year.academic_year === result.academicYear
                   );
@@ -692,6 +788,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                             year_levels: program.year_levels.map(
                               (year: YearLevel) => ({
                                 year_level: year.year_level,
+                                year_level_id: year.year_level_id,
+                                semester_id: year.semester_id,
                                 curriculum_id: year.curriculum_id,
                                 sections: year.sections,
                               })
@@ -717,13 +815,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                             const section = this.sectionOptions.find(
                               (s) => s.section_name === this.selectedSection
                             );
+
                             if (program && section) {
                               return this.fetchCourses(
                                 program.id,
                                 this.selectedYear,
                                 section.section_id
                               );
-                            }
+                            }                            
                           }
                           return of([]);
                         })
@@ -735,6 +834,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             )
             .subscribe({
               next: (result) => {
+                const selectedProgramObj = this.programOptions.find(
+                  (p) => p.display === this.selectedProgram
+                );
+                const yearLevelObj = this.yearLevelOptions.find(
+                  (y) => y.year_level === this.selectedYear
+                );
+                
+                if (
+                  this.selectedCurriculumId &&
+                  selectedProgramObj &&
+                  yearLevelObj?.year_level_id &&
+                  yearLevelObj?.semester_id
+                ) {
+                  this.checkBridgingCourses(
+                    this.selectedCurriculumId,
+                    selectedProgramObj,
+                    yearLevelObj.year_level_id,
+                    yearLevelObj.semester_id
+                  );
+                } else {
+                  this.hasBridgingCourses = false;
+                }
+
                 if (result) {
                   this.snackBar.open(
                     'New active year and semester has been set successfully.',
@@ -774,13 +896,18 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.isCreatingTemporaryCourse = true;
 
     const curriculumId = this.selectedCurriculumId;
-    const bridgingCourses$ = curriculumId
-      ? this.schedulingService.getBridgingCourses(
-          curriculumId,
-          program.id,
-          this.selectedYear
-        )
-      : of([]);
+    const yearLevelData = this.yearLevelOptions.find(
+      (year) => year.year_level === this.selectedYear
+    );
+    const bridgingCourses$ =
+      curriculumId && yearLevelData?.year_level_id && yearLevelData?.semester_id
+        ? this.schedulingService.getBridgingCourses(
+            curriculumId,
+            program.id,
+            yearLevelData.year_level_id,
+            yearLevelData.semester_id
+          )
+        : of([]);
 
     forkJoin({
       courses: this.schedulingService.getProgramCourses(program.id),
@@ -804,12 +931,26 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             return;
           }
 
+          if (yearLevelData == undefined) {
+            this.snackBar.open('Year level data is missing.', 'Close', {
+              duration: 3000,
+            });
+            return;
+          }
+
           const sortedCourses = courses.sort((a, b) =>
             a.course_code.localeCompare(b.course_code)
           );
 
+          const filteredBridgingCourses = bridgingCourses.filter(
+            (course) =>
+              course.program_id === program.id &&
+              course.year_level_id === yearLevelData.year_level_id &&
+              course.semester_id === yearLevelData.semester_id
+          );
+
           const dialogRef = this.dialog.open(DialogTemporaryCourseComponent, {
-            maxWidth: '45rem',
+            maxWidth: '35rem',
             width: '100%',
             disableClose: true,
             autoFocus: true,
@@ -819,7 +960,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               sections: this.sectionOptions,
               defaultSectionId: section.section_id,
               courses: sortedCourses,
-              bridgingCourses,
+              bridgingCourses: filteredBridgingCourses,
               curriculumId: this.selectedCurriculumId,
             },
           });
@@ -1374,8 +1515,18 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return '';
     }
 
-    const status = this.formatTempValue(element.temporary_status);
-    return status ? `Temporary ${status}` : 'Temporary';
+    const type = this.formatTempValue(element.temporary_type);
+    return type ? `Temporary ${type}` : 'Temporary';
+  }
+
+  protected get addButtonTooltip(): string {
+    if (!this.selectedSection) {
+      return 'Select a program, year level, and section first.';
+    }
+    if (!this.hasBridgingCourses) {
+      return 'No bridging courses available for the selected program, year level and semester.';
+    }
+    return '';
   }
 
   protected getTemporaryTooltip(element: Schedule): string {

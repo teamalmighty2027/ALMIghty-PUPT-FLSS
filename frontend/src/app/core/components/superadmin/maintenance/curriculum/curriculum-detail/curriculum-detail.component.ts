@@ -22,6 +22,8 @@ import {
   CurriculumService,
   Curriculum,
   Program,
+  YearLevel,
+  Semester,
   Course,
   BridgingCourse,
   CourseWithRequirements,
@@ -205,13 +207,20 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       );
 
       if (selectedProgramData) {
-        yearLevelOptions = [
-          { key: 'All', label: 'All Year Levels' },
-          ...Array.from({ length: selectedProgramData.number_of_years }, (_, i) => ({
-            key: i + 1,
-            label: `Year ${i + 1}`,
-          }))
-        ];
+        const programYears = Array.from(
+          new Set(
+            (selectedProgramData.year_levels || []).map((level) => level.year)
+          )
+        ).sort((a, b) => a - b);
+
+        const yearOptions = programYears.length
+          ? programYears.map((year) => ({ key: year, label: `Year ${year}` }))
+          : Array.from({ length: selectedProgramData.number_of_years }, (_, i) => ({
+              key: i + 1,
+              label: `Year ${i + 1}`,
+            }));
+
+        yearLevelOptions = [{ key: 'All', label: 'All Year Levels' }, ...yearOptions];
       }
 
     } else {
@@ -316,32 +325,43 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   onInputChange(values: { [key: string]: any }) {
-    let resetYear = false;
     let refreshBridging = false;
+    let needsRender = false;
 
     if (values['courseSearch'] !== undefined) {
       // Emit to debounced search subject instead of directly updating
       this.searchQuery$.next(values['courseSearch']);
     }
-    if (values['program'] !== undefined && values['program'] !== this.selectedProgram) {
+
+    const programChanged =
+      values['program'] !== undefined && values['program'] !== this.selectedProgram;
+    const yearChanged =
+      values['yearLevel'] !== undefined && values['yearLevel'] !== this.selectedYear;
+    const semesterChanged =
+      values['semester'] !== undefined && values['semester'] !== this.selectedSemester;
+
+    if (programChanged) {
       this.selectedProgram = values['program'];
-      resetYear = true;
-      refreshBridging = true;
-    }
-    if (values['yearLevel'] !== undefined) {
-      this.selectedYear = values['yearLevel'];
-      refreshBridging = true;
-    }
-    if (values['semester'] !== undefined) {
-      this.selectedSemester = values['semester'];
-    }
-
-    if (resetYear) {
       this.selectedYear = 'All';
+      this.selectedSemester = 'All';
+      refreshBridging = true;
+      needsRender = true;
+    } else {
+      if (yearChanged) {
+        this.selectedYear = values['yearLevel'];
+        refreshBridging = true;
+        needsRender = true;
+      }
+
+      if (semesterChanged) {
+        this.selectedSemester = values['semester'];
+        refreshBridging = true;
+        needsRender = true;
+      }
     }
 
-    // Only update if search didn't change (dropdown-only updates)
-    if (values['courseSearch'] === undefined) {
+    // Update header and render if any filter (except search) changed
+    if (needsRender) {
       this.updateHeaderInputFields();
       this.updateRenderGroups();
       this.updateCustomExportOptions();
@@ -463,8 +483,14 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           year_level_id: group.yearLevel.year_level_id,
           curricula_program_id: group.program.curricula_program_id,
           requirements: [
-            ...preReqIds.map((id: number) => ({ requirement_type: 'pre', required_course_id: id })),
-            ...coReqIds.map((id: number) => ({ requirement_type: 'co', required_course_id: id })),
+            ...preReqIds.map((id: number) => ({
+              requirement_type: 'pre',
+              required_course_id: id,
+            })),
+            ...coReqIds.map((id: number) => ({
+              requirement_type: 'co',
+              required_course_id: id,
+            })),
           ],
         };
 
@@ -507,18 +533,19 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     return (
       !!this.curriculum &&
       this.selectedProgram !== 'All' &&
-      this.selectedYear !== 'All'
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
     );
   }
 
   get bridgingHeading(): string {
     const program = this.getSelectedProgramData();
-    if (!program || this.selectedYear === 'All') {
+    if (!program || this.selectedYear === 'All' || this.selectedSemester === 'All') {
       return 'Bridging Courses';
     }
 
     const programLabel = program.program_code || program.name;
-    return `Bridging Courses - ${programLabel} - Year ${this.selectedYear}`;
+    return `Bridging Courses - ${programLabel} - Year ${this.selectedYear} - ${this.getSemesterDisplay(Number(this.selectedSemester))}`;
   }
 
   private getSelectedProgramData(): Program | undefined {
@@ -531,13 +558,31 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     );
   }
 
-  private getProgramYearCourses(program: Program, yearLevel: number): Course[] {
-    const year = program.year_levels.find((yl) => yl.year === yearLevel);
+  private getSelectedYearLevelData(program: Program, yearLevel: number): YearLevel | undefined {
+    return program.year_levels.find((yl) => yl.year === yearLevel);
+  }
+
+  private getSelectedSemesterData(
+    yearLevel: YearLevel,
+    semesterValue: number
+  ): Semester | undefined {
+    return yearLevel.semesters.find((sem) => sem.semester === semesterValue);
+  }
+
+  private getProgramYearCourses(
+    program: Program,
+    yearLevel: number,
+    semesterValue?: number
+  ): Course[] {
+    const year = this.getSelectedYearLevelData(program, yearLevel);
     if (!year) {
       return [];
     }
 
-    const allCourses = year.semesters.flatMap((sem) => sem.courses || []);
+    const semesters = semesterValue
+      ? year.semesters.filter((sem) => sem.semester === semesterValue)
+      : year.semesters;
+    const allCourses = semesters.flatMap((sem) => sem.courses || []);
     const uniqueCourses = new Map<number, Course>();
     allCourses.forEach((course) => {
       uniqueCourses.set(course.course_id, course);
@@ -555,9 +600,14 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     preReqTitles: string[] = [],
     coReqTitles: string[] = []
   ): DialogConfig {
-    const availableCourseTitles = this.getProgramYearCourses(program, yearLevel).map(
-      (item) => `${item.course_code} - ${item.course_title}`
-    );
+    const semesterValue = this.selectedSemester === 'All'
+      ? undefined
+      : Number(this.selectedSemester);
+    const availableCourseTitles = this.getProgramYearCourses(
+      program,
+      yearLevel,
+      semesterValue
+    ).map((item) => `${item.course_code} - ${item.course_title}`);
 
     return {
       title: course ? 'Edit Bridging Course' : 'Add Bridging Course',
@@ -672,10 +722,25 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
 
     const programId = program?.program_id;
 
-    if (!program || !programId || !yearLevel) {
+    const yearLevelData = program
+      ? this.getSelectedYearLevelData(program, yearLevel)
+      : undefined;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
+
+    if (
+      !program ||
+      !programId ||
+      !yearLevel ||
+      !yearLevelData ||
+      !yearLevelData.year_level_id ||
+      !semesterData
+    ) {
       this.bridgingCourses = [];
       return;
     }
@@ -686,7 +751,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .getBridgingCourses(
         this.curriculum.curriculum_id,
         programId,
-        yearLevel
+        yearLevelData.year_level_id,
+        semesterData.semester_id
       )
       .pipe(finalize(() => (this.isLoadingBridging = false)))
       .subscribe({
@@ -712,7 +778,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   onAddBridgingCourse(): void {
     if (!this.canManageBridgingCourses || !this.curriculum) {
       this.snackBar.open(
-        'Select a program and year level to manage bridging courses.',
+        'Select a program, year level, and semester to manage bridging courses.',
         'Close',
         { duration: 3000 }
       );
@@ -721,10 +787,25 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
 
     const programId = program?.program_id;
 
-    if (!program || !programId || !yearLevel) {
+    const yearLevelData = program
+      ? this.getSelectedYearLevelData(program, yearLevel)
+      : undefined;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
+
+    if (
+      !program ||
+      !programId ||
+      !yearLevel ||
+      !yearLevelData ||
+      !yearLevelData.year_level_id ||
+      !semesterData
+    ) {
       return;
     }
 
@@ -743,7 +824,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
       if (this.bridgingCourses.length > 0) {
         this.snackBar.open(
-          'A bridging course already exists for this program and year level.',
+          'A bridging course already exists for this program, year level, and semester.',
           'Close',
           { duration: 3000 }
         );
@@ -789,10 +870,17 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             if (!createdCourseId) {
               throw new Error('Course creation response missing course id.');
             }
+            
+            if (yearLevelData.year_level_id === undefined || 
+              semesterData.semester_id === undefined) {
+              throw new Error('Invalid year level or semester data.');
+            }
+
             return this.curriculumService.addBridgingCourse({
               curriculum_id: this.curriculum!.curriculum_id,
               program_id: programId,
-              year_level: yearLevel,
+              year_level_id: yearLevelData.year_level_id,
+              semester_id: semesterData.semester_id,
               course_id: createdCourseId,
             });
           })
@@ -826,10 +914,25 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
 
     const programId = program?.program_id;
 
-    if (!program || !programId || !yearLevel) {
+    const yearLevelData = program
+      ? this.getSelectedYearLevelData(program, yearLevel)
+      : undefined;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
+
+    if (
+      !program ||
+      !programId ||
+      !yearLevel ||
+      !yearLevelData ||
+      !yearLevelData.year_level_id ||
+      !semesterData
+    ) {
       return;
     }
 

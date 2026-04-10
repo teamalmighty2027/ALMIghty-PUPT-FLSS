@@ -70,13 +70,8 @@ export class DialogTemporaryCourseComponent {
     BridgingCourseOption
   >();
 
-  readonly typeOptions = [
-    { value: 'summer', label: 'Summer' },
-    { value: 'bridging', label: 'Bridging' },
-    { value: 'tutorial', label: 'Tutorial' },
-    { value: 'petition', label: 'Petition' },
-  ];
-
+  // Default petition counts for different types of temporary courses
+  // ! Postponed Implementation: These values can be made configurable in the future
   private readonly petitionDefaults: Record<string, number> = {
     petition: 45,
     tutorial: 1,
@@ -84,6 +79,8 @@ export class DialogTemporaryCourseComponent {
     bridging: 0,
   };
 
+  // ! Postponed Implementation: 
+  // These values are placeholders for file validation
   private readonly maxFileSizeBytes = 10 * 1024 * 1024;
   private readonly allowedFileTypes = [
     'application/pdf',
@@ -118,10 +115,10 @@ export class DialogTemporaryCourseComponent {
 
     this.form = this.fb.group({
       course_id: [null, Validators.required],
-      type: ['summer', Validators.required],
+      type: ['bridging', Validators.required],
       applies_to_all_sections: [false],
       section_per_program_year_id: [this.defaultSectionId],
-      min_petitioners: [this.petitionDefaults['summer'], [Validators.min(0)]],
+      min_petitioners: [this.petitionDefaults['bridging'], [Validators.min(0)]],
       petitioners_count: [0, [Validators.min(0)]],
       petition_file: [null],
     });
@@ -129,7 +126,6 @@ export class DialogTemporaryCourseComponent {
     this.setupFormListeners();
     this.updateCourseOptions();
     this.updateSectionValidators();
-    this.updatePetitionValidators();
   }
 
   onCancel(): void {
@@ -137,27 +133,22 @@ export class DialogTemporaryCourseComponent {
   }
 
   onSubmit(): void {
-    if (this.isBridgingTypeSelected() && !this.hasBridgingCourses()) {
+    if (!this.hasBridgingCourses()) {
       this.showSnackBar('No bridging course is configured for this scope.');
       return;
     }
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      if (this.isPetitionTypeSelected() && !this.selectedFile) {
-        this.showSnackBar('Petition file is required for this type.');
-      } else {
-        this.showSnackBar('Please complete the required fields.');
-      }
+      this.showSnackBar('Please complete the required fields.');
       return;
     }
 
     const courseId = this.form.value.course_id;
-    const bridgingCourseId = this.isBridgingTypeSelected()
-      ? this.bridgingCourseByCourseId.get(courseId)?.bridging_course_id ?? null
-      : null;
+    const bridgingCourseId = this.bridgingCourseByCourseId.get(courseId)
+      ?.bridging_course_id ?? null;
 
-    if (this.isBridgingTypeSelected() && !bridgingCourseId) {
+    if (!bridgingCourseId) {
       this.showSnackBar('No bridging course is configured for this scope.');
       return;
     }
@@ -176,6 +167,12 @@ export class DialogTemporaryCourseComponent {
     this.dialogRef.close(result);
   }
 
+  /**
+   * ! Postponed Implementation
+   * Handles file selection and validation for petition files.
+   * @param event 
+   * @returns 
+   */
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -205,6 +202,10 @@ export class DialogTemporaryCourseComponent {
     this.form.patchValue({ petition_file: file });
   }
 
+  /**
+   * ! Postponed Implementation
+   * Handles removal of the selected petition file and resets the file input state.
+   */
   removeFile(): void {
     this.selectedFile = null;
     this.selectedFileName = '';
@@ -216,13 +217,14 @@ export class DialogTemporaryCourseComponent {
     }
   }
 
+  /**
+   * ! Postponed Implementation
+   * Helper method to determine if the selected type requires petition details.
+   * @returns 
+   */
   isPetitionTypeSelected(): boolean {
     const type = this.form.get('type')?.value;
     return type === 'petition' || type === 'tutorial';
-  }
-
-  isBridgingTypeSelected(): boolean {
-    return this.form.get('type')?.value === 'bridging';
   }
 
   hasBridgingCourses(): boolean {
@@ -244,7 +246,6 @@ export class DialogTemporaryCourseComponent {
 
     this.form.get('type')?.valueChanges.subscribe(() => {
       this.updateCourseOptions();
-      this.updatePetitionValidators();
     });
 
     this.form.get('course_id')?.valueChanges.subscribe(() => {
@@ -252,30 +253,30 @@ export class DialogTemporaryCourseComponent {
     });
   }
 
+  /**
+   * Updates the available course options and enumerates the bridging course
+   */
   private updateCourseOptions(): void {
-    if (this.isBridgingTypeSelected()) {
-      this.availableCourses = this.bridgingCourseItems;
-    } else {
-      this.availableCourses = this.data.courses;
-    }
+    this.availableCourses = this.bridgingCourseItems;
 
     const courseControl = this.form.get('course_id');
+    const selectedCourseId = courseControl?.value;
+    const hasMatch = selectedCourseId
+      ? this.bridgingCourseByCourseId.has(selectedCourseId)
+      : false;
 
-    if (this.isBridgingTypeSelected()) {
-      const selectedCourseId = courseControl?.value;
-      const hasMatch = selectedCourseId
-        ? this.bridgingCourseByCourseId.has(selectedCourseId)
-        : false;
-
-      if (!hasMatch) {
-        const nextCourseId = this.availableCourses[0]?.course_id ?? null;
-        courseControl?.setValue(nextCourseId);
-      }
+    if (!hasMatch) {
+      const nextCourseId = this.availableCourses[0]?.course_id ?? null;
+      courseControl?.setValue(nextCourseId);
     }
-
+    
     this.updateBridgingSelection();
   }
 
+  /**
+   * Updates validators for the section selection 
+   * based on the "applies to all sections" checkbox.
+   */
   private updateSectionValidators(): void {
     const sectionControl = this.form.get('section_per_program_year_id');
     const appliesToAll = this.form.get('applies_to_all_sections')?.value;
@@ -296,6 +297,10 @@ export class DialogTemporaryCourseComponent {
     sectionControl?.updateValueAndValidity({ emitEvent: false });
   }
 
+  /**
+   * ! Postponed Implementation
+   * Updates validators for the petition file input 
+   */
   private updatePetitionValidators(): void {
     const fileControl = this.form.get('petition_file');
     const type = this.form.get('type')?.value;
@@ -315,11 +320,12 @@ export class DialogTemporaryCourseComponent {
     }
   }
 
+  /**
+   * Updates the selected course if the current selection is not 
+   * valid for bridging type.
+   * @returns 
+   */
   private updateBridgingSelection(): void {
-    if (!this.isBridgingTypeSelected()) {
-      return;
-    }
-
     const selectedCourseId = this.form.get('course_id')?.value;
     const hasMatch = selectedCourseId
       ? this.bridgingCourseByCourseId.has(selectedCourseId)
@@ -331,6 +337,11 @@ export class DialogTemporaryCourseComponent {
     }
   }
 
+  /**
+   * Helper method to parse a value into a number or return null
+   * @param value 
+   * @returns 
+   */
   private parseNumber(value: any): number | null {
     if (value === null || value === undefined || value === '') {
       return null;
@@ -340,6 +351,10 @@ export class DialogTemporaryCourseComponent {
     return Number.isNaN(parsed) ? null : parsed;
   }
 
+  /**
+   * Helper method to show a snack bar message
+   * @param message 
+   */
   private showSnackBar(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 3000,
