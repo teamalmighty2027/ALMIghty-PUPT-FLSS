@@ -72,15 +72,16 @@ class BridgingCourseController extends Controller
         ]);
 
         $existing = BridgingCourse::where([
-            'curriculum_id' => $validated['curriculum_id'],
-            'program_id' => $validated['program_id'],
-            'year_level_id' => $validated['year_level_id'],
-            'semester_id' => $validated['semester_id'],
+            'curriculum_id'   => $validated['curriculum_id'],
+            'program_id'      => $validated['program_id'],
+            'year_level_id'   => $validated['year_level_id'],
+            'semester_id'     => $validated['semester_id'],
+            'course_id'       => $validated['course_id'],
         ])->first();
 
         if ($existing) {
             return response()->json([
-                'message' => 'A bridging course already exists for this curriculum, program, year level, and semester.',
+                'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
             ], 422);
         }
 
@@ -117,15 +118,16 @@ class BridgingCourseController extends Controller
         $duplicate = BridgingCourse::where('bridging_course_id', '!=', $id)
             ->where([
                 'curriculum_id' => $validated['curriculum_id'],
-                'program_id' => $validated['program_id'],
-                'year_level_id' => $validated['year_level_id'],
-                'semester_id' => $validated['semester_id'],
+                'program_id'      => $validated['program_id'],
+                'year_level_id'   => $validated['year_level_id'],
+                'semester_id'     => $validated['semester_id'],
+                'course_id'       => $validated['course_id'],
             ])
             ->first();
 
         if ($duplicate) {
             return response()->json([
-                'message' => 'A bridging course already exists for this curriculum, program, year level, and semester.',
+                'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
             ], 422);
         }
 

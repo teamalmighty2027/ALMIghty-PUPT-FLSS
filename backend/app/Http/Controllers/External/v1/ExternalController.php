@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\AuditLogger;
 use Throwable;
 
 class ExternalController extends Controller
@@ -45,8 +46,18 @@ class ExternalController extends Controller
      * Retrieves faculty schedules for FAS integration.
      * Returns faculty details with their assigned schedules for the current active semester.
      */
-    public function partTimeFacultySchedules()
+    public function partTimeFacultySchedules(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Part-time faculty schedules accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Part-time faculty schedules accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         // Step 1: Retrieve the current active semester with academic year details
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
@@ -231,8 +242,18 @@ class ExternalController extends Controller
      * For: Faculty Attendance System
      * Returns all rooms
      */
-    public function roomsList()
+    public function roomsList(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Rooms list accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Rooms list accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         $rooms = Room::with('building')
             ->orderBy('room_code')
             ->get()
@@ -254,8 +275,18 @@ class ExternalController extends Controller
      * Returns all faculty schedules
      * (Deprecated)
      */
-    public function facultySchedules()
+    public function facultySchedules(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("All faculty schedules accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "All faculty schedules accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         // Step 1: Retrieve the current active semester with academic year details
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
@@ -487,8 +518,18 @@ class ExternalController extends Controller
      * For: Faculty Reportorial Requirements System
      * Retrieves course schedules for FRRS integration.
      */
-    public function courseSchedules()
+    public function courseSchedules(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Course schedules accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Course schedules accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
@@ -604,8 +645,18 @@ class ExternalController extends Controller
      * For: Faculty Reportorial Requirements System (FRRS)
      * Retrieves course files for FRRS integration.
      */
-    public function courseFiles()
+    public function courseFiles(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Course files accessed by external system: {$clientSystem}", 
+        ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Course files accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
@@ -703,7 +754,15 @@ class ExternalController extends Controller
     public function facultyList(Request $request)
     {
         // Identify which system is making the request
-        $clientSystem = $request->attributes->get('client_system');
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Faculty list accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Faculty list accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
 
         $faculties = DB::table('faculty')
             ->join('users', 'faculty.user_id', '=', 'users.id')
@@ -769,7 +828,16 @@ class ExternalController extends Controller
      */
     public function facultyProfiles(Request $request) {
         // Identify which system is making the request
-        $clientSystem = $request->attributes->get('client_system');
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+
+        Log::info("Faculty profiles accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Faculty profiles accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
 
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
@@ -840,8 +908,18 @@ class ExternalController extends Controller
      * For: Accreditation System (Accred)
      * Returns a list of faculties grouped by their respective departments 
      */
-    public function departmentList()
+    public function departmentList(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Department list accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Department list accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
             ->sortBy([
@@ -950,8 +1028,18 @@ class ExternalController extends Controller
      */
     private const COMPUTER_LABORATORY_ID = 3;
 
-    public function labSchedules()
+    public function labSchedules(Request $request)
     {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+        Log::info("Computer laboratory schedules accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "Computer laboratory schedules accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
         // Step 1: Get active semester
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')

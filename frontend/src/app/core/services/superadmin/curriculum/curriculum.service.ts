@@ -197,14 +197,19 @@ export class CurriculumService {
   getBridgingCourses(
     curriculumId: number,
     programId: number,
-    yearLevelId: number,
-    semesterId: number
+    yearLevelId?: number,
+    semesterId?: number
   ): Observable<BridgingCourse[]> {
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('curriculum_id', curriculumId.toString())
-      .set('program_id', programId.toString())
-      .set('year_level_id', yearLevelId.toString())
-      .set('semester_id', semesterId.toString());
+      .set('program_id', programId.toString());
+
+    if (yearLevelId) {
+      params = params.set('year_level_id', yearLevelId.toString());
+    }
+    if (semesterId) {
+      params = params.set('semester_id', semesterId.toString());
+    }
 
     return this.http.get<BridgingCourse[]>(`${this.baseUrl}/bridging-courses`, {
       params,
