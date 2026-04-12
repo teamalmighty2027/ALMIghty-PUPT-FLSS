@@ -375,8 +375,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   // ===========================
   // Duplicate Detection Logic
   // ===========================
-  isCourseDuplicate(courseCode: string, excludeCourseId?: number): boolean {
-    if (!this.curriculum) return false;
+  isCourseDuplicate(courseCode: string, excludeCourseId?: number, isBridging: boolean = false): boolean {
+    if (!this.curriculum || isBridging) return false;
     
     const codeToCheck = courseCode.trim().toLowerCase();
 
@@ -600,14 +600,14 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     preReqTitles: string[] = [],
     coReqTitles: string[] = []
   ): DialogConfig {
-    const semesterValue = this.selectedSemester === 'All'
-      ? undefined
-      : Number(this.selectedSemester);
-    const availableCourseTitles = this.getProgramYearCourses(
-      program,
-      yearLevel,
-      semesterValue
-    ).map((item) => `${item.course_code} - ${item.course_title}`);
+    const availableCourseTitles = Array.from(
+      new Set(
+        program.year_levels
+          .flatMap((yl) => yl.semesters)
+          .flatMap((sem) => sem.courses)
+          .map((item) => `${item.course_code} - ${item.course_title}`)
+      )
+    );
 
     return {
       title: course ? 'Edit Bridging Course' : 'Add Bridging Course',
@@ -831,12 +831,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         return;
       }
 
-      if (this.isCourseDuplicate(result.course_code)) {
-        this.snackBar.open(
-          `Error: Course Code '${result.course_code}' is already used in this curriculum!`,
-          'Close',
-          { duration: 4000 }
-        );
+      // Check for duplicates (skipped for bridging courses as per request)
+      if (this.isCourseDuplicate(result.course_code, undefined, true)) {
+        this.snackBar.open(`Error: Course Code '${result.course_code}' is already used in this curriculum!`, 'Close', { duration: 4000 });
         return;
       }
 
@@ -968,15 +965,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
         dialogRef.afterClosed().subscribe((result) => {
           if (!result) {
-            return;
-          }
-
-          if (this.isCourseDuplicate(result.course_code, bridgingCourse.course_id)) {
-            this.snackBar.open(
-              `Error: Course Code '${result.course_code}' is already used in this curriculum!`,
-              'Close',
-              { duration: 4000 }
-            );
             return;
           }
 
