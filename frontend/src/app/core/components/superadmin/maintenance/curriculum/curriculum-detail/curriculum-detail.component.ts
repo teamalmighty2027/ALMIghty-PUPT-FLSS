@@ -798,6 +798,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
+    console.log("Initiating adding of bridging courses");
+
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
     const semesterValue = Number(this.selectedSemester);
@@ -851,16 +853,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
                 'A bridging course already exists for this program, year level, and semester.',
                 'Close',
                 { duration: 3000 }
-              );
-              return;
-            }
-
-            // Check for duplicates (skipped for bridging courses as per request)
-            if (this.isCourseDuplicate(result.course_code, undefined, true)) {
-              this.snackBar.open(
-                `Error: Course Code '${result.course_code}' is already used in this curriculum!`,
-                'Close',
-                { duration: 4000 }
               );
               return;
             }
@@ -1232,7 +1224,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         { label: 'Lecture Hours', formControlName: 'lec_hours', type: 'number', min: 0, maxLength: 2, required: true },
         { label: 'Laboratory Hours', formControlName: 'lab_hours', type: 'number', min: 0, maxLength: 2, required: true },
         { label: 'Units', formControlName: 'units', type: 'number', min: 0, maxLength: 2, required: true },
-        { label: 'Tuition Hours', formControlName: 'tuition_hours', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Tuition Hours', formControlName: 'tuition_hours', type: 'number', min: 0, maxLength: 2, required: true},
       ],
       initialValue: course ? this.populateCourseRequisites(course) : { semester },
     };
