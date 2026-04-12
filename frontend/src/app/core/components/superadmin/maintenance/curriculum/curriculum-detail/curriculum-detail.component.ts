@@ -798,8 +798,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    console.log("Initiating adding of bridging courses");
-
     const program = this.getSelectedProgramData();
     const yearLevel = Number(this.selectedYear);
     const semesterValue = Number(this.selectedSemester);
@@ -845,15 +843,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
           dialogRef.afterClosed().subscribe((result) => {
             if (!result) {
-              return;
-            }
-
-            if (this.bridgingCourses.length > 0) {
-              this.snackBar.open(
-                'A bridging course already exists for this program, year level, and semester.',
-                'Close',
-                { duration: 3000 }
-              );
               return;
             }
 
