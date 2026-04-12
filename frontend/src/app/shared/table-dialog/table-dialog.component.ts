@@ -294,6 +294,7 @@ export class TableDialogComponent {
     }
 
     this.handleYearStartChanges();
+    this.handleHoursChanges();
     this.addYearEndValidator();
     this.trackFormChanges();
   }
@@ -302,6 +303,27 @@ export class TableDialogComponent {
     this.form.valueChanges.subscribe(() => {
       this.cdr.markForCheck();
     });
+  }
+
+  /**
+   * Handles the changes in the lecture and laboratory hours
+   * and updates the tuition hours accordingly.
+   */
+  private handleHoursChanges(): void {
+    const lecControl = this.form.get('lec_hours');
+    const labControl = this.form.get('lab_hours');
+    const tuitionControl = this.form.get('tuition_hours');
+
+    if (lecControl && labControl && tuitionControl) {
+      const updateTuition = () => {
+        const lecValue = parseInt(lecControl.value || '0', 10);
+        const labValue = parseInt(labControl.value || '0', 10);
+        tuitionControl.setValue(lecValue + labValue);
+      };
+
+      lecControl.valueChanges.subscribe(updateTuition);
+      labControl.valueChanges.subscribe(updateTuition);
+    }
   }
 
   private handleYearStartChanges(): void {
