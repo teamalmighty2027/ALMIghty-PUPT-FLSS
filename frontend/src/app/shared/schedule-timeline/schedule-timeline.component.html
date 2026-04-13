@@ -28,8 +28,10 @@
             <div class="course">
               <span class="course-text">
                 {{ getBlockProperty(day, i, "courseCode") }}
-                @if (getBlockProperty(day, i, "offeringType") === "bridging") {
-                <span class="temporary-badge">BRIDGING</span>
+                @if (getBlockProperty(day, i, "offeringType") != null) {
+                <span class="temporary-badge">
+                  {{ getBlockProperty(day, i, "offeringType") | titlecase }}
+                </span>
                 }
                 <br />
                 {{ getBlockProperty(day, i, "courseTitle") }}
