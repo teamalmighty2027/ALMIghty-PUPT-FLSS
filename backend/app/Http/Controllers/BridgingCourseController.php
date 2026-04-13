@@ -40,19 +40,19 @@ class BridgingCourseController extends Controller
             );
 
         if (array_key_exists('curriculum_id', $validated)) {
-            $query->where('bc.curriculum_id', $validated['curriculum_id']);
+            $query->where('bridging_courses.curriculum_id', $validated['curriculum_id']);
         }
 
         if (array_key_exists('program_id', $validated)) {
-            $query->where('bc.program_id', $validated['program_id']);
+            $query->where('bridging_courses.program_id', $validated['program_id']);
         }
 
         if (array_key_exists('year_level_id', $validated)) {
-            $query->where('bc.year_level_id', $validated['year_level_id']);
+            $query->where('bridging_courses.year_level_id', $validated['year_level_id']);
         }
 
         if (array_key_exists('semester_id', $validated)) {
-            $query->where('bc.semester_id', $validated['semester_id']);
+            $query->where('bridging_courses.semester_id', $validated['semester_id']);
         }
 
         return response()->json(

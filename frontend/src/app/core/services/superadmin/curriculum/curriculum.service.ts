@@ -27,6 +27,8 @@ export interface CourseRequirement {
 export interface CourseRequirementLink {
   requirement_type: 'pre' | 'co';
   required_course_id: number;
+  requiredCourse?: CourseRequirement;
+  required_course?: CourseRequirement;
 }
 
 export interface CourseWithRequirements extends Course {
@@ -73,6 +75,7 @@ export interface BridgingCourse {
   course_code: string;
   prerequisites?: CourseRequirement[];
   corequisites?: CourseRequirement[];
+  course?: CourseWithRequirements;
   course_title: string;
   lec_hours: number;
   lab_hours: number;
