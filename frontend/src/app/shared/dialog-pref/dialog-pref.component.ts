@@ -25,6 +25,10 @@ import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
 import { MatSnackBar } from '@angular/material/snack-bar';
 
+// NEW: Add Excel Imports
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+
 interface Course {
   course_code: string;
   course_title: string;
@@ -45,6 +49,8 @@ interface DialogPrefData {
   faculty_id: number;
   isViewOnlyTable?: boolean;
   isViewHistory?: boolean;
+  // Let the parent optionally pass a pre-built Excel function if it wants to
+  generateExcelFunction?: () => Promise<void> | void; 
 }
 
 interface AcademicYearSemester {
@@ -179,7 +185,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   onSemesterChange(event?: any): void {
-    // Accept either (selectionChange) event or direct value, keep backward compatibility
     let semesterId: number | null = null;
     
     if (event && event.value !== undefined) {
@@ -222,10 +227,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
-  /**
-   * When both selectedYear and selectedSemester are set, find matching entry
-   * in academicYearList and reset the table (this.courses) with that semester's data.
-   */
   private updateTableFromSelection(): void {
     if (!this.selectedYear || !this.selectedSemester) return;
 
@@ -240,7 +241,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Support both 'semesters' or 'semester' keys returned by backend
     const semesters: any[] = (ay as any).semesters ?? (ay as any).semester ?? [];
 
     const sem = semesters.find(
@@ -252,7 +252,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Accept both 'courses' or 'preferences' arrays as source
     const sourceCourses = sem.courses ?? sem.preferences ?? [];
 
     this.semesterLabel =
@@ -295,13 +294,106 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.generateFacultyPDF(false, [this.courses], false);
   }
 
+  // --- NEW: Download Excel Method ---
+  public async downloadExcel(): Promise<void> {
+    // If parent passed a function, use it
+    if (this.data.generateExcelFunction) {
+      try {
+        await this.data.generateExcelFunction();
+      } catch (error) {
+        console.error('Error executing parent Excel function:', error);
+      }
+      return;
+    }
+
+    // Otherwise, generate it locally based on the currently viewed data
+    if (!this.courses || this.courses.length === 0) {
+      this.showSnackbar('No preferences available to export.');
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    
+    // Create a safe, short name for the tab
+    const tabName = this.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
+    const worksheet = workbook.addWorksheet(tabName);
+
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 5 },  // #
+      { width: 15 }, // Program Code
+      { width: 20 }, // Year & Section
+      { width: 15 }, // Course Code
+      { width: 35 }, // Course Title
+      { width: 8 },  // Lec
+      { width: 8 },  // Lab
+      { width: 8 },  // Units
+      { width: 30 }  // Preferred Day & Time
+    ];
+
+    worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:I1');
+    worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:I2');
+
+    worksheet.getCell('A1').value = `Faculty Name: ${this.facultyName.toUpperCase()}`;
+    worksheet.getCell('E1').value = ``; // Reserved for Total Units if needed later
+    worksheet.getCell('A2').value = `Academic Year: ${this.academicYear}`;
+    worksheet.getCell('E2').value = `Semester: ${this.semesterLabel}`;
+
+    ['A1', 'E1', 'A2', 'E2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      '#', 'Program Code', 'Year & Section', 'Course Code', 'Course Title', 'Lec', 'Lab', 'Units', 'Preferred Day & Time'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    this.courses.forEach((course: Course, index: number) => {
+      const scheduleString = this.formatPreferredDaysAndTime(course).replace(/\n/g, ', ');
+      
+      const row = worksheet.addRow([
+        index + 1,
+        course.program_code || '—',
+        course.year_section || '—',
+        course.course_code,
+        course.course_title,
+        course.lec_hours || 0,
+        course.lab_hours || 0,
+        course.units || 0,
+        scheduleString === 'Click to select day and time' || !scheduleString ? 'Not Set' : scheduleString
+      ]);
+
+      row.eachCell((cell, colNum) => {
+        cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const safeName = this.sanitizeFileName(this.facultyName);
+    saveAs(blob, `${safeName}_Preferences_${this.academicYear.replace('/', '_')}.xlsx`);
+  }
+
   closeDialog(): void {
     this.dialogRef.close();
   }
 
-  /**
-   * Generates a PDF for faculty preferences.
-   */
   generateFacultyPDF(
     isAll: boolean,
     coursesArray: Course[][],
@@ -311,7 +403,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     let currentY = 15;
 
     try {
-      // Add header using the report header service
       this.reportHeaderService
         .addHeader(
           doc,
@@ -352,7 +443,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               this.formatPreferredDaysAndTime(course),
             ]);
 
-            // Table Configuration
             const tableHead = [
               [
                 '#',
@@ -442,9 +532,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Helper Methods:
-   * Displays a snackbar with the given message.
-   */
   private showSnackbar(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 3000,
@@ -452,19 +539,14 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Detects if the course preferences represent "Any Day" or "Any Time" modifiers.   
-   */
   private detectAnyModifiers(course: Course): { has_any_day: boolean; has_any_time: boolean } {
     const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const ANY_DAY_START = '07:00:00';
     const ANY_DAY_END = '21:00:00';
 
-    // Check if all 7 days are present
     const presentDays = course.preferred_days.map(pref => pref.day);
     const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
 
-    // Check if all present days have the "Any Time" range (7 AM - 9 PM)
     const has_any_time = course.preferred_days.every(
       pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
     );
@@ -472,18 +554,13 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     return { has_any_day, has_any_time };
   }
 
-  /**
-   * Formats the preferred days and times for display.
-   */
   formatPreferredDaysAndTime(course: Course): string {
     const { has_any_day, has_any_time } = this.detectAnyModifiers(course);
 
-    // If both "Any Day" and "Any Time" are enabled
     if (has_any_day && has_any_time) {
       return 'Any Day, Any Time';
     }
 
-    // If only "Any Day" is enabled, show the full time range once
     if (has_any_day) {
       const firstDay = course.preferred_days[0];
       const timeRange = `${this.convertTo12HourFormat(
@@ -492,13 +569,11 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return `Any Day, ${timeRange}`;
     }
 
-    // If only "Any Time" is enabled, show all specific days with "Any Time"
     if (has_any_time) {
       const daysString = course.preferred_days.map(pref => pref.day).join(', ');
       return `${daysString}, Any Time`;
     }
 
-    // Default: format each day individually with its time range
     return course.preferred_days
       .map((pref) => {
         const time = `${this.convertTo12HourFormat(
@@ -541,9 +616,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  /**
-   * Converts time from 24-hour to 12-hour format.
-   */
   convertTo12HourFormat(time: string): string {
     const [hour, minute] = time.split(':').map(Number);
     let ampm = 'AM';
@@ -562,9 +634,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .padStart(2, '0')} ${ampm}`;
   }
 
-  /**
-   * Sanitizes the file name by replacing non-alphanumeric characters.
-   */
   sanitizeFileName(fileName: string): string {
     return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   }
