@@ -39,6 +39,12 @@
   button {
     color: var(--primary-text);
   }
+
+  .excel-button {
+  background-color: #1d6f42 !important; /* Excel green */
+  color: white !important;
+  margin-right: 8px;
+}
 }
 
 .pdf-iframe {

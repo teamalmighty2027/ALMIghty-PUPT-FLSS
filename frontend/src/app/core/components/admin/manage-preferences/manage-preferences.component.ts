@@ -27,6 +27,8 @@ import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
 
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -68,9 +70,7 @@ interface ToggleState {
   styleUrls: ['./manage-preferences.component.scss'],
   animations: [fadeAnimation],
 })
-export class ManagePreferencesComponent
-  implements OnInit, OnDestroy
-{
+export class ManagePreferencesComponent implements OnInit, OnDestroy {
   inputFields: InputField[] = [
     {
       type: 'text',
@@ -84,40 +84,29 @@ export class ManagePreferencesComponent
     'facultyName',
     'facultyCode',
     'facultyType',
-    // 'facultyUnits',
     'action',
     'requests',
     'toggle',
   ];
 
-  // ===========================
-  // Data Properties
-  // ===========================
-
-  // Data source for the material table
   dataSource = new MatTableDataSource<Faculty>([]);
   allData: Faculty[] = [];
   filteredData: Faculty[] = [];
   currentFilter = '';
 
-  // Toggle states
   isToggleAllChecked = false;
   isAnyIndividualToggleOn = false;
   isEnabled!: boolean;
   isGlobalStartDateSet = false;
   isIndividualStartDateSet = false;
 
-  // Loading state
   isLoading = new BehaviorSubject<boolean>(true);
 
-  // Preferences state
   hasAnyPreferences = false;
   hasIndividualDeadlines = false;
   facultyScheduledState = new Map<number, boolean>();
 
-  // Search Subject
   private searchSubject = new Subject<string>();
-
   paginator?: MatPaginator;
 
   @ViewChild(MatPaginator)
@@ -128,7 +117,6 @@ export class ManagePreferencesComponent
     }
   }
 
-  // Add the destroy$ Subject property
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -151,19 +139,11 @@ export class ManagePreferencesComponent
       });
   }
 
-  // Add ngOnDestroy lifecycle hook to clean up subscriptions
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  // ===========================
-  // Data Loading and Handling
-  // ===========================
-
-  /**
-   * Sets up the filter predicate for the data source.
-   */
   private setupFilterPredicate(): void {
     this.dataSource.filterPredicate = (data: Faculty, filter: string) => {
       return (
@@ -174,9 +154,6 @@ export class ManagePreferencesComponent
     };
   }
 
-  /**
-   * Loads faculty preferences from the service.
-   */
   loadFacultyPreferences(): void {
     this.isLoading.next(true);
     this.preferencesService
@@ -218,10 +195,6 @@ export class ManagePreferencesComponent
       );
   }
 
-  /**
-   * Applies the filter to the data source.
-   * @param filterValue The filter string.
-   */
   applyFilter(filterValue: string): void {
     this.currentFilter = filterValue.trim().toLowerCase();
 
@@ -240,12 +213,6 @@ export class ManagePreferencesComponent
     }
   }
 
-  /**
-   * Custom filter predicate for the data source.
-   * @param data The faculty data.
-   * @param filter The filter string.
-   * @returns Whether the data matches the filter.
-   */
   filterPredicate(data: Faculty, filter: string): boolean {
     return (
       data.facultyName.toLowerCase().includes(filter) ||
@@ -254,29 +221,15 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Updates the data displayed in the table based on pagination.
-   */
   updateDisplayedData(): void {
     this.dataSource.data = [...this.filteredData];
   }
 
-  /**
-   * Handles changes in input fields.
-   * @param inputValues The current input values.
-   */
   onInputChange(inputValues: { [key: string]: any }): void {
     const searchValue = inputValues['searchFaculty'] || '';
     this.searchSubject.next(searchValue);
   }
 
-  // ===========================
-  // Toggle Management
-  // ===========================
-
-  /**
-   * Checks and updates the state of the "Toggle All" checkbox.
-   */
   checkToggleAllState(): void {
     const allEnabled = this.filteredData.every((faculty) => faculty.is_enabled);
     const isGlobalDeadlineSet = this.allData.some((faculty) =>
@@ -294,9 +247,6 @@ export class ManagePreferencesComponent
     this.isEnabled = allEnabled;
   }
 
-  /**
-   * Checks if a global_start_date is set and updates the state.
-   */
   checkGlobalStartDate(): void {
     this.isGlobalStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -305,9 +255,6 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Checks if a global_start_date is set and updates the state.
-   */
   checkIndividualStartDate(): void {
     this.isIndividualStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -316,18 +263,12 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Updates the state indicating if any faculty has submitted preferences.
-   */
   updateHasAnyPreferences(): void {
     this.hasAnyPreferences = this.allData.some((faculty) =>
       this.hasSubmittedPreferences(faculty),
     );
   }
 
-  /**
-   * Checks if a faculty has submitted preferences.
-   */
   hasSubmittedPreferences(faculty: Faculty): boolean {
     return !!(
       faculty.active_semesters &&
@@ -338,9 +279,6 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Updates the state indicating if any faculty has individual deadlines.
-   */
   updateIndividualDeadlinesState(): void {
     this.hasIndividualDeadlines = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -353,10 +291,6 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Checks if preferences are globally scheduled.
-   * @returns True if globally scheduled, false otherwise.
-   */
   isGloballyScheduled(): boolean {
     return this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -367,19 +301,11 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Checks if preferences are individually scheduled for a faculty.
-   * @param faculty - The faculty to check.
-   * @returns True if individually scheduled, false otherwise.
-   */
   isIndividuallyScheduled(faculty?: Faculty): boolean {
     if (!faculty) return false;
     return this.facultyScheduledState.get(faculty.faculty_id) ?? false;
   }
 
-  /**
-   * Initializes the scheduled state for each faculty.
-   */
   initializeScheduledFacultyState(): void {
     this.allData.forEach((faculty: Faculty) => {
       this.facultyScheduledState.set(
@@ -389,11 +315,6 @@ export class ManagePreferencesComponent
     });
   }
 
-  /**
-   * Calculates if preferences are individually scheduled for a faculty.
-   * @param faculty - The faculty to check.
-   * @returns True if individually scheduled, false otherwise.
-   */
   calculateIsIndividuallyScheduled(faculty: Faculty): boolean {
     return (
       faculty.active_semesters?.some(
@@ -404,10 +325,6 @@ export class ManagePreferencesComponent
     );
   }
 
-  /**
-   * Handles the toggle action for all preferences.
-   * @param event The slide toggle change event.
-   */
   onToggleAllPreferences(
     event: MatSlideToggleChange | MouseEvent,
     isScheduledClick = false,
@@ -457,11 +374,6 @@ export class ManagePreferencesComponent
     });
   }
 
-  /**
-   * Handles the toggle action for a single faculty's preferences.
-   * @param faculty The faculty being toggled.
-   * @param event The slide toggle change event.
-   */
   onToggleSinglePreferences(
     faculty: Faculty,
     event: MatSlideToggleChange | MouseEvent,
@@ -518,17 +430,13 @@ export class ManagePreferencesComponent
     });
   }
 
-  // ===========================
-  // View & Export Functionality
-  // ===========================
-
-  /**
-   * Opens the view dialog for a specific faculty.
-   */
   onView(faculty: Faculty): void {
     const generatePdfFunction = (preview: boolean): Blob | void => {
       return this.generateFacultyPDF(false, [faculty], preview);
     };
+
+    // Helper for file name
+    const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
     this.dialog.open(DialogPrefComponent, {
       maxWidth: '70rem',
@@ -537,73 +445,57 @@ export class ManagePreferencesComponent
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
         generatePdfFunction: generatePdfFunction,
+        // NEW: Pass the Excel generation function to the View dialog
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
+          saveAs(excelBlob, `${fileNameBase}.xlsx`);
+        }
       },
       disableClose: true,
       autoFocus: true,
     });
   }
 
-  /**
-   * Exports all faculty preferences as a PDF.
-   */
+  // --- UPDATED EXPORT ALL: Now routes through DialogExportComponent ---
   onExportAll(): void {
     if (!this.allData.length) {
-      this.snackBar.open(
-        'No faculty preferences available for export.',
-        'Close',
-        { duration: 3000 },
-      );
+      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
       return;
     }
 
     const firstActiveSemesterFaculty = this.allData.find(
-      (faculty) =>
-        faculty.active_semesters && faculty.active_semesters.length > 0,
+      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
     );
 
     if (!firstActiveSemesterFaculty) {
-      this.snackBar.open(
-        'No active semester data available for export.',
-        'Close',
-        { duration: 3000 },
-      );
+      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
       return;
     }
 
-    const { academic_year, semester_label } =
-      firstActiveSemesterFaculty.active_semesters![0];
+    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
 
-    const dialogRef = this.dialog.open(DialogExportComponent, {
+    this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
       width: '100%',
       autoFocus: true,
       data: {
         exportType: 'all',
         entity: 'faculty',
-        entityData: {
-          name: 'Export All Faculty Preferences',
-          academic_year,
-          semester_label,
+        customTitle: 'Export All Faculty Preferences',
+        subtitle: `For Academic Year ${academic_year}, ${semester_label}`,
+        generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(true, this.allData, preview),
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateFacultyExcelBlob(true, this.allData);
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.xlsx`;
+          saveAs(excelBlob, fileName);
         },
-        generatePdfFunction: () =>
-          this.generateFacultyPDF(true, this.allData, true),
-        generateFileNameFunction: () =>
-          `${academic_year.replace(
-            '/',
-            '_',
-          )}_${semester_label.toLowerCase()}_faculty_preferences_report.pdf`,
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.pdf`,
       },
       disableClose: true,
     });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      console.log('Export All dialog closed', result);
-    });
   }
 
-  /**
-   * Exports a single faculty's preferences as a PDF.
-   */
+  // --- UPDATED EXPORT SINGLE: Now routes through DialogExportComponent ---
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -614,18 +506,138 @@ export class ManagePreferencesComponent
       return;
     }
 
-    this.generateFacultyPDF(false, [faculty], false);
+    const academic_year = activeSemester.academic_year;
+    const semester_label = activeSemester.semester_label;
+    const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
-    this.snackBar.open(
-      `Downloading PDF for ${faculty.facultyName}...`,
-      'Close',
-      { duration: 3000 },
-    );
+    this.dialog.open(DialogExportComponent, {
+      maxWidth: '70rem',
+      width: '100%',
+      autoFocus: true,
+      data: {
+        exportType: 'single',
+        entity: 'faculty',
+        customTitle: `${faculty.facultyName} Preferences`,
+        subtitle: `For Academic Year ${academic_year}, ${semester_label}`,
+        generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(false, [faculty], preview),
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
+          saveAs(excelBlob, `${fileNameBase}.xlsx`);
+        },
+        generateFileNameFunction: () => `${fileNameBase}.pdf`
+      },
+      disableClose: true,
+    });
   }
 
-  /**
-   * Generates a PDF for faculty preferences.
-   */
+  // --- NEW EXCEL EXPORT LOGIC ---
+  private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+
+    for (const faculty of faculties) {
+      const activeSemester = faculty.active_semesters?.[0];
+      if (!activeSemester || !activeSemester.courses?.length) continue;
+
+      let tabName = faculty.facultyName.split(',')[0].substring(0, 30).replace(/[^\w\s-]/gi, '');
+      
+      // Ensure tab names are unique
+      let uniqueTabName = tabName;
+      let counter = 1;
+      while (workbook.getWorksheet(uniqueTabName)) {
+         uniqueTabName = `${tabName.substring(0, 27)}_${counter}`;
+         counter++;
+      }
+      
+      const worksheet = workbook.addWorksheet(uniqueTabName);
+
+      worksheet.pageSetup = {
+        orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+        margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+      };
+
+      worksheet.columns = [
+        { width: 5 },  // #
+        { width: 15 }, // Program Code
+        { width: 20 }, // Year & Section
+        { width: 15 }, // Course Code
+        { width: 35 }, // Course Title
+        { width: 8 },  // Lec
+        { width: 8 },  // Lab
+        { width: 8 },  // Units
+        { width: 30 }  // Preferred Day & Time
+      ];
+
+      worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:I1');
+      worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:I2');
+
+      worksheet.getCell('A1').value = `Faculty Name: ${faculty.facultyName.toUpperCase()}`;
+      worksheet.getCell('E1').value = `Faculty Code: ${faculty.facultyCode}`;
+      worksheet.getCell('A2').value = `Academic Year: ${activeSemester.academic_year}`;
+      worksheet.getCell('E2').value = `Semester: ${activeSemester.semester_label}`;
+
+      ['A1', 'E1', 'A2', 'E2'].forEach(c => {
+        const cell = worksheet.getCell(c);
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      });
+
+      worksheet.addRow([]);
+
+      const headerRow = worksheet.addRow([
+        '#', 'Program Code', 'Year & Section', 'Course Code', 'Course Title', 'Lec', 'Lab', 'Units', 'Preferred Day & Time'
+      ]);
+      headerRow.height = 25;
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+      });
+
+      activeSemester.courses.forEach((course: any, index: number) => {
+        const preferredDays = course.preferred_days || [];
+        const formattedDayTimes = preferredDays
+          .map((pd: any) => {
+            const day = pd.day;
+            const startTime = pd.start_time ? this.formatTimeTo12Hour(pd.start_time) : 'N/A';
+            const endTime = pd.end_time ? this.formatTimeTo12Hour(pd.end_time) : 'N/A';
+            return `${day} - ${startTime} to ${endTime}`;
+          })
+          .join('\n');
+
+        const sectionName = course.section_details?.section_name || course.course_details?.section_name || '';
+        const yearLevel = course.course_details?.year_level || '';
+        const yearSection = yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+
+        const row = worksheet.addRow([
+          index + 1,
+          course.course_details?.program_code || course.program_details?.program_code || 'N/A',
+          yearSection,
+          course.course_details?.course_code || 'N/A',
+          course.course_details?.course_title || 'N/A',
+          course.lec_hours || 0,
+          course.lab_hours || 0,
+          course.units || 0,
+          formattedDayTimes || 'N/A'
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
+
+    if (workbook.worksheets.length === 0) {
+      const emptySheet = workbook.addWorksheet('No Data');
+      emptySheet.getCell('A1').value = 'No preferences available.';
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
   generateFacultyPDF(
     isAll: boolean,
     faculties: Faculty[],
@@ -636,7 +648,6 @@ export class ManagePreferencesComponent
     let currentY = 15;
 
     try {
-      // Add header using the report header service
       this.reportHeaderService
         .addHeader(
           doc,
@@ -653,7 +664,6 @@ export class ManagePreferencesComponent
 
             if (!activeSemester || !activeSemester.courses?.length) return;
 
-            // Faculty Info Section
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
             const facultyInfo = [
@@ -699,7 +709,6 @@ export class ManagePreferencesComponent
               },
             );
 
-            // Table Configuration
             const tableHead = [
               [
                 '#',
@@ -803,16 +812,10 @@ export class ManagePreferencesComponent
     }
   }
 
-  /**
-   * Generates a sanitized file name.
-   */
   sanitizeFileName(fileName: string): string {
     return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   }
 
-  /**
-   * Formats time from 24-hour to 12-hour format.
-   */
   formatTimeTo12Hour(time: string | undefined): string {
     if (!time) {
       return 'N/A';
@@ -825,15 +828,6 @@ export class ManagePreferencesComponent
     return `${formattedHour}:${minutesFormatted} ${period}`;
   }
 
-  // ===========================
-  // Utility Methods
-  // ===========================
-
-  /**
-   * Gets the class for the faculty type.
-   * @param facultyType - The faculty type.
-   * @returns The class object.
-   */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
     const type = facultyType.toLowerCase();
     return {
@@ -844,22 +838,11 @@ export class ManagePreferencesComponent
     };
   }
 
-  /**
-   * Gets the tooltip for the toggle based on the type and faculty.
-   * @param type - The type of toggle ('global' or 'individual').
-   * @param faculty - The faculty to check (optional).
-   * @returns The tooltip string.
-   */
   public getTooltip(type: 'global' | 'individual', faculty?: Faculty): string {
     const state = this.getToggleState(faculty || this.allData[0]);
     return type === 'global' ? state.globalTooltip : state.individualTooltip;
   }
 
-  /**
-   * Gets the toggle state for a faculty.
-   * @param faculty - The faculty to check.
-   * @returns The toggle state.
-   */
   public getToggleState(faculty?: Faculty): ToggleState {
     if (!faculty || !this.allData.length) {
       return {

@@ -17,6 +17,8 @@ interface ExportDialogData {
   customTitle?: string;
   subtitle?: string;
   generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
+  /** Optional callback to handle Excel file generation and download. */
+  generateExcelFunction?: () => Promise<void> | void; 
   generateFileNameFunction?: () => string; 
 }
 
@@ -93,7 +95,7 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * This function handles both generating the PDF blob and updating the iframe preview.
+   * Generates the PDF blob and updates the iframe preview source.
    */
   private async renderPdfPreview(): Promise<void> {
     try {
@@ -121,8 +123,7 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   /**
-   * This function is called when the user clicks the "Download PDF" button. 
-   * It generates the PDF blob and triggers the download.
+   * Generates the PDF blob and triggers a browser download.
    */
   public async downloadPdf(): Promise<void> {
     try {
@@ -143,6 +144,19 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
+    }
+  }
+
+  /**
+   * Executes the provided Excel generation function to trigger a spreadsheet download.
+   */
+  public async downloadExcel(): Promise<void> {
+    if (this.data.generateExcelFunction) {
+      try {
+        await this.data.generateExcelFunction();
+      } catch (error) {
+        console.error('Error downloading Excel:', error);
+      }
     }
   }
 

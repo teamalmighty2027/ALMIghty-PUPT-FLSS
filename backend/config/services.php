@@ -40,6 +40,7 @@ return [
         'base_url' => env('IDP_BASE_URL'),
         'client_id' => env('CLIENT_ID'),
         'client_secret' => env('CLIENT_SECRET'),
+        'api_key' => env('IDP_API_KEY'),
     ],
 
     'gemini' => [

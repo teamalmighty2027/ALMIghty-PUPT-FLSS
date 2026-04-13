@@ -128,13 +128,17 @@
         </div>
 
         <div class="content">
-            <p class="greeting"><b>Dear {{ $faculty_name }},</b></p>
+            <p class="greeting"><b>Good Day, {{ $first_name }} {{ $last_name }},</b></p>
 
             <p>Welcome to the PUP Taguig Faculty Loading and Scheduling System! Your account has been successfully
                 created. Below is your backup password for your PUPT-FLSS account:</p>
 
             <div class="password-container">
                 <span class="password-display">{{ $password }}</span>
+                <p>
+                    You can log in to your account here: <br>
+                    <a href="{{ $login_url }}" style="color: #800000; font-weight: bold; text-decoration: underline;">Click here to Login</a>
+                </p>
             </div>
 
             <p><strong>What you need to know:</strong></p>
