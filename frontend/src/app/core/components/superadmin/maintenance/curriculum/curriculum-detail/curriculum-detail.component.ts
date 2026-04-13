@@ -364,6 +364,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ===========================
+  // Duplicate Detection Logic
+  // ===========================
   isCourseDuplicate(courseCode: string, excludeCourseId?: number, isBridging: boolean = false): boolean {
     if (!this.curriculum || isBridging) return false;
     
@@ -486,6 +489,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   getCourseIdByTitle(title: string, programBridgingCourses: BridgingCourse[] = []): number | undefined {
+    // Check bridging courses first
     const bridgingCourse = programBridgingCourses.find(bc => `${bc.course_code} - ${bc.course_title}` === title);
     if (bridgingCourse) return bridgingCourse.course_id;
 
@@ -533,10 +537,30 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     return Array.from(uniqueCourses.values()).sort((a, b) => a.course_code.localeCompare(b.course_code));
   }
 
-  private getBridgingDialogConfig(program: Program, yearLevel: number, course?: BridgingCourse, preReqTitles: string[] = [], coReqTitles: string[] = [], programBridgingCourses: BridgingCourse[] = []): DialogConfig {
-    const regularCourses = Array.from(new Set(program.year_levels.flatMap((yl) => yl.semesters).flatMap((sem) => sem.courses).map((item) => `${item.course_code} - ${item.course_title}`)));
+  private getBridgingDialogConfig(
+    program: Program,
+    yearLevel: number,
+    course?: BridgingCourse,
+    preReqTitles: string[] = [],
+    coReqTitles: string[] = [],
+    programBridgingCourses: BridgingCourse[] = []
+  ): DialogConfig {
+    // Collect regular courses on the given program
+    const regularCourses = Array.from(
+      new Set(
+        program.year_levels
+          .flatMap((yl) => yl.semesters)
+          .flatMap((sem) => sem.courses)
+          .map((item) => `${item.course_code} - ${item.course_title}`)
+      )
+    );
+
+    // Collect all bridging courses for this program
     const bridgingCourses = programBridgingCourses.map(bc => `${bc.course_code} - ${bc.course_title}`);
-    const availableCourseTitles = Array.from(new Set([...regularCourses, ...bridgingCourses])).sort((a, b) => a.localeCompare(b));
+
+    // Combine unique titles and sort alphabetically
+    const availableCourseTitles = Array.from(new Set([...regularCourses, ...bridgingCourses]))
+      .sort((a, b) => a.localeCompare(b));
 
     return {
       title: course ? 'Edit Bridging Course' : 'Add Bridging Course',
@@ -835,12 +859,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   private getCourseDialogConfig(course?: Course, semester?: number, group?: any): DialogConfig {
     const program = group ? group.program : this.curriculum?.programs[0];
     const availableCourseTitles = program?.year_levels
-      .flatMap((yl: any) => yl.semesters).flatMap((sem: any) => sem.courses)
+      .flatMap((yl: any) => yl.semesters)
+      .flatMap((sem: any) => sem.courses)
       .map((c: any) => `${c.course_code} - ${c.course_title}`)
       .sort((a: string, b: string) => a.localeCompare(b)) || [];
 
-    let existingPreReqs: string[] = course?.prerequisites ? course.prerequisites.map(p => `${p.course_code} - ${p.course_title}`) : [];
-    let existingCoReqs: string[] = course?.corequisites ? course.corequisites.map(c => `${c.course_code} - ${c.course_title}`) : [];
+    let existingPreReqs: string[] = course?.prerequisites ? course.prerequisites
+      .map(p => `${p.course_code} - ${p.course_title}`) : [];
+    let existingCoReqs: string[] = course?.corequisites ? course.corequisites
+      .map(c => `${c.course_code} - ${c.course_title}`) : [];
 
     return {
       title: course ? 'Edit Course' : 'Add Course',
