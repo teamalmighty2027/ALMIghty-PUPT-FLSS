@@ -23,6 +23,8 @@ import { fadeAnimation } from '../../../../animations/animations';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-rooms',
@@ -375,8 +377,114 @@ export class RoomsComponent implements OnInit, OnDestroy {
   }
 
   // ======================
-  // PDF Generation
+  // EXPORT GENERATION
   // ======================
+  onExport() {
+    this.dialog.open(DialogExportComponent, {
+      maxWidth: '70rem',
+      width: '100%',
+      autoFocus: true,
+      data: {
+        exportType: 'all',
+        entity: 'Rooms',
+        customTitle: 'Export All Rooms',
+        generatePdfFunction: (showPreview: boolean) => {
+          return this.createPdfBlob();
+        },
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlob();
+          saveAs(excelBlob, 'pup_taguig_rooms_report.xlsx');
+        },
+        generateFileNameFunction: () => 'pup_taguig_rooms_report.pdf',
+      },
+    });
+  }
+
+  // --- NEW: ExcelJS Logic ---
+  private async generateExcelBlob(): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const allRooms = this.roomsSubject.getValue();
+    const availableRooms = allRooms.filter((room) => room.status === 'Available');
+    const buildings = this.buildingsSubject.getValue();
+
+    // Reusable function to build a sheet
+    const buildSheet = (sheetName: string, title: string, data: any[]) => {
+      // Ensure safe sheet name (max 31 chars)
+      const safeName = sheetName.replace(/[^\w\s-]/gi, '').substring(0, 31) || 'Rooms';
+      const worksheet = workbook.addWorksheet(safeName);
+
+      worksheet.pageSetup = {
+        orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+        margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+      };
+
+      worksheet.columns = [
+        { width: 5 },   // #
+        { width: 20 },  // Room Code
+        { width: 30 },  // Location
+        { width: 15 },  // Floor Level
+        { width: 25 },  // Room Type
+        { width: 12 },  // Capacity
+        { width: 15 },  // Status
+      ];
+
+      worksheet.mergeCells('A1:G1');
+      const titleCell = worksheet.getCell('A1');
+      titleCell.value = title;
+      titleCell.font = { bold: true, size: 14 };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      worksheet.addRow([]); // Spacer
+
+      const headerRow = worksheet.addRow(['#', 'Room Code', 'Location', 'Floor Level', 'Room Type', 'Capacity', 'Status']);
+      headerRow.height = 25;
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF800000' } };
+      });
+
+      if (data.length === 0) {
+        const emptyRow = worksheet.addRow(['No available rooms found.']);
+        worksheet.mergeCells(`A${emptyRow.number}:G${emptyRow.number}`);
+        emptyRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+        emptyRow.getCell(1).font = { italic: true };
+      } else {
+        data.forEach((room, index) => {
+          const row = worksheet.addRow([
+            index + 1,
+            room.room_code,
+            room.building_name,
+            room.floor_level,
+            room.room_type_name,
+            room.capacity,
+            room.status
+          ]);
+
+          row.eachCell((cell, colNum) => {
+            const alignCenter = colNum === 1 || colNum === 4 || colNum === 6 || colNum === 7;
+            cell.alignment = { vertical: 'middle', horizontal: alignCenter ? 'center' : 'left', wrapText: true };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          });
+        });
+      }
+    };
+
+    // 1. Create a Master "All Rooms" Sheet
+    buildSheet('All Rooms', 'ROOM REPORT - ALL ROOMS', availableRooms);
+
+    // 2. Create a specific Sheet for each Building
+    buildings.forEach((building) => {
+      const buildingRooms = availableRooms.filter(r => r.building_id === building.building_id);
+      buildSheet(building.building_name, `ROOM REPORT - ${building.building_name.toUpperCase()}`, buildingRooms);
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  // --- EXISTING PDF LOGIC ---
   private createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const pageWidth = doc.internal.pageSize.width;
@@ -497,22 +605,5 @@ export class RoomsComponent implements OnInit, OnDestroy {
       });
       throw error;
     }
-  }
-
-  onExport() {
-    this.dialog.open(DialogExportComponent, {
-      maxWidth: '70rem',
-      width: '100%',
-      autoFocus: true,
-      data: {
-        exportType: 'all',
-        entity: 'Rooms',
-        customTitle: 'Export All Rooms',
-        generatePdfFunction: (showPreview: boolean) => {
-          return this.createPdfBlob();
-        },
-        generateFileNameFunction: () => 'pup_taguig_rooms_report.pdf',
-      },
-    });
   }
 }

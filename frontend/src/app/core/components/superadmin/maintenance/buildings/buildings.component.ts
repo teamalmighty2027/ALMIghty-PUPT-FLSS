@@ -21,6 +21,8 @@ import { fadeAnimation } from '../../../../animations/animations';
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-buildings',
@@ -256,8 +258,83 @@ export class BuildingsComponent implements OnInit, OnDestroy {
   }
 
   // ======================
-  // PDF Generation
+  // EXPORT GENERATION
   // ======================
+  onExport() {
+    this.dialog.open(DialogExportComponent, {
+      maxWidth: '70rem',
+      width: '100%',
+      autoFocus: true,
+      data: {
+        exportType: 'all',
+        entity: 'Buildings',
+        customTitle: 'Export All Buildings',
+        generatePdfFunction: (showPreview: boolean) => {
+          return this.createPdfBlob();
+        },
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlob();
+          saveAs(excelBlob, 'pup_taguig_buildings_report.xlsx');
+        },
+        generateFileNameFunction: () => 'pup_taguig_buildings_report.pdf',
+      },
+    });
+  }
+
+  // --- NEW: ExcelJS Logic ---
+  private async generateExcelBlob(): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Buildings');
+
+    worksheet.pageSetup = {
+      orientation: 'portrait', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 10 },  // #
+      { width: 50 },  // Building Name
+      { width: 20 },  // Floor Levels
+    ];
+
+    worksheet.mergeCells('A1:C1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'BUILDINGS REPORT';
+    titleCell.font = { bold: true, size: 14 };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.addRow([]); // Spacer
+
+    const headerRow = worksheet.addRow(['#', 'Building Name', 'Floor Levels']);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF800000' } };
+    });
+
+    const buildings = this.buildingsSubject.getValue();
+
+    buildings.forEach((building, index) => {
+      const row = worksheet.addRow([
+        index + 1,
+        building.building_name,
+        building.floor_levels
+      ]);
+
+      row.eachCell((cell, colNum) => {
+        const alignCenter = colNum === 1 || colNum === 3;
+        cell.alignment = { vertical: 'middle', horizontal: alignCenter ? 'center' : 'left', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  // --- EXISTING PDF LOGIC ---
   private createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const pageWidth = doc.internal.pageSize.width;
@@ -265,7 +342,6 @@ export class BuildingsComponent implements OnInit, OnDestroy {
     let currentY = 15;
 
     try {
-      // Add header using the report header service
       this.reportHeaderService
         .addHeader(doc, 'Buildings Report', currentY)
         .subscribe((newY) => {
@@ -317,22 +393,5 @@ export class BuildingsComponent implements OnInit, OnDestroy {
       });
       throw error;
     }
-  }
-
-  onExport() {
-    this.dialog.open(DialogExportComponent, {
-      maxWidth: '70rem',
-      width: '100%',
-      autoFocus: true,
-      data: {
-        exportType: 'all',
-        entity: 'Buildings',
-        customTitle: 'Export All Buildings',
-        generatePdfFunction: (showPreview: boolean) => {
-          return this.createPdfBlob();
-        },
-        generateFileNameFunction: () => 'pup_taguig_buildings_report.pdf',
-      },
-    });
   }
 }
