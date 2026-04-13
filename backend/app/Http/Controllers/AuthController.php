@@ -27,6 +27,7 @@ class AuthController extends Controller
         // Eager load permissions and allowed programs to avoid N+1 queries
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
+            ->whereIn('role', $loginUserData['allowed_roles'])
             ->first();
 
         if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
@@ -38,7 +39,8 @@ class AuthController extends Controller
         // Check if user has allowed role
         if (! in_array($user->role, $loginUserData['allowed_roles'])) {
             return response()->json([
-                'message' => 'Access forbidden. You are not authorized as ' . implode(' or ', $loginUserData['allowed_roles']) . '.',
+                'message' => 'Access forbidden. You are not authorized as ' . 
+                implode(' or ', $loginUserData['allowed_roles']) . '.',
             ], 403);
         }
 
@@ -66,6 +68,7 @@ class AuthController extends Controller
             'name'             => $user->first_name . ' ' . $user->last_name,
             'email'            => $user->email,
             'role'             => $user->role,
+            'roles'            => [$user->role],
             'permissions'      => $permissions,
             'allowed_programs' => $allowedPrograms,
             'is_full_access'   => $isFullAccess,
@@ -107,7 +110,12 @@ class AuthController extends Controller
             AuditLogger::logLogout();
 
             // Revoke the token that was used to authenticate the current request
-            $request->user()->currentAccessToken()->delete();
+            $token = $request->user()->currentAccessToken();
+
+            // Check if token exists and has a delete method
+            if ($token && method_exists($token, 'delete')) {
+                $token->delete();
+            }
 
             // Clear the cookies
             Cookie::queue(Cookie::forget('user_token'));
@@ -181,6 +189,12 @@ class AuthController extends Controller
         $clientId = config('services.idp.client_id');
         $clientSecret = config('services.idp.client_secret');
 
+        // Validate configuration before proceeding
+        if (!$baseUrl || !$clientId || !$clientSecret) {
+            Log::error('IDP Configuration missing at callback');
+            return response()->json(['message' => 'Authentication configuration error.'], 500);
+        }
+
         // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
         $tokenResponse = Http::withoutVerifying()->asJson()->post(
             rtrim($baseUrl, '/') . '/api/v1/auth/token',
@@ -194,12 +208,13 @@ class AuthController extends Controller
         try {
             if (!$tokenResponse->successful()) {
                 $errorBody = $tokenResponse->json();
-                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
-                    ? $errorBody['error']
-                    : 'Token exchange failed.';
+                $errorMessage = $errorBody['error'] ?? $tokenResponse->body() ?: 'Token exchange failed.';
+                
+                Log::warning("IDP token exchange failed for client {$clientId}: " . $errorMessage);
                 
                 return response()->json([
-                    'message' => 'IDP session has expired. Please log in again.'
+                    'message' => 'IDP session has expired. Please log in again.',
+                    'idp_error' => $errorMessage
                 ], 401);
             }   
 
@@ -237,7 +252,10 @@ class AuthController extends Controller
             $lastName = $userData['last_name'] ?? '';
 
             // Query user by email
-            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+            $user = User::with(['faculty.facultyType'])
+              ->where('email', $email)
+              ->whereIn('role', $requestedRole)
+              ->first();
 
             // Collect the roles of the user
             $roles = $user ? [$user->role] : [];
@@ -327,9 +345,7 @@ class AuthController extends Controller
     public function logoutIdpProxy(Request $request)
     {
         $baseUrl = config('services.idp.base_url');
-        $clientId = config('services.idp.client_id')
-            ?? $request->query('client_id')
-            ?? config('services.idp.client_id');
+        $clientId = config('services.idp.client_id') ?: $request->query('client_id');
         $logoutPath = '/api/v1/auth/logout';
 
         if (! $baseUrl || ! $clientId) {

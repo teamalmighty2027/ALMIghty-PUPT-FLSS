@@ -50,11 +50,16 @@ class ReportsController extends Controller
         // Step 2: Prepare a subquery to get schedules for the current semester and academic year
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->leftJoin('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->where('ca_semesters.semester', '=', $activeSemester->semester)
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->where(function ($query) use ($activeSemester) {
+                $query
+                    ->where('ca_semesters.semester', '=', $activeSemester->semester)
+                    ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
+            })
             ->select(
                 'schedules.schedule_id',
                 'schedules.faculty_id',
@@ -73,10 +78,12 @@ class ReportsController extends Controller
                 $join->on('current_schedules.faculty_id', '=', 'faculty.id');
             })
             ->leftJoin('section_courses', 'current_schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
             ->leftJoin('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
             ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
             ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
             ->leftJoin('rooms', 'rooms.room_id', '=', 'current_schedules.room_id')
             ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
                 $join->on('faculty_schedule_publication.faculty_id', '=', 'faculty.id')
@@ -94,12 +101,13 @@ class ReportsController extends Controller
                 'current_schedules.end_time',
                 'rooms.room_code',
                 'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours',
-                'courses.lab_hours',
-                'courses.units',
-                'courses.tuition_hours',
+                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
+                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
+                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec_hours'),
+                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab_hours'),
+                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
+                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'temporary_course_offerings.type as offering_type',
                 'programs.program_code',
                 'programs.program_title',
                 'sections_per_program_year.year_level',
@@ -157,6 +165,7 @@ class ReportsController extends Controller
                         'lab' => $schedule->lab_hours,
                         'units' => $schedule->units,
                         'tuition_hours' => $schedule->tuition_hours,
+                        'offering_type' => $schedule->offering_type,
                     ],
                 ];
             }
@@ -247,15 +256,21 @@ class ReportsController extends Controller
         // Get all available rooms, then left join with schedules for this semester
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->leftJoin('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
             ->leftJoin('faculty', 'schedules.faculty_id', '=', 'faculty.id')
             ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
             ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->where('ca_semesters.semester', $activeSemester->semester->semester)
+            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
             ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
+            ->where(function ($query) use ($activeSemester) {
+                $query
+                    ->where('ca_semesters.semester', '=', $activeSemester->semester->semester)
+                    ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
+            })
             ->whereNotNull('schedules.room_id')
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.start_time')
@@ -274,12 +289,13 @@ class ReportsController extends Controller
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
                 'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours as lec',
-                'courses.lab_hours as lab',
-                'courses.units',
-                'courses.tuition_hours'
+                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
+                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
+                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec'),
+                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab'),
+                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
+                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'temporary_course_offerings.type as offering_type'
             );
 
         // Get all available rooms and left join with schedules
@@ -311,7 +327,8 @@ class ReportsController extends Controller
                 'schedules.lec',
                 'schedules.lab',
                 'schedules.units',
-                'schedules.tuition_hours'
+                'schedules.tuition_hours',
+                'schedules.offering_type'
             )
             ->get();
     }
@@ -323,15 +340,21 @@ class ReportsController extends Controller
     {
         return DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->leftJoin('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
             ->leftJoin('faculty', 'schedules.faculty_id', '=', 'faculty.id')
             ->leftJoin('users', 'faculty.user_id', '=', 'users.id')
             ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->where('ca_semesters.semester', $activeSemester->semester->semester)
+            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
             ->where('sections_per_program_year.academic_year_id', $activeSemester->academic_year_id)
+            ->where(function ($query) use ($activeSemester) {
+                $query
+                    ->where('ca_semesters.semester', '=', $activeSemester->semester->semester)
+                    ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
+            })
             ->whereNull('schedules.room_id')
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.start_time')
@@ -349,12 +372,13 @@ class ReportsController extends Controller
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
                 'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours as lec',
-                'courses.lab_hours as lab',
-                'courses.units',
-                'courses.tuition_hours'
+                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
+                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
+                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec'),
+                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab'),
+                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
+                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'temporary_course_offerings.type as offering_type'
             )
             ->get();
     }
@@ -427,6 +451,7 @@ class ReportsController extends Controller
                 'lab' => $schedule->lab,
                 'units' => $schedule->units,
                 'tuition_hours' => $schedule->tuition_hours,
+                'offering_type' => $schedule->offering_type,
             ],
         ];
     }
@@ -466,12 +491,18 @@ class ReportsController extends Controller
         // Step 2: Prepare a subquery to get schedules (USING ORIGINAL TEXT-BASED JOIN)
         $schedulesSub = DB::table('schedules')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->leftJoin('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->where('ca_semesters.semester', '=', $activeSemester->semester)
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
+            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->where(function ($query) use ($activeSemester) {
+                $query
+                    ->where('ca_semesters.semester', '=', $activeSemester->semester)
+                    ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
+            })
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.faculty_id')
             ->whereNotNull('schedules.room_id')
@@ -486,12 +517,13 @@ class ReportsController extends Controller
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
                 'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours as lec',
-                'courses.lab_hours as lab',
-                'courses.units',
-                'courses.tuition_hours'
+                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
+                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
+                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec'),
+                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab'),
+                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
+                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'temporary_course_offerings.type as offering_type'
             );
 
         // Step 3: Join programs with current schedules
@@ -521,7 +553,8 @@ class ReportsController extends Controller
                 'current_schedules.lec',
                 'current_schedules.lab',
                 'current_schedules.units',
-                'current_schedules.tuition_hours'
+                'current_schedules.tuition_hours',
+                'current_schedules.offering_type'
             )
             ->get();
 
@@ -571,6 +604,7 @@ class ReportsController extends Controller
                         'lab' => $schedule->lab,
                         'units' => $schedule->units,
                         'tuition_hours' => $schedule->tuition_hours,
+                        'offering_type' => $schedule->offering_type,
                     ],
                 ];
             }
@@ -744,6 +778,7 @@ class ReportsController extends Controller
                     'lab' => $schedule->lab_hours,
                     'units' => $schedule->units,
                     'tuition_hours' => $schedule->tuition_hours,
+                    'offering_type' => $schedule->offering_type,
                 ],
             ];
         }

@@ -154,6 +154,17 @@ $day-colors: (
               font-weight: 600;
             }
 
+            .temporary-badge {
+              background-color: var(--secondary-hover);
+              color: var(--secondary-text);
+              border-radius: var(--border-radius-lg);
+              padding: 0 var(--spacing-xs);
+              font-size: var(--font-size-xs);
+              text-wrap: nowrap;
+              margin-left: var(--spacing-xxs);
+              display: inline-block;
+            }
+
             .time {
               position: sticky;
               bottom: 0;

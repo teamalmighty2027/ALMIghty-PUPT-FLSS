@@ -563,6 +563,26 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       }).filter((title): title is string => !!title);
   }
 
+  /**
+   * Maps requirement links to course codes, used for bridging courses
+   * @param requirements 
+   * @param type 
+   * @returns 
+   */
+  private mapRequirementCodesFromCourse(
+    requirements: CourseRequirementLink[] | undefined,
+    type: 'pre' | 'co'
+  ): string[] {
+    if (!requirements?.length) {
+      return [];
+    }
+
+    return requirements
+      .filter((req) => req.requirement_type === type)
+      .map((req) => req.requiredCourse?.course_code ?? req.required_course?.course_code)
+      .filter((code): code is string => !!code);
+  }
+
   private loadBridgingCourses(): void {
     if (!this.canManageBridgingCourses || !this.curriculum) { this.bridgingCourses = []; return; }
 
@@ -585,7 +605,27 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .pipe(finalize(() => (this.isLoadingBridging = false)))
       .subscribe({
         next: (courses) => {
-          this.bridgingCourses = courses.map((course) => ({ ...course, pre_req: 'None', co_req: 'None' }));
+          this.bridgingCourses = courses.map((course) => {
+            const preReqCodes =
+              course.prerequisites?.map((req) => req.course_code) ??
+              this.mapRequirementCodesFromCourse(
+                course.course?.requirements,
+                'pre'
+              );
+
+            const coReqCodes =
+              course.corequisites?.map((req) => req.course_code) ??
+              this.mapRequirementCodesFromCourse(
+                course.course?.requirements,
+                'co'
+              );
+
+            return {
+              ...course,
+              pre_req: preReqCodes.length ? preReqCodes.join(', ') : 'None',
+              co_req: coReqCodes.length ? coReqCodes.join(', ') : 'None',
+            };
+          });
           this.cdr.markForCheck();
         },
         error: (error) => { this.snackBar.open('Error fetching bridging courses. Please try again.', 'Close', { duration: 3000 }); },

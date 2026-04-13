@@ -27,6 +27,8 @@ export interface CourseRequirement {
 export interface CourseRequirementLink {
   requirement_type: 'pre' | 'co';
   required_course_id: number;
+  requiredCourse?: CourseRequirement;
+  required_course?: CourseRequirement;
 }
 
 export interface CourseWithRequirements extends Course {
@@ -71,6 +73,9 @@ export interface BridgingCourse {
   semester_id: number;
   course_id: number;
   course_code: string;
+  prerequisites?: CourseRequirement[];
+  corequisites?: CourseRequirement[];
+  course?: CourseWithRequirements;
   course_title: string;
   lec_hours: number;
   lab_hours: number;
@@ -99,7 +104,9 @@ export class CurriculumService {
     );
   }
 
+  // 
   // For Programs
+  //
 
   // Fetch all programs associated to the Curriculum Year
   getProgramsByCurriculumYear(curriculumYear: string): Observable<Program[]> {
