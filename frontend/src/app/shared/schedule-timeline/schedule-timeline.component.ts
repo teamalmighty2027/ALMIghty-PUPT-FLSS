@@ -17,6 +17,7 @@ interface ScheduleBlock {
   program: string;
   yearLevel: number;
   section: string;
+  offeringType?: string;
 }
 
 type Day =
@@ -88,6 +89,7 @@ export class ScheduleTimelineComponent implements OnInit {
             program: schedule.program_code,
             yearLevel: schedule.year_level,
             section: schedule.section_name,
+            offeringType: schedule.course_details.offering_type,
           });
         } else {
           return;

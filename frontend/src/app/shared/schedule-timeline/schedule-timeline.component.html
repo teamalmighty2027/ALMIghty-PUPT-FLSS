@@ -27,7 +27,11 @@
             <!-- Course Code and Course Title (Visible for all entities) -->
             <div class="course">
               <span class="course-text">
-                {{ getBlockProperty(day, i, "courseCode") }}<br />
+                {{ getBlockProperty(day, i, "courseCode") }}
+                @if (getBlockProperty(day, i, "offeringType") === "bridging") {
+                <span class="temporary-badge">BRIDGING</span>
+                }
+                <br />
                 {{ getBlockProperty(day, i, "courseTitle") }}
               </span>
             </div>
