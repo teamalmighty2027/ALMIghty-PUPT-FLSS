@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\Schedule;
+use App\Models\SectionCourse;
+use App\Models\Room;
+use \App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +15,182 @@ use Illuminate\Support\Facades\Validator;
 
 class ScheduleController extends Controller
 {
+    /**
+     * Fetches schedules for a historical (non-active) academic year and semester.
+     */
+    public function getHistoricalSchedules(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'academic_year_id' => 'required|integer|exists:academic_years,academic_year_id',
+            'semester_id' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation Error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $academicYearId = $request->input('academic_year_id');
+        $semesterId = $request->input('semester_id');
+
+        // Fetch all assigned courses for the specified semester and academic year
+        $assignedCourses = DB::table('curricula as c')
+            ->select(
+                'p.program_id',
+                'p.program_code',
+                'p.program_title',
+                'cp.curricula_program_id',
+                'c.curriculum_id',
+                'c.curriculum_year',
+                'yl.year_level_id',
+                'yl.year as year_level',
+                's.semester_id',
+                's.semester',
+                'ca.course_assignment_id',
+                'co.course_id',
+                'co.course_code',
+                'co.course_title',
+                'co.lec_hours',
+                'co.lab_hours',
+                'co.units',
+                'co.tuition_hours',
+                'pylc.academic_year_id'
+            )
+            ->join('curricula_program as cp', function ($join) {
+                $join->on('c.curriculum_id', '=', 'cp.curriculum_id')
+                    ->whereIn('c.status', ['Active']);
+            })
+            ->join('programs as p', function ($join) {
+                $join->on('cp.program_id', '=', 'p.program_id')
+                    ->where('p.status', 'Active');
+            })
+            ->join('year_levels as yl', 'cp.curricula_program_id', '=', 'yl.curricula_program_id')
+            ->join('semesters as s', 'yl.year_level_id', '=', 's.year_level_id')
+            ->join('program_year_level_curricula as pylc', function ($join) {
+                $join->on('pylc.program_id', '=', 'p.program_id')
+                    ->on('pylc.year_level', '=', 'yl.year')
+                    ->on('pylc.curriculum_id', '=', 'c.curriculum_id');
+            })
+            ->leftJoin('course_assignments as ca', function ($join) {
+                $join->on('ca.curricula_program_id', '=', 'cp.curricula_program_id')
+                    ->on('ca.semester_id', '=', 's.semester_id');
+            })
+            ->leftJoin('courses as co', function ($join) {
+                $join->on('ca.course_id', '=', 'co.course_id')
+                    ->orderBy('co.course_code');
+            })
+            ->where('s.semester', $semesterId)
+            ->where('pylc.academic_year_id', $academicYearId)
+            ->orderBy('p.program_id')
+            ->orderBy('yl.year')
+            ->orderBy('s.semester')
+            ->orderBy('co.course_code')
+            ->get();
+
+        $response = [];
+
+        foreach ($assignedCourses as $row) {
+            $programIndex = $this->findOrCreateProgram($response, $row);
+            $yearLevelIndex = $this->findOrCreateYearLevel($response[$programIndex]['year_levels'], $row);
+            $semesterIndex = $this->findOrCreateSemester($response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'], $row);
+
+            $sections = DB::table('sections_per_program_year')
+                ->where('program_id', $row->program_id)
+                ->where('year_level', $row->year_level)
+                ->where('academic_year_id', $academicYearId)
+                ->get();
+
+            foreach ($sections as $section) {
+                $this->assignHistoricalCourseToSectionAndSchedule($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections']);
+            }
+        }
+
+        return response()->json([
+            'academic_year_id' => $academicYearId,
+            'semester_id' => $semesterId,
+            'programs' => $response,
+        ]);
+    }
+
+    /**
+     * Assigns a historical course to a section and schedule (read-only).
+     */
+    private function assignHistoricalCourseToSectionAndSchedule($row, $section, &$sections)
+    {
+        if (is_null($row->course_assignment_id)) {
+            return;
+        }
+
+        $sectionIndex = $this->findOrCreateSection($sections, $section);
+
+        $sectionCourses = SectionCourse::where('sections_per_program_year_id', $section->sections_per_program_year_id)
+            ->where('course_assignment_id', $row->course_assignment_id)
+            ->get();
+
+        foreach ($sectionCourses as $section_course) {
+            $existingSchedule = Schedule::where('section_course_id', $section_course->section_course_id)
+                ->first();
+
+            if (!$existingSchedule) {
+                continue;
+            }
+
+            $faculty = $existingSchedule->faculty_id ? DB::table('faculty')
+                ->join('users', 'faculty.user_id', '=', 'users.id')
+                ->where('faculty.id', $existingSchedule->faculty_id)
+                ->select(
+                    'faculty.id',
+                    'users.id as user_id',
+                    'users.email as faculty_email'
+                )
+                ->first() : null;
+
+            if ($faculty) {
+                $user = User::find($faculty->user_id);
+                $faculty->professor = $user->formatted_name;
+            }
+
+            $room = $existingSchedule->room_id ? Room::find($existingSchedule->room_id) : null;
+
+            if (!isset($sections[$sectionIndex]['courses'])) {
+                $sections[$sectionIndex]['courses'] = [];
+            }
+
+            $sections[$sectionIndex]['courses'][] = [
+                'course_assignment_id' => $row->course_assignment_id,
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+                'lec_hours' => $row->lec_hours,
+                'lab_hours' => $row->lab_hours,
+                'units' => $row->units,
+                'tuition_hours' => $row->tuition_hours,
+                'schedule' => [
+                    'schedule_id' => $existingSchedule->schedule_id,
+                    'day' => $existingSchedule->day,
+                    'start_time' => $existingSchedule->start_time,
+                    'end_time' => $existingSchedule->end_time,
+                ],
+                'professor' => $faculty ? $faculty->professor : 'Not set',
+                'faculty_id' => $faculty ? $faculty->id : null,
+                'faculty_email' => $faculty ? $faculty->faculty_email : null,
+                'room' => [
+                    'room_id' => $room ? $room->room_id : null,
+                    'room_code' => $room ? $room->room_code : 'Not set',
+                ],
+                'is_temporary' => false,
+                'temporary_course_offering_id' => null,
+                'temporary_type' => null,
+                'temporary_status' => null,
+                'petition_required' => false,
+                'is_copy' => $section_course->is_copy,
+                'section_course_id' => $section_course->section_course_id,
+            ];
+        }
+    }
+
     /**
      * Populates schedules for the active semester.
      */
