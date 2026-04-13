@@ -20,6 +20,8 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
+import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
@@ -33,6 +35,8 @@ import {
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 // ── Local view models ───────────────────────────────────────────
 interface ReschedulingAppeal {
@@ -408,7 +412,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  // ── PDF Export Methods ─────────────────────────────────────
+  // ── PDF and Excel Export Methods ─────────────────────────────────────
   
   onExportArrangements(): void {
     if (this.allFaculties.length === 0) {
@@ -420,6 +424,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       return this.generateAllSchedulesPdfBlob();
     };
 
+    const baseFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
@@ -428,10 +434,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         entity: 'faculty',
         entityData: this.allFaculties.map(f => f.schedules).flat(),
         customTitle: 'All Internal Arrangements',
-        fileName: `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`,
+        fileName: baseFileName,
         academicYear: this.academicYear,
         semester: this.semester,
         generatePdfFunction: generatePdfFunction,
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateArrangementsExcelBlobAll();
+          saveAs(excelBlob, `${baseFileName}.xlsx`);
+        },
         showViewToggle: false,
       },
       disableClose: true,
@@ -444,6 +454,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       return this.createPdfBlob(faculty);
     };
 
+    const formattedName = faculty.facultyName.replace(',', '').replace(/\s+/g, '_');
+    const baseFileName = `${formattedName}_Arrangements_${faculty.academicYear}_${faculty.semester?.replace(/\s+/g, '_')}`;
+
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
@@ -455,6 +468,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         academicYear: faculty.academicYear,
         semester: faculty.semester,
         generatePdfFunction: generatePdfFunction,
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateArrangementExcelBlob(faculty);
+          saveAs(excelBlob, `${baseFileName}.xlsx`);
+        },
         previewMode: true,
       },
       disableClose: true,
@@ -463,20 +480,114 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   downloadFacultyArrangements(faculty: FacultyArrangement): void {
-    const pdfBlob = this.createPdfBlob(faculty);
-    const blobUrl = URL.createObjectURL(pdfBlob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-
     const academicYear = faculty.academicYear || '';
     const semester = faculty.semester || '';
     const formattedName = faculty.facultyName.replace(',', '').replace(/\s+/g, '_');
+    const baseFileName = `${formattedName}_Arrangements_${academicYear}_${semester.replace(/\s+/g, '_')}`;
 
-    a.download = `${formattedName}_Arrangements_${academicYear}_${semester.replace(/\s+/g, '_')}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
+    this.dialog.open(DialogExportComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      disableClose: true,
+      data: {
+        exportType: 'single',
+        customTitle: `${faculty.facultyName} (Internal Arrangement)`,
+        subtitle: `For Academic Year ${academicYear}, ${semester}`,
+        generatePdfFunction: () => this.createPdfBlob(faculty),
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateArrangementExcelBlob(faculty);
+          saveAs(excelBlob, `${baseFileName}.xlsx`);
+        },
+        generateFileNameFunction: () => `${baseFileName}.pdf`
+      }
+    });
+  }
+
+  // ── ExcelJS Rendering Logic ────────────────────────────────────
+
+  private async generateArrangementsExcelBlobAll(): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    for (const faculty of this.allFaculties) {
+      if (faculty.schedules && faculty.schedules.length > 0) {
+        const tabName = faculty.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const worksheet = workbook.addWorksheet(tabName);
+        this.applyArrangementExcelLayout(worksheet, faculty);
+      }
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private async generateArrangementExcelBlob(faculty: FacultyArrangement): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const tabName = faculty.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
+    const worksheet = workbook.addWorksheet(tabName);
+    this.applyArrangementExcelLayout(worksheet, faculty);
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyArrangementExcelLayout(worksheet: ExcelJS.Worksheet, faculty: FacultyArrangement) {
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 15 }, { width: 15 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:H1');
+    worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:H2');
+
+    worksheet.getCell('A1').value = `Faculty (Internal Arrangement): ${faculty.facultyName.toUpperCase()}`;
+    worksheet.getCell('E1').value = `Faculty Type: ${faculty.facultyType}`;
+    worksheet.getCell('A2').value = `School Year: ${faculty.academicYear} | Semester: ${faculty.semester}`;
+    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Units`;
+
+    ['A1', 'E1', 'A2', 'E2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Section', 'Room No.', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (faculty.schedules && faculty.schedules.length > 0) {
+      faculty.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTime(schedule.start_time)} - ${this.formatTime(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details?.course_code || '',
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.units || 0,
+          `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
+          schedule.room_code || 'TBA',
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
   }
 
   // ── jsPDF Rendering Logic ────────────────────────────────────
@@ -497,7 +608,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       }
       let currentY = this.drawHeader(
         doc, topMargin, pageWidth, margin, logoSize,
-        `${faculty.facultyName} Schedule`,
+        `${faculty.facultyName} Schedule (Internal Arrangement)`,
         this.getAcademicYearSubtitle(faculty)
       );
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
@@ -517,7 +628,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (faculty.schedules && faculty.schedules.length > 0) {
       let currentY = this.drawHeader(
         doc, topMargin, pageWidth, margin, logoSize,
-        `${faculty.facultyName}`,
+        `${faculty.facultyName} (Internal Arrangement)`,
         this.getAcademicYearSubtitle(faculty)
       );
       this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
@@ -647,10 +758,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
     doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
-    
-    // (Prepared By text deleted!)
   }
-
 
   private calculateBoxHeight(doc: jsPDF, content: string[], columnWidth: number): number {
     const padding = 10;
