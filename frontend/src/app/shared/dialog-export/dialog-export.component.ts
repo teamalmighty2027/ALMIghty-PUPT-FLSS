@@ -17,6 +17,8 @@ interface ExportDialogData {
   customTitle?: string;
   subtitle?: string;
   generatePdfFunction?: (showPreview: boolean) => Blob | Promise<Blob> | void;
+  // NEW: This tells the dialog it's allowed to receive an Excel function!
+  generateExcelFunction?: () => Promise<void> | void; 
   generateFileNameFunction?: () => string; 
 }
 
@@ -143,6 +145,17 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error downloading PDF:', error);
+    }
+  }
+
+  // NEW: This function is called when the user clicks the "Download Excel" button!
+  public async downloadExcel(): Promise<void> {
+    if (this.data.generateExcelFunction) {
+      try {
+        await this.data.generateExcelFunction();
+      } catch (error) {
+        console.error('Error downloading Excel:', error);
+      }
     }
   }
 

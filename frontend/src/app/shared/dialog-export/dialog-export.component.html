@@ -1,12 +1,10 @@
 <div class="dialog-export-container">
-  <!-- Loading state -->
   @if (isLoading) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
   </div>
   } 
   @else {
-  <!-- Info section for both single and all export types -->
   <div class="entity-info" [@fadeAnimation]>
     <h2 class="dialog-title">{{ title }}</h2>
     @if (subtitle) {
@@ -14,24 +12,30 @@
     }
   </div>
 
-  <!-- PDF Preview section (for both single and all types) -->
   <div class="dialog-export-pdf-container" [@fadeAnimation]>
-  @if (exportType === 'all') {
-  <div class="export-all">
-    <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe> 
+    @if (exportType === 'all') {
+    <div class="export-all">
+      <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe> 
+    </div>
+    }
+    
+    @if (exportType === 'single') {
+    <div class="export-single">
+      <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
+    </div>
+    }
   </div>
-  }
-  
-  @if (exportType === 'single') {
-  <div class="export-single">
-    <iframe #pdfIframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
-  </div>
-  }
-</div>
 
-  <!-- Action buttons -->
   <div class="dialog-actions" [@fadeAnimation]>
     <button mat-button (click)="closeDialog()">Close</button>
+    
+    @if (data.generateExcelFunction) {
+      <button mat-flat-button class="action-button" style="background-color: #1d6f42; color: white; margin-right: 8px;" (click)="downloadExcel()">
+        <mat-icon>table_chart</mat-icon>
+        Download Excel
+      </button>
+    }
+
     <button mat-flat-button class="action-button" (click)="downloadPdf()">
       <mat-icon>print</mat-icon>
       Download PDF

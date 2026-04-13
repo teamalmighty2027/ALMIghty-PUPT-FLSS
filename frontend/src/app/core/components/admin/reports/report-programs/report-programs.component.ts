@@ -28,6 +28,10 @@ import { ReportHeaderService } from '../../../../services/report-header/report-h
 
 import { fadeAnimation } from '../../../../animations/animations';
 
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { DialogExportComponent } from '../../../../../shared/dialog-export/dialog-export.component';
+
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -244,7 +248,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         this.filteredData = [...programData];
         this.dataSource.paginator = this.paginator;
 
-        // Check if there are any schedules available
         this.hasAnySchedules = this.filteredData.some((program) =>
           program.year_levels.some((yearLevel) =>
             yearLevel.sections.some((section) => section.schedules.length > 0),
@@ -310,11 +313,14 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.filteredData.forEach((program) => {
       program.year_levels.forEach((yearLevel) => {
         yearLevel.sections.forEach((section) => {
-          const title = `${program.program_code} - Year ${yearLevel.year_level} - Section ${section.section_name}`;
-          scheduleGroups.push({
-            title: title,
-            scheduleData: section.schedules,
-          });
+          // FIX: Only add to Export All if it ACTUALLY has schedules
+          if (section.schedules && section.schedules.length > 0) {
+            const title = `${program.program_code} - Year ${yearLevel.year_level} - Section ${section.section_name}`;
+            scheduleGroups.push({
+              title: title,
+              scheduleData: section.schedules,
+            });
+          }
         });
       });
     });
@@ -340,16 +346,222 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         entity: 'program',
         scheduleGroups: scheduleGroups,
         customTitle: 'All Program Schedules',
-        fileName: `All_Program_Schedules_${
-          this.academicYear
-        }_${this.semester.replace(/\s+/g, '_')}`,
+        fileName: `All_Program_Schedules_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`,
         academicYear: this.academicYear,
         semester: this.semester,
         generatePdfFunction: generatePdfFunction,
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlobAll();
+          saveAs(excelBlob, `All_Program_Schedules_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}.xlsx`);
+        },
         previewMode: true,
       },
       disableClose: true,
     });
+  }
+
+  // NEW: ExcelJS generation method
+  private async generateExcelBlob(program: Program): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const selectedYearLevel = program.year_levels_selected ?? 'All';
+    const selectedSection = program.section_selected ?? 'All';
+
+    const filteredYearLevels = program.year_levels.filter(
+      (yl) => selectedYearLevel === 'All' || yl.year_level.toString() === selectedYearLevel
+    );
+
+    for (const yearLevel of filteredYearLevels) {
+      const filteredSections = yearLevel.sections.filter(
+        (sec) => selectedSection === 'All' || sec.section_name === selectedSection
+      );
+
+      for (const section of filteredSections) {
+        const safeSheetName = `Y${yearLevel.year_level} - ${section.section_name}`.replace(/[^\w\s-]/gi, '').substring(0, 31);
+        const worksheet = workbook.addWorksheet(safeSheetName);
+
+        worksheet.columns = [
+          { width: 12 }, { width: 35 }, { width: 8 }, { width: 8 }, { width: 10 },
+          { width: 8 }, { width: 15 }, { width: 12 }, { width: 20 }, { width: 8 }, { width: 22 }
+        ];
+
+        worksheet.mergeCells('A1:B1'); worksheet.mergeCells('C1:K1');
+        worksheet.mergeCells('A2:B2'); worksheet.mergeCells('C2:K2');
+
+        worksheet.getCell('A1').value = `Course: ${program.program_title.toUpperCase()} (${program.program_code})`;
+        worksheet.getCell('C1').value = `Year Level: ${yearLevel.year_level}`;
+        worksheet.getCell('A2').value = `School Year: ${this.academicYear}`;
+        worksheet.getCell('C2').value = `Semester: ${this.semester}`;
+
+        ['A1', 'C1', 'A2', 'C2'].forEach(c => {
+          const cell = worksheet.getCell(c);
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'left' };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+
+        worksheet.addRow([]); // Spacer
+
+        const secRow = worksheet.addRow([`Section : ${section.section_name}`]);
+        worksheet.mergeCells(`A${secRow.number}:K${secRow.number}`);
+        secRow.font = { bold: true };
+        secRow.getCell(1).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+
+        const headerRow = worksheet.addRow([
+          'Subject\nCode', 'Description', 'Lec\nHours', 'Lab\nHours', 'Tuition\nHours',
+          'Cred.\nUnits', 'Section', 'Room No.', 'Professor', 'Slots', 'Schedule'
+        ]);
+        headerRow.height = 30;
+        headerRow.eachCell(cell => {
+          cell.font = { bold: true };
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+        });
+
+        if (section.schedules && section.schedules.length > 0) {
+          section.schedules.forEach(schedule => {
+            const dayShort = schedule.day.substring(0, 3).toUpperCase();
+            const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)}-${this.formatTimeTo12Hour(schedule.end_time)}`;
+            
+            const row = worksheet.addRow([
+              schedule.course_details.course_code,
+              schedule.course_details.course_title,
+              schedule.course_details.lec,
+              schedule.course_details.lab,
+              schedule.course_details.tuition_hours,
+              schedule.course_details.units,
+              section.section_name,
+              schedule.room_code || 'TBA',
+              schedule.faculty_name,
+              '', // Leaving slots empty
+              `${dayShort}\n${timeRange}`
+            ]);
+
+            row.eachCell((cell, colNumber) => {
+              cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center', wrapText: true };
+              cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            });
+          });
+        } else {
+          const noDataRow = worksheet.addRow(['No schedules assigned for this section.']);
+          worksheet.mergeCells(`A${noDataRow.number}:K${noDataRow.number}`);
+          noDataRow.getCell(1).alignment = { horizontal: 'center' };
+          noDataRow.getCell(1).font = { italic: true };
+        }
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  // NEW: ExcelJS generation method for ALL programs
+  private async generateExcelBlobAll(): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+
+    // Loop through all filtered data to create sheets
+    for (const program of this.filteredData) {
+      for (const yearLevel of program.year_levels) {
+        for (const section of yearLevel.sections) {
+          
+          // FIX: Only create a new tab if this section has schedules
+          if (section.schedules && section.schedules.length > 0) {
+            
+            // Sheet names must be max 31 chars. e.g., "BSIT Y1 S1"
+            const safeSheetName = `${program.program_code} Y${yearLevel.year_level} S${section.section_name}`.replace(/[^\w\s-]/gi, '').substring(0, 31);
+            const worksheet = workbook.addWorksheet(safeSheetName);
+            
+            this.applyExcelLayoutAndData(worksheet, program, yearLevel, section);
+          }
+        }
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyExcelLayoutAndData(worksheet: ExcelJS.Worksheet, program: Program, yearLevel: any, section: any) {
+    // PAGE SETUP: Forces it to print perfectly on one landscape page without cutting!
+    worksheet.pageSetup = {
+      orientation: 'landscape',
+      paperSize: 9, // A4
+      fitToPage: true,
+      fitToWidth: 1, // Forces all columns to fit on 1 page wide
+      fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 12 }, { width: 35 }, { width: 8 }, { width: 8 }, { width: 10 },
+      { width: 8 }, { width: 15 }, { width: 12 }, { width: 20 }, { width: 8 }, { width: 22 }
+    ];
+
+    // FIX: Merged A1:G1 instead of A1:B1 to give the Course Title plenty of room
+    worksheet.mergeCells('A1:G1'); worksheet.mergeCells('H1:K1');
+    worksheet.mergeCells('A2:G2'); worksheet.mergeCells('H2:K2');
+
+    worksheet.getCell('A1').value = `Course: ${program.program_title.toUpperCase()} (${program.program_code})`;
+    worksheet.getCell('H1').value = `Year Level: ${yearLevel.year_level}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear}`;
+    worksheet.getCell('H2').value = `Semester: ${this.semester}`;
+
+    ['A1', 'H1', 'A2', 'H2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]); // Spacer
+
+    const secRow = worksheet.addRow([`Section : ${section.section_name}`]);
+    worksheet.mergeCells(`A${secRow.number}:K${secRow.number}`);
+    secRow.font = { bold: true };
+    secRow.getCell(1).border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+
+    const headerRow = worksheet.addRow([
+      'Subject\nCode', 'Description', 'Lec\nHours', 'Lab\nHours', 'Tuition\nHours',
+      'Cred.\nUnits', 'Section', 'Room No.', 'Professor', 'Slots', 'Schedule'
+    ]);
+    headerRow.height = 30;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (section.schedules && section.schedules.length > 0) {
+      section.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)}-${this.formatTimeTo12Hour(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details.course_code,
+          schedule.course_details.course_title,
+          schedule.course_details.lec,
+          schedule.course_details.lab,
+          schedule.course_details.tuition_hours,
+          schedule.course_details.units,
+          section.section_name,
+          schedule.room_code || 'TBA',
+          schedule.faculty_name,
+          '60', // Fix: Showing default 60 slots as seen on paper
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNumber) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    } else {
+      const noDataRow = worksheet.addRow(['No schedules assigned for this section.']);
+      worksheet.mergeCells(`A${noDataRow.number}:K${noDataRow.number}`);
+      noDataRow.getCell(1).alignment = { horizontal: 'center' };
+      noDataRow.getCell(1).font = { italic: true };
+    }
   }
 
   onOpenDialog(program: Program, field: 'yearLevel' | 'section') {
@@ -493,7 +705,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Function to generate the PDF Blob for preview or download
     const generatePdfFunction = (preview: boolean): Blob | void => {
       return this.createPdfBlob(element);
     };
@@ -509,50 +720,60 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         academicYear: this.academicYear,
         semester: this.semester,
         generatePdfFunction: generatePdfFunction,
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlob(element);
+          saveAs(excelBlob, `${element.program_code}_Schedule.xlsx`);
+        },
         previewMode: true,
       },
       disableClose: true,
     });
   }
 
+  // UPDATED: Now triggers the DialogExportComponent instead of direct download
   onExportSingle(element: Program): void {
     const selectedYearLevel = element.year_levels_selected ?? 'All';
     const selectedSection = element.section_selected ?? 'All';
-    const pdfBlob = this.createPdfBlob(element);
-
     const academicYear = element.academicYear || '';
     const semester = element.semester || '';
 
-    let fileName: string;
-    if (selectedYearLevel === 'All' && selectedSection === 'All') {
-      fileName = `${element.program_code.replace(
-        /\s+/g,
-        '_',
-      )}_All_Schedules_${academicYear}_${semester.replace(/\s+/g, '_')}.pdf`;
-    } else {
-      const yearLevelPart =
-        selectedYearLevel !== 'All' ? `_Year${selectedYearLevel}` : '';
-      const sectionPart =
-        selectedSection !== 'All'
-          ? `_Section${selectedSection.replace(/\s+/g, '_')}`
-          : '';
-      fileName = `${element.program_code.replace(
-        /\s+/g,
-        '_',
-      )}${yearLevelPart}${sectionPart}_Schedules_${academicYear}_${semester.replace(
-        /\s+/g,
-        '_',
-      )}.pdf`;
-    }
+    // Helper to generate base filename
+    const getBaseFileName = () => {
+      let fileName: string;
+      if (selectedYearLevel === 'All' && selectedSection === 'All') {
+        fileName = `${element.program_code.replace(/\s+/g, '_')}_All_Schedules_${academicYear}_${semester.replace(/\s+/g, '_')}`;
+      } else {
+        const yearLevelPart = selectedYearLevel !== 'All' ? `_Year${selectedYearLevel}` : '';
+        const sectionPart = selectedSection !== 'All' ? `_Section${selectedSection.replace(/\s+/g, '_')}` : '';
+        fileName = `${element.program_code.replace(/\s+/g, '_')}${yearLevelPart}${sectionPart}_Schedules_${academicYear}_${semester.replace(/\s+/g, '_')}`;
+      }
+      return fileName;
+    };
 
-    const blobUrl = URL.createObjectURL(pdfBlob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
+    // Open the updated DialogExportComponent
+    this.dialog.open(DialogExportComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      disableClose: true,
+      data: {
+        exportType: 'single',
+        customTitle: `${element.program_title} (${element.program_code})`,
+        subtitle: `For Academic Year ${academicYear}, ${semester}`,
+        
+        // 1. PDF Function (Previews inside iframe and downloads)
+        generatePdfFunction: (preview: boolean) => {
+          return this.createPdfBlob(element);
+        },
+        
+        // 2. Excel Function (Downloads directly on click)
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlob(element);
+          saveAs(excelBlob, `${getBaseFileName()}.xlsx`);
+        },
+        
+        generateFileNameFunction: () => `${getBaseFileName()}.pdf`
+      }
+    });
   }
 
   createCombinedPdf(): jsPDF {
@@ -562,42 +783,50 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     const topMargin = 15;
     const logoSize = 22;
 
-    if (this.filteredData.length === 0) {
-      console.error('No data available to export.');
-      return doc;
-    }
+    let hasPages = false;
 
-    this.filteredData.forEach((program, programIndex) => {
-      program.year_levels.forEach((yearLevel, yearIndex) => {
-        yearLevel.sections.forEach((section, sectionIndex) => {
-          if (programIndex > 0 || yearIndex > 0 || sectionIndex > 0) {
-            this.reportHeaderService.addStandardFooter(doc);
-            doc.addPage();
+    this.filteredData.forEach((program) => {
+      program.year_levels.forEach((yearLevel) => {
+        yearLevel.sections.forEach((section) => {
+          
+          // FIX: Only draw a PDF page if there are schedules
+          if (section.schedules && section.schedules.length > 0) {
+            
+            if (hasPages) {
+              this.reportHeaderService.addStandardFooter(doc);
+              doc.addPage();
+            }
+            hasPages = true;
+
+            let currentY = this.drawHeader(
+              doc,
+              topMargin,
+              pageWidth,
+              margin,
+              logoSize,
+              `${program.program_code} - Year ${yearLevel.year_level} - Section ${section.section_name}`,
+              `For Academic Year ${this.academicYear}, ${this.semester}`,
+            );
+
+            const subtitle = `For Academic Year ${this.academicYear}, ${this.semester}`
+            this.drawScheduleTable(
+              doc,
+              section.schedules,
+              subtitle,
+              currentY,
+              margin,
+              pageWidth,
+            );
           }
-
-          let currentY = this.drawHeader(
-            doc,
-            topMargin,
-            pageWidth,
-            margin,
-            logoSize,
-            `${program.program_code} - Year ${yearLevel.year_level} - Section ${section.section_name}`,
-            `For Academic Year ${this.academicYear}, ${this.semester}`,
-          );
-
-          const subtitle = `For Academic Year ${this.academicYear}, ${this.semester}`
-          this.drawScheduleTable(
-            doc,
-            section.schedules ?? [],
-            subtitle,
-            currentY,
-            margin,
-            pageWidth,
-          );
         });
       });
     });
-    this.reportHeaderService.addStandardFooter(doc);
+
+    if (hasPages) {
+      this.reportHeaderService.addStandardFooter(doc);
+    } else {
+      doc.text("No schedules available.", 10, 20);
+    }
 
     return doc;
   }
@@ -685,7 +914,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   ): number {
     let currentY = startY;
 
-    // Use the report header service with subtitle
     this.reportHeaderService
       .addHeader(doc, title, currentY, subtitle)
       .subscribe((newY) => {
@@ -731,7 +959,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     let currentY = startY;
     let maxYPosition = currentY;
 
-    // Function to start a new page
     const startNewPage = () => {
       this.reportHeaderService.addStandardFooter(doc);
       doc.addPage();
@@ -745,7 +972,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
           ? 'Room Schedule (Continued)'
           : 'Room Schedule',
         subtitle,
-        // this.getAcademicYearSubtitle(scheduleData[0]),
       );
 
       days.forEach((day, index) => {
@@ -764,7 +990,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       return currentY;
     };
 
-    // Render the day headers
     days.forEach((day, index) => {
       const xPosition = margin + index * dayColumnWidth;
       doc.setFillColor(128, 0, 0);
@@ -779,7 +1004,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
     currentY += 12;
 
-    // Loop through each day and display schedules
     days.forEach((day, dayIndex) => {
       const xPosition = margin + dayIndex * dayColumnWidth;
       let yPosition = currentY;
