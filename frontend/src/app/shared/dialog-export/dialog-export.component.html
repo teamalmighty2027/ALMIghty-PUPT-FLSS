@@ -30,7 +30,7 @@
     <button mat-button (click)="closeDialog()">Close</button>
     
     @if (data.generateExcelFunction) {
-      <button mat-flat-button class="action-button" style="background-color: #1d6f42; color: white; margin-right: 8px;" (click)="downloadExcel()">
+      <button mat-flat-button class="action-button excel-button" (click)="downloadExcel()">
         <mat-icon>table_chart</mat-icon>
         Download Excel
       </button>

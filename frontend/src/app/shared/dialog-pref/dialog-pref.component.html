@@ -4,6 +4,7 @@
     <app-loading></app-loading>
   </div>
   } @else {
+  
   <div class="faculty-info" [@fadeAnimation]>
     <div class="info-text">
       <h2 class="faculty-name">{{ facultyName }}</h2>
@@ -24,12 +25,14 @@
           <mat-icon class="icon-spacing">table_chart</mat-icon>
           <span>Table view</span>
         </mat-button-toggle>
+        
         @if (!data.isViewOnlyTable) {
           <mat-button-toggle value="pdf-view">
             <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
             <span>PDF view</span>
           </mat-button-toggle>
-       }
+        }
+        
         <mat-button-toggle value="history-view">
           <mat-icon class="icon-spacing">history</mat-icon>
           <span>History view</span>
@@ -40,8 +43,10 @@
   </div>
 
   <div class="dialog-pref-content">
+    
     @if (data.isViewOnlyTable || selectedView === 'table-view' || selectedView === 'history-view') {
     <div class="dialog-pref-table-container">
+      
       @if (selectedView === 'history-view') {
         <div class="dialog-pref-history-container">
           <form>
@@ -207,7 +212,7 @@
           ></tr>
 
           <tr *matNoDataRow>
-            <td class="no-data-cell" [attr.colspan]="7">
+            <td class="no-data-cell" [attr.colspan]="9">
               <div class="flex-cell">
                 <span mat-symbol="info"></span>
                 <span>No preferences have been submitted yet.</span>
@@ -239,7 +244,7 @@
     
     @if ((selectedView === 'pdf-view' || selectedView === 'history-view') && !data.isViewOnlyTable) {
       
-      <button mat-flat-button style="background-color: #1d6f42; color: white; margin-right: 8px;" (click)="downloadExcel()">
+      <button mat-flat-button class="excel-button" (click)="downloadExcel()">
         <mat-icon>table_chart</mat-icon> Download Excel
       </button>
 

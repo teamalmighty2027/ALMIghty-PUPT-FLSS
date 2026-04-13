@@ -25,7 +25,6 @@ import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-// NEW: Add Excel Imports
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
@@ -49,7 +48,7 @@ interface DialogPrefData {
   faculty_id: number;
   isViewOnlyTable?: boolean;
   isViewHistory?: boolean;
-  // Let the parent optionally pass a pre-built Excel function if it wants to
+  /** Optional callback to generate an Excel file directly from the parent view. */
   generateExcelFunction?: () => Promise<void> | void; 
 }
 
@@ -124,7 +123,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     );
   }
 
-  // Load faculty preferences from the service
+  /**
+   * Fetches the specific faculty preferences from the database based on the provided faculty ID.
+   */
   private loadFacultyPreferences() {
     this.isLoading = true;
     this.facultyName = this.data.facultyName;
@@ -176,6 +177,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       );
   }
 
+  /**
+   * Handles changes between Table, PDF, and History views.
+   */
   onViewChange(): void {
     if (this.selectedView === 'pdf-view') {
       this.generateAndDisplayPdf();
@@ -184,6 +188,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Updates the selected semester during History View.
+   * @param event Emitted event containing the semester selection.
+   */
   onSemesterChange(event?: any): void {
     let semesterId: number | null = null;
     
@@ -206,6 +214,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
+  /**
+   * Updates the selected academic year during History View.
+   * @param event Emitted event containing the academic year selection.
+   */
   onAcademicYearChange(event?: any) {    
     let yearObj: any = null;
 
@@ -227,6 +239,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.updateTableFromSelection();
   }
 
+  /**
+   * Retrieves matching course data from the academic year list to populate the History table.
+   */
   private updateTableFromSelection(): void {
     if (!this.selectedYear || !this.selectedSemester) return;
 
@@ -279,6 +294,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = false;
   }
 
+  /**
+   * Generates the PDF Blob internally and sets it as the SafeResourceUrl for the iframe preview.
+   */
   generateAndDisplayPdf(): void {
     const pdfBlob = this.generateFacultyPDF(false, [this.courses], true);
     if (pdfBlob instanceof Blob) {
@@ -290,13 +308,18 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Generates and automatically downloads the PDF format for the faculty preferences.
+   */
   downloadPdf(): void {
     this.generateFacultyPDF(false, [this.courses], false);
   }
 
-  // --- NEW: Download Excel Method ---
+  /**
+   * Generates and automatically downloads the Excel format for the faculty preferences.
+   * If a generation function is supplied via MAT_DIALOG_DATA, it defers execution to the parent.
+   */
   public async downloadExcel(): Promise<void> {
-    // If parent passed a function, use it
     if (this.data.generateExcelFunction) {
       try {
         await this.data.generateExcelFunction();
@@ -306,7 +329,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Otherwise, generate it locally based on the currently viewed data
     if (!this.courses || this.courses.length === 0) {
       this.showSnackbar('No preferences available to export.');
       return;
@@ -314,7 +336,6 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
 
     const workbook = new ExcelJS.Workbook();
     
-    // Create a safe, short name for the tab
     const tabName = this.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
     const worksheet = workbook.addWorksheet(tabName);
 
@@ -339,7 +360,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:I2');
 
     worksheet.getCell('A1').value = `Faculty Name: ${this.facultyName.toUpperCase()}`;
-    worksheet.getCell('E1').value = ``; // Reserved for Total Units if needed later
+    worksheet.getCell('E1').value = ``; 
     worksheet.getCell('A2').value = `Academic Year: ${this.academicYear}`;
     worksheet.getCell('E2').value = `Semester: ${this.semesterLabel}`;
 
@@ -390,10 +411,16 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     saveAs(blob, `${safeName}_Preferences_${this.academicYear.replace('/', '_')}.xlsx`);
   }
 
+  /**
+   * Closes the active dialog modal.
+   */
   closeDialog(): void {
     this.dialogRef.close();
   }
 
+  /**
+   * Main constructor utilizing jsPDF to format the faculty preferences table into a printable layout.
+   */
   generateFacultyPDF(
     isAll: boolean,
     coursesArray: Course[][],
@@ -532,6 +559,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Displays an error or notification snackbar in the application.
+   * @param message The string message to display.
+   */
   private showSnackbar(message: string): void {
     this.snackBar.open(message, 'Close', {
       duration: 3000,
@@ -539,6 +570,11 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Detects if the course preferences contain modifiers for "Any Day" or "Any Time".
+   * @param course The course object containing preferred days.
+   * @returns An object indicating boolean presence of any_day and any_time modifiers.
+   */
   private detectAnyModifiers(course: Course): { has_any_day: boolean; has_any_time: boolean } {
     const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const ANY_DAY_START = '07:00:00';
@@ -554,6 +590,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     return { has_any_day, has_any_time };
   }
 
+  /**
+   * Formats the preferred days and times for display, accounting for "Any Day" and "Any Time" logic.
+   * @param course The course containing time preferences to parse.
+   */
   formatPreferredDaysAndTime(course: Course): string {
     const { has_any_day, has_any_time } = this.detectAnyModifiers(course);
 
@@ -584,6 +624,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .join('\n');
   }
 
+  /**
+   * Generates the badge text for a temporary course.
+   */
   public getTemporaryBadgeText(course: Course): string {
     if (!course.is_temporary) {
       return '';
@@ -593,6 +636,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     return typeLabel ? `Temporary (${typeLabel})` : 'Temporary';
   }
 
+  /**
+   * Generates the tooltip string for a temporary course explaining its status.
+   */
   public getTemporaryTooltip(course: Course): string {
     if (!course.is_temporary) {
       return '';
@@ -608,6 +654,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     return parts.join(' | ');
   }
 
+  /**
+   * Formats the raw snake_case temporary type string into a readable title case string.
+   */
   private formatTemporaryType(type?: string | null): string {
     if (!type) return '';
     return type
@@ -616,6 +665,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  /**
+   * Converts a 24-hour time string into a 12-hour format string.
+   * @param time 24-hour time string (e.g. 14:30:00)
+   */
   convertTo12HourFormat(time: string): string {
     const [hour, minute] = time.split(':').map(Number);
     let ampm = 'AM';
@@ -634,6 +687,9 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .padStart(2, '0')} ${ampm}`;
   }
 
+  /**
+   * Sanitizes strings to be safely used as local filenames.
+   */
   sanitizeFileName(fileName: string): string {
     return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   }

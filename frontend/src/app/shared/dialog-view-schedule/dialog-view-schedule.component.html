@@ -84,7 +84,7 @@
     @if (selectedView === 'pdf-view' || data.exportType === 'all') {
       
       @if (data.generateExcelFunction) {
-        <button mat-flat-button style="background-color: #1d6f42; color: white; margin-right: 8px;" (click)="downloadExcel()">
+        <button mat-flat-button class="excel-button" (click)="downloadExcel()">
           <mat-icon>table_chart</mat-icon>
           Download Excel
         </button>
