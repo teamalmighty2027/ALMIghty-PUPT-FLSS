@@ -7,6 +7,8 @@ use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class BridgingCourseController extends Controller
 {
@@ -19,15 +21,16 @@ class BridgingCourseController extends Controller
             'semester_id' => 'nullable|integer|exists:semesters,semester_id',
         ]);
 
-        $query = DB::table('bridging_courses as bc')
-            ->join('courses as co', 'bc.course_id', '=', 'co.course_id')
+        $query = BridgingCourse::query()
+            ->with(['course.requirements.requiredCourse'])
+            ->join('courses as co', 'bridging_courses.course_id', '=', 'co.course_id')
             ->select(
-                'bc.bridging_course_id',
-                'bc.curriculum_id',
-                'bc.program_id',
-                'bc.year_level_id',
-                'bc.semester_id',
-                'bc.course_id',
+                'bridging_courses.bridging_course_id',
+                'bridging_courses.curriculum_id',
+                'bridging_courses.program_id',
+                'bridging_courses.year_level_id',
+                'bridging_courses.semester_id',
+                'bridging_courses.course_id',
                 'co.course_code',
                 'co.course_title',
                 'co.lec_hours',
@@ -37,25 +40,25 @@ class BridgingCourseController extends Controller
             );
 
         if (array_key_exists('curriculum_id', $validated)) {
-            $query->where('bc.curriculum_id', $validated['curriculum_id']);
+            $query->where('bridging_courses.curriculum_id', $validated['curriculum_id']);
         }
 
         if (array_key_exists('program_id', $validated)) {
-            $query->where('bc.program_id', $validated['program_id']);
+            $query->where('bridging_courses.program_id', $validated['program_id']);
         }
 
         if (array_key_exists('year_level_id', $validated)) {
-            $query->where('bc.year_level_id', $validated['year_level_id']);
+            $query->where('bridging_courses.year_level_id', $validated['year_level_id']);
         }
 
         if (array_key_exists('semester_id', $validated)) {
-            $query->where('bc.semester_id', $validated['semester_id']);
+            $query->where('bridging_courses.semester_id', $validated['semester_id']);
         }
 
         return response()->json(
             $query
-                ->orderBy('bc.year_level_id')
-                ->orderBy('bc.semester_id')
+                ->orderBy('bridging_courses.year_level_id')
+                ->orderBy('bridging_courses.semester_id')
                 ->orderBy('co.course_code')
                 ->get()
         );
@@ -71,42 +74,55 @@ class BridgingCourseController extends Controller
             'course_id' => 'required|integer|exists:courses,course_id',
         ]);
 
-        $existing = BridgingCourse::where([
-            'curriculum_id'   => $validated['curriculum_id'],
-            'program_id'      => $validated['program_id'],
-            'year_level_id'   => $validated['year_level_id'],
-            'semester_id'     => $validated['semester_id'],
-            'course_id'       => $validated['course_id'],
-        ])->first();
+        DB::beginTransaction();
 
-        if ($existing) {
+        try {
+            $existing = BridgingCourse::where([
+                'curriculum_id'   => $validated['curriculum_id'],
+                'program_id'      => $validated['program_id'],
+                'year_level_id'   => $validated['year_level_id'],
+                'semester_id'     => $validated['semester_id'],
+                'course_id'       => $validated['course_id'],
+            ])->first();
+
+            if ($existing) {
+                DB::rollBack();
+                Log::error('Bridging course create aborted due to duplicate entry.');
+
+                return response()->json([
+                    'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
+                ], 422);
+            }
+
+            $validated['created_by'] = Auth::id();
+
+            $bridgingCourse = BridgingCourse::create($validated);
+
+            AuditLogger::logCreate(
+                model: 'BridgingCourse',
+                modelId: $bridgingCourse->bridging_course_id,
+                data: $bridgingCourse->toArray(),
+                description: 'Created bridging course mapping.'
+            );
+
+            DB::commit();
+
             return response()->json([
-                'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
-            ], 422);
+                'message' => 'Bridging course created successfully.',
+                'data' => $bridgingCourse,
+            ], 201);
+        } catch (Throwable $error) {
+            DB::rollBack();
+            Log::error('Failed to create bridging course.');
+
+            return response()->json([
+                'message' => 'Error creating bridging course. Please try again.',
+            ], 500);
         }
-
-        $validated['created_by'] = Auth::id();
-
-        $bridgingCourse = BridgingCourse::create($validated);
-
-        AuditLogger::logCreate(
-            model: 'BridgingCourse',
-            modelId: $bridgingCourse->bridging_course_id,
-            data: $bridgingCourse->toArray(),
-            description: 'Created bridging course mapping.'
-        );
-
-        return response()->json([
-            'message' => 'Bridging course created successfully.',
-            'data' => $bridgingCourse,
-        ], 201);
     }
 
     public function update(Request $request, int $id)
     {
-        $bridgingCourse = BridgingCourse::findOrFail($id);
-        $oldData = $bridgingCourse->toArray();
-
         $validated = $request->validate([
             'curriculum_id' => 'required|integer|exists:curricula,curriculum_id',
             'program_id' => 'required|integer|exists:programs,program_id',
@@ -115,62 +131,97 @@ class BridgingCourseController extends Controller
             'course_id' => 'required|integer|exists:courses,course_id',
         ]);
 
-        $duplicate = BridgingCourse::where('bridging_course_id', '!=', $id)
-            ->where([
-                'curriculum_id' => $validated['curriculum_id'],
-                'program_id'      => $validated['program_id'],
-                'year_level_id'   => $validated['year_level_id'],
-                'semester_id'     => $validated['semester_id'],
-                'course_id'       => $validated['course_id'],
-            ])
-            ->first();
+        DB::beginTransaction();
 
-        if ($duplicate) {
+        try {
+            $bridgingCourse = BridgingCourse::findOrFail($id);
+            $oldData = $bridgingCourse->toArray();
+
+            $duplicate = BridgingCourse::where('bridging_course_id', '!=', $id)
+                ->where([
+                    'curriculum_id' => $validated['curriculum_id'],
+                    'program_id'      => $validated['program_id'],
+                    'year_level_id'   => $validated['year_level_id'],
+                    'semester_id'     => $validated['semester_id'],
+                    'course_id'       => $validated['course_id'],
+                ])
+                ->first();
+
+            if ($duplicate) {
+                DB::rollBack();
+                Log::error('Bridging course update aborted due to duplicate entry.');
+
+                return response()->json([
+                    'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
+                ], 422);
+            }
+
+            $bridgingCourse->fill($validated);
+
+            if (! $bridgingCourse->isDirty()) {
+                DB::rollBack();
+                Log::error('Bridging course update aborted due to no changes detected.');
+
+                return response()->json([
+                    'message' => 'No changes detected.',
+                ], 422);
+            }
+
+            $bridgingCourse->save();
+
+            AuditLogger::logUpdate(
+                model: 'BridgingCourse',
+                modelId: $bridgingCourse->bridging_course_id,
+                oldData: $oldData,
+                newData: $bridgingCourse->toArray(),
+                description: 'Updated bridging course mapping.'
+            );
+
+            DB::commit();
+
             return response()->json([
-                'message' => 'This bridging course already exists for the selected program, year, semester, and course.',
-            ], 422);
-        }
+                'message' => 'Bridging course updated successfully.',
+                'data' => $bridgingCourse,
+            ]);
+        } catch (Throwable $error) {
+            DB::rollBack();
+            Log::error('Failed to update bridging course.');
 
-        $bridgingCourse->fill($validated);
-
-        if (! $bridgingCourse->isDirty()) {
             return response()->json([
-                'message' => 'No changes detected.',
-            ], 422);
+                'message' => 'Error updating bridging course. Please try again.',
+            ], 500);
         }
-
-        $bridgingCourse->save();
-
-        AuditLogger::logUpdate(
-            model: 'BridgingCourse',
-            modelId: $bridgingCourse->bridging_course_id,
-            oldData: $oldData,
-            newData: $bridgingCourse->toArray(),
-            description: 'Updated bridging course mapping.'
-        );
-
-        return response()->json([
-            'message' => 'Bridging course updated successfully.',
-            'data' => $bridgingCourse,
-        ]);
     }
 
     public function destroy(int $id)
     {
-        $bridgingCourse = BridgingCourse::findOrFail($id);
-        $oldData = $bridgingCourse->toArray();
+        DB::beginTransaction();
 
-        $bridgingCourse->delete();
+        try {
+            $bridgingCourse = BridgingCourse::findOrFail($id);
+            $oldData = $bridgingCourse->toArray();
 
-        AuditLogger::logDelete(
-            model: 'BridgingCourse',
-            modelId: $bridgingCourse->bridging_course_id,
-            data: $oldData,
-            description: 'Deleted bridging course mapping.'
-        );
+            $bridgingCourse->delete();
 
-        return response()->json([
-            'message' => 'Bridging course deleted successfully.',
-        ]);
+            AuditLogger::logDelete(
+                model: 'BridgingCourse',
+                modelId: $bridgingCourse->bridging_course_id,
+                data: $oldData,
+                description: 'Deleted bridging course mapping.'
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Bridging course deleted successfully.',
+            ]);
+        } catch (Throwable $error) {
+            DB::rollBack();
+            Log::error('Failed to delete bridging course.');
+
+            return response()->json([
+                'message' => 'Error deleting bridging course. Please try again.',
+            ], 500);
+        }
     }
 }
