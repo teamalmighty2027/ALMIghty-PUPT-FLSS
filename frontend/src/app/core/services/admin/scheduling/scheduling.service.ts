@@ -98,6 +98,25 @@ export class SchedulingService {
   }
 
   /**
+   * Fetches schedules for a historical (non-active) academic year and semester.
+   */
+  getHistoricalSchedules(
+    academic_year_id: number,
+    semester_id: number
+  ): Observable<PopulateSchedulesResponse> {
+    const params = new HttpParams()
+      .set('academic_year_id', academic_year_id.toString())
+      .set('semester_id', semester_id.toString());
+
+    return this.http
+      .get<PopulateSchedulesResponse>(
+        `${this.baseUrl}/schedules/historical`,
+        { params }
+      )
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
    * Retrieves the full course catalog for selection.
    */
   getCourses(): Observable<CourseCatalogItem[]> {
