@@ -27,6 +27,7 @@ class AuthController extends Controller
         // Eager load permissions and allowed programs to avoid N+1 queries
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
+            ->whereIn('role', $loginUserData['allowed_roles'])
             ->first();
 
         if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
@@ -38,7 +39,8 @@ class AuthController extends Controller
         // Check if user has allowed role
         if (! in_array($user->role, $loginUserData['allowed_roles'])) {
             return response()->json([
-                'message' => 'Access forbidden. You are not authorized as ' . implode(' or ', $loginUserData['allowed_roles']) . '.',
+                'message' => 'Access forbidden. You are not authorized as ' . 
+                implode(' or ', $loginUserData['allowed_roles']) . '.',
             ], 403);
         }
 
@@ -66,6 +68,7 @@ class AuthController extends Controller
             'name'             => $user->first_name . ' ' . $user->last_name,
             'email'            => $user->email,
             'role'             => $user->role,
+            'roles'            => [$user->role],
             'permissions'      => $permissions,
             'allowed_programs' => $allowedPrograms,
             'is_full_access'   => $isFullAccess,
@@ -249,7 +252,10 @@ class AuthController extends Controller
             $lastName = $userData['last_name'] ?? '';
 
             // Query user by email
-            $user = User::with(['faculty.facultyType'])->where('email', $email)->first();
+            $user = User::with(['faculty.facultyType'])
+              ->where('email', $email)
+              ->whereIn('role', $requestedRole)
+              ->first();
 
             // Collect the roles of the user
             $roles = $user ? [$user->role] : [];

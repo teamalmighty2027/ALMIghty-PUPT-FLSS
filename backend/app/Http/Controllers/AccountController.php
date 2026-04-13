@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Permission;
 use App\Services\AuditLogger;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +38,10 @@ class AccountController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'suffix_name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255|unique:users',
-            'email' => 'required|email|unique:users',
+            'email' => [
+              'required', 'email', 
+              Rule::unique('users')->where('role', 'admin')
+            ],
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin',
             'status' => 'required|in:Active,Inactive,Retired',
@@ -118,7 +122,12 @@ class AccountController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'suffix_name' => 'nullable|string|max:255',
             'code' => 'sometimes|required|string|max:255|unique:users,code,' . $admin->id,
-            'email' => 'sometimes|required|email|unique:users,email,' . $admin->id,
+            'email' => [
+              'sometimes',
+              'required',
+              'email',
+              Rule::unique('users')->where('role', 'admin')
+              ->ignore($admin->id)],
             'password' => 'sometimes|string|min:8',
             'role' => 'sometimes|required|in:admin',
             'status' => 'sometimes|required|in:Active,Inactive,Retired',
