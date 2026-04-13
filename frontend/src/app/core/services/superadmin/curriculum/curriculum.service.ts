@@ -71,6 +71,8 @@ export interface BridgingCourse {
   semester_id: number;
   course_id: number;
   course_code: string;
+  prerequisites?: CourseRequirement[];
+  corequisites?: CourseRequirement[];
   course_title: string;
   lec_hours: number;
   lab_hours: number;
@@ -99,7 +101,9 @@ export class CurriculumService {
     );
   }
 
+  // 
   // For Programs
+  //
 
   // Fetch all programs associated to the Curriculum Year
   getProgramsByCurriculumYear(curriculumYear: string): Observable<Program[]> {
