@@ -79,7 +79,12 @@
           </div>
         </div>
 
-        <div class="toggle-right-section">
+        <div class="toggle-right-section" style="display: flex; gap: 8px;">
+          <button mat-flat-button class="export-excel-btn" style="background-color: #1d6f42; color: white;" (click)="onExportExcel()">
+            <mat-icon class="btn-icon">table_chart</mat-icon>
+            <span class="btn-label">Export Excel</span>
+          </button>
+          
           <button mat-flat-button class="export-pdf-btn" (click)="onExportPdf()">
             <mat-icon class="btn-icon">picture_as_pdf</mat-icon>
             <span class="btn-label">Export PDF</span>
@@ -158,5 +163,5 @@
       }
 
     </div>
-    }
+  }
 </div>

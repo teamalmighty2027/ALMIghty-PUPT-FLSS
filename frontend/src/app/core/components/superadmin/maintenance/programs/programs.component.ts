@@ -22,6 +22,8 @@ import { fadeAnimation } from '../../../../animations/animations';
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 @Component({
   selector: 'app-programs',
@@ -244,14 +246,6 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     };
   }
 
-  // ======================
-  // CRU Operations
-  // ======================
-
-  /**
-   * This method is no longer used in the UI, but is kept here for reference
-   * (Deprecated)
-   */
   openAddProgramDialog() {
     const config = this.getDialogConfig();
     const dialogRef = this.dialog.open(TableDialogComponent, {
@@ -372,15 +366,102 @@ export class ProgramsComponent implements OnInit, OnDestroy {
   }
 
   // ======================
-  // PDF Generation
+  // EXPORTS
   // ======================
+
+  onExport() {
+    this.dialog.open(DialogExportComponent, {
+      maxWidth: '70rem',
+      width: '100%',
+      autoFocus: true,
+      data: {
+        exportType: 'all',
+        entity: 'Programs',
+        customTitle: 'Export All Programs',
+        generatePdfFunction: () => {
+          return this.createPdfBlob();
+        },
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateExcelBlob();
+          saveAs(excelBlob, 'pup_taguig_programs_offered.xlsx');
+        },
+        generateFileNameFunction: () => 'pup_taguig_programs_offered.pdf',
+      },
+    });
+  }
+
+  // --- NEW: EXCEL EXPORT LOGIC ---
+  private async generateExcelBlob(): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Programs Offered');
+
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    // Columns setup matching your PDF widths
+    worksheet.columns = [
+      { width: 5 },   // Index
+      { width: 15 },  // Code
+      { width: 50 },  // Title
+      { width: 55 },  // Info
+      { width: 12 },  // Status
+      { width: 8 },   // Years
+      { width: 25 },  // Curriculum Years
+    ];
+
+    // Header Title
+    worksheet.mergeCells('A1:G1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'PROGRAMS OFFERED REPORT';
+    titleCell.font = { bold: true, size: 14 };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    worksheet.addRow([]); // Spacer
+
+    // Table Headers
+    const headerRow = worksheet.addRow(['#', 'Program Code', 'Program Title', 'Program Info', 'Status', 'Years', 'Curriculum Years']);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF800000' } };
+    });
+
+    const programs = this.programsSubject.getValue();
+
+    programs.forEach((program, index) => {
+      const row = worksheet.addRow([
+        index + 1,
+        program.program_code,
+        program.program_title,
+        program.program_info,
+        program.status,
+        program.number_of_years,
+        program.curriculum_years || 'N/A'
+      ]);
+
+      row.eachCell((cell, colNum) => {
+        // Center align the index, status, and years. Left align the rest.
+        const alignCenter = colNum === 1 || colNum === 5 || colNum === 6;
+        cell.alignment = { vertical: 'middle', horizontal: alignCenter ? 'center' : 'left', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  // --- EXISTING PDF EXPORT LOGIC ---
   createPdfBlob(): Blob {
     const doc = new jsPDF('p', 'mm', 'legal');
     const margin = 10;
     let currentY = 15;
 
     try {
-      // Add header using the report header service
       this.reportHeaderService
         .addHeader(doc, 'Program Report', currentY)
         .subscribe((newY) => {
@@ -452,22 +533,9 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     }
   }
 
-  onExport() {
-    this.dialog.open(DialogExportComponent, {
-      maxWidth: '70rem',
-      width: '100%',
-      autoFocus: true,
-      data: {
-        exportType: 'all',
-        entity: 'Programs',
-        customTitle: 'Export All Programs',
-        generatePdfFunction: () => {
-          return this.createPdfBlob();
-        },
-        generateFileNameFunction: () => 'pup_taguig_programs_offered.pdf',
-      },
-    });
-  }
+  // ======================
+  // UTILITIES
+  // ======================
 
   private updateLastSyncTime(programs: Program[]): void {
     const timestamps = programs

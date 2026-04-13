@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
@@ -27,7 +27,10 @@ interface ViewScheduleDialogData {
   academicYear?: string;
   semester?: number;
   scheduleGroups?: ScheduleGroup[];
-  generatePdfFunction: (preview: boolean) => Blob | void;
+  // UPDATED: Allow Promise for PDF generation
+  generatePdfFunction: (preview: boolean) => Blob | Promise<Blob> | void;
+  // NEW: Allow Excel function
+  generateExcelFunction?: () => Promise<void> | void;
   showViewToggle?: boolean;
   exportType?: 'all' | 'single';
   fileName?: string;
@@ -50,7 +53,7 @@ interface ViewScheduleDialogData {
   styleUrls: ['./dialog-view-schedule.component.scss'],
   animations: [fadeAnimation],
 })
-export class DialogViewScheduleComponent implements OnInit {
+export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   title: string = '';
   subtitle: string = '';
   isLoading = true;
@@ -59,6 +62,8 @@ export class DialogViewScheduleComponent implements OnInit {
   selectedView: 'table-view' | 'pdf-view' = 'table-view';
   pdfBlobUrl: SafeResourceUrl | null = null;
   showViewToggle: boolean = true;
+  
+  private currentRawBlobUrl: string | null = null;
 
   constructor(
     public dialogRef: MatDialogRef<DialogViewScheduleComponent>,
@@ -76,6 +81,12 @@ export class DialogViewScheduleComponent implements OnInit {
     this.initializeScheduleData();
   }
 
+  ngOnDestroy(): void {
+    if (this.currentRawBlobUrl) {
+      URL.revokeObjectURL(this.currentRawBlobUrl);
+    }
+  }
+
   private initializeScheduleData() {
     if (this.data.entity === 'program') {
         if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
@@ -87,6 +98,7 @@ export class DialogViewScheduleComponent implements OnInit {
         } else {
             console.warn('No schedule groups available for programs.');
             this.scheduleData = [];
+            this.isLoading = false;
         }
     } else if (this.data.entity === 'faculty' || this.data.entity === 'room') {
         if (this.data.exportType === 'all') {
@@ -95,20 +107,20 @@ export class DialogViewScheduleComponent implements OnInit {
         } else if (Array.isArray(this.data.entityData) &&
             this.data.entityData.length > 0) {
             this.scheduleData = this.data.entityData;
+            this.isLoading = false;
         } else {
             console.warn(
                 'No schedules found or invalid data structure:',
                 this.data.entityData
             );
             this.scheduleData = this.data.entityData || [];
+            this.isLoading = false;
         }
     }
-    this.isLoading = false;
   }
 
   private flattenScheduleGroups(groups: ScheduleGroup[]): any[] {
     const flattenedData: any[] = [];
-
     groups.forEach((group) => {
       if (Array.isArray(group.scheduleData)) {
         group.scheduleData.forEach((scheduleItem: any) => {
@@ -119,7 +131,6 @@ export class DialogViewScheduleComponent implements OnInit {
         });
       }
     });
-
     return flattenedData;
   }
 
@@ -129,14 +140,8 @@ export class DialogViewScheduleComponent implements OnInit {
 
   private setTitleAndSubtitle(): void {
     const { customTitle, entityData, academicYear, semester } = this.data;
-
-    this.title =
-      customTitle ?? entityData?.name ?? entityData?.title ?? 'Schedule';
-    this.subtitle =
-      academicYear && semester
-        ? `For Academic Year ${academicYear}, ${semester}`
-        : '';
-    this.isLoading = false;
+    this.title = customTitle ?? entityData?.name ?? entityData?.title ?? 'Schedule';
+    this.subtitle = academicYear && semester ? `For Academic Year ${academicYear}, ${semester}` : '';
   }
 
   public closeDialog(): void {
@@ -152,49 +157,67 @@ export class DialogViewScheduleComponent implements OnInit {
     }
   }
 
-  generateAndDisplayPdf(): void {
+  // UPDATED: Now handles async PDF generation smoothly
+  async generateAndDisplayPdf(): Promise<void> {
     if (this.data.generatePdfFunction) {
-      const pdfBlob = this.data.generatePdfFunction(true);
-      if (pdfBlob instanceof Blob) {
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        this.pdfBlobUrl =
-          this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
-      } else {
-        console.error('generatePdfFunction did not return a Blob.');
+      try {
+        const result = this.data.generatePdfFunction(true);
+        const pdfBlob = result instanceof Promise ? await result : result;
+
+        if (pdfBlob instanceof Blob) {
+          if (this.currentRawBlobUrl) {
+            URL.revokeObjectURL(this.currentRawBlobUrl);
+          }
+          this.currentRawBlobUrl = URL.createObjectURL(pdfBlob);
+          this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.currentRawBlobUrl);
+        } else {
+          this.pdfBlobUrl = null;
+        }
+      } catch (error) {
+        console.error('PDF preview generation failed:', error);
         this.pdfBlobUrl = null;
+      } finally {
+        this.isLoading = false;
       }
     } else {
-      console.error('No generatePdfFunction provided.');
+      this.isLoading = false;
       this.pdfBlobUrl = null;
     }
   }
 
-  downloadPdf(): void {
-    if (!this.data.generatePdfFunction) {
-      console.error('No PDF generation function provided');
-      return;
+  // UPDATED: Handles async download
+  async downloadPdf(): Promise<void> {
+    if (!this.data.generatePdfFunction) return;
+
+    try {
+      const result = this.data.generatePdfFunction(false);
+      const pdfResult = result instanceof Promise ? await result : result;
+
+      if (pdfResult instanceof Blob) {
+        const blobUrl = URL.createObjectURL(pdfResult);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        const fileName = this.data.fileName ?? this.data.customTitle?.replace(/\s+/g, '_') ?? 'schedule';
+        a.download = `${fileName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.error('PDF download failed:', error);
     }
+  }
 
-    const pdfResult = this.data.generatePdfFunction(false);
-    if (!(pdfResult instanceof Blob)) {
-      console.error('PDF generation failed');
-      return;
+  // NEW: Excel download method
+  async downloadExcel(): Promise<void> {
+    if (this.data.generateExcelFunction) {
+      try {
+        await this.data.generateExcelFunction();
+      } catch (error) {
+        console.error('Error downloading Excel:', error);
+      }
     }
-
-    const blobUrl = URL.createObjectURL(pdfResult);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-
-    const fileName =
-      this.data.fileName ??
-      this.data.customTitle?.replace(/\s+/g, '_') ??
-      'schedule';
-    a.download = `${fileName}.pdf`;
-
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
   }
 
   trackGroup(index: number, group: ScheduleGroup): any {

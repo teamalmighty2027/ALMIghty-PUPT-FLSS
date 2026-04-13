@@ -23,6 +23,9 @@ import { ReschedulingService } from '../../../services/faculty/rescheduling/resc
 
 import { fadeAnimation } from '../../../animations/animations';
 
+import * as ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+
 type ScheduleView = 'official' | 'internal';
 
 export interface ScheduleBlock {
@@ -120,7 +123,6 @@ export class LoadAndScheduleComponent implements OnInit {
       return;
     }
 
-    // Safeguard against indexOf returning -1
     const formattedStart = this.formatTo12Hour(block.start_time);
     const startIndex = this.timeOptions.indexOf(formattedStart);
     const endTimeOptions = this.timeOptions.slice(
@@ -206,7 +208,6 @@ export class LoadAndScheduleComponent implements OnInit {
     return clone;
   }
 
-  // Directly checks if there are approved appeals overriding the official schedule
   get hasInternalArrangements(): boolean {
     return (this.internalArrangementSchedule?.schedules?.length ?? 0) > 0;
   }
@@ -238,8 +239,106 @@ export class LoadAndScheduleComponent implements OnInit {
 
   onExportPdf() {
     if (this.timetableComponent) {
-      // Tells the child component to run the PDF code it already has
       this.timetableComponent.onExportPdf(); 
     }
+  }
+
+  // --- NEW: Excel Export Logic ---
+  async onExportExcel() {
+    if (!this.facultySchedule) {
+      this.snackBar.open('No schedule data available to export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    // Determine which schedule data to use based on the currently active view
+    const scheduleToExport = this.isOfficialView ? this.facultySchedule : this.internalArrangementSchedule;
+    const schedulesArray = scheduleToExport?.schedules || [];
+
+    if (schedulesArray.length === 0) {
+      this.snackBar.open('No classes found in the selected schedule view.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    
+    // Create a safe, short name for the tab
+    const viewLabel = this.isOfficialView ? 'Official' : 'Arrangement';
+    const tabName = `Schedule (${viewLabel})`;
+    const worksheet = workbook.addWorksheet(tabName);
+
+    // Apply exact same layout formatting as the Admin side
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 15 }, { width: 15 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:H1');
+    worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:H2');
+
+    worksheet.getCell('A1').value = `Faculty Name: ${scheduleToExport.faculty_name.toUpperCase()}`;
+    worksheet.getCell('E1').value = `Faculty Type: ${scheduleToExport.faculty_type}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear} | Semester: ${this.semester}`;
+    worksheet.getCell('E2').value = `Total Load: ${scheduleToExport.assigned_units} Units`;
+
+    ['A1', 'E1', 'A2', 'E2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]); // Spacer
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Section', 'Room No.', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    // Sort by day to keep it organized (optional but nice)
+    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const sortedSchedules = [...schedulesArray].sort((a, b) => {
+      return daysOrder.indexOf(a.day) - daysOrder.indexOf(b.day);
+    });
+
+    sortedSchedules.forEach((schedule: any) => {
+      const dayShort = schedule.day.substring(0, 3).toUpperCase();
+      const timeRange = `${this.formatTo12Hour(schedule.start_time)} - ${this.formatTo12Hour(schedule.end_time)}`;
+      
+      const row = worksheet.addRow([
+        schedule.course_details?.course_code || '',
+        schedule.course_details?.course_title || '',
+        schedule.course_details?.lec || 0,
+        schedule.course_details?.lab || 0,
+        schedule.course_details?.units || 0,
+        `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
+        schedule.room_code || 'TBA',
+        `${dayShort}\n${timeRange}`
+      ]);
+
+      row.eachCell((cell, colNum) => {
+        cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    // Generate filename based on view
+    const safeName = scheduleToExport.faculty_name.split(',')[0].replace(/[^\w\s]/gi, '_');
+    const fileName = `${safeName}_${viewLabel}_Schedule_${this.academicYear.replace('-', '_')}.xlsx`;
+    
+    saveAs(blob, fileName);
   }
 }
