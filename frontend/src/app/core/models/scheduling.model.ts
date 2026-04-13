@@ -41,6 +41,8 @@ export interface Schedule {
   year: number;
   curriculum: string;
   section: string;
+  start_time?: string | null;
+  end_time?: string | null;
 
   schedule_id?: number;
   faculty_id?: number;
@@ -268,6 +270,18 @@ export interface ScheduleArrangementOverride {
   end_time?: string | null;
   room_id?: number | null;
   room_code?: string | null;
+}
+
+export interface DraftEntry {
+  schedule_id: number;
+  faculty_id: number | null;
+  faculty_name: string;
+  room_id: number | null;
+  room_code: string;
+  day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  hasConflict: boolean;
 }
 
 export interface ProgramOption {

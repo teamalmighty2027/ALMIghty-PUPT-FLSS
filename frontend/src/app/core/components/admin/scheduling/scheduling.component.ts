@@ -557,6 +557,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 course.schedule?.start_time,
                 course.schedule?.end_time
               ),
+              start_time: course.schedule?.start_time || null,
+              end_time: course.schedule?.end_time || null,
               professor: course.professor || 'Not set',
               room: course.room?.room_code || 'Not set',
               program: program.program_title,
