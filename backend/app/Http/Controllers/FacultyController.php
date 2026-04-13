@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Jobs\RegisterUserToIdpJob;
+use App\Jobs\SendFacultyFirstLoginPasswordJob;
 
 class FacultyController extends Controller
 {
@@ -86,7 +88,10 @@ class FacultyController extends Controller
             );
 
             DB::commit();
-            \App\Jobs\SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
+
+            // Background jobs for external services
+            SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
+            RegisterUserToIdpJob::dispatch($user, $validatedData['password']);
 
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {
