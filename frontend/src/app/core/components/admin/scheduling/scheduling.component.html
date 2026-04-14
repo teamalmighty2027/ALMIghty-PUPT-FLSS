@@ -32,12 +32,65 @@
         [activeSemester]="activeSemesterLabel"
         (activeYearSemClick)="openActiveYearSemesterDialog()"
       ></app-table-header>
+
+      <!-- Draft Mode Toggle -->
+      <div class="draft-toggle-container">
+        <button mat-flat-button [color]="isDraftMode ? 'warn' : 'accent'" (click)="toggleDraftMode()" 
+                [disabled]="!selectedSection || isCreatingTemporaryCourse">
+          <mat-icon>{{ isDraftMode ? 'close' : 'edit_note' }}</mat-icon>
+          {{ isDraftMode ? 'Exit Draft Mode' : 'Enter Draft Mode' }}
+        </button>
+      </div>
     </div>
 
+    <!-- Draft Toolbar -->
+    @if (isDraftMode) {
+      <div class="draft-toolbar" [@pageFloatUpAnimation]>
+        <div class="draft-info">
+          <mat-icon class="amber-icon">history_edu</mat-icon>
+          <div class="texts">
+            <span class="title">Draft Mode Active</span>
+            <span class="desc">Changes are local until you save. {{ draftSchedules.length }} courses in draft.</span>
+          </div>
+        </div>
+
+        <div class="draft-actions">
+          <button mat-stroked-button (click)="openHistoricalDialog()" [disabled]="isAiFilling || isHistoricalLoading">
+            @if (isHistoricalLoading) { <mat-spinner diameter="18"></mat-spinner> }
+            @else { <mat-icon>history</mat-icon> }
+            History Fill
+          </button>
+
+          <button mat-stroked-button (click)="fillWithAI()" [disabled]="isAiFilling || isHistoricalLoading">
+            @if (isAiFilling) {
+              <div class="progress-info">
+                <mat-spinner diameter="18"></mat-spinner>
+                <span>{{ aiFillProgress.current }}/{{ aiFillProgress.total }}</span>
+              </div>
+            } @else { <mat-icon>auto_awesome</mat-icon> }
+            AI Auto-fill
+          </button>
+
+          <div class="divider"></div>
+
+          <button mat-flat-button color="warn" (click)="discardDraft()">
+            <mat-icon>delete_sweep</mat-icon>
+            Discard
+          </button>
+
+          <button mat-flat-button color="primary" class="save-btn" (click)="saveDraft()" 
+                  [disabled]="isAiFilling || isHistoricalLoading">
+            <mat-icon>save</mat-icon>
+            Save Draft
+          </button>
+        </div>
+      </div>
+    }
+
     <!--Scheduling Table-->
-    <div class="scheduling-table-container" [@fadeAnimation]>
+    <div class="scheduling-table-container" [@fadeAnimation] [class.draft-active]="isDraftMode">
       <div class="table-container">
-        <table mat-table [dataSource]="schedules" class="custom-table">
+        <table mat-table [dataSource]="tableData" class="custom-table">
           <!-- Index Column -->
           <ng-container matColumnDef="index">
             <th mat-header-cell *matHeaderCellDef class="custom-header index">
@@ -245,6 +298,9 @@
             *matRowDef="let row; columns: displayedColumns; let i = index"
             [class.has-copies]="hasCopies(row)"
             [class.last-copy]="isLastCopy(row, i)"
+            [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
+            [class.draft-conflict]="isDraftMode && isDraftConflict(row)"
+            [@fadeAnimation]
           ></tr>
 
           <!-- No Data Row -->

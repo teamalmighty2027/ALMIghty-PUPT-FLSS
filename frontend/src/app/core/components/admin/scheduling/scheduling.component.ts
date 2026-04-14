@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, Subject, forkJoin, of } from 'rxjs';
-import { takeUntil, switchMap, tap, map, catchError, finalize } from 'rxjs/operators';
+import { Observable, Subject, forkJoin, of, from } from 'rxjs';
+import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -23,6 +23,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { SchedulingService, CacheType } from '../../../services/admin/scheduling/scheduling.service';
 import { AcademicYearService } from '../../../services/admin/academic-year/academic-year.service';
 import { PermissionService } from '../../../services/permission/permission.service';
+import { DraftStateService } from '../../../services/admin/scheduling/draft-state.service';
 
 import {
   Schedule,
@@ -36,6 +37,7 @@ import {
   SectionOption,
   YearLevelOption,
   TemporaryCourseOfferingPayload,
+  DraftEntry
 } from '../../../models/scheduling.model';
 
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
@@ -99,6 +101,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   isSubmissionEnabled: number = 0;
   processingCourseId: number | null = null;
   isCreatingTemporaryCourse: boolean = false;
+
+  /* Draft mode state */
+  isDraftMode: boolean = false;
+  draftSchedules: Schedule[] = [];
+  isAiFilling: boolean = false;
+  aiFillProgress: { current: number; total: number } = { current: 0, total: 0 };
+  isHistoricalLoading: boolean = false;
+
   hasBridgingCourses: boolean = false;
 
   private destroy$ = new Subject<void>();
@@ -108,6 +118,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private schedulingService: SchedulingService,
     private academicYearService: AcademicYearService,
     private permissionService: PermissionService,
+    private draftStateService: DraftStateService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
@@ -166,6 +177,410 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.schedulingService.resetCaches([CacheType.Preferences]);
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Returns draft or live schedule data based on current mode.
+   */
+  protected get tableData(): Schedule[] {
+    return this.isDraftMode ? this.draftSchedules : this.schedules;
+  }
+
+  /**
+   * Toggles between Draft Mode and Live Mode.
+   */
+  protected toggleDraftMode(): void {
+    if (!this.isDraftMode) {
+      // Entering Draft Mode
+      this.draftSchedules = JSON.parse(JSON.stringify(this.schedules));
+      this.draftStateService.initFromSchedules(this.schedules);
+      this.isDraftMode = true;
+    } else {
+      // Exiting Draft Mode
+      if (this.draftStateService.hasDirtyEntries()) {
+        const dialogRef = this.dialog.open(DialogGenericComponent, {
+          data: {
+            title: 'Exit Draft Mode?',
+            content: 'You have unsaved changes. Exiting will discard your draft.',
+            actionText: 'Discard & Exit',
+            cancelText: 'Stay in Draft'
+          }
+        });
+
+        dialogRef.afterClosed().subscribe(confirm => {
+          if (confirm) {
+            this.exitDraftInternal();
+          }
+        });
+      } else {
+        this.exitDraftInternal();
+      }
+    }
+  }
+
+  protected openHistoricalDialog(): void {
+    this.academicYearService.getAcademicYears().subscribe((years) => {
+      const yearOptions = years.map(y => ({
+        label: y.academic_year,
+        value: y.academic_year_id
+      }));
+
+      const semesterOptions = [
+        { label: 'First Semester', value: 1 },
+        { label: 'Second Semester', value: 2 },
+        { label: 'Summer', value: 3 }
+      ];
+
+      const dialogRef = this.dialog.open(TableDialogComponent, {
+        data: {
+          title: 'Select Historical Term',
+          fields: [
+            {
+              label: 'Academic Year',
+              formControlName: 'academic_year_id',
+              type: 'select',
+              options: yearOptions,
+              required: true
+            },
+            {
+              label: 'Semester',
+              formControlName: 'semester_id',
+              type: 'select',
+              options: semesterOptions,
+              required: true
+            }
+          ],
+          isEdit: false
+        }
+      });
+
+      dialogRef.afterClosed().subscribe(result => {
+        if (result) {
+          this.applyHistoricalSchedules(result.academic_year_id, result.semester_id);
+        }
+      });
+    });
+  }
+
+  /**
+   * Applies historical schedules to the current view.
+   * @param academic_year_id The ID of the academic year to load schedules from.
+   * @param semester_id The ID of the semester to load schedules from.
+   */
+  private applyHistoricalSchedules(academic_year_id: number, semester_id: number): void {
+    this.isHistoricalLoading = true;
+    this.cdr.markForCheck();
+
+    this.schedulingService.getHistoricalSchedules(academic_year_id, semester_id).subscribe({
+      next: (response) => {
+        // 1. Identify valid courses for current program, year level, and section
+        const program = response.programs.find(p => p.program_title === this.selectedProgram);
+        const yearLevel = program?.year_levels.find(y => y.year_level === this.selectedYear);
+        const semester = yearLevel?.semesters.find(s => s.semester === this.activeSemester);
+        const section = semester?.sections.find(s => s.section_name === this.selectedSection);
+
+        if (!section || !section.courses || section.courses.length === 0) {
+          this.snackBar.open('No matching historical data found for this section.', 'Close', { duration: 3000 });
+          this.isHistoricalLoading = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        // 2. Identify empty slots in current draft
+        const emptySlots = this.draftSchedules.filter(s => s.day === 'Not set');
+        let matchCount = 0;
+        const filledEntries: DraftEntry[] = [];
+
+        emptySlots.forEach(slot => {
+          const matchedCourse = section.courses.find(c => c.course_id === slot.course_id);
+          if (matchedCourse && matchedCourse.schedule) {
+            const entry: DraftEntry = {
+              schedule_id: slot.schedule_id!,
+              faculty_id: matchedCourse.faculty_id || null,
+              faculty_name: matchedCourse.professor || 'Not set',
+              room_id: matchedCourse.schedule.room_id || null,
+              room_code: matchedCourse.room?.room_code || 'Not set',
+              day: matchedCourse.schedule.day,
+              start_time: matchedCourse.schedule.start_time,
+              end_time: matchedCourse.schedule.end_time,
+              hasConflict: false
+            };
+            this.draftStateService.set(slot.schedule_id!, entry);
+            filledEntries.push(entry);
+            matchCount++;
+          }
+        });
+
+        if (matchCount === 0) {
+          this.snackBar.open('No matching historical courses found to fill empty slots.', 'Close', { duration: 3000 });
+          this.isHistoricalLoading = false;
+          this.cdr.markForCheck();
+          return;
+        }
+
+        // 3. Run conflict checks sequentially for all filled rows
+        from(filledEntries).pipe(
+          concatMap(entry => this.runConflictCheck(entry)),
+          finalize(() => {
+            this.rebuildDraftSchedules();
+            const conflictCount = this.draftStateService.getConflicted().length;
+            let msg = `${matchCount} of ${emptySlots.length} courses filled from history.`;
+            if (conflictCount > 0) {
+              msg += ` · ${conflictCount} conflict(s) detected — review highlighted rows.`;
+            }
+            this.snackBar.open(msg, 'Close', { duration: 5000 });
+            this.isHistoricalLoading = false;
+            this.cdr.markForCheck();
+          })
+        ).subscribe();
+      },
+      error: () => {
+        this.snackBar.open('Failed to load historical schedules.', 'Close', { duration: 3000 });
+        this.isHistoricalLoading = false;
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  /**
+   * Runs conflict check for a single draft entry.
+   * @param entry The draft entry to check.
+   * @returns An observable that completes when the conflict check is done.
+   */
+  private runConflictCheck(entry: DraftEntry): Observable<void> {
+    const program = this.programOptions.find(p => p.display === this.selectedProgram);
+    const section = this.sectionOptions.find(s => s.section_name === this.selectedSection);
+    
+    if (!program || !section) return of(void 0);
+
+    return this.schedulingService.checkForScheduleConflicts(
+      entry.schedule_id,
+      program.id,
+      this.selectedYear,
+      entry.day || '',
+      entry.start_time || '',
+      entry.end_time || '',
+      section.section_id,
+      entry.faculty_id,
+      entry.room_id
+    ).pipe(
+      tap(result => {
+        const currentEntry = this.draftStateService.get(entry.schedule_id);
+        if (currentEntry) {
+          this.draftStateService.set(entry.schedule_id, {
+            ...currentEntry,
+            hasConflict: result.hasConflicts
+          });
+        }
+      }),
+      map(() => void 0),
+      catchError(() => of(void 0))
+    );
+  }
+
+  /**
+   * Fills empty slots with AI-generated schedule suggestions.
+   * @returns void
+   */
+  protected fillWithAI(): void {
+    const emptySlots = this.draftSchedules.filter(s => s.day === 'Not set');
+    if (emptySlots.length === 0) {
+      this.snackBar.open('No empty slots to fill.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const program = this.programs.find(p => p.program_title === this.selectedProgram);
+    if (!program) return;
+
+    this.isAiFilling = true;
+    this.aiFillProgress = { current: 0, total: emptySlots.length };
+    this.cdr.markForCheck();
+
+    from(emptySlots).pipe(
+      concatMap(slot => {
+        return this.schedulingService.getAISuggestion(
+          program.program_id,
+          this.selectedYear,
+          this.activeSemesterId!,
+          slot.course_id
+        ).pipe(
+          switchMap(suggestion => {
+            if (suggestion && suggestion.preferences && suggestion.preferences[0]) {
+              const pref = suggestion.preferences[0];
+              const [startTime, endTime] = pref.time.split(' - ').map((t: string) => t.trim());
+              
+              const entry: DraftEntry = {
+                schedule_id: slot.schedule_id!,
+                faculty_id: suggestion.faculty_id,
+                faculty_name: suggestion.name,
+                room_id: null, // AI usually doesn't suggest rooms in this flow
+                room_code: 'Not set',
+                day: pref.day,
+                start_time: this.convertTimeToBackendFormat(startTime),
+                end_time: this.convertTimeToBackendFormat(endTime),
+                hasConflict: false
+              };
+              this.draftStateService.set(slot.schedule_id!, entry);
+              return this.runConflictCheck(entry);
+            }
+            return of(void 0);
+          }),
+          tap(() => {
+            this.aiFillProgress.current++;
+            this.rebuildDraftSchedules();
+            this.cdr.markForCheck();
+          }),
+          catchError(() => of(void 0))
+        );
+      }),
+      finalize(() => {
+        this.isAiFilling = false;
+        this.rebuildDraftSchedules();
+        this.snackBar.open('AI Auto-fill complete.', 'Close', { duration: 3000 });
+        this.cdr.markForCheck();
+      })
+    ).subscribe();
+  }
+
+  /**
+   * Saves draft changes to the backend.
+   * @returns void
+   */
+  protected saveDraft(): void {
+    const dirtyEntries = this.draftStateService.getDirty();
+    if (dirtyEntries.length === 0) {
+      this.snackBar.open('No changes to save.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const conflicted = dirtyEntries.filter(e => e.hasConflict);
+    const toSave = dirtyEntries.filter(e => !e.hasConflict);
+
+    if (toSave.length === 0 && conflicted.length > 0) {
+      this.snackBar.open('Cannot save: All changes have conflicts. Resolve them first.', 'Close', { duration: 5000 });
+      return;
+    }
+
+    const saveStream$ = new Subject<any>();
+    
+    // Lazy load the component since it's used only here
+    import('../../../../shared/dialog-draft-save/dialog-draft-save.component')
+      .then(({ DialogDraftSaveComponent }) => {
+      const dialogRef = this.dialog.open(DialogDraftSaveComponent, {
+        data: {
+          dirtyEntries: toSave,
+          skippedEntries: conflicted,
+          saveStream$: saveStream$.asObservable()
+        },
+        disableClose: true,
+        width: '500px'
+      });
+
+      from(toSave).pipe(
+        concatMap(entry => {
+          saveStream$.next({ schedule_id: entry.schedule_id, status: 'saving' });
+          
+          return this.schedulingService.assignSchedule(
+            entry.schedule_id,
+            entry.faculty_id,
+            entry.room_id,
+            entry.day,
+            entry.start_time,
+            entry.end_time,
+            this.activeAcademicYearId!, // Actually should be from selected program/section
+            this.selectedYear,
+            this.activeSemesterId! // These IDs should be looked up from current selection
+          ).pipe(
+            tap(() => saveStream$.next({ schedule_id: entry.schedule_id, status: 'success' })),
+            catchError(err => {
+              saveStream$.next({ 
+                schedule_id: entry.schedule_id, 
+                status: 'error', 
+                errorMessage: err.error?.message || 'Update failed' 
+              });
+              return of(null);
+            })
+          );
+        }),
+        finalize(() => {
+          saveStream$.complete();
+        })
+      ).subscribe();
+
+      dialogRef.afterClosed().subscribe(refresh => {
+        if (refresh) {
+          this.isDraftMode = false;
+          this.draftStateService.clear();
+          this.draftSchedules = [];
+          this.onInputChange({
+            program: this.selectedProgram,
+            yearLevel: this.selectedYear,
+            section: this.selectedSection,
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Discards draft changes.
+   */
+  protected discardDraft(): void {
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Discard Draft?',
+        content: 'All unsaved changes will be lost permanently.',
+        actionText: 'Discard',
+        cancelText: 'Cancel'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(confirm => {
+      if (confirm) {
+        this.exitDraftInternal();
+      }
+    });
+  }
+
+  private exitDraftInternal(): void {
+    this.isDraftMode = false;
+    this.draftSchedules = [];
+    this.draftStateService.clear();
+    this.cdr.markForCheck();
+  }
+
+  protected isDraftDirty(schedule: Schedule): boolean {
+    if (!schedule.schedule_id) return false;
+    return this.draftStateService.getDirty().some(d => d.schedule_id === schedule.schedule_id);
+  }
+
+  protected isDraftConflict(schedule: Schedule): boolean {
+    if (!schedule.schedule_id) return false;
+    return this.draftStateService.get(schedule.schedule_id)?.hasConflict ?? false;
+  }
+
+  /**
+   * Rebuilds the draft schedules from the draft state service
+   */
+  private rebuildDraftSchedules(): void {
+    this.draftSchedules = this.draftSchedules.map(schedule => {
+      const draft = this.draftStateService.get(schedule.schedule_id!);
+      if (draft) {
+        return {
+          ...schedule,
+          faculty_id: draft.faculty_id || undefined,
+          professor: draft.faculty_name,
+          room_id: draft.room_id || undefined,
+          room: draft.room_code,
+          day: draft.day || 'Not set',
+          start_time: draft.start_time,
+          end_time: draft.end_time,
+          time: this.getFormattedTime(draft.start_time || undefined, draft.end_time || undefined)
+        };
+      }
+      return schedule;
+    });
+    this.cdr.markForCheck();
   }
 
   // ======================
@@ -1166,11 +1581,26 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             },
             schedule_id: schedule.schedule_id,
             course_id: schedule.course_id,
+            isDraftMode: this.isDraftMode,
           },
         });
 
         dialogRef.afterClosed().subscribe((result) => {
-          if (result) {
+          if (!result) return;
+
+          if (this.isDraftMode && result.isDraft) {
+            this.draftStateService.set(schedule.schedule_id!, {
+              ...result,
+              hasConflict: false
+            });
+            this.rebuildDraftSchedules();
+            this.snackBar.open(
+              `Draft updated for ${schedule.course_code}. Save to apply permanently.`,
+              'Close',
+              { duration: 3000 }
+            );
+            return;
+          }
             this.snackBar.open(
               `Schedule for ${schedule.course_code} - ${schedule.course_title} 
                 has been successfully updated.`,
@@ -1183,7 +1613,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               yearLevel: this.selectedYear,
               section: this.selectedSection,
             });
-          }
         });
       },
       error: (error) => {
@@ -1435,6 +1864,17 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     if (!timeStr) return 'Not set';
     const [hour, minute, second] = timeStr.split(':').map(Number);
     return this.formatTime(hour, minute);
+  }
+
+  private convertTimeToBackendFormat(time: string | null): string | null {
+    if (!time) return null;
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:00`;
   }
 
   private getFormattedTime(startTime?: string, endTime?: string): string {
