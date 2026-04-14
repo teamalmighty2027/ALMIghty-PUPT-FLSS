@@ -203,12 +203,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             title: 'Exit Draft Mode?',
             content: 'You have unsaved changes. Exiting will discard your draft.',
             actionText: 'Discard & Exit',
-            cancelText: 'Stay in Draft'
+            cancelText: 'Stay in Draft',
+            action: 'confirm'
           }
         });
 
-        dialogRef.afterClosed().subscribe(confirm => {
-          if (confirm) {
+        dialogRef.afterClosed().subscribe(result => {
+          if (result === 'confirm') {
             this.exitDraftInternal();
           }
         });
@@ -274,10 +275,17 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.schedulingService.getHistoricalSchedules(academic_year_id, semester_id).subscribe({
       next: (response) => {
         // 1. Identify valid courses for current program, year level, and section
-        const program = response.programs.find(p => p.program_title === this.selectedProgram);
-        const yearLevel = program?.year_levels.find(y => y.year_level === this.selectedYear);
-        const semester = yearLevel?.semesters.find(s => s.semester === this.activeSemester);
-        const section = semester?.sections.find(s => s.section_name === this.selectedSection);
+        const program = response.programs.find(p => {
+          const display = `${p.program_code} - ${p.program_title}`;
+          return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
+        });
+        const yearLevel = program?.year_levels.find(y => y.year_level === Number(this.selectedYear));
+        
+        // Since the backend already filters by semester, we take the first available semester entry
+        const semester = yearLevel?.semesters[0];
+        const section = semester?.sections.find(s => 
+          s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
+        );
 
         if (!section || !section.courses || section.courses.length === 0) {
           this.snackBar.open('No matching historical data found for this section.', 'Close', { duration: 3000 });
@@ -389,10 +397,19 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const program = this.programs.find(p => p.program_title === this.selectedProgram);
-    if (!program) return;
-
+    this.snackBar.open('AI is analyzing faculty preferences...', 'Close', { duration: 2000 });
     this.isAiFilling = true;
+    const program = this.programs.find(p => {
+      const display = `${p.program_code} - ${p.program_title}`;
+      return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
+    });
+    
+    if (!program) {
+      this.isAiFilling = false;
+      this.snackBar.open('Program context not found.', 'Close', { duration: 3000 });
+      return;
+    }
+
     this.aiFillProgress = { current: 0, total: emptySlots.length };
     this.cdr.markForCheck();
 
@@ -413,7 +430,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 schedule_id: slot.schedule_id!,
                 faculty_id: suggestion.faculty_id,
                 faculty_name: suggestion.name,
-                room_id: null, // AI usually doesn't suggest rooms in this flow
+                room_id: null,
                 room_code: 'Not set',
                 day: pref.day,
                 start_time: this.convertTimeToBackendFormat(startTime),
@@ -436,8 +453,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       finalize(() => {
         this.isAiFilling = false;
         this.rebuildDraftSchedules();
-        this.snackBar.open('AI Auto-fill complete.', 'Close', { duration: 3000 });
         this.cdr.markForCheck();
+        this.snackBar.open(`AI fill completed. Checked ${emptySlots.length} slots. Review changes below.`, 'Close', { duration: 5000 });
       })
     ).subscribe();
   }
@@ -517,6 +534,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             yearLevel: this.selectedYear,
             section: this.selectedSection,
           });
+          this.snackBar.open('Draft changes saved successfully.', 'Close', { duration: 3000 });
         }
       });
     });
@@ -531,13 +549,15 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         title: 'Discard Draft?',
         content: 'All unsaved changes will be lost permanently.',
         actionText: 'Discard',
-        cancelText: 'Cancel'
+        cancelText: 'Cancel',
+        action: 'confirm'
       }
     });
 
-    dialogRef.afterClosed().subscribe(confirm => {
-      if (confirm) {
-        this.exitDraftInternal();
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === 'confirm') {
+        this.exitDraftInternal();   
+        this.toggleDraftMode();
       }
     });
   }
@@ -547,6 +567,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.draftSchedules = [];
     this.draftStateService.clear();
     this.cdr.markForCheck();
+    this.snackBar.open('Draft Mode closed. All unsaved switches discarded.', 'Close', { duration: 3000 });
   }
 
   protected isDraftDirty(schedule: Schedule): boolean {
