@@ -288,7 +288,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         );
 
         if (!section || !section.courses || section.courses.length === 0) {
-          this.snackBar.open('No matching historical data found for this section.', 'Close', { duration: 3000 });
+          const msg = 'No matching historical data found for this section.';
+          console.warn(msg, { searchingFor: this.selectedSection });
+          this.snackBar.open(msg, 'Close', { duration: 3000 });
           this.isHistoricalLoading = false;
           this.cdr.markForCheck();
           return;
@@ -393,37 +395,43 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   protected fillWithAI(): void {
     const emptySlots = this.draftSchedules.filter(s => s.day === 'Not set');
     if (emptySlots.length === 0) {
-      this.snackBar.open('No empty slots to fill.', 'Close', { duration: 3000 });
+      const msg = 'No empty slots to fill.';
+      console.log(msg);
+      this.snackBar.open(msg, 'Close', { duration: 3000 });
       return;
     }
 
     this.snackBar.open('AI is analyzing faculty preferences...', 'Close', { duration: 2000 });
     this.isAiFilling = true;
-    const program = this.programs.find(p => {
-      const display = `${p.program_code} - ${p.program_title}`;
-      return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
-    });
-    
-    if (!program) {
+
+    const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+    if (!selectedOption) {
       this.isAiFilling = false;
-      this.snackBar.open('Program context not found.', 'Close', { duration: 3000 });
+      const msg = 'Program selection not found.';
+      console.error(msg, { selected: this.selectedProgram });
+      this.snackBar.open(msg, 'Close', { duration: 3000 });
       return;
     }
 
+    const programId = selectedOption.id;
     this.aiFillProgress = { current: 0, total: emptySlots.length };
     this.cdr.markForCheck();
 
+    let unassignedCount = 0;
+
     from(emptySlots).pipe(
       concatMap(slot => {
+        console.log(`[AI Fill] Fetching suggestion for ${slot.course_code}...`);
         return this.schedulingService.getAISuggestion(
-          program.program_id,
+          programId,
           this.selectedYear,
           this.activeSemesterId!,
           slot.course_id
         ).pipe(
           switchMap(suggestion => {
-            if (suggestion && suggestion.preferences && suggestion.preferences[0]) {
+            if (suggestion && suggestion.preferences && suggestion.preferences.length > 0) {
               const pref = suggestion.preferences[0];
+              console.log(`[AI Fill] Found suggestion for ${slot.course_code}:`, pref);
               const [startTime, endTime] = pref.time.split(' - ').map((t: string) => t.trim());
               
               const entry: DraftEntry = {
@@ -439,6 +447,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               };
               this.draftStateService.set(slot.schedule_id!, entry);
               return this.runConflictCheck(entry);
+            } else {
+              console.warn(`[AI Fill] No suitable preferences found for ${slot.course_code}.`);
+              unassignedCount++;
             }
             return of(void 0);
           }),
@@ -447,14 +458,24 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             this.rebuildDraftSchedules();
             this.cdr.markForCheck();
           }),
-          catchError(() => of(void 0))
+          catchError(() => {
+            unassignedCount++;
+            return of(void 0);
+          })
         );
       }),
       finalize(() => {
         this.isAiFilling = false;
         this.rebuildDraftSchedules();
         this.cdr.markForCheck();
-        this.snackBar.open(`AI fill completed. Checked ${emptySlots.length} slots. Review changes below.`, 'Close', { duration: 5000 });
+        
+        const assignedCount = emptySlots.length - unassignedCount;
+        const msg = assignedCount === emptySlots.length 
+          ? `AI fill completed. All ${emptySlots.length} slots filled successfully.`
+          : `AI fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned due to lacking preferences.`;
+        
+        console.log(msg);
+        this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
   }
@@ -534,7 +555,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             yearLevel: this.selectedYear,
             section: this.selectedSection,
           });
-          this.snackBar.open('Draft changes saved successfully.', 'Close', { duration: 3000 });
+          const msg = 'Draft changes saved successfully.';
+          console.log(msg);
+          this.snackBar.open(msg, 'Close', { duration: 3000 });
         }
       });
     });
@@ -567,7 +590,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.draftSchedules = [];
     this.draftStateService.clear();
     this.cdr.markForCheck();
-    this.snackBar.open('Draft Mode closed. All unsaved switches discarded.', 'Close', { duration: 3000 });
+    const msg = 'Draft Mode closed. All unsaved switches discarded.';
+    console.log(msg);
+    this.snackBar.open(msg, 'Close', { duration: 3000 });
   }
 
   protected isDraftDirty(schedule: Schedule): boolean {
