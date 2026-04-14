@@ -312,7 +312,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
         emptySlots.forEach(slot => {
           const matchedCourse = section.courses.find(c => c.course_id === slot.course_id);
-          if (matchedCourse && matchedCourse.schedule) {
+          if (matchedCourse && matchedCourse.schedule && matchedCourse.schedule.day !== 'Not set') {
             const entry: DraftEntry = {
               schedule_id: slot.schedule_id!,
               faculty_id: matchedCourse.faculty_id || null,

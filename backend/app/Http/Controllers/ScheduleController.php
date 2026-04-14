@@ -6,7 +6,7 @@ use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\Schedule;
 use App\Models\SectionCourse;
 use App\Models\Room;
-use \App\Models\User;
+use App\Models\User;
 use App\Models\Curriculum;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
@@ -100,7 +100,7 @@ class ScheduleController extends Controller
 
         // PRELOAD SECTION COURSES & SCHEDULES:
         $courseAssignmentIds = $assignedCourses->pluck('course_assignment_id')->filter()->unique()->toArray();
-        $sectionCoursesData = \App\Models\SectionCourse::whereIn('course_assignment_id', $courseAssignmentIds)
+        $sectionCoursesData = SectionCourse::whereIn('course_assignment_id', $courseAssignmentIds)
             ->with([
                 'schedule.faculty.user',
                 'schedule.room'
@@ -121,7 +121,7 @@ class ScheduleController extends Controller
             $sections = $allSections->get($key, []);
 
             foreach ($sections as $section) {
-                $this->assignHistoricalCourseToSectionAndScheduleFast($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'], $sectionCoursesData);
+                $this->assignHistoricalCourseToSectionAndSchedule($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'], $sectionCoursesData);
             }
         }
 
@@ -135,8 +135,9 @@ class ScheduleController extends Controller
     /**
      * Optimized assignment using preloaded data
      */
-    private function assignHistoricalCourseToSectionAndScheduleFast($row, $section, &$sections, $sectionCoursesData)
-    {
+    private function assignHistoricalCourseToSectionAndSchedule(
+      $row, $section, &$sections, $sectionCoursesData
+    ) {
         if (is_null($row->course_assignment_id)) {
             return;
         }
@@ -177,92 +178,22 @@ class ScheduleController extends Controller
                 'lab_hours' => $row->lab_hours,
                 'units' => $row->units,
                 'tuition_hours' => $row->tuition_hours,
-                'schedule_id' => $existingSchedule->schedule_id ?? null,
+                'schedule' => [
+                    'schedule_id' => $existingSchedule->schedule_id ?? null,
+                    'day' => $existingSchedule->day ?? 'Not set',
+                    'start_time' => $existingSchedule->start_time ?? 'Not set',
+                    'end_time' => $existingSchedule->end_time ?? 'Not set',
+                    'room_id' => $existingSchedule->room_id ?? null,
+                ],
                 'faculty_id' => $existingSchedule->faculty_id ?? null,
                 'faculty_email' => $facultyEmail,
                 'professor' => $facultyName,
-                'room_id' => $existingSchedule->room_id ?? null,
-                'room' => $room ? $room->room_code : 'Not set',
-                'day' => $existingSchedule->day ?? 'Not set',
-                'start_time' => $existingSchedule->start_time ?? 'Not set',
-                'end_time' => $existingSchedule->end_time ?? 'Not set',
-            ];
-        }
-    }
-
-    /**
-     * Assigns a historical course to a section and schedule (read-only).
-     */
-    private function assignHistoricalCourseToSectionAndSchedule($row, $section, &$sections)
-    {
-        if (is_null($row->course_assignment_id)) {
-            return;
-        }
-
-        $sectionIndex = $this->findOrCreateSection($sections, $section);
-
-        $sectionCourses = SectionCourse::where('sections_per_program_year_id', $section->sections_per_program_year_id)
-            ->where('course_assignment_id', $row->course_assignment_id)
-            ->get();
-
-        foreach ($sectionCourses as $section_course) {
-            $existingSchedule = Schedule::where('section_course_id', $section_course->section_course_id)
-                ->first();
-
-            if (!$existingSchedule) {
-                continue;
-            }
-
-            $faculty = $existingSchedule->faculty_id ? DB::table('faculty')
-                ->join('users', 'faculty.user_id', '=', 'users.id')
-                ->where('faculty.id', $existingSchedule->faculty_id)
-                ->select(
-                    'faculty.id',
-                    'users.id as user_id',
-                    'users.email as faculty_email'
-                )
-                ->first() : null;
-
-            if ($faculty) {
-                $user = User::find($faculty->user_id);
-                $faculty->professor = $user->formatted_name;
-            }
-
-            $room = $existingSchedule->room_id ? Room::find($existingSchedule->room_id) : null;
-
-            if (!isset($sections[$sectionIndex]['courses'])) {
-                $sections[$sectionIndex]['courses'] = [];
-            }
-
-            $sections[$sectionIndex]['courses'][] = [
-                'course_assignment_id' => $row->course_assignment_id,
-                'course_id' => $row->course_id,
-                'course_code' => $row->course_code,
-                'course_title' => $row->course_title,
-                'lec_hours' => $row->lec_hours,
-                'lab_hours' => $row->lab_hours,
-                'units' => $row->units,
-                'tuition_hours' => $row->tuition_hours,
-                'schedule' => [
-                    'schedule_id' => $existingSchedule->schedule_id,
-                    'day' => $existingSchedule->day,
-                    'start_time' => $existingSchedule->start_time,
-                    'end_time' => $existingSchedule->end_time,
-                ],
-                'professor' => $faculty ? $faculty->professor : 'Not set',
-                'faculty_id' => $faculty ? $faculty->id : null,
-                'faculty_email' => $faculty ? $faculty->faculty_email : null,
                 'room' => [
                     'room_id' => $room ? $room->room_id : null,
                     'room_code' => $room ? $room->room_code : 'Not set',
                 ],
-                'is_temporary' => false,
-                'temporary_course_offering_id' => null,
-                'temporary_type' => null,
-                'temporary_status' => null,
-                'petition_required' => false,
-                'is_copy' => $section_course->is_copy,
                 'section_course_id' => $section_course->section_course_id,
+                'is_copy' => $section_course->is_copy,
             ];
         }
     }
