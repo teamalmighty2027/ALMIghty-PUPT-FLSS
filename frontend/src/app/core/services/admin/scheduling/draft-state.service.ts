@@ -97,6 +97,15 @@ export class DraftStateService {
   }
 
   /**
+   * Checks if a specific schedule ID is dirty (has changes).
+   * O(1) complexity compared to getDirty().some().
+   */
+  isIdDirty(scheduleId: number): boolean {
+    const entry = this.workingMap.get(scheduleId);
+    return entry ? this.isEntryDirty(entry) : false;
+  }
+
+  /**
    * Returns true if there are any pending unsaved changes.
    */
   hasDirtyEntries(): boolean {

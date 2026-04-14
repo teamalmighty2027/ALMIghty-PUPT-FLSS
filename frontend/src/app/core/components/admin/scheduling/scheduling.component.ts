@@ -220,47 +220,56 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   protected openHistoricalDialog(): void {
-    this.academicYearService.getAcademicYears().subscribe((years) => {
-      const yearOptions = years.map(y => ({
-        label: y.academic_year,
-        value: y.academic_year_id
-      }));
+    this.academicYearService.getAcademicYears()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (years) => {
+          const yearOptions = years.map(y => ({
+            label: y.academic_year,
+            value: y.academic_year_id
+          }));
 
-      const semesterOptions = [
-        { label: 'First Semester', value: 1 },
-        { label: 'Second Semester', value: 2 },
-        { label: 'Summer', value: 3 }
-      ];
+          const semesterOptions = [
+            { label: 'First Semester', value: 1 },
+            { label: 'Second Semester', value: 2 },
+            { label: 'Summer', value: 3 }
+          ];
 
-      const dialogRef = this.dialog.open(TableDialogComponent, {
-        data: {
-          title: 'Select Historical Term',
-          fields: [
-            {
-              label: 'Academic Year',
-              formControlName: 'academic_year_id',
-              type: 'select',
-              options: yearOptions,
-              required: true
-            },
-            {
-              label: 'Semester',
-              formControlName: 'semester_id',
-              type: 'select',
-              options: semesterOptions,
-              required: true
+          const dialogRef = this.dialog.open(TableDialogComponent, {
+            data: {
+              title: 'Select Historical Term',
+              fields: [
+                {
+                  label: 'Academic Year',
+                  formControlName: 'academic_year_id',
+                  type: 'select',
+                  options: yearOptions,
+                  required: true
+                },
+                {
+                  label: 'Semester',
+                  formControlName: 'semester_id',
+                  type: 'select',
+                  options: semesterOptions,
+                  required: true
+                }
+              ],
+              isEdit: false
             }
-          ],
-          isEdit: false
-        }
-      });
+          });
 
-      dialogRef.afterClosed().subscribe(result => {
-        if (result) {
-          this.applyHistoricalSchedules(result.academic_year_id, result.semester_id);
+          dialogRef.afterClosed()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(result => {
+              if (result) {
+                this.applyHistoricalSchedules(result.academic_year_id, result.semester_id);
+              }
+            });
+        },
+        error: () => {
+          this.snackBar.open('Failed to load academic years.', 'Close', { duration: 3000 });
         }
       });
-    });
   }
 
   /**
@@ -617,7 +626,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   protected isDraftDirty(schedule: Schedule): boolean {
     if (!schedule.schedule_id) return false;
-    return this.draftStateService.getDirty().some(d => d.schedule_id === schedule.schedule_id);
+    return this.draftStateService.isIdDirty(schedule.schedule_id);
   }
 
   protected isDraftConflict(schedule: Schedule): boolean {
