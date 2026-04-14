@@ -274,7 +274,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     this.schedulingService.getHistoricalSchedules(academic_year_id, semester_id).subscribe({
       next: (response) => {
-        // 1. Identify valid courses for current program, year level, and section
+        // Identify valid courses for current program, year level, and section
         const program = response.programs.find(p => {
           const display = `${p.program_code} - ${p.program_title}`;
           return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
@@ -296,7 +296,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           return;
         }
 
-        // 2. Identify empty slots in current draft
+        // Identify empty slots in current draft
         const emptySlots = this.draftSchedules.filter(s => s.day === 'Not set');
         let matchCount = 0;
         const filledEntries: DraftEntry[] = [];
@@ -328,7 +328,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           return;
         }
 
-        // 3. Run conflict checks sequentially for all filled rows
+        // Run conflict checks sequentially for all filled rows
         from(filledEntries).pipe(
           concatMap(entry => this.runConflictCheck(entry)),
           finalize(() => {
@@ -414,6 +414,23 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     }
 
     const programId = selectedOption.id;
+
+    const selectedYearLevelObj = selectedOption.year_levels.find((y: any) => y.year_level === this.selectedYear);
+    if (!selectedYearLevelObj) {
+      this.isAiFilling = false;
+      this.snackBar.open('Year level data not found.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const selectedSectionObj = selectedYearLevelObj.sections.find((s: any) => s.section_name === this.selectedSection);
+    if (!selectedSectionObj) {
+      this.isAiFilling = false;
+      this.snackBar.open('Section data not found.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const sectionId = selectedSectionObj.section_id;
+
     this.aiFillProgress = { current: 0, total: emptySlots.length };
     this.cdr.markForCheck();
 
@@ -424,7 +441,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         return this.schedulingService.getAISuggestion(
           programId,
           this.selectedYear,
-          this.activeSemesterId!,
+          sectionId,
           slot.course_id
         ).pipe(
           switchMap(suggestion => {
@@ -514,6 +531,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       from(toSave).pipe(
         concatMap(entry => {
           saveStream$.next({ schedule_id: entry.schedule_id, status: 'saving' });
+
+          const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+          const programId = selectedOption?.id || 0;
+          const selectedYearLevelObj = selectedOption?.year_levels.find((y: any) => y.year_level === this.selectedYear);
+          const selectedSectionObj = selectedYearLevelObj?.sections.find((s: any) => s.section_name === this.selectedSection);
+          const sectionId = selectedSectionObj?.section_id || 0;
           
           return this.schedulingService.assignSchedule(
             entry.schedule_id,
@@ -522,9 +545,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             entry.day,
             entry.start_time,
             entry.end_time,
-            this.activeAcademicYearId!, // Actually should be from selected program/section
+            programId,
             this.selectedYear,
-            this.activeSemesterId! // These IDs should be looked up from current selection
+            sectionId
           ).pipe(
             tap(() => saveStream$.next({ schedule_id: entry.schedule_id, status: 'success' })),
             catchError(err => {
@@ -1646,6 +1669,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           if (this.isDraftMode && result.isDraft) {
             this.draftStateService.set(schedule.schedule_id!, {
               ...result,
+              schedule_id: schedule.schedule_id,
               hasConflict: false
             });
             this.rebuildDraftSchedules();
