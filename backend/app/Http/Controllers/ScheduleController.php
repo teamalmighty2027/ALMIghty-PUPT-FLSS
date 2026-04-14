@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\Models\SectionCourse;
 use App\Models\Room;
 use \App\Models\User;
+use App\Models\Curriculum;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,7 @@ class ScheduleController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'academic_year_id' => 'required|integer|exists:academic_years,academic_year_id',
-            'semester_id' => 'required|integer',
+            'semester_id' => 'required|integer|exists:semesters,semester_id',
         ]);
 
         if ($validator->fails()) {
@@ -36,7 +37,7 @@ class ScheduleController extends Controller
         $semesterId = $request->input('semester_id');
 
         // Fetch all assigned courses for the specified semester and academic year
-        $assignedCourses = DB::table('curricula as c')
+        $assignedCourses = Curriculum::from('curricula as c')
             ->select(
                 'p.program_id',
                 'p.program_code',
@@ -89,6 +90,26 @@ class ScheduleController extends Controller
             ->orderBy('co.course_code')
             ->get();
 
+        // PRELOAD SECTIONS: Group by program_id and year_level
+        $allSections = DB::table('sections_per_program_year')
+            ->where('academic_year_id', $academicYearId)
+            ->get()
+            ->groupBy(function ($sec) {
+                return $sec->program_id . '-' . $sec->year_level;
+            });
+
+        // PRELOAD SECTION COURSES & SCHEDULES:
+        $courseAssignmentIds = $assignedCourses->pluck('course_assignment_id')->filter()->unique()->toArray();
+        $sectionCoursesData = \App\Models\SectionCourse::whereIn('course_assignment_id', $courseAssignmentIds)
+            ->with([
+                'schedule.faculty.user',
+                'schedule.room'
+            ])
+            ->get()
+            ->groupBy(function ($sc) {
+                return $sc->sections_per_program_year_id . '-' . $sc->course_assignment_id;
+            });
+
         $response = [];
 
         foreach ($assignedCourses as $row) {
@@ -96,14 +117,11 @@ class ScheduleController extends Controller
             $yearLevelIndex = $this->findOrCreateYearLevel($response[$programIndex]['year_levels'], $row);
             $semesterIndex = $this->findOrCreateSemester($response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'], $row);
 
-            $sections = DB::table('sections_per_program_year')
-                ->where('program_id', $row->program_id)
-                ->where('year_level', $row->year_level)
-                ->where('academic_year_id', $academicYearId)
-                ->get();
+            $key = $row->program_id . '-' . $row->year_level;
+            $sections = $allSections->get($key, []);
 
             foreach ($sections as $section) {
-                $this->assignHistoricalCourseToSectionAndSchedule($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections']);
+                $this->assignHistoricalCourseToSectionAndScheduleFast($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'], $sectionCoursesData);
             }
         }
 
@@ -112,6 +130,64 @@ class ScheduleController extends Controller
             'semester_id' => $semesterId,
             'programs' => $response,
         ]);
+    }
+
+    /**
+     * Optimized assignment using preloaded data
+     */
+    private function assignHistoricalCourseToSectionAndScheduleFast($row, $section, &$sections, $sectionCoursesData)
+    {
+        if (is_null($row->course_assignment_id)) {
+            return;
+        }
+
+        $sectionIndex = $this->findOrCreateSection($sections, $section);
+
+        $key = $section->sections_per_program_year_id . '-' . $row->course_assignment_id;
+        $sectionCourses = $sectionCoursesData->get($key, []);
+
+        foreach ($sectionCourses as $section_course) {
+            $existingSchedule = $section_course->schedule;
+
+            if (!$existingSchedule) {
+                continue;
+            }
+
+            $facultyName = 'Not set';
+            $facultyEmail = null;
+            if ($existingSchedule->faculty) {
+                $user = $existingSchedule->faculty->user;
+                if ($user) {
+                    $facultyName = $user->formatted_name;
+                    $facultyEmail = $user->email;
+                }
+            }
+
+            $room = $existingSchedule->room;
+
+            if (!isset($sections[$sectionIndex]['courses'])) {
+                $sections[$sectionIndex]['courses'] = [];
+            }
+
+            $sections[$sectionIndex]['courses'][] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+                'lec_hours' => $row->lec_hours,
+                'lab_hours' => $row->lab_hours,
+                'units' => $row->units,
+                'tuition_hours' => $row->tuition_hours,
+                'schedule_id' => $existingSchedule->schedule_id ?? null,
+                'faculty_id' => $existingSchedule->faculty_id ?? null,
+                'faculty_email' => $facultyEmail,
+                'professor' => $facultyName,
+                'room_id' => $existingSchedule->room_id ?? null,
+                'room' => $room ? $room->room_code : 'Not set',
+                'day' => $existingSchedule->day ?? 'Not set',
+                'start_time' => $existingSchedule->start_time ?? 'Not set',
+                'end_time' => $existingSchedule->end_time ?? 'Not set',
+            ];
+        }
     }
 
     /**

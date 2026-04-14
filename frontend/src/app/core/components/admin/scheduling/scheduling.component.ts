@@ -610,7 +610,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.draftSchedules = [];
     this.draftStateService.clear();
     this.cdr.markForCheck();
-    this.snackBar.open('Draft Mode closed. All unsaved switches discarded.',
+    this.snackBar.open('Draft Mode closed. All unsaved changes discarded.',
       'Close', { duration: 3000 }
     );
   }

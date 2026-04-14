@@ -16,7 +16,7 @@
   <div class="results-list">
     <!-- Dirty entries being saved -->
     @for (entry of data.dirtyEntries; track entry.schedule_id) {
-      <div class="result-row" [class]="getResult(entry.schedule_id)?.status">
+      <div class="result-row" [ngClass]="getResult(entry.schedule_id)?.status">
         <div class="status-icon">
           @switch (getResult(entry.schedule_id)?.status) {
             @case ("saving") {
@@ -78,7 +78,7 @@
   }
 </mat-dialog-content>
 
-<mat-dialog-actions align="end">
+<mat-dialog-actions>
   <button
     mat-flat-button
     color="primary"

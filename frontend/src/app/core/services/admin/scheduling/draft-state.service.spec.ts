@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { DraftStateService, DraftEntry } from './draft-state.service';
-import { Schedule } from '../../../models/scheduling.model';
+import { DraftStateService } from './draft-state.service';
+import { Schedule, DraftEntry } from '../../../models/scheduling.model';
 
 describe('DraftStateService', () => {
   let service: DraftStateService;
