@@ -395,9 +395,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   protected fillWithAI(): void {
     const emptySlots = this.draftSchedules.filter(s => s.day === 'Not set');
     if (emptySlots.length === 0) {
-      const msg = 'No empty slots to fill.';
-      console.log(msg);
-      this.snackBar.open(msg, 'Close', { duration: 3000 });
+      this.snackBar.open('No empty slots to fill.', 
+        'Close', { duration: 3000 }
+      );
       return;
     }
 
@@ -421,7 +421,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     from(emptySlots).pipe(
       concatMap(slot => {
-        console.log(`[AI Fill] Fetching suggestion for ${slot.course_code}...`);
         return this.schedulingService.getAISuggestion(
           programId,
           this.selectedYear,
@@ -431,7 +430,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           switchMap(suggestion => {
             if (suggestion && suggestion.preferences && suggestion.preferences.length > 0) {
               const pref = suggestion.preferences[0];
-              console.log(`[AI Fill] Found suggestion for ${slot.course_code}:`, pref);
               const [startTime, endTime] = pref.time.split(' - ').map((t: string) => t.trim());
               
               const entry: DraftEntry = {
@@ -474,7 +472,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           ? `AI fill completed. All ${emptySlots.length} slots filled successfully.`
           : `AI fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned due to lacking preferences.`;
         
-        console.log(msg);
         this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
@@ -555,9 +552,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             yearLevel: this.selectedYear,
             section: this.selectedSection,
           });
-          const msg = 'Draft changes saved successfully.';
-          console.log(msg);
-          this.snackBar.open(msg, 'Close', { duration: 3000 });
+          this.snackBar.open('Draft changes saved successfully.', 
+            'Close', { duration: 3000 }
+          );
         }
       });
     });
@@ -590,9 +587,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.draftSchedules = [];
     this.draftStateService.clear();
     this.cdr.markForCheck();
-    const msg = 'Draft Mode closed. All unsaved switches discarded.';
-    console.log(msg);
-    this.snackBar.open(msg, 'Close', { duration: 3000 });
+    this.snackBar.open('Draft Mode closed. All unsaved switches discarded.',
+      'Close', { duration: 3000 }
+    );
   }
 
   protected isDraftDirty(schedule: Schedule): boolean {
@@ -801,6 +798,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   protected onInputChange(values: { [key: string]: any }): void {
+    if (this.isDraftMode) {
+      this.exitDraftInternal();
+    }
+
     const selectedProgramDisplay = values['program'];
     const selectedYearLevel = values['yearLevel'];
     const selectedSectionDisplay = values['section'];
@@ -1075,6 +1076,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   openActiveYearSemesterDialog(): void {
+    if (this.isDraftMode) {
+      this.exitDraftInternal();
+    }
+
     this.academicYearService
       .getAcademicYears()
       .pipe(
@@ -1342,6 +1347,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   }
 
   openAddTemporaryCourseDialog(): void {
+    if (this.isDraftMode) {
+      this.exitDraftInternal();
+    }
+
     const program = this.programOptions.find(
       (p) => p.display === this.selectedProgram
     );
