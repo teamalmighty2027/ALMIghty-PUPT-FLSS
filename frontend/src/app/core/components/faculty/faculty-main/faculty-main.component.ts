@@ -293,12 +293,10 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.authService.logout().subscribe({
           next: () => {
-            this.authService.clearCookies();
             loadingDialogRef.close();
             if (this.bottomSheetRef) {
               this.bottomSheetRef.dismiss();
             }
-            this.router.navigate(['/login']);
           },
           error: () => {
             loadingDialogRef.close();

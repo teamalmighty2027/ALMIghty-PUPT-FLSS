@@ -117,29 +117,33 @@ export class AuthService {
 
   /**
    * Calls the IDP's logout endpoint to invalidate the session
-   * then clears cookies as well
-   * Skipped if no access token
+   * Returns an observable that completes after proxying or skipping
    */
-  logoutFromIdp(): void {
-    const accessToken = this.cookieService.get('access_token');
+  logoutFromIdpAsObservable(): Observable<any> {
+    const cookieToken = this.cookieService.get('access_token');
+    const storageToken = localStorage.getItem('access_token');
+    const accessToken = cookieToken || storageToken;
 
-    // Skip if no access token  
+    const allKeys = Object.keys(localStorage);
+    console.log(`[IDP Logout] Storage Keys: ${allKeys.join(', ')}`);
+    console.log(`[IDP Logout] Access Token check - Cookie: ${!!cookieToken}, Storage: ${!!storageToken}`);
+
     if (!accessToken) {
-      this.clearCookies();
-      return;
+      console.log('[IDP Logout] No access token found, skipping proxy.');
+      return of(null);
     }
     
-    // Proxy through backend to avoid browser CORS issues
-    this.http.post(`${this.baseUrl}/auth/session`, { access_token: accessToken })
-    .subscribe({
-      next: () => {
-        this.clearCookies();
-      },
-      error: (error) => {
+    return this.http.post(`${this.baseUrl}/auth/session`, { access_token: accessToken }).pipe(
+      catchError((error) => {
         console.error('Error logging out from IDP:', error);
-        this.clearCookies();
-      }
-    });
+        return of(null); // Continue even if IDP logout fails
+      })
+    );
+  }
+
+  logoutFromIdp(): void {
+    // Keep this for backward compatibility if needed, but we'll use the observable version
+    this.logoutFromIdpAsObservable().subscribe(() => this.clearCookies());
   }
 
   // ==============================
@@ -159,11 +163,15 @@ export class AuthService {
   }
 
   logout(): Observable<any> {
+    // 1. First logout from local backend
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
+      // 2. Then logout from IDP
+      switchMap(() => this.logoutFromIdpAsObservable()),
+      // 3. Finally clear local data and navigate
       finalize(() => {
-        this.logoutFromIdp();
+        this.clearCookies();
         this.router.navigate(['/login']);
-      }),
+      })
     );
   }
 
@@ -232,8 +240,18 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
   
-    this.cookieService.set('access_token', access_token, expiryDate, '/');
-    this.cookieService.set('refresh_token', refresh_token, expiryDate, '/');
+    // Explicitly set flags for production HTTPS compatibility
+    const cookieOptions = {
+        expires: expiryDate,
+        path: '/',
+        secure: true,
+        sameSite: 'Lax' as const
+    };
+
+    localStorage.setItem('access_token', access_token);
+    localStorage.setItem('refresh_token', refresh_token);
+    this.cookieService.set('access_token', access_token, cookieOptions);
+    this.cookieService.set('refresh_token', refresh_token, cookieOptions);
   }
 
   setSanctumToken(sanctumToken: string, expiresAt: string): void {
@@ -248,6 +266,7 @@ export class AuthService {
   }
 
   clearCookies(): void {
+    console.log('[Auth] clearCookies called');
     const cookiesToClear = [
       'token',
       'role',
@@ -274,6 +293,8 @@ export class AuthService {
     localStorage.removeItem('oauth_state');
     localStorage.removeItem('user_data');
     localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     this.userDataCache = null;
   }
 

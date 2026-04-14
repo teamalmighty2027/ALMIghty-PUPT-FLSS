@@ -218,9 +218,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
 
     this.authService.logout().subscribe({
       next: () => {
-        this.cookieService.deleteAll('/');
         loadingDialogRef.close();
-        this.router.navigate(['/login']);
       },
       error: (error) => {
         console.error('Logout failed', error);
