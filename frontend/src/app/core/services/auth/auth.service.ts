@@ -118,18 +118,19 @@ export class AuthService {
   /**
    * Calls the IDP's logout endpoint to invalidate the session
    * then clears cookies as well
-   * Skipped in dev mode to avoid IDP logout during testing
+   * Skipped if no access token
    */
   logoutFromIdp(): void {
-    // Skip IDP logout in dev mode
-    if (!environment.production) {
-      console.log('[DEV MODE] IDP logout skipped - clearCookies still called');
+    const accessToken = this.cookieService.get('access_token');
+
+    // Skip if no access token  
+    if (!accessToken) {
       this.clearCookies();
       return;
     }
     
     // Proxy through backend to avoid browser CORS issues
-    this.http.request('POST', `${this.baseUrl}/auth/session`, {})
+    this.http.post(`${this.baseUrl}/auth/session`, { access_token: accessToken })
     .subscribe({
       next: () => {
         this.clearCookies();
@@ -161,7 +162,6 @@ export class AuthService {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
       finalize(() => {
         this.logoutFromIdp();
-        this.clearCookies();
         this.router.navigate(['/login']);
       }),
     );
@@ -263,6 +263,7 @@ export class AuthService {
       'refresh_token',
       'permissions',
       'allowed_programs',
+      'scheduling_selected_program',
     ];
 
     cookiesToClear.forEach((cookieName) => {

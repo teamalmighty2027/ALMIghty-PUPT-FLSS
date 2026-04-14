@@ -356,8 +356,21 @@ class AuthController extends Controller
 
         try {
             $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
-            
-            $response = Http::withoutVerifying()->asJson()->post(
+            $idpToken = $request->input('access_token');
+
+            if (empty($idpToken)) {
+                return response()->json([
+                    'message' => 'IDP token is missing.',
+                ], 400);
+            }
+
+            $requestHttp = Http::withoutVerifying()->asJson();
+
+            if ($idpToken) {
+                $requestHttp->withToken($idpToken);
+            }
+
+            $response = $requestHttp->post(
                 $logoutUrl,
                 ['client_id' => $clientId]
             );
