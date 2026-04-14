@@ -125,6 +125,13 @@
       <div class="course-name">{{ data.selectedCourseInfo }}</div>
     </div>
 
+    @if (data.isDraftMode) {
+      <div class="draft-mode-banner">
+        <mat-icon>edit_note</mat-icon>
+        Draft Mode — changes won't be saved until you click <strong>Save Draft</strong>.
+      </div>
+    }
+
     <mat-dialog-content class="content forms-list">
       <form [formGroup]="scheduleForm" class="scheduling-form-group">
         <!-- Day Picker -->

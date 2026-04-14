@@ -75,6 +75,23 @@
     @include mixins.hide-scrollbar;
     width: 100%;
 
+    .draft-mode-banner {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      padding: var(--spacing-xs) var(--spacing-md);
+      margin-bottom: var(--spacing-sm);
+      background-color: rgba(255, 193, 7, 0.1);
+      color: #ed6c02;
+      border: 1px solid rgba(255, 193, 7, 0.3);
+      border-radius: var(--border-radius-sm);
+      font-size: var(--font-size-sm);
+
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
+
     .scheduling-form-group {
       @include mixins.flex-layout(
         $direction: column,
