@@ -202,6 +202,7 @@
 
 .draft-toolbar {
   @include mixins.flex-layout($justify: space-between, $align: center, $gap: var(--spacing-md));
+  flex-wrap: wrap;
   position: sticky;
   top: var(--spacing-sm);
   z-index: 10;
@@ -228,7 +229,8 @@
       }
       .desc {
         font-size: var(--font-size-xs);
-        color: var(--secondary-text);
+        color: #ed6c02; // Using a solid amber-orange for better visibility
+        font-weight: 500;
       }
     }
   }

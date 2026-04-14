@@ -77,11 +77,11 @@
 
     .draft-mode-banner {
       @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
-      padding: var(--spacing-xs) var(--spacing-md);
+      padding: var(--spacing-xs) var(--spacing-sm);
       margin-bottom: var(--spacing-sm);
-      background-color: rgba(255, 193, 7, 0.1);
-      color: #ed6c02;
-      border: 1px solid rgba(255, 193, 7, 0.3);
+      background-color: var(--primary-fade);
+      color: var(--primary-text);
+      border: 1px solid var(--primary-text);
       border-radius: var(--border-radius-sm);
       font-size: var(--font-size-sm);
 

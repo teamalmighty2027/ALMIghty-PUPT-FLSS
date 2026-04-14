@@ -33,14 +33,16 @@
         (activeYearSemClick)="openActiveYearSemesterDialog()"
       ></app-table-header>
 
-      <!-- Draft Mode Toggle -->
-      <div class="draft-toggle-container">
-        <button mat-flat-button [color]="isDraftMode ? 'warn' : 'accent'" (click)="toggleDraftMode()" 
-                [disabled]="!selectedSection || isCreatingTemporaryCourse">
-          <mat-icon>{{ isDraftMode ? 'close' : 'edit_note' }}</mat-icon>
-          {{ isDraftMode ? 'Exit Draft Mode' : 'Enter Draft Mode' }}
-        </button>
-      </div>
+      <!-- Draft Mode Toggle (Only when NOT in draft mode) -->
+      @if (!isDraftMode) {
+        <div class="draft-toggle-container">
+          <button mat-flat-button color="accent" (click)="toggleDraftMode()" 
+                  [disabled]="!selectedSection || isCreatingTemporaryCourse">
+            <mat-icon>edit_note</mat-icon>
+            Enter Draft Mode
+          </button>
+        </div>
+      }
     </div>
 
     <!-- Draft Toolbar -->
@@ -50,7 +52,7 @@
           <mat-icon class="amber-icon">history_edu</mat-icon>
           <div class="texts">
             <span class="title">Draft Mode Active</span>
-            <span class="desc">Changes are local until you save. {{ draftSchedules.length }} courses in draft.</span>
+            <span class="desc"><strong>Changes are local until you save.</strong> {{ draftSchedules.length }} courses in draft.</span>
           </div>
         </div>
 
@@ -82,6 +84,12 @@
                   [disabled]="isAiFilling || isHistoricalLoading">
             <mat-icon>save</mat-icon>
             Save Draft
+          </button>
+
+          <button mat-flat-button color="warn" (click)="toggleDraftMode()" 
+                  [disabled]="!selectedSection || isCreatingTemporaryCourse || isAiFilling">
+            <mat-icon>close</mat-icon>
+            Exit Draft Mode
           </button>
         </div>
       </div>

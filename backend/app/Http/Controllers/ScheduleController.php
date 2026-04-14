@@ -1392,7 +1392,7 @@ class ScheduleController extends Controller
 
         if (!$top) {
             return response()->json([
-                'message' => 'No preferences found for given parameters (diagnostic)',
+                'message' => 'No preferences found for given parameters',
                 'success' => false,
                 'program_id' => $programId,
                 'year_level' => $yearLevel,
