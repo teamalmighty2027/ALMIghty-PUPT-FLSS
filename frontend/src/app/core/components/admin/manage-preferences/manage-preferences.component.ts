@@ -445,7 +445,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
         generatePdfFunction: generatePdfFunction,
-        // NEW: Pass the Excel generation function to the View dialog
+        isAdmin: true,
+        // Pass the Excel generation function to the View dialog
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
           saveAs(excelBlob, `${fileNameBase}.xlsx`);

@@ -231,6 +231,8 @@ export interface ActiveSemester {
 
 export interface CoursePreference {
   course_assignment_id: number;
+  preferences_id?: number;
+  is_ignored?: boolean;
   course_details: CourseDetails;
   preferred_days: {
     day: string;

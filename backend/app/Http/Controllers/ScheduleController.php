@@ -1126,6 +1126,7 @@ class ScheduleController extends Controller
             ->join('users as u', 'f.user_id', '=', 'u.id')
             ->leftJoin('faculty_type as ft', 'f.faculty_type_id', '=', 'ft.faculty_type_id')
             ->where('p.active_semester_id', $activeSemester->active_semester_id)
+            ->where('p.is_ignored', 0)
             ->where(function ($q) use ($programId, $yearLevel, $sectionId, $activeSemester) {
                 $q->where(function ($q) use ($programId, $yearLevel, $sectionId) {
                     $q->whereNotNull('p.course_assignment_id')
