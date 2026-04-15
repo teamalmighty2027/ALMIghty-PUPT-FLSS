@@ -298,7 +298,9 @@ class AuthController extends Controller
                 'is_full_access'   => $isFullAccess,
             ];
 
-            if (in_array('faculty', $requestedRole)) {                
+            if ($user->role === 'superadmin') {
+                $userDataArray['role'] = 'superadmin';
+            } else if (in_array('faculty', $requestedRole)) {                
                 // Add to user data if faculty
                 $userDataArray['role'] = 'faculty';
                 $userDataArray['faculty'] = $user->faculty ? [
@@ -309,8 +311,6 @@ class AuthController extends Controller
                 ] : null;
             } else if (in_array('admin', $requestedRole)) {
                 $userDataArray['role'] = 'admin';
-            } else if (in_array('superadmin', $requestedRole)) {
-                $userDataArray['role'] = 'superadmin';
             }
 
             $userDataJson = json_encode($userDataArray);
