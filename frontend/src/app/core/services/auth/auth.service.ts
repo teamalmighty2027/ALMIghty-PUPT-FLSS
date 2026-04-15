@@ -124,19 +124,14 @@ export class AuthService {
     const storageToken = localStorage.getItem('access_token');
     const accessToken = cookieToken || storageToken;
 
-    const allKeys = Object.keys(localStorage);
-    console.log(`[IDP Logout] Storage Keys: ${allKeys.join(', ')}`);
-    console.log(`[IDP Logout] Access Token check - Cookie: ${!!cookieToken}, Storage: ${!!storageToken}`);
-
     if (!accessToken) {
-      console.log('[IDP Logout] No access token found, skipping proxy.');
       return of(null);
     }
     
     return this.http.post(`${this.baseUrl}/auth/session`, { access_token: accessToken }).pipe(
       catchError((error) => {
         console.error('Error logging out from IDP:', error);
-        return of(null); // Continue even if IDP logout fails
+        return of(null);
       })
     );
   }
@@ -266,7 +261,6 @@ export class AuthService {
   }
 
   clearCookies(): void {
-    console.log('[Auth] clearCookies called');
     const cookiesToClear = [
       'token',
       'role',
