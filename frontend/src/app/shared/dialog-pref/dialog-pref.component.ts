@@ -41,6 +41,8 @@ interface Course {
   temporary_type?: string | null;
   temporary_status?: string | null;
   petition_required?: boolean;
+  preferences_id?: number;
+  is_ignored?: boolean;
 }
 
 interface DialogPrefData {
@@ -48,6 +50,7 @@ interface DialogPrefData {
   faculty_id: number;
   isViewOnlyTable?: boolean;
   isViewHistory?: boolean;
+  isAdmin?: boolean;
   /** Optional callback to generate an Excel file directly from the parent view. */
   generateExcelFunction?: () => Promise<void> | void; 
 }
@@ -157,6 +160,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               preferred_days: course.preferred_days,
               year_section: `${course.course_details.year_level}-${course.section_details.section_name}`,
               program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+              preferences_id: course.preferences_id,
+              is_ignored: course.is_ignored,
               is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
               temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
               temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
@@ -285,6 +290,8 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       preferred_days: course.preferred_days ?? course.preferredDays ?? [],
       year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.section_details?.section_name ?? 'N/A'}`,
       program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+      preferences_id: course.preferences_id,
+      is_ignored: course.is_ignored,
       is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
       temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
       temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
@@ -412,6 +419,28 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Toggles the ignore status of a specific preference. 
+   * This is only accessible by administrators.
+   */
+  public toggleIgnore(course: Course): void {
+    if (!this.data.isAdmin || !course.preferences_id) return;
+
+    const action = course.is_ignored ? 'restoring' : 'ignoring';
+    this.showSnackbar(`Please wait, ${action} preference...`);
+
+    this.preferencesService.toggleIgnorePreference(course.preferences_id, this.data.faculty_id.toString())
+      .subscribe({
+        next: (response) => {
+          course.is_ignored = response.is_ignored;
+          this.showSnackbar(response.message || `Preference successfully ${course.is_ignored ? 'ignored' : 'restored'}.`);
+        },
+        error: () => {
+          this.showSnackbar(`Failed to ${course.is_ignored ? 'restore' : 'ignore'} preference. Please try again.`);
+        }
+      });
+  }
+
+  /**
    * Closes the active dialog modal.
    */
   closeDialog(): void {
@@ -426,7 +455,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     coursesArray: Course[][],
     showPreview: boolean = false,
   ): Blob | void {
-    const doc = new jsPDF('p', 'mm', 'legal') as any;
+    const doc = new jsPDF('p', 'mm', 'a4') as any;
     let currentY = 15;
 
     try {
@@ -440,6 +469,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         )
         .subscribe((newY) => {
           currentY = newY;
+          this.reportHeaderService.addStandardFooter(doc);
 
           coursesArray.forEach((courses) => {
             if (!courses || courses.length === 0) return;
@@ -503,15 +533,15 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
                 cellPadding: 2,
               },
               columnStyles: {
-                0: { cellWidth: 10 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 20 },
+                0: { cellWidth: 8 },
+                1: { cellWidth: 18 },
+                2: { cellWidth: 18 },
                 3: { cellWidth: 30 },
                 4: { cellWidth: 40 },
                 5: { cellWidth: 13 },
                 6: { cellWidth: 13 },
                 7: { cellWidth: 13 },
-                8: { cellWidth: 40 },
+                8: { cellWidth: 35 },
                 
               },
               margin: { left: 10, right: 10 },
@@ -532,6 +562,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
                 )
                 .subscribe((newPageY) => {
                   currentY = newPageY;
+                  this.reportHeaderService.addStandardFooter(doc);
                 });
             }
           });

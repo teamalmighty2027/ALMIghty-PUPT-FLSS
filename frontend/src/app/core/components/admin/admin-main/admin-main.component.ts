@@ -155,9 +155,7 @@ export class AdminMainComponent implements OnInit {
 
     this.authService.logout().subscribe({
       next: () => {
-        this.cookieService.deleteAll('/');
         loadingDialogRef.close();
-        this.router.navigate(['/login']);
       },
       error: (error) => {
         console.error('Logout failed', error);

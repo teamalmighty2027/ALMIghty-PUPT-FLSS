@@ -6,13 +6,20 @@
 }
 
 .header-container {
-  @include mixins.flex-layout($align: stretch, $justify: space-between);
+  @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-md));
+  flex-wrap: wrap;
   @include mixins.default-transition;
   padding-bottom: var(--spacing-sm);
 
   .input-container {
     @include mixins.flex-layout($gap: var(--spacing-md));
     flex-wrap: wrap;
+    flex: 0 1 auto; // Prevents the container from expanding to fill the whole screen horizontally
+    margin-bottom: 0;
+
+    mat-form-field {
+      min-width: 120px;
+    }
 
     .search-field {
       width: auto;
@@ -40,69 +47,82 @@
 
     .curriculum-field {
       width: auto;
+      flex: 1;
     }
 
     .academic-year-field {
       flex: 1;
     }
+
+    .category-field {
+      width: auto;
+      flex: 0.9;
+    }
   }
 
-  .object-container {
-    @include mixins.flex-layout($align: stretch);
+  .header-actions {
+    @include mixins.flex-layout($align: center, $justify: flex-end, $gap: var(--spacing-md));
+    flex-wrap: wrap;
+    flex: 1 0 auto;
 
-    .active-year-sem-container {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: flex-start,
-        $gap: var(--spacing-xxs)
-      );
+    .button-container {
+      @include mixins.flex-layout($align: center, $justify: center, $gap: var(--spacing-md));
+      flex: 0 0 auto;
+    }
 
-      @include mixins.gradient-primary(315deg);
-      padding: 0 var(--spacing-md);
-      border-radius: var(--border-radius-md);
-      color: white;
-      cursor: pointer;
+    .object-container {
+      @include mixins.flex-layout($align: center);
+      flex: 0 0 auto;
 
-      .text,
-      .label {
-        @include mixins.reset-styles;
-      }
+      .active-year-sem-container {
+        @include mixins.flex-layout(
+          $direction: column,
+          $align: flex-start,
+          $justify: center,
+          $gap: var(--spacing-xxs)
+        );
 
-      .text {
-        font-weight: 500;
-      }
+        @include mixins.gradient-primary(315deg);
+        padding: var(--spacing-sm) var(--spacing-md);
+        border-radius: var(--border-radius-md);
+        color: white;
+        cursor: pointer;
 
-      .label {
-        opacity: var(--opacity-semi-opaque);
+        .text,
+        .label {
+          @include mixins.reset-styles;
+        }
+
+        .text {
+          font-weight: 500;
+        }
+
+        .label {
+          opacity: var(--opacity-semi-opaque);
+        }
       }
     }
   }
 
-  .button-container {
-    @include mixins.flex-layout($align: flex-end, $justify: space-between);
-    gap: var(--spacing-md);
-  }
-
   .tooltip-container {
-    width: 100%;
+    width: auto;
   }
 
   .custom-mat-button {
     color: white;
-    width: 100%;
+    width: auto;
+    padding: 0 var(--spacing-md);
   }
 
   .add-button {
     background-color: var(--primary-one);
-    width: 90%;
-    max-width: 240px;
+    min-width: 140px;
   }
 
   .button-wrapper {
-    @include mixins.flex-layout($gap: var(--spacing-xxs));
+    @include mixins.flex-layout($gap: var(--spacing-xxs), $align: center);
 
     mat-icon {
-      @include mixins.flex-layout($justify: flex-start);
       font-size: var(--font-size-lg);
     }
   }

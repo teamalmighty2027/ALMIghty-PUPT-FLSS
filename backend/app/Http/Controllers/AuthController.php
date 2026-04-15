@@ -302,7 +302,9 @@ class AuthController extends Controller
                 'is_full_access'   => $isFullAccess,
             ];
 
-            if (in_array('faculty', $requestedRole)) {                
+            if ($user->role === 'superadmin') {
+                $userDataArray['role'] = 'superadmin';
+            } else if (in_array('faculty', $requestedRole)) {                
                 // Add to user data if faculty
                 $userDataArray['role'] = 'faculty';
                 $userDataArray['faculty'] = $user->faculty ? [
@@ -313,8 +315,6 @@ class AuthController extends Controller
                 ] : null;
             } else if (in_array('admin', $requestedRole)) {
                 $userDataArray['role'] = 'admin';
-            } else if (in_array('superadmin', $requestedRole)) {
-                $userDataArray['role'] = 'superadmin';
             }
 
             $userDataJson = json_encode($userDataArray);
@@ -360,7 +360,22 @@ class AuthController extends Controller
         try {
             $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
             
-            $response = Http::withoutVerifying()->asJson()->post(
+            // Get token from Authorization header (preferred, more secure)
+            $idpToken = $request->bearerToken();
+
+            if (empty($idpToken)) {
+                return response()->json([
+                    'message' => 'IDP token is missing.',
+                ], 400);
+            }
+
+            $requestHttp = Http::withoutVerifying()->asJson();
+
+            if ($idpToken) {
+                $requestHttp = $requestHttp->withToken($idpToken);
+            }
+
+            $response = $requestHttp->post(
                 $logoutUrl,
                 ['client_id' => $clientId]
             );

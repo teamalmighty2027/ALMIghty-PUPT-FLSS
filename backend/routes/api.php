@@ -220,6 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/toggle-single-preferences', [PreferenceController::class, 'toggleSinglePreferences']);
     Route::post('/request-access', [PreferenceController::class, 'requestAccess']);
     Route::post('/cancel-request-access', [PreferenceController::class, 'cancelRequestAccess']);
+    Route::patch('/preferences/{preference_id}/toggle-ignore', [PreferenceController::class, 'toggleIgnorePreference']);
 
     /**
      * Rescheduling Appeals
@@ -309,6 +310,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * AI Assisted Scheduling
      */
     Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
 
     /**
      * Year Level

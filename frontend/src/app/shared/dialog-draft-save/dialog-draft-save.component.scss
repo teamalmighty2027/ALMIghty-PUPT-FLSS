@@ -1,0 +1,154 @@
+:host {
+  display: block;
+  min-width: 450px;
+  max-width: 600px;
+  padding: 8px;
+}
+
+.progress-section {
+  margin-bottom: 24px;
+
+  .progress-text {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary, rgba(0, 0, 0, 0.6));
+    text-align: right;
+  }
+}
+
+.results-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.02);
+  
+  /* Custom scrollbar for better look */
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+  }
+}
+
+.result-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  flex-wrap: wrap;
+  transition: background-color 0.2s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .status-icon {
+    margin-right: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+  }
+
+  .entry-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    .room-code {
+      font-weight: 600;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+    }
+
+    .details {
+      font-size: 0.75rem;
+      color: var(--text-secondary, rgba(0, 0, 0, 0.5));
+      margin-top: 1px;
+    }
+  }
+
+  .error-msg, .skipped-msg {
+    width: 100%;
+    margin-top: 6px;
+    margin-left: 38px;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .error-msg {
+    color: #d32f2f;
+    background: rgba(211, 47, 47, 0.05);
+  }
+
+  .skipped-msg {
+    color: #ed6c02;
+    background: rgba(237, 108, 2, 0.05);
+    font-style: italic;
+  }
+
+  &.error {
+    background-color: rgba(211, 47, 47, 0.02);
+  }
+
+  &.skipped {
+    background-color: rgba(237, 108, 2, 0.01);
+  }
+}
+
+.summary-section {
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+
+  .summary-line {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .stat {
+    &.success { color: #2e7d32; }
+    &.error { color: #d32f2f; }
+    &.skipped { color: #ed6c02; }
+  }
+
+  .separator {
+    color: rgba(0, 0, 0, 0.15);
+  }
+}
+
+.success-text { color: #2e7d32; }
+.error-text { color: #d32f2f; }
+.amber-text { color: #ed6c02; }
+
+.spinning {
+  display: inline-block;
+  animation: rotate 1.5s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+[mat-dialog-title] {
+  margin: 0;
+  padding: 20px 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+mat-dialog-actions {
+  padding: 16px 24px !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
