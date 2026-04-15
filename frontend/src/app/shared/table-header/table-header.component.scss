@@ -14,6 +14,10 @@
     @include mixins.flex-layout($gap: var(--spacing-md));
     flex-wrap: wrap;
 
+    mat-form-field {
+      min-width: 120px;
+    }
+
     .search-field {
       width: auto;
       flex: 1;
@@ -40,6 +44,7 @@
 
     .curriculum-field {
       width: auto;
+      flex: 1;
     }
 
     .academic-year-field {
@@ -47,6 +52,7 @@
     }
 
     .category-field {
+      width: auto;
       flex: 0.9;
     }
   }
