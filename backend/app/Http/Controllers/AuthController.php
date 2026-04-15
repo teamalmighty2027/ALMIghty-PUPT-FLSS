@@ -360,8 +360,8 @@ class AuthController extends Controller
         try {
             $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
             
-            // Get token from Authorization header (preferred, more secure)
-            $idpToken = $request->bearerToken();
+            // Get IDP token from request body (not Authorization header, to avoid Sanctum middleware interference)
+            $idpToken = $request->input('idp_token');
 
             if (empty($idpToken)) {
                 return response()->json([
