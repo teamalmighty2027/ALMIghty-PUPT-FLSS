@@ -17,6 +17,10 @@
     flex: 0 1 auto; // Prevents the container from expanding to fill the whole screen horizontally
     margin-bottom: 0;
 
+    mat-form-field {
+      min-width: 120px;
+    }
+
     .search-field {
       width: auto;
       flex: 1;
@@ -43,10 +47,16 @@
 
     .curriculum-field {
       width: auto;
+      flex: 1;
     }
 
     .academic-year-field {
       flex: 1;
+    }
+
+    .category-field {
+      width: auto;
+      flex: 0.9;
     }
   }
 
