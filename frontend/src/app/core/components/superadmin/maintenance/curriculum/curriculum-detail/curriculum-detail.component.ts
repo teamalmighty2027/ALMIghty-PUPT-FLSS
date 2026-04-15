@@ -475,6 +475,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     if (categoryChanged) {
       this.selectedCategory = values['category'];
+      this.renderGroups = []; // Immediate clear
       needsRender = true;
       if (this.selectedCategory === 'Bridging') {
         refreshBridging = true;
@@ -1236,6 +1237,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
               coursesToExport = semester.courses || [];
             }
 
+            // Apply Search Filter for "Current View" export
+            if (!exportAll && this.searchQuery) {
+              const searchLower = this.searchQuery.toLowerCase().trim();
+              coursesToExport = coursesToExport.filter(c => 
+                c.course_code.toLowerCase().includes(searchLower) || 
+                c.course_title.toLowerCase().includes(searchLower)
+              );
+            }
+
             if (coursesToExport.length === 0) return;
 
             // Semester Header Row
@@ -1355,7 +1365,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         doc.text("No courses available for the selected filters.", 10, 20);
       } else {
         for (const [index, program] of activePrograms.entries()) {
-          await this.addProgramToPDF(doc, program, index === 0, yearFilter, semFilter, bridgingData.get(program.program_id));
+          await this.addProgramToPDF(
+            doc, 
+            program, 
+            index === 0, 
+            yearFilter, 
+            semFilter, 
+            exportAll, 
+            bridgingData.get(program.program_id)
+          );
         }
       }
 
@@ -1377,6 +1395,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     isFirstProgram: boolean,
     filterYear: string | number,
     filterSemester: string | number,
+    exportAll: boolean,
     bridgingCourses?: BridgingCourse[]
   ): Promise<void> {
     const pageHeight = doc.internal.pageSize.height;
@@ -1413,15 +1432,24 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
               sortedSemesters = sortedSemesters.filter(sem => sem.semester === Number(filterSemester));
             }
 
-            for (const semester of sortedSemesters) {
-              let coursesToExport: any[] = [];
-              if (this.selectedCategory === 'Bridging' && bridgingCourses) {
-                coursesToExport = bridgingCourses.filter(bc => bc.year_level_id === yearLevel.year_level_id && bc.semester_id === semester.semester_id);
-              } else {
-                coursesToExport = semester.courses || [];
-              }
+              for (const semester of sortedSemesters) {
+                let coursesToExport: any[] = [];
+                if (this.selectedCategory === 'Bridging' && bridgingCourses) {
+                  coursesToExport = bridgingCourses.filter(bc => bc.year_level_id === yearLevel.year_level_id && bc.semester_id === semester.semester_id);
+                } else {
+                  coursesToExport = semester.courses || [];
+                }
 
-              if (coursesToExport.length === 0) continue;
+                // Apply Search Filter for "Current View" export
+                if (!exportAll && this.searchQuery) {
+                  const searchLower = this.searchQuery.toLowerCase().trim();
+                  coursesToExport = coursesToExport.filter(c => 
+                    c.course_code.toLowerCase().includes(searchLower) || 
+                    c.course_title.toLowerCase().includes(searchLower)
+                  );
+                }
+
+                if (coursesToExport.length === 0) continue;
 
               if (currentY + 20 > pageHeight - bottomMargin) {
                 this.reportHeaderService.addStandardFooter(doc); 

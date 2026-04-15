@@ -57,7 +57,11 @@
         </div>
       } @else if (renderGroups.length === 0) {
         <div style="text-align: center; padding: 3rem; color: #666; font-size: 16px; font-weight: 500;">
-           No courses found matching the selected filters.
+           @if (selectedCategory === 'Bridging') {
+             No bridging courses found matching the selected filters.
+           } @else {
+             No courses found matching the selected filters.
+           }
         </div>
       } @else {
         @for (group of renderGroups; track group.id; let i = $index) {
