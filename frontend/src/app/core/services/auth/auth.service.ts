@@ -126,9 +126,9 @@ export class AuthService {
       return of(null);
     }
     
-    // Send access token as Authorization header (more secure than body)
-    return this.http.post(`${this.baseUrl}/auth/session`, {}, {
-      headers: { Authorization: `Bearer ${cookieToken}` }
+    // Send access token in request body to avoid Sanctum middleware interference
+    return this.http.post(`${this.baseUrl}/auth/session`, {
+      idp_token: cookieToken
     }).pipe(
       catchError((error) => {
         console.error('Error logging out from IDP:', error);
