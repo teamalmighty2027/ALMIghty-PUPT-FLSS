@@ -302,9 +302,6 @@ export class PreferencesService {
   updatePreferencesCache(facultyId: string): void {
     this.preferencesCache.delete(facultyId);
     this.getPreferencesByFacultyId(facultyId).subscribe({
-      next: () => {
-        console.log(`Preferences cache updated for faculty ID ${facultyId}.`);
-      },
       error: (error) => {
         console.error(
           `Error updating preferences cache for faculty ID ${facultyId}:`,

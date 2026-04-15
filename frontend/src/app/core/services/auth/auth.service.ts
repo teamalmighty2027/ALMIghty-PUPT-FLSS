@@ -117,28 +117,24 @@ export class AuthService {
 
   /**
    * Calls the IDP's logout endpoint to invalidate the session
-   * then clears cookies as well
-   * Skipped in dev mode to avoid IDP logout during testing
+   * Returns an observable that completes after proxying or skipping
    */
-  logoutFromIdp(): void {
-    // Skip IDP logout in dev mode
-    if (!environment.production) {
-      console.log('[DEV MODE] IDP logout skipped - clearCookies still called');
-      this.clearCookies();
-      return;
+  logoutFromIdp(): Observable<any> {
+    const cookieToken = this.cookieService.get('access_token');
+
+    if (!cookieToken) {
+      return of(null);
     }
     
-    // Proxy through backend to avoid browser CORS issues
-    this.http.request('POST', `${this.baseUrl}/auth/session`, {})
-    .subscribe({
-      next: () => {
-        this.clearCookies();
-      },
-      error: (error) => {
+    // Send access token as Authorization header (more secure than body)
+    return this.http.post(`${this.baseUrl}/auth/session`, {}, {
+      headers: { Authorization: `Bearer ${cookieToken}` }
+    }).pipe(
+      catchError((error) => {
         console.error('Error logging out from IDP:', error);
-        this.clearCookies();
-      }
-    });
+        return of(null);
+      })
+    );
   }
 
   // ==============================
@@ -159,11 +155,12 @@ export class AuthService {
 
   logout(): Observable<any> {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
+      catchError(() => of(null)),
+      switchMap(() => this.logoutFromIdp()),
       finalize(() => {
-        this.logoutFromIdp();
         this.clearCookies();
         this.router.navigate(['/login']);
-      }),
+      })
     );
   }
 
@@ -232,8 +229,16 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
   
-    this.cookieService.set('access_token', access_token, expiryDate, '/');
-    this.cookieService.set('refresh_token', refresh_token, expiryDate, '/');
+    // Explicitly set flags for production HTTPS compatibility
+    const cookieOptions = {
+        expires: expiryDate,
+        path: '/',
+        secure: true,
+        sameSite: 'Lax' as const
+    };
+
+    this.cookieService.set('access_token', access_token, cookieOptions);
+    this.cookieService.set('refresh_token', refresh_token, cookieOptions);
   }
 
   setSanctumToken(sanctumToken: string, expiresAt: string): void {
@@ -263,6 +268,7 @@ export class AuthService {
       'refresh_token',
       'permissions',
       'allowed_programs',
+      'scheduling_selected_program',
     ];
 
     cookiesToClear.forEach((cookieName) => {
@@ -273,6 +279,8 @@ export class AuthService {
     localStorage.removeItem('oauth_state');
     localStorage.removeItem('user_data');
     localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     this.userDataCache = null;
   }
 

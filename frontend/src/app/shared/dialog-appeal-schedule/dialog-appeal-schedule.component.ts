@@ -323,10 +323,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
             this.snackBar.open(response.message || 'Appeal submitted successfully.', 
               'Close', {duration: 3000,}
             );
-            // TODO: Remove the send appeal button to the schedule block 
           },
           error: (error) => {
-            console.log('Full error:', JSON.stringify(error));
+            console.error('Appeal error:', JSON.stringify(error));
             this.snackBar.open(error.message, 
               'Close', {duration: 3000,}
             );
