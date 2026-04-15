@@ -170,12 +170,28 @@
             </td>
           </ng-container>
 
-          <ng-container matColumnDef="preferredDayTime">
+           <ng-container matColumnDef="preferredDayTime">
             <th mat-header-cell *matHeaderCellDef class="custom-header">
               Preferred Day & Time
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
               {{ formatPreferredDaysAndTime(element) }}
+            </td>
+          </ng-container>
+ 
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Ignore
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <button 
+                mat-icon-button 
+                class="toggle-ignore-button"
+                [class.is-ignored]="element.is_ignored"
+                [attr.title]="element.is_ignored ? 'Restore Preference' : 'Ignore Preference'"
+                (click)="toggleIgnore(element); $event.stopPropagation()">
+                <mat-icon mat-symbol="{{ element.is_ignored ? 'visibility' : 'visibility_off' }}"></mat-icon>
+              </button>
             </td>
           </ng-container>
 
@@ -191,10 +207,11 @@
               'labHours',
               'units',
               'preferredDayTime'
-            ]"
+            ].concat(data.isAdmin ? ['actions'] : [])"
           ></tr>
           <tr
             mat-row
+            [class.ignored-row]="row.is_ignored"
             *matRowDef="
               let row;
               columns: [
@@ -207,12 +224,12 @@
                 'labHours',
                 'units',
                 'preferredDayTime'
-              ]
+              ].concat(data.isAdmin ? ['actions'] : [])
             "
           ></tr>
 
           <tr *matNoDataRow>
-            <td class="no-data-cell" [attr.colspan]="9">
+            <td class="no-data-cell" [attr.colspan]="data.isAdmin ? 10 : 9">
               <div class="flex-cell">
                 <span mat-symbol="info"></span>
                 <span>No preferences have been submitted yet.</span>

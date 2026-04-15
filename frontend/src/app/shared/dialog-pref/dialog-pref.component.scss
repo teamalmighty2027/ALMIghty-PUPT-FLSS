@@ -132,6 +132,35 @@
           }
         }
       }
+
+      .ignored-row {
+        opacity: 0.6;
+        background-color: var(--neutral-fade) !important;
+        
+        .custom-cell {
+          text-decoration: line-through;
+        }
+
+        &:hover {
+          opacity: 0.8 !important;
+        }
+      }
+
+      .toggle-ignore-button {
+          @include mixins.default-transition;
+          color: var(--primary-text);
+          opacity: 0.6;
+
+          &:hover {
+              opacity: 1;
+              background-color: var(--primary-fade);
+          }
+
+          &.is-ignored {
+              color: var(--status-error);
+              opacity: 1;
+          }
+      }
     }
   }
 }
