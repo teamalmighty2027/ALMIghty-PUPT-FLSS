@@ -45,6 +45,11 @@ class SectionCourse extends Model
         );
     }
 
+    public function schedule()
+    {
+        return $this->hasOne(Schedule::class, 'section_course_id', 'section_course_id');
+    }
+
     public function schedules()
     {
         return $this->hasMany(Schedule::class, 'section_course_id', 'section_course_id');
