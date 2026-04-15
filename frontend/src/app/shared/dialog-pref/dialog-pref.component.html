@@ -233,7 +233,7 @@
               ></tr>
               <tr
                 mat-row
-                [class.ignored-row]="row.is_ignored"
+                [class.ignored-row]="data.isAdmin && row.is_ignored"
                 *matRowDef="
                   let row;
                   columns: [

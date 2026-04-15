@@ -252,8 +252,10 @@ class PreferenceController extends Controller
                         ->select('programs.program_id', 'programs.program_code')
                         ->first();
 
-                    return [
+                    return ($preference->is_ignored) ? collect() : [
                         'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
+                        'preferences_id'       => $preference->preferences_id,
+                        'is_ignored'           => (bool) $preference->is_ignored,
                         'temporary_course_offering_id' => null,
                         'course_details'       => [
                             'course_id'    => $preference->course_id ?? 'N/A',
@@ -278,10 +280,14 @@ class PreferenceController extends Controller
                     ];
                 }
                 if ($preference->temporary_course_offering_id) {
+                    if ($preference->is_ignored) {
+                        return collect();
+                    }
+
                     $temporaryOffering = $temporaryOfferingsById->get($preference->temporary_course_offering_id);
 
                     if (! $temporaryOffering) {
-                        return [];
+                        return collect();
                     }
 
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
@@ -297,6 +303,8 @@ class PreferenceController extends Controller
 
                     return [
                         'course_assignment_id' => null,
+                        'preferences_id'       => $preference->preferences_id,
+                        'is_ignored'           => (bool) $preference->is_ignored,
                         'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
                         'course_details'       => [
                             'course_id'    => $temporaryOffering->course_id ?? 'N/A',
