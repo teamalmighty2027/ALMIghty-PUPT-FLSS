@@ -1,1 +1,23 @@
 /documents
+
+# Node modules
+node_modules/
+
+# Compiled output
+dist/
+tmp/
+out-tsc/
+bazel-out/
+
+# IDEs and editors
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# Angular CLI
+.angular/
+.nx/
