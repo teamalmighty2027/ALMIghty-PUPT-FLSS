@@ -714,7 +714,9 @@ class ReportsController extends Controller
             ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
+            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
             ->leftJoin('rooms', 'rooms.room_id', '=', 'schedules.room_id')
             ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
             ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
@@ -732,16 +734,17 @@ class ReportsController extends Controller
                 'schedules.end_time',
                 'rooms.room_code',
                 'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours',
-                'courses.lab_hours',
-                'courses.units',
-                'courses.tuition_hours',
+                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
+                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
+                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec_hours'),
+                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab_hours'),
+                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
+                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
                 'programs.program_code',
                 'programs.program_title',
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
+                'temporary_course_offerings.type as offering_type',
                 DB::raw('IFNULL(faculty_schedule_publication.is_published, 0) as is_published')
             )
             ->get();
