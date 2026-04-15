@@ -455,7 +455,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     coursesArray: Course[][],
     showPreview: boolean = false,
   ): Blob | void {
-    const doc = new jsPDF('p', 'mm', 'legal') as any;
+    const doc = new jsPDF('p', 'mm', 'a4') as any;
     let currentY = 15;
 
     try {
@@ -469,6 +469,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         )
         .subscribe((newY) => {
           currentY = newY;
+          this.reportHeaderService.addStandardFooter(doc);
 
           coursesArray.forEach((courses) => {
             if (!courses || courses.length === 0) return;
@@ -532,15 +533,15 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
                 cellPadding: 2,
               },
               columnStyles: {
-                0: { cellWidth: 10 },
-                1: { cellWidth: 20 },
-                2: { cellWidth: 20 },
+                0: { cellWidth: 8 },
+                1: { cellWidth: 18 },
+                2: { cellWidth: 18 },
                 3: { cellWidth: 30 },
                 4: { cellWidth: 40 },
                 5: { cellWidth: 13 },
                 6: { cellWidth: 13 },
                 7: { cellWidth: 13 },
-                8: { cellWidth: 40 },
+                8: { cellWidth: 35 },
                 
               },
               margin: { left: 10, right: 10 },
@@ -561,6 +562,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
                 )
                 .subscribe((newPageY) => {
                   currentY = newPageY;
+                  this.reportHeaderService.addStandardFooter(doc);
                 });
             }
           });
