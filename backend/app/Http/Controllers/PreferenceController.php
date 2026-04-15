@@ -252,8 +252,10 @@ class PreferenceController extends Controller
                         ->select('programs.program_id', 'programs.program_code')
                         ->first();
 
-                    return [
+                    return ($preference->is_ignored) ? collect() : [
                         'course_assignment_id' => $preference->course_assignment_id ?? 'N/A',
+                        'preferences_id'       => $preference->preferences_id,
+                        'is_ignored'           => (bool) $preference->is_ignored,
                         'temporary_course_offering_id' => null,
                         'course_details'       => [
                             'course_id'    => $preference->course_id ?? 'N/A',
@@ -278,10 +280,14 @@ class PreferenceController extends Controller
                     ];
                 }
                 if ($preference->temporary_course_offering_id) {
+                    if ($preference->is_ignored) {
+                        return collect();
+                    }
+
                     $temporaryOffering = $temporaryOfferingsById->get($preference->temporary_course_offering_id);
 
                     if (! $temporaryOffering) {
-                        return [];
+                        return collect();
                     }
 
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
@@ -297,6 +303,8 @@ class PreferenceController extends Controller
 
                     return [
                         'course_assignment_id' => null,
+                        'preferences_id'       => $preference->preferences_id,
+                        'is_ignored'           => (bool) $preference->is_ignored,
                         'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
                         'course_details'       => [
                             'course_id'    => $temporaryOffering->course_id ?? 'N/A',
@@ -441,7 +449,7 @@ class PreferenceController extends Controller
                         )
                         ->first();
 
-                    return $submittedCourse
+                    return ($submittedCourse && !$preference->is_ignored)
                         ? [[
                             'course_assignment_id' => $submittedCourse->course_assignment_id ?? 'N/A',
                             'temporary_course_offering_id' => null,
@@ -456,6 +464,8 @@ class PreferenceController extends Controller
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
                             'units'          => $submittedCourse->units ?? 0,
                             'preferred_days' => $preferenceDays,
+                            'preferences_id' => $preference->preferences_id,
+                            'is_ignored'     => (bool) $preference->is_ignored,
                             'is_temporary'          => false,
                             'temporary_type'        => null,
                             'temporary_status'      => null,
@@ -483,6 +493,10 @@ class PreferenceController extends Controller
                             ];
                         })->values()->toArray();
 
+                    if ($preference->is_ignored) {
+                        return collect();
+                    }
+
                     return [[
                         'course_assignment_id' => null,
                         'temporary_course_offering_id' => $temporaryOffering->temporary_course_offering_id,
@@ -497,6 +511,8 @@ class PreferenceController extends Controller
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
                         'units'          => $temporaryOffering->units ?? 0,
                         'preferred_days' => $preferenceDays,
+                        'preferences_id' => $preference->preferences_id,
+                        'is_ignored'     => (bool) $preference->is_ignored,
                         'is_temporary'          => true,
                         'temporary_type'        => $temporaryOffering->type ?? null,
                         'temporary_status'      => $temporaryOffering->status ?? null,
@@ -640,6 +656,8 @@ class PreferenceController extends Controller
                     'lab_hours'            => is_numeric($temporaryOffering->course?->lab_hours) ? (int) $temporaryOffering->course->lab_hours : 0,
                     'units'                => $temporaryOffering->course?->units ?? 0,
                     'preferred_days'       => $preferenceDays,
+                    'preferences_id'       => $preference->preferences_id,
+                    'is_ignored'           => (bool) $preference->is_ignored,
                     'is_temporary'          => true,
                     'temporary_type'        => $temporaryOffering->type ?? null,
                     'temporary_status'      => $temporaryOffering->status ?? null,
@@ -674,6 +692,8 @@ class PreferenceController extends Controller
                 'lab_hours'            => is_numeric($preference->courseAssignment->course->lab_hours) ? (int) $preference->courseAssignment->course->lab_hours : 0,
                 'units'                => $preference->courseAssignment->course->units ?? 0,
                 'preferred_days'       => $preferenceDays,
+                'preferences_id'       => $preference->preferences_id,
+                'is_ignored'           => (bool) $preference->is_ignored,
                 'is_temporary'          => false,
                 'temporary_type'        => null,
                 'temporary_status'      => null,
@@ -1295,6 +1315,60 @@ class PreferenceController extends Controller
         return response()->json([
             'message'     => 'Access request submitted successfully.',
             'has_request' => 1,
+        ], 200);
+    }
+
+    /**
+     * Toggles the 'is_ignored' flag for a specific faculty preference.
+     */
+    public function toggleIgnorePreference(Request $request, $preference_id)
+    {
+        if (!$request->user() || !$request->user()
+            ->hasPermission('edit_faculty_preferences')
+        ) {
+            return response()->json([
+                'message' => 'Unauthorized. You do not have permission to toggle preference ignore status.',
+            ], 403);
+        }
+
+        $preference = Preference::find($preference_id);
+
+        if (! $preference) {
+            return response()->json([
+                'message' => 'Preference not found.',
+            ], 404);
+        }
+
+        $oldStatus = $preference->is_ignored;
+        $preference->is_ignored = ! $oldStatus;
+        $preference->save();
+
+        // ═══════════════════════════════════════════════════════
+        // AUDIT LOG: Toggle Preference Ignore
+        // ═══════════════════════════════════════════════════════
+        $facultyId = $preference->faculty_id;
+        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+            $q->where('id', $facultyId);
+        })->first();
+        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+        $courseReference = $preference->course_assignment_id
+            ? "Course Assignment ID: {$preference->course_assignment_id}"
+            : "Temporary Offering ID: {$preference->temporary_course_offering_id}";
+
+        $action = $preference->is_ignored ? 'ignored' : 'restored';
+        
+        AuditLogger::logUpdate(
+            model: 'Preference',
+            modelId: $preference->preferences_id,
+            oldData: ['is_ignored' => $oldStatus],
+            newData: ['is_ignored' => $preference->is_ignored],
+            description: "Admin {$action} schedule preference for {$facultyName} ({$courseReference})"
+        );
+
+        return response()->json([
+            'message'    => "Preference successfully " . ($preference->is_ignored ? "ignored" : "restored") . ".",
+            'is_ignored' => $preference->is_ignored,
         ], 200);
     }
 

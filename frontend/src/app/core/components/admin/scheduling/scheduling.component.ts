@@ -1605,6 +1605,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
           pref.active_semesters.forEach((semester) => {
             semester.courses.forEach((course) => {
+              if (course.is_ignored) return;
+              
               if (course.course_details.course_id === schedule.course_id) {
                 const existingFaculty = suggestedFaculty.find(
                   (f) => f.faculty_id === facultyDetails.faculty_id
