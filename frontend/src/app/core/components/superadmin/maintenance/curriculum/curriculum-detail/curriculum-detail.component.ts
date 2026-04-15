@@ -59,6 +59,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public selectedProgram: string | number = 'All';
   public selectedYear: string | number = 'All';
   public selectedSemester: string | number = 'All';
+  public selectedCategory: 'Regular' | 'Bridging' = 'Regular';
   public searchQuery: string = '';
   
   public renderGroups: any[] = []; 
@@ -241,6 +242,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.headerInputFields = [
       { type: 'text', label: 'Search Course', key: 'courseSearch', placeholder: 'Search by code or title' },
+      { type: 'select', label: 'Category', key: 'category', options: [
+        { key: 'Regular', label: 'Regular Courses' },
+        { key: 'Bridging', label: 'Bridging Courses' }
+      ]},
       { type: 'select', label: 'Program', key: 'program', options: programOptions },
       { type: 'select', label: 'Year Level', key: 'yearLevel', options: yearLevelOptions },
       { type: 'select', label: 'Semester', key: 'semester', options: semesterOptions },
@@ -330,9 +335,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.searchQuery$.next(values['courseSearch']);
     }
 
+    const categoryChanged = values['category'] !== undefined && values['category'] !== this.selectedCategory;
     const programChanged = values['program'] !== undefined && values['program'] !== this.selectedProgram;
     const yearChanged = values['yearLevel'] !== undefined && values['yearLevel'] !== this.selectedYear;
     const semesterChanged = values['semester'] !== undefined && values['semester'] !== this.selectedSemester;
+
+    if (categoryChanged) {
+      this.selectedCategory = values['category'];
+      needsRender = true;
+      if (this.selectedCategory === 'Bridging') {
+        refreshBridging = true;
+      }
+    }
 
     if (programChanged) {
       this.selectedProgram = values['program'];
