@@ -119,26 +119,22 @@ export class AuthService {
    * Calls the IDP's logout endpoint to invalidate the session
    * Returns an observable that completes after proxying or skipping
    */
-  logoutFromIdpAsObservable(): Observable<any> {
+  logoutFromIdp(): Observable<any> {
     const cookieToken = this.cookieService.get('access_token');
-    const storageToken = localStorage.getItem('access_token');
-    const accessToken = cookieToken || storageToken;
 
-    if (!accessToken) {
+    if (!cookieToken) {
       return of(null);
     }
     
-    return this.http.post(`${this.baseUrl}/auth/session`, { access_token: accessToken }).pipe(
+    // Send access token as Authorization header (more secure than body)
+    return this.http.post(`${this.baseUrl}/auth/session`, {}, {
+      headers: { Authorization: `Bearer ${cookieToken}` }
+    }).pipe(
       catchError((error) => {
         console.error('Error logging out from IDP:', error);
         return of(null);
       })
     );
-  }
-
-  logoutFromIdp(): void {
-    // Keep this for backward compatibility if needed, but we'll use the observable version
-    this.logoutFromIdpAsObservable().subscribe(() => this.clearCookies());
   }
 
   // ==============================
@@ -158,11 +154,9 @@ export class AuthService {
   }
 
   logout(): Observable<any> {
-    // 1. First logout from local backend
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
-      // 2. Then logout from IDP
-      switchMap(() => this.logoutFromIdpAsObservable()),
-      // 3. Finally clear local data and navigate
+      catchError(() => of(null)),
+      switchMap(() => this.logoutFromIdp()),
       finalize(() => {
         this.clearCookies();
         this.router.navigate(['/login']);
@@ -243,8 +237,6 @@ export class AuthService {
         sameSite: 'Lax' as const
     };
 
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('refresh_token', refresh_token);
     this.cookieService.set('access_token', access_token, cookieOptions);
     this.cookieService.set('refresh_token', refresh_token, cookieOptions);
   }

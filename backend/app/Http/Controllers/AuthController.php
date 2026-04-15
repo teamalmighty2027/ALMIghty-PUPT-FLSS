@@ -356,7 +356,9 @@ class AuthController extends Controller
 
         try {
             $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
-            $idpToken = $request->input('access_token');
+            
+            // Get token from Authorization header (preferred, more secure)
+            $idpToken = $request->bearerToken();
 
             if (empty($idpToken)) {
                 return response()->json([
@@ -367,7 +369,7 @@ class AuthController extends Controller
             $requestHttp = Http::withoutVerifying()->asJson();
 
             if ($idpToken) {
-                $requestHttp->withToken($idpToken);
+                $requestHttp = $requestHttp->withToken($idpToken);
             }
 
             $response = $requestHttp->post(
