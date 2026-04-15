@@ -409,6 +409,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           
           if (!yearLevelData || !semesterData) return;
 
+          // Manual filtering for cases where API returns more than requested (e.g. All Years + Specific Semester)
+          if (this.selectedYear !== 'All' && yearLevelData.year !== Number(this.selectedYear)) return;
+          if (this.selectedSemester !== 'All' && semesterData.semester !== Number(this.selectedSemester)) return;
+
           const key = `${prog.program_id}-${yearLevelData.year}-${semesterData.semester}`;
           if (!courseMap.has(key)) {
             courseMap.set(key, []);
@@ -901,15 +905,20 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   onEditBridgingCourse(bridgingCourse: BridgingCourse): void {
     if (!this.curriculum) return;
 
-    const program = this.getSelectedProgramData();
-    const yearLevel = Number(this.selectedYear);
-    const semesterValue = Number(this.selectedSemester);
+    // Use context from the course item if available (from aggregated view), otherwise fallback to global filters
+    const bc = bridgingCourse as any;
+    const program = bc.program || this.getSelectedProgramData();
+    const yearLevel = bc.yearLevel?.year || Number(this.selectedYear);
+    const semesterValue = bc.originalSemester?.semester || Number(this.selectedSemester);
     const programId = program?.program_id;
 
-    const yearLevelData = program ? this.getSelectedYearLevelData(program, yearLevel) : undefined;
-    const semesterData = yearLevelData ? this.getSelectedSemesterData(yearLevelData, semesterValue) : undefined;
+    const yearLevelData = bc.yearLevel || (program ? this.getSelectedYearLevelData(program, yearLevel) : undefined);
+    const semesterData = bc.originalSemester || (yearLevelData ? this.getSelectedSemesterData(yearLevelData, semesterValue) : undefined);
 
-    if (!program || !programId || !yearLevel || !yearLevelData || !yearLevelData.year_level_id || !semesterData) return;
+    if (!program || !programId || (this.selectedYear !== 'All' && !yearLevel) || !yearLevelData || !yearLevelData.year_level_id || !semesterData) {
+      this.snackBar.open('Cannot determine course context for editing.', 'Close', { duration: 3000 });
+      return;
+    }
 
     forkJoin({
       courses: this.curriculumService.getAllCourses(),
