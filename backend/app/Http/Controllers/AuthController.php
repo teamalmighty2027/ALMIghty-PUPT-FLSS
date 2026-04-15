@@ -352,6 +352,7 @@ class AuthController extends Controller
         $logoutPath = '/api/v1/auth/logout';
 
         if (! $baseUrl || ! $clientId) {
+            Log::error('IDP Configuration missing for logout proxy');
             return response()->json([
                 'message' => 'IDP configuration is missing.',
             ], 500);
@@ -360,10 +361,11 @@ class AuthController extends Controller
         try {
             $logoutUrl = rtrim($baseUrl, '/') . $logoutPath;
             
-            // Get IDP token from request body (not Authorization header, to avoid Sanctum middleware interference)
+            // Get IDP token from request body
             $idpToken = $request->input('idp_token');
 
             if (empty($idpToken)) {
+                Log::warning('IDP logout proxy called without token');
                 return response()->json([
                     'message' => 'IDP token is missing.',
                 ], 400);
