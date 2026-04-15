@@ -1,8 +1,8 @@
 export const environment = {
   production: true,
-  // AZURE BACKEND URL
-  apiUrl: 'https://flss-backend-api-d9eecxcnhpccdpdk.southeastasia-01.azurewebsites.net/api',
+  // Hostinger BACKEND URL
+  apiUrl: 'https://flss.alquatrilixbsit2027.com/api',
   
-  // AZURE FRONTEND URL
-  appUrl: 'https://flssfrontendstore.z23.web.core.windows.net/', 
+  // Hostinger FRONTEND URL
+  appUrl: 'https://flss.alquatrilixbsit2027.com', 
 };

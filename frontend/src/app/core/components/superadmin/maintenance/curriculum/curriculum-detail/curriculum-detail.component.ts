@@ -516,6 +516,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ===========================
+  // Duplicate Detection Logic
+  // ===========================
   isCourseDuplicate(courseCode: string, excludeCourseId?: number, isBridging: boolean = false): boolean {
     if (!this.curriculum || isBridging) return false;
     
@@ -638,6 +641,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   getCourseIdByTitle(title: string, programBridgingCourses: BridgingCourse[] = []): number | undefined {
+    // Check bridging courses first
     const bridgingCourse = programBridgingCourses.find(bc => `${bc.course_code} - ${bc.course_title}` === title);
     if (bridgingCourse) return bridgingCourse.course_id;
 
@@ -1071,8 +1075,10 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .map((c: any) => `${c.course_code} - ${c.course_title}`)
       .sort((a: string, b: string) => a.localeCompare(b)) || [];
 
-    let existingPreReqs: string[] = course?.prerequisites ? course.prerequisites.map(p => `${p.course_code} - ${p.course_title}`) : [];
-    let existingCoReqs: string[] = course?.corequisites ? course.corequisites.map(c => `${c.course_code} - ${c.course_title}`) : [];
+    let existingPreReqs: string[] = course?.prerequisites ? course.prerequisites
+      .map(p => `${p.course_code} - ${p.course_title}`) : [];
+    let existingCoReqs: string[] = course?.corequisites ? course.corequisites
+      .map(c => `${c.course_code} - ${c.course_title}`) : [];
 
     return {
       title: course ? 'Edit Course' : 'Add Course',
