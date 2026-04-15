@@ -22,31 +22,40 @@
   <div class="curriculum-semesters-container">
     <div class="scrollable-content">
 
-      <div class="bridging-section" [@pageFloatUpAnimation]>
-        @if (!canManageBridgingCourses) {
-          <div class="bridging-note">
-            Select a program, year level, and semester to manage bridging courses.
-          </div>
-        } @else if (isLoadingBridging) {
-          <div class="bridging-note">Loading bridging courses...</div>
-        } @else {
-          <app-table-generic
-            [columns]="bridgingColumns"
-            [data]="bridgingCourses"
-            [tableName]="'bridging course'"
-            [displayedColumns]="bridgingDisplayedColumns"
-            [showTableHeading]="true"
-            [tableHeadingTitle]="bridgingHeading"
-            [tableHeadingButtonText]="'Add Bridging Course'"
-            [tableHeadingButtonIcon]="'add'"
-            (tableHeadingButtonClick)="onAddBridgingCourse()"
-            (edit)="onEditBridgingCourse($event)"
-            (delete)="onDeleteBridgingCourse($event)"
-          ></app-table-generic>
-        }
-      </div>
+      @if (selectedCategory === 'Regular') {
+        <div class="bridging-section" [@pageFloatUpAnimation]>
+          @if (!canManageBridgingCourses) {
+            <div class="bridging-note">
+              Select a program, year level, and semester to manage bridging courses.
+            </div>
+          } @else if (isLoadingBridging) {
+            <div class="bridging-note">Loading bridging courses...</div>
+          } @else {
+            <app-table-generic
+              [columns]="bridgingColumns"
+              [data]="bridgingCourses"
+              [tableName]="'bridging course'"
+              [displayedColumns]="bridgingDisplayedColumns"
+              [showTableHeading]="true"
+              [tableHeadingTitle]="bridgingHeading"
+              [tableHeadingButtonText]="'Add Bridging Course'"
+              [tableHeadingButtonIcon]="'add'"
+              (tableHeadingButtonClick)="onAddBridgingCourse()"
+              (edit)="onEditBridgingCourse($event)"
+              (delete)="onDeleteBridgingCourse($event)"
+            ></app-table-generic>
+          }
+        </div>
+      }
       
-      @if (renderGroups.length === 0) {
+      @if (selectedCategory === 'Bridging' && isLoadingBridging) {
+        <div class="loading-wrapper" style="padding: 5rem 0;">
+          <app-loading></app-loading>
+          <div style="text-align: center; margin-top: 1rem; color: #666;">
+            Fetching bridging courses...
+          </div>
+        </div>
+      } @else if (renderGroups.length === 0) {
         <div style="text-align: center; padding: 3rem; color: #666; font-size: 16px; font-weight: 500;">
            No courses found matching the selected filters.
         </div>
@@ -54,17 +63,17 @@
         @for (group of renderGroups; track group.id; let i = $index) {
         <div class="semester-container" [@pageFloatUpAnimation]>
           <app-table-generic
-            [columns]="columns"
+            [columns]="group.isBridging ? bridgingColumns : columns"
             [data]="group.courses"
-            [tableName]="'course/s'"
-            [displayedColumns]="displayedColumns"
+            [tableName]="group.isBridging ? 'bridging course' : 'course/s'"
+            [displayedColumns]="group.isBridging ? bridgingDisplayedColumns : displayedColumns"
             [showTableHeading]="true"
             [tableHeadingTitle]="group.heading"
-            [tableHeadingButtonText]="'Add Course'"
+            [tableHeadingButtonText]="group.isBridging ? 'Add Bridging Course' : 'Add Course'"
             [tableHeadingButtonIcon]="'add'"
-            (tableHeadingButtonClick)="onAddCourse(group)"
-            (edit)="onEditCourse($event, group)"
-            (delete)="onDeleteCourse($event, group)"
+            (tableHeadingButtonClick)="group.isBridging ? onAddBridgingCourseFromGroup(group) : onAddCourse(group)"
+            (edit)="group.isBridging ? onEditBridgingCourse($event) : onEditCourse($event, group)"
+            (delete)="group.isBridging ? onDeleteBridgingCourse($event) : onDeleteCourse($event, group)"
           ></app-table-generic>
         </div>
         }

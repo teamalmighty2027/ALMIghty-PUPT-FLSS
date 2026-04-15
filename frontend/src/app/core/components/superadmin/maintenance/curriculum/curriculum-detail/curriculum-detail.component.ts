@@ -2,7 +2,7 @@ import { Component, OnInit, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 
-import { forkJoin, Observable, Subject } from 'rxjs';
+import { forkJoin, Observable, Subject, of } from 'rxjs';
 import { finalize, switchMap, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { MatDialog } from '@angular/material/dialog';
@@ -26,6 +26,7 @@ import {
   Semester,
   Course,
   BridgingCourse,
+  CourseRequirement,
   CourseWithRequirements,
   CourseRequirementLink,
 } from '../../../../../services/superadmin/curriculum/curriculum.service';
@@ -272,6 +273,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   updateRenderGroups() {
     if (!this.curriculum) return;
 
+    if (this.selectedCategory === 'Bridging') {
+      this.updateBridgingRenderGroups();
+      return;
+    }
+
     let groups: any[] = [];
     const searchLower = this.searchQuery.toLowerCase().trim();
 
@@ -325,6 +331,130 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.renderGroups = groups;
     this.cdr.detectChanges();
+  }
+
+  /**
+   * Updates the render groups for bridging courses.
+   * This method is called when the selected category is 'Bridging'.
+   */
+  updateBridgingRenderGroups() {
+    if (!this.curriculum) return;
+
+    const searchLower = this.searchQuery.toLowerCase().trim();
+    const programsToProcess = this.selectedProgram === 'All'
+      ? this.curriculum.programs
+      : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram));
+
+    // Handle empty case early
+    if (programsToProcess.length === 0) {
+      this.renderGroups = [];
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.isLoadingBridging = true;
+    this.renderGroups = []; 
+
+    const observables = programsToProcess.map(prog => {
+      // Find yearLevel and semester IDs if filtered
+      let yearLevelId: number | undefined;
+      let semesterId: number | undefined;
+
+      if (this.selectedYear !== 'All') {
+        const yl = prog.year_levels.find(yl => yl.year === Number(this.selectedYear));
+        yearLevelId = yl?.year_level_id;
+      }
+
+      if (this.selectedSemester !== 'All' && yearLevelId) {
+        const yl = prog.year_levels.find(y => y.year_level_id === yearLevelId);
+        const sem = yl?.semesters.find(s => s.semester === Number(this.selectedSemester));
+        semesterId = sem?.semester_id;
+      }
+
+      return this.curriculumService.getBridgingCourses(
+        this.curriculum!.curriculum_id,
+        prog.program_id,
+        yearLevelId,
+        semesterId
+      ).pipe(
+        // Attach program context for grouping later
+        switchMap(courses => of({ prog, courses }))
+      );
+    });
+
+    forkJoin(observables).pipe(
+      finalize(() => {
+        this.isLoadingBridging = false;
+        this.cdr.detectChanges();
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(results => {
+      let groups: any[] = [];
+
+      results.forEach(({ prog, courses }) => {
+        // Group these bridging courses by year and semester for this program
+        const courseMap = new Map<string, any[]>();
+
+        courses.forEach((course: BridgingCourse) => {
+          // Apply search filter
+          const codeMatch = course.course_code.toLowerCase().includes(searchLower);
+          const titleMatch = course.course_title.toLowerCase().includes(searchLower);
+          if (searchLower && !codeMatch && !titleMatch) return;
+
+          const yearLevelData = prog.year_levels.find((yl: YearLevel) => yl.year_level_id === course.year_level_id);
+          const semesterData = yearLevelData?.semesters.find((sem: Semester) => sem.semester_id === course.semester_id);
+          
+          if (!yearLevelData || !semesterData) return;
+
+          const key = `${prog.program_id}-${yearLevelData.year}-${semesterData.semester}`;
+          if (!courseMap.has(key)) {
+            courseMap.set(key, []);
+          }
+
+          // Format for generic table
+          const preReqCodes = course.prerequisites?.map((p: CourseRequirement) => p.course_code) || [];
+          const coReqCodes = course.corequisites?.map((c: CourseRequirement) => c.course_code) || [];
+
+          courseMap.get(key)!.push({
+            ...course,
+            pre_req: preReqCodes.length ? preReqCodes.join(', ') : 'None',
+            co_req: coReqCodes.length ? coReqCodes.join(', ') : 'None',
+            // Field for action handling
+            originalSemester: semesterData,
+            program: prog,
+            yearLevel: yearLevelData
+          });
+        });
+
+        courseMap.forEach((groupedCourses, key) => {
+          const first = groupedCourses[0];
+          let heading = `Bridging Courses - ${this.getSemesterDisplay(first.originalSemester.semester)}`;
+          
+          if (this.selectedProgram === 'All' || this.selectedYear === 'All') {
+             heading = `${first.program.name} - Year ${first.yearLevel.year} - ${heading}`;
+          }
+
+          groups.push({
+            id: key,
+            heading: heading,
+            courses: groupedCourses,
+            originalSemester: first.originalSemester,
+            program: first.program,
+            yearLevel: first.yearLevel,
+            isBridging: true
+          });
+        });
+      });
+
+      // Sort groups by Program, Year, Semester
+      this.renderGroups = groups.sort((a, b) => {
+        if (a.program.name !== b.program.name) return a.program.name.localeCompare(b.program.name);
+        if (a.yearLevel.year !== b.yearLevel.year) return a.yearLevel.year - b.yearLevel.year;
+        return a.originalSemester.semester - b.originalSemester.semester;
+      });
+      
+      this.cdr.detectChanges();
+    });
   }
 
   onInputChange(values: { [key: string]: any }) {
@@ -597,6 +727,67 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .filter((code): code is string => !!code);
   }
 
+  /**
+   * Handles adding a bridging course from a specific group.
+   * @param group The group from which to add a bridging course.
+   */
+  onAddBridgingCourseFromGroup(group: any): void {
+    if (!this.curriculum) return;
+
+    const program = group.program;
+    const yearLevelData = group.yearLevel;
+    const semesterData = group.originalSemester;
+    const programId = program.program_id;
+
+    if (!program || !programId || !yearLevelData || !yearLevelData.year_level_id || !semesterData) return;
+
+    this.curriculumService.getBridgingCourses(this.curriculum.curriculum_id, programId).subscribe({
+      next: (programBridgingCourses) => {
+        const dialogConfig = this.getBridgingDialogConfig(program, yearLevelData.year, undefined, [], [], programBridgingCourses);
+        const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, disableClose: true, autoFocus: true });
+
+        dialogRef.afterClosed().subscribe((result) => {
+          if (!result) return;
+
+          const preReqIds = this.mapTitlesToIds(result.pre_req, programBridgingCourses);
+          const coReqIds = this.mapTitlesToIds(result.co_req, programBridgingCourses);
+
+          this.isManagingBridging = true;
+
+          this.curriculumService.addCourse({
+            course_code: result.course_code, course_title: result.course_title, lec_hours: Number(result.lec_hours), lab_hours: Number(result.lab_hours), units: Number(result.units), tuition_hours: Number(result.tuition_hours),
+            requirements: [
+              ...preReqIds.map((id: number) => ({ requirement_type: 'pre', required_course_id: id })),
+              ...coReqIds.map((id: number) => ({ requirement_type: 'co', required_course_id: id })),
+            ],
+          })
+            .pipe(
+              switchMap((response) => {
+                const createdCourseId = response?.course?.course_id;
+                if (!createdCourseId) throw new Error('Course creation response missing course id.');
+                return this.curriculumService.addBridgingCourse({
+                  curriculum_id: this.curriculum!.curriculum_id, program_id: programId, year_level_id: yearLevelData.year_level_id, semester_id: semesterData.semester_id, course_id: createdCourseId,
+                });
+              })
+            )
+            .pipe(finalize(() => (this.isManagingBridging = false)))
+            .subscribe({
+              next: () => {
+                this.snackBar.open('Bridging course added successfully.', 'Close', { duration: 3000 });
+                if (this.selectedCategory === 'Bridging') {
+                  this.updateBridgingRenderGroups();
+                } else {
+                  this.loadBridgingCourses();
+                }
+              },
+              error: (error) => { this.snackBar.open(error?.error?.message || error?.message || 'Error adding bridging course. Please try again.', 'Close', { duration: 3000 }); },
+            });
+        });
+      },
+      error: (error) => { this.snackBar.open('Error loading prerequisite options. Please try again.', 'Close', { duration: 3000 }); },
+    });
+  }
+
   private loadBridgingCourses(): void {
     if (!this.canManageBridgingCourses || !this.curriculum) { this.bridgingCourses = []; return; }
 
@@ -744,7 +935,14 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             })
             .pipe(finalize(() => (this.isManagingBridging = false)))
             .subscribe({
-              next: () => { this.snackBar.open('Bridging course updated successfully.', 'Close', { duration: 3000 }); this.loadBridgingCourses(); },
+              next: () => {
+                this.snackBar.open('Bridging course updated successfully.', 'Close', { duration: 3000 });
+                if (this.selectedCategory === 'Bridging') {
+                  this.updateBridgingRenderGroups();
+                } else {
+                  this.loadBridgingCourses();
+                }
+              },
               error: (error) => { this.snackBar.open(error?.error?.message || error?.message || 'Error updating bridging course.', 'Close', { duration: 3000 }); },
             });
         });
@@ -759,7 +957,14 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService.deleteBridgingCourse(bridgingCourse.bridging_course_id)
       .pipe(finalize(() => (this.isManagingBridging = false)))
       .subscribe({
-        next: () => { this.snackBar.open('Bridging course deleted successfully.', 'Close', { duration: 3000 }); this.loadBridgingCourses(); },
+        next: () => {
+          this.snackBar.open('Bridging course deleted successfully.', 'Close', { duration: 3000 });
+          if (this.selectedCategory === 'Bridging') {
+            this.updateBridgingRenderGroups();
+          } else {
+            this.loadBridgingCourses();
+          }
+        },
         error: (error) => { this.snackBar.open(error?.error?.message || 'Error deleting bridging course.', 'Close', { duration: 3000 }); },
       });
   }
