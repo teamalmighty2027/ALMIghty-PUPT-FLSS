@@ -1313,8 +1313,16 @@ class PreferenceController extends Controller
     /**
      * Toggles the 'is_ignored' flag for a specific faculty preference.
      */
-    public function toggleIgnorePreference($preference_id)
+    public function toggleIgnorePreference(Request $request, $preference_id)
     {
+        if (!$request->user() || !$request->user()
+            ->hasPermission('edit_faculty_preferences')
+        ) {
+            return response()->json([
+                'message' => 'Unauthorized. You do not have permission to toggle preference ignore status.',
+            ], 403);
+        }
+
         $preference = Preference::find($preference_id);
 
         if (! $preference) {
