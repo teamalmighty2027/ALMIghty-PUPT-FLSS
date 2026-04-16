@@ -29,7 +29,8 @@
         'year-level-field': field.key === 'yearLevel',
         'curriculum-field': field.key === 'curriculum',
         'sections-field': field.key === 'section',
-        'academic-year-field': field.key === 'academicYear'
+        'academic-year-field': field.key === 'academicYear',
+        'category-field': field.key === 'category'
       }"
       subscriptSizing="dynamic">
       <mat-label>{{ field.label }}</mat-label>
@@ -46,64 +47,66 @@
     } }
   </form>
 
-  <!--Buttons-->
-  @if (showButtons) {
-  <div class="button-container">
-    <!-- Export to PDF Button -->
-    @if (showExportButton) {
-    <span
-      class="tooltip-container"
-      [matTooltip]="tooltipMessage"
-      [matTooltipDisabled]="!buttonDisabled">
-      <button
-        mat-flat-button
-        class="ter-ripple custom-mat-button export-button"
-        (click)="onExport()"
-        [disabled]="buttonDisabled"
-        [ngClass]="{ 'disabled-button': buttonDisabled }">
-        <mat-icon>picture_as_pdf</mat-icon>
-        <span>Export to PDF</span>
-      </button>
-    </span>
-    }
+  <div class="header-actions">
+    <!--Buttons-->
+    @if (showButtons) {
+    <div class="button-container">
+      <!-- Export to PDF Button -->
+      @if (showExportButton) {
+      <span
+        class="tooltip-container"
+        [matTooltip]="tooltipMessage"
+        [matTooltipDisabled]="!buttonDisabled">
+        <button
+          mat-flat-button
+          class="ter-ripple custom-mat-button export-button"
+          (click)="onExport()"
+          [disabled]="buttonDisabled"
+          [ngClass]="{ 'disabled-button': buttonDisabled }">
+          <mat-icon>picture_as_pdf</mat-icon>
+          <span>Export to PDF</span>
+        </button>
+      </span>
+      }
 
-    <!-- Add Button -->
-    @if (showAddButton) {
-    <span
-      class="tooltip-container"
-      [matTooltip]="addButtonTooltip"
-      [matTooltipDisabled]="!addButtonTooltip">
-      <button
-        mat-flat-button
-        class="custom-mat-button add-button"
-        [disabled]="buttonDisabled || addButtonDisabled"
-        [ngClass]="{ 'disabled-button': buttonDisabled || addButtonDisabled }"
-        (click)="onAdd()">
-        <div class="button-wrapper">
-          @if (isLoading) {
-          <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
-          } @else {
-          <mat-icon>{{ addIconName }}</mat-icon>
-          {{ addButtonLabel }}
-          }
-        </div>
-      </button>
-    </span>
-    }
-  </div>
-  }
-
-  <!--Objects-->
-  @if (showActiveYearAndSem) {
-  <div class="object-container">
-    <div
-      class="active-year-sem-container pop"
-      (click)="onActiveYearSemClick()"
-      [matTooltip]="'View and set active academic year and semester'"
-      matRipple>
-      <p class="text">A.Y. {{ activeYear }}, {{ activeSemester }}</p>
-      <p class="label">Active Year & Semester</p>
+      <!-- Add Button -->
+      @if (showAddButton) {
+      <span
+        class="tooltip-container"
+        [matTooltip]="addButtonTooltip"
+        [matTooltipDisabled]="!addButtonTooltip">
+        <button
+          mat-flat-button
+          class="custom-mat-button add-button"
+          [disabled]="buttonDisabled || addButtonDisabled"
+          [ngClass]="{ 'disabled-button': buttonDisabled || addButtonDisabled }"
+          (click)="onAdd()">
+          <div class="button-wrapper">
+            @if (isLoading) {
+            <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
+            } @else {
+            <mat-icon>{{ addIconName }}</mat-icon>
+            {{ addButtonLabel }}
+            }
+          </div>
+        </button>
+      </span>
+      }
     </div>
+    }
+
+    <!--Objects-->
+    @if (showActiveYearAndSem) {
+    <div class="object-container">
+      <div
+        class="active-year-sem-container pop"
+        (click)="onActiveYearSemClick()"
+        [matTooltip]="'View and set active academic year and semester'"
+        matRipple>
+        <p class="text">A.Y. {{ activeYear }}, {{ activeSemester }}</p>
+        <p class="label">Active Year & Semester</p>
+      </div>
+    </div>
+    }
   </div>
-  }
 </div>

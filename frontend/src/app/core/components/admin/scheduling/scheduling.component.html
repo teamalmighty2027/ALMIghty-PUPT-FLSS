@@ -1,252 +1,329 @@
 <div class="scheduling-container">
   <!--Display while loading-->
   @if (isLoading) {
-  <div class="loading-wrapper">
-    <app-loading></app-loading>
-  </div>
-  } @else {
-
-  <!--Scheduling Header-->
-  <div class="scheduling-header-container" [@fadeAnimation]>
-    <app-table-header
-      [inputFields]="headerInputFields"
-      [showExportButton]="false"
-      [showAddButton]="true"
-      [showActiveYearAndSem]="true"
-      [showButtons]="true"
-      [addButtonLabel]="'Add Bridging Course'"
-      [addIconName]="'add'"
-      (add)="openAddTemporaryCourseDialog()"
-      [addButtonDisabled]="!hasBridgingCourses || !selectedSection || isCreatingTemporaryCourse"
-      [buttonDisabled]="!selectedSection || isCreatingTemporaryCourse"
-      [addButtonTooltip]="addButtonTooltip"
-      [isLoading]="isCreatingTemporaryCourse"
-      (inputChange)="onInputChange($event)"
-      [selectedValues]="{
-        program: selectedProgram,
-        yearLevel: selectedYear,
-        section: selectedSection
-      }"
-      [activeYear]="activeYear"
-      [activeSemester]="activeSemesterLabel"
-      (activeYearSemClick)="openActiveYearSemesterDialog()"
-    ></app-table-header>
-  </div>
-
-  <!--Scheduling Table-->
-  <div class="scheduling-table-container" [@fadeAnimation]>
-    <div class="table-container">
-      <table mat-table [dataSource]="schedules" class="custom-table">
-        <!-- Index Column -->
-        <ng-container matColumnDef="index">
-          <th mat-header-cell *matHeaderCellDef class="custom-header index">
-            #
-          </th>
-          <td mat-cell *matCellDef="let element; let i = index" class="index">
-            {{ i + 1 }}
-          </td>
-        </ng-container>
-
-        <!-- Course Code Column -->
-        <ng-container matColumnDef="course_code">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            Course Code
-          </th>
-          <td
-            mat-cell
-            *matCellDef="let element"
-            class="custom-cell course-code-cell"
-          >
-            <div class="course-code-wrapper">
-              {{ element.course_code }}
-
-              @if (element.is_temporary) {
-              <span
-                class="temporary-badge"
-                [matTooltip]="getTemporaryTooltip(element)"
-              >
-                {{ getTemporaryBadgeText(element) }}
-              </span>
-              }
-              
-              <!-- Add Icon for Original Courses -->
-              @if (!element.is_copy) { @if (processingCourseId ===
-              element.section_course_id) {
-              <mat-spinner class="custom-spinner" diameter="15"></mat-spinner>
-              } @else {
-              <span
-                mat-symbol="content_copy"
-                class="copy-icon"
-                (click)="addCourseCopy(element)"
-                matTooltip="Add {{
-                  getOrdinalSuffix(getScheduleCount(element) + 1)
-                }} schedule for {{ element.course_code }}"
-              ></span>
-              } }
-
-              <!-- Remove Icon for Copied Courses -->
-              @if (element.is_copy) { @if (processingCourseId ===
-              element.section_course_id) {
-              <mat-spinner class="custom-spinner" diameter="15"></mat-spinner>
-              } @else {
-              <span
-                mat-symbol="do_not_disturb_on"
-                class="remove-icon"
-                (click)="removeCourseCopy(element)"
-                matTooltip="Remove {{
-                  getOrdinalSuffix(getScheduleIndex(element))
-                }} schedule for {{ element.course_code }}"
-              ></span>
-              } }
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Course Title Column -->
-        <ng-container matColumnDef="course_title">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            Course Title
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell max-cell">
-            {{ element.course_title }}
-          </td>
-        </ng-container>
-
-        <!-- Lec Hours Column -->
-        <ng-container matColumnDef="lec_hours">
-          <th mat-header-cell *matHeaderCellDef class="custom-header min">
-            Lec
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            {{ element.lec_hours }}
-          </td>
-        </ng-container>
-
-        <!-- Lab Hours Column -->
-        <ng-container matColumnDef="lab_hours">
-          <th mat-header-cell *matHeaderCellDef class="custom-header min">
-            Lab
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            {{ element.lab_hours }}
-          </td>
-        </ng-container>
-
-        <!-- Units Column -->
-        <ng-container matColumnDef="units">
-          <th mat-header-cell *matHeaderCellDef class="custom-header min">
-            Units
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            {{ element.units }}
-          </td>
-        </ng-container>
-
-        <!-- Day Column -->
-        <ng-container matColumnDef="day">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">Day</th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            <span [class.not-set-badge]="element.day === 'Not set'">
-              {{ element.day }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Time Column -->
-        <ng-container matColumnDef="time">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">Time</th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            <span [class.not-set-badge]="element.time === 'Not set'">
-              {{ element.time }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Professor Column -->
-        <ng-container matColumnDef="professor">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            Professor
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            <span [class.not-set-badge]="element.professor === 'Not set'">
-              {{ element.professor }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Room Column -->
-        <ng-container matColumnDef="room">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">Room</th>
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            <span [class.not-set-badge]="isRoomNotSet(element.room)">
-              {{ formatRoomForDisplay(element.room) }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Action Column -->
-        <ng-container matColumnDef="action">
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            Action
-          </th>
-          <td mat-cell *matCellDef="let element" class="custom-cell action">
-            <div class="action-button-container">
-              @if (element.is_temporary && !element.is_copy) {
-              <button
-                mat-button
-                class="archive-button sec-ripple"
-                (click)="openArchiveTemporaryCourseDialog(element)"
-                matTooltip="Archive temporary offering"
-              >
-                <div class="button-content">
-                  <mat-icon>archive</mat-icon>
-                  <span>Archive</span>
-                </div>
-              </button>
-              }
-              <button
-                mat-button
-                class="edit-button sec-ripple"
-                (click)="openEditScheduleDialog(element)"
-                [disabled]="loadingScheduleId === element.schedule_id"
-              >
-                <div class="button-content">
-                  @if (loadingScheduleId === element.schedule_id) {
-                  <mat-spinner
-                    class="custom-spinner-two"
-                    diameter="25"
-                  ></mat-spinner>
-                  } @else {
-                  <mat-icon>edit</mat-icon>
-                  <span>Edit</span>
-                  }
-                </div>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr
-          mat-row
-          *matRowDef="let row; columns: displayedColumns; let i = index"
-          [class.has-copies]="hasCopies(row)"
-          [class.last-copy]="isLastCopy(row, i)"
-        ></tr>
-
-        <!-- No Data Row -->
-        <tr *matNoDataRow>
-          <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
-            <div class="flex-cell">
-              <div class="no-data-text">
-                <span mat-symbol="info"></span>
-                <span> No schedules found.</span>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
     </div>
-  </div>
+  } @else {
+    <!--Scheduling Header-->
+    <div class="scheduling-header-container" [@fadeAnimation]>
+      <app-table-header
+        [inputFields]="headerInputFields"
+        [showExportButton]="false"
+        [showAddButton]="true"
+        [showActiveYearAndSem]="true"
+        [showButtons]="true"
+        [addButtonLabel]="'Add Bridging Course'"
+        [addIconName]="'add'"
+        (add)="openAddTemporaryCourseDialog()"
+        [addButtonDisabled]="
+          !hasBridgingCourses || !selectedSection || isCreatingTemporaryCourse
+        "
+        [buttonDisabled]="!selectedSection || isCreatingTemporaryCourse"
+        [addButtonTooltip]="addButtonTooltip"
+        [isLoading]="isCreatingTemporaryCourse"
+        (inputChange)="onInputChange($event)"
+        [selectedValues]="{
+          program: selectedProgram,
+          yearLevel: selectedYear,
+          section: selectedSection,
+        }"
+        [activeYear]="activeYear"
+        [activeSemester]="activeSemesterLabel"
+        (activeYearSemClick)="openActiveYearSemesterDialog()"
+      ></app-table-header>
+
+      <!-- Draft Mode Toggle (Only when NOT in draft mode) -->
+      @if (!isDraftMode) {
+        <div class="draft-toggle-container">
+          <button mat-flat-button color="accent" (click)="toggleDraftMode()" 
+                  [disabled]="!selectedSection || isCreatingTemporaryCourse">
+            <mat-icon>edit_note</mat-icon>
+            Enter Draft Mode
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Draft Toolbar -->
+    @if (isDraftMode) {
+      <div class="draft-toolbar" [@pageFloatUpAnimation]>
+        <div class="draft-info">
+          <mat-icon class="amber-icon">history_edu</mat-icon>
+          <div class="texts">
+            <span class="title">Draft Mode Active</span>
+            <span class="desc"><strong>Changes are local until you save.</strong> {{ draftSchedules.length }} courses in draft.</span>
+          </div>
+        </div>
+
+        <div class="draft-actions">
+          <button mat-stroked-button (click)="openHistoricalDialog()" [disabled]="isAiFilling || isHistoricalLoading">
+            @if (isHistoricalLoading) { <mat-spinner diameter="18"></mat-spinner> }
+            @else { <mat-icon>history</mat-icon> }
+            History Fill
+          </button>
+
+          <button mat-stroked-button (click)="fillWithAI()" [disabled]="isAiFilling || isHistoricalLoading">
+            @if (isAiFilling) {
+              <div class="progress-info">
+                <mat-spinner diameter="18"></mat-spinner>
+                <span>{{ aiFillProgress.current }}/{{ aiFillProgress.total }}</span>
+              </div>
+            } @else { <mat-icon>auto_awesome</mat-icon> }
+            AI Auto-fill
+          </button>
+
+          <div class="divider"></div>
+
+          <button mat-flat-button color="warn" (click)="discardDraft()">
+            <mat-icon>delete_sweep</mat-icon>
+            Discard
+          </button>
+
+          <button mat-flat-button color="primary" class="save-btn" (click)="saveDraft()" 
+                  [disabled]="isAiFilling || isHistoricalLoading">
+            <mat-icon>save</mat-icon>
+            Save Draft
+          </button>
+
+          <button mat-flat-button color="warn" (click)="toggleDraftMode()" 
+                  [disabled]="!selectedSection || isCreatingTemporaryCourse || isAiFilling">
+            <mat-icon>close</mat-icon>
+            Exit Draft Mode
+          </button>
+        </div>
+      </div>
+    }
+
+    <!--Scheduling Table-->
+    <div class="scheduling-table-container" [@fadeAnimation] [class.draft-active]="isDraftMode">
+      <div class="table-container">
+        <table mat-table [dataSource]="tableData" class="custom-table">
+          <!-- Index Column -->
+          <ng-container matColumnDef="index">
+            <th mat-header-cell *matHeaderCellDef class="custom-header index">
+              #
+            </th>
+            <td mat-cell *matCellDef="let element; let i = index" class="index">
+              {{ i + 1 }}
+            </td>
+          </ng-container>
+
+          <!-- Course Code Column -->
+          <ng-container matColumnDef="course_code">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Course Code
+            </th>
+            <td
+              mat-cell
+              *matCellDef="let element"
+              class="custom-cell course-code-cell"
+            >
+              <div class="course-code-wrapper">
+                {{ element.course_code }}
+
+                @if (element.is_temporary) {
+                  <span
+                    class="temporary-badge"
+                    [matTooltip]="getTemporaryTooltip(element)"
+                  >
+                    {{ getTemporaryBadgeText(element) }}
+                  </span>
+                }
+
+                <!-- Add Icon for Original Courses -->
+                @if (!element.is_copy) {
+                  @if (processingCourseId === element.section_course_id) {
+                    <mat-spinner
+                      class="custom-spinner"
+                      diameter="15"
+                    ></mat-spinner>
+                  } @else {
+                    <span
+                      mat-symbol="content_copy"
+                      class="copy-icon"
+                      (click)="addCourseCopy(element)"
+                      matTooltip="Add {{
+                        getOrdinalSuffix(getScheduleCount(element) + 1)
+                      }} schedule for {{ element.course_code }}"
+                    ></span>
+                  }
+                }
+
+                <!-- Remove Icon for Copied Courses -->
+                @if (element.is_copy) {
+                  @if (processingCourseId === element.section_course_id) {
+                    <mat-spinner
+                      class="custom-spinner"
+                      diameter="15"
+                    ></mat-spinner>
+                  } @else {
+                    <span
+                      mat-symbol="do_not_disturb_on"
+                      class="remove-icon"
+                      (click)="removeCourseCopy(element)"
+                      matTooltip="Remove {{
+                        getOrdinalSuffix(getScheduleIndex(element))
+                      }} schedule for {{ element.course_code }}"
+                    ></span>
+                  }
+                }
+              </div>
+            </td>
+          </ng-container>
+
+          <!-- Course Title Column -->
+          <ng-container matColumnDef="course_title">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Course Title
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell max-cell">
+              {{ element.course_title }}
+            </td>
+          </ng-container>
+
+          <!-- Lec Hours Column -->
+          <ng-container matColumnDef="lec_hours">
+            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+              Lec
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              {{ element.lec_hours }}
+            </td>
+          </ng-container>
+
+          <!-- Lab Hours Column -->
+          <ng-container matColumnDef="lab_hours">
+            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+              Lab
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              {{ element.lab_hours }}
+            </td>
+          </ng-container>
+
+          <!-- Units Column -->
+          <ng-container matColumnDef="units">
+            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+              Units
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              {{ element.units }}
+            </td>
+          </ng-container>
+
+          <!-- Day Column -->
+          <ng-container matColumnDef="day">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">Day</th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <span [class.not-set-badge]="element.day === 'Not set'">
+                {{ element.day }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Time Column -->
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Time
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <span [class.not-set-badge]="element.time === 'Not set'">
+                {{ element.time }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Professor Column -->
+          <ng-container matColumnDef="professor">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Professor
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <span [class.not-set-badge]="element.professor === 'Not set'">
+                {{ element.professor }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Room Column -->
+          <ng-container matColumnDef="room">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Room
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <span [class.not-set-badge]="isRoomNotSet(element.room)">
+                {{ formatRoomForDisplay(element.room) }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Action Column -->
+          <ng-container matColumnDef="action">
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              Action
+            </th>
+            <td mat-cell *matCellDef="let element" class="custom-cell action">
+              <div class="action-button-container">
+                @if (element.is_temporary && !element.is_copy) {
+                  <button
+                    mat-button
+                    class="archive-button sec-ripple"
+                    (click)="openArchiveTemporaryCourseDialog(element)"
+                    matTooltip="Archive temporary offering"
+                  >
+                    <div class="button-content">
+                      <mat-icon>archive</mat-icon>
+                      <span>Archive</span>
+                    </div>
+                  </button>
+                }
+                <button
+                  mat-button
+                  class="edit-button sec-ripple"
+                  (click)="openEditScheduleDialog(element)"
+                  [disabled]="loadingScheduleId === element.schedule_id"
+                >
+                  <div class="button-content">
+                    @if (loadingScheduleId === element.schedule_id) {
+                      <mat-spinner
+                        class="custom-spinner-two"
+                        diameter="25"
+                      ></mat-spinner>
+                    } @else {
+                      <mat-icon>edit</mat-icon>
+                      <span>Edit</span>
+                    }
+                  </div>
+                </button>
+              </div>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr
+            mat-row
+            *matRowDef="let row; columns: displayedColumns; let i = index"
+            [class.has-copies]="hasCopies(row)"
+            [class.last-copy]="isLastCopy(row, i)"
+            [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
+            [class.draft-conflict]="isDraftMode && isDraftConflict(row)"
+            [@fadeAnimation]
+          ></tr>
+
+          <!-- No Data Row -->
+          <tr *matNoDataRow>
+            <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
+              <div class="flex-cell">
+                <div class="no-data-text">
+                  <span mat-symbol="info"></span>
+                  <span> No schedules found.</span>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
   }
 </div>

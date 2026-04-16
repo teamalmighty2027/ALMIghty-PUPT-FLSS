@@ -12,15 +12,6 @@
   --font-base: 'Inter Tight', 'Helvetica Neue', sans-serif;
   --font-header: 'Trajan Pro', serif;
 
-  // Sienna Widget
-  --sienna-primary-color: #800000 !important;
-  --sienna-accent-color: #800000 !important;
-  --sienna-primary: #800000 !important;
-  --sienna-bg: #800000 !important;
-  --sienna-color: #800000 !important;
-  --sienna-accent: #800000 !important;
-  --sienna-btn-bg: #800000 !important;
-
   // Font Sizes
   --font-size-tiny: 0.4rem;
   --font-size-xs: 0.65rem;
@@ -520,27 +511,53 @@ span[mat-symbol] {
   }
 }
 
-
-.sienna-btn, 
-#sienna-widget-button, 
-.sienna-trigger,
-.sienna-accessibility-btn {
+/* FLSS Maroon Override for Sienna (ASW) Widget - Clean Look */
+html body div.asw-container div.asw-widget a.asw-menu-btn {
+    background: #800000 !important;
     background-color: #800000 !important;
-    color: #ffffff !important;
+    
+    /* Strip away all borders and outlines */
+    border: none !important;       
+    outline: none !important;      
+    
+    /* Keep a nice soft shadow so it still floats above your app */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important; 
     z-index: 9999 !important;
 }
 
-/* Fix for the icon color */
-.sienna-btn svg, 
-.sienna-accessibility-btn svg,
-#sienna-widget-button svg {
+/* Ensure the icon is white, but IGNORE the invisible square bounding box */
+html body div.asw-container div.asw-widget a.asw-menu-btn svg path:not([fill="none"]) {
     fill: #ffffff !important;
 }
 
-.sienna-menu {
-    border-top: 4px solid #800000 !important;
+/* --- FLSS Maroon Override for Sienna Menu Popup --- */
+
+/* 1. Paint the specific header class you found */
+html body div.asw-container .asw-menu-header {
+    background-color: #800000 !important;
 }
 
-.cdk-overlay-container {
-  z-index: 10000 !important;
+/* 2. Paint the inner titles (they live inside the content box) */
+html body div.asw-container .asw-menu-content h2,
+html body div.asw-container .asw-menu-content h3,
+html body div.asw-container .asw-menu-content .asw-section-title {
+    color: #800000 !important;
+}
+
+/* 3. Paint the exact footer class you found */
+html body div.asw-container .asw-footer,
+html body div.asw-container .asw-footer a {
+    color: #800000 !important;
+}
+
+/* 4. Target the toggles */
+html body div.asw-container input[type="checkbox"]:checked + span,
+html body div.asw-container input[type="checkbox"]:checked + div {
+    background-color: #800000 !important;
+    border-color: #800000 !important;
+}
+
+/* The legendary bypass hack: force all child elements to use maroon if they ask for the primary color */
+html body div.asw-container .asw-menu * {
+    --asw-primary: #800000 !important;
 }

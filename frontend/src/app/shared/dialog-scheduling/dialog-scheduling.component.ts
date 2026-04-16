@@ -87,6 +87,7 @@ interface DialogData {
   };
   schedule_id: number;
   course_id: number;
+  isDraftMode?: boolean;
 }
 
 @Component({
@@ -464,6 +465,21 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     // If roomValue === 'TBA', selectedRoomId stays null
     if (formValues.room !== 'TBA') {
       selectedRoomId = selectedRoom?.room_id ?? null;
+    }
+
+    if (this.data.isDraftMode) {
+      this.isLoading = false;
+      this.dialogRef.close({
+        isDraft: true,
+        faculty_id: selectedFaculty?.faculty_id ?? null,
+        faculty_name: formValues.professor || 'Not set',
+        room_id: selectedRoomId,
+        room_code: formValues.room || 'Not set',
+        day: formValues.day ?? null,
+        start_time: formattedStartTime,
+        end_time: formattedEndTime
+      });
+      return;
     }
 
     this.schedulingService.assignSchedule(

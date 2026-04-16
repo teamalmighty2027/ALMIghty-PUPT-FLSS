@@ -138,6 +138,27 @@ export class PreferencesService {
   }
 
   /**
+   * Toggles the ignore status of a specific preference.
+   */
+  toggleIgnorePreference(preferenceId: number, facultyId: string): Observable<any> {
+    const url = `${this.baseUrl}/preferences/${preferenceId}/toggle-ignore`;
+    return this.http.patch(url, {}).pipe(
+      tap(() => {
+        this.clearCaches(facultyId);
+        // Also clear the general preferences cache to reflect changes in the admin list
+        this.clearPreferencesCache();
+      }),
+      catchError((error) => {
+        console.error(
+          `Error toggling ignore status for preference ID ${preferenceId}:`,
+          error
+        );
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
    * Submits a single preference for a faculty member.
    */
   submitSinglePreference(preference: {
@@ -281,9 +302,6 @@ export class PreferencesService {
   updatePreferencesCache(facultyId: string): void {
     this.preferencesCache.delete(facultyId);
     this.getPreferencesByFacultyId(facultyId).subscribe({
-      next: () => {
-        console.log(`Preferences cache updated for faculty ID ${facultyId}.`);
-      },
       error: (error) => {
         console.error(
           `Error updating preferences cache for faculty ID ${facultyId}:`,
