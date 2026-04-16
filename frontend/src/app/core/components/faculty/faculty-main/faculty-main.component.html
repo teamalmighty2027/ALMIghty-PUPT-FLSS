@@ -53,7 +53,7 @@
           src="assets/images/default_faculty_icon.png"
           alt="Profile Icon"
           class="profile-icon"
-          (click)="toggleDropdown($event)"
+          [matMenuTriggerFor]="desktopProfileMenu" 
           matTooltip="Click to open settings"
           matTooltipPosition="below" />
       </div>
@@ -61,42 +61,27 @@
   </header>
 
   <!-- Desktop Account Bottom Sheet -->
-  <ng-template #bottomSheetTemplate>
-    <div class="desktop-bottom-sheet" (click)="$event.stopPropagation()">
-      <div
-        matRipple
-        class="bottom-sheet-item"
-        (click)="onBottomSheetAction('profile')">
-        <span mat-symbol="account_circle"></span>
-        My Profile
-      </div>
-      <div
-        matRipple
-        class="bottom-sheet-item"
-        (click)="onBottomSheetAction('theme')">
-        <span
-          [mat-symbol]="
-            (themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'
-          "></span>
-        Switch Theme
-      </div>
-      <div
-        matRipple
-        class="bottom-sheet-item"
-        (click)="onBottomSheetAction('change-password')">
-        <span mat-symbol="lock"></span>
-        Change Password
-      </div>
-      <div
-        matRipple
-        matRippleColor="#a932321a"
-        class="bottom-sheet-item logout"
-        (click)="onBottomSheetAction('logout')">
-        <span mat-symbol="door_open"></span>
-        Logout
-      </div>
-    </div>
-  </ng-template>
+    <mat-menu #desktopProfileMenu="matMenu" xPosition="before">
+    <button mat-menu-item (click)="onMenuAction('profile')">
+      <span mat-symbol="account_circle" style="margin-right: 8px;"></span>
+      My Profile
+    </button>
+    
+    <button mat-menu-item (click)="onMenuAction('theme')">
+      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" style="margin-right: 8px;"></span>
+      Switch Theme
+    </button>
+    
+    <button mat-menu-item (click)="onMenuAction('change-password')">
+      <span mat-symbol="lock" style="margin-right: 8px;"></span>
+      Change Password
+    </button>
+    
+    <button mat-menu-item (click)="onMenuAction('logout')" style="color: var(--primary-text);">
+      <span mat-symbol="door_open" style="margin-right: 8px; color: var(--primary-text);"></span>
+      Logout
+    </button>
+  </mat-menu>
 
   <!--Faculty Main Content-->
   <main class="faculty-main-content">

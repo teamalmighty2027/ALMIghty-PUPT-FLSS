@@ -121,7 +121,9 @@
 
 html,
 body {
-  height: 100%;
+  /* Remove 'height: 100%;' and replace it with this: */
+  min-height: 100vh;
+  height: auto; 
 }
 
 body {

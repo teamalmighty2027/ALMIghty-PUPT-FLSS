@@ -11,6 +11,7 @@ use App\Http\Controllers\CurriculumDetailsController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FacultyProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
 use App\Http\Controllers\LogoController;
@@ -177,6 +178,8 @@ Route::middleware('auth:sanctum')->group(function () {
      */
     Route::get('/faculty', [FacultyController::class, 'index']);
     Route::post('/faculty', [FacultyController::class, 'store']);
+    Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
+    Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
