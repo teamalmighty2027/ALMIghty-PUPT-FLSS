@@ -29,20 +29,17 @@
 .profile-form-card {
   padding: var(--spacing-2xl);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-level-1);
+  background-color: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); 
+  border: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 /* --- Layout Structures --- */
 
 .split-layout {
   display: grid;
-  /* CHANGE: This forces columns to be ONLY as wide as your inputs */
   grid-template-columns: min-content 1px min-content; 
-  
-  /* ADJUST THIS: Increase the gap to 5rem to push the 'tight' sections 
-     away from the divider line evenly */
   gap: 5rem; 
-  
   justify-content: center;
   align-items: start;
 }
@@ -56,7 +53,6 @@
 .left-section {
   display: flex;
   flex-direction: column;
-  /* CHANGE: Go back to center now that the column is tight */
   align-items: center; 
   gap: var(--spacing-xl);
   width: 100%;
@@ -65,20 +61,16 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    
-    /* ADJUST THIS: Change this value to move the button up or down */
     gap: var(--spacing-md); 
-    
-    /* If you don't want to use variables, use pixels like: gap: 15px; */
   }
 }
+
 .right-section {
   display: flex;
   flex-direction: column;
   gap: 2.5rem; 
-  /* 'flex-start' glues these fields to the divider */
   align-items: flex-start; 
-  margin-left: -1.8rem; /* Small breathing room from the line */
+  margin-left: -1.8rem; 
   padding-top: 7.5rem; 
   width: 100%;
 }
@@ -97,8 +89,8 @@
 
 .address-grid {
   display: grid;
-  grid-template-columns: repeat(3, 250px); /* Adjust field width here */
-  justify-content: center; /* Centers the columns */
+  grid-template-columns: repeat(3, 250px); 
+  justify-content: center; 
   column-gap: 4rem; 
   row-gap: 1.5rem; 
   margin: 0 auto; 
@@ -108,16 +100,14 @@
 /* --- Form Components --- */
 
 .form-control-group {
-  /* ADJUST THIS: Change the value to increase/decrease space between rows */
   margin-bottom: var(--spacing-md); 
-  
   width: 320px; 
 
   label {
     display: block;
     font-weight: 600;
     font-size: var(--font-size-smx);
-    margin-bottom: var(--spacing-xxs); /* Space between label and its input box */
+    margin-bottom: var(--spacing-xxs); 
     color: var(--m3-neutral-20);
     text-align: left;
   }
@@ -127,19 +117,37 @@
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--border-radius-xl);
-  border: 1px solid var(--m3-neutral-80);
+  border: 1.5px solid #e0e0e0;
+  background-color: #fafafa; 
   font-family: var(--font-base);
   @include mixins.default-transition;
 
   &:focus {
     outline: none;
     border-color: var(--sienna-primary-color);
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.1);
   }
+
+  &.ng-invalid.ng-touched {
+    border-color: #d32f2f;
+    background-color: #fff5f5;
+  }
+}
+
+/* Error Text Styling */
+.error-text {
+  display: block;
+  color: #d32f2f;
+  font-size: 0.75rem;
+  margin-top: 4px;
+  margin-left: 12px;
+  font-weight: 500;
 }
 
 .compact-row {
   display: flex;
-  gap: 3rem; /* Horizontal space between paired fields */
+  gap: 3rem; 
   width: 100%;
   max-width: 600px; 
   justify-content: center;
@@ -156,11 +164,21 @@
   }
 }
 
-/* Specific Widths for ID Section */
 .faculty-code { flex: 0 0 210px; }
 .program-id   { flex: 0 0 180px; }
 .birthdate    { flex: 0 0 210px; }
 .sex          { flex: 0 0 180px; }
+
+/* --- Read Only Fields --- */
+.read-only-field {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-weight: 600;
+  color: var(--m3-neutral-30);
+  background-color: transparent;
+  border: 1px dashed var(--m3-neutral-80);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-md);
+}
 
 /* --- Elements & Buttons --- */
 
@@ -204,46 +222,45 @@
   border-top: 1px solid var(--m3-neutral-95);
 
   button {
-    /* 1. The Shared Shape (Pill) */
     border-radius: 50px !important; 
     padding: 0.6rem 2.5rem !important;
     font-family: inherit;
     font-weight: 500;
     cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease;
-    border: none; /* Removes default browser borders */
+    transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+    border: none; 
 
-    &:hover {
+    &:hover:not(:disabled) {
       opacity: 0.9;
       transform: translateY(-1px);
     }
 
-    &:active {
+    &:active:not(:disabled) {
       transform: scale(0.98);
     }
   }
 
-  /* 2. Primary Button (Save Changes) - Matching Update Photo */
-  .sienna-btn {
+  button.sienna-btn {
     background-color: var(--sienna-primary-color) !important;
     color: white !important;
     box-shadow: var(--shadow-level-1);
-    transition: background-color 0.2s ease, opacity 0.2s ease;
     
-    &:disabled {
-      background: var(--m3-neutral-90) !important;
-      color: var(--m3-neutral-60) !important;
-      cursor: not-allowed;
-      transform: none;
+    /* Bulletproof disabled state */
+    &[disabled] {
+      background-color: #e0e0e0 !important; 
+      color: #757575 !important;            
+      border: 1px solid #d4d4d4 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      opacity: 1 !important;
+      transform: none !important;
     }
   }
 
-  /* 3. Secondary Button (Change Password) - Outlined version */
   .btn-secondary-outline {
     background: white !important;
     color: var(--sienna-primary-color) !important;
     border: 1.5px solid var(--sienna-primary-color) !important;
-    transition: background-color 0.2s ease, color 0.2s ease;
     
     &:hover {
       background: rgba(128, 0, 0, 0.05) !important;

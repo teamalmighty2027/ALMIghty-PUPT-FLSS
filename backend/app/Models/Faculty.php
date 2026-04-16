@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\FacultyProfile; // Imported the Profile model
 
 class Faculty extends Authenticatable
 {
@@ -17,6 +18,7 @@ class Faculty extends Authenticatable
     protected $fillable = [
         'user_id',
         'faculty_type_id',
+        'faculty_profile_id', // Added this based on your earlier migration!
     ];
 
     protected $with = ['facultyType'];
@@ -31,6 +33,14 @@ class Faculty extends Authenticatable
     public function facultyType()
     {
         return $this->belongsTo(FacultyType::class, 'faculty_type_id');
+    }
+
+    // ==========================================
+    // NEW: Profile Relationship
+    // ==========================================
+    public function profile()
+    {
+        return $this->hasOne(FacultyProfile::class, 'faculty_id', 'id');
     }
 
     public function getFacultyUnitsAttribute(): float

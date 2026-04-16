@@ -36,7 +36,7 @@ return new class extends Migration
               ->onDelete('set null');
             $table->date('birthdate')->nullable();
             $table->enum('sex', ['Male', 'Female'])->nullable();
-            
+
             $table->timestamps();
         });
 
