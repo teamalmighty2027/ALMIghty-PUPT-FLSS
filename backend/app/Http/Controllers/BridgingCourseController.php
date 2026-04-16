@@ -55,13 +55,32 @@ class BridgingCourseController extends Controller
             $query->where('bridging_courses.semester_id', $validated['semester_id']);
         }
 
-        return response()->json(
-            $query
-                ->orderBy('bridging_courses.year_level_id')
-                ->orderBy('bridging_courses.semester_id')
-                ->orderBy('co.course_code')
-                ->get()
-        );
+        $results = $query
+            ->orderBy('bridging_courses.year_level_id')
+            ->orderBy('bridging_courses.semester_id')
+            ->orderBy('co.course_code')
+            ->get();
+
+        return response()->json($results->map(function ($bridgingCourse) {
+            $course = $bridgingCourse->course;
+            
+            return array_merge($bridgingCourse->toArray(), [
+                'prerequisites' => $course ? $course->requirements->where('requirement_type', 'pre')->map(function ($req) {
+                    return [
+                        'course_id' => $req->requiredCourse->course_id,
+                        'course_code' => $req->requiredCourse->course_code,
+                        'course_title' => $req->requiredCourse->course_title,
+                    ];
+                })->values() : [],
+                'corequisites' => $course ? $course->requirements->where('requirement_type', 'co')->map(function ($req) {
+                    return [
+                        'course_id' => $req->requiredCourse->course_id,
+                        'course_code' => $req->requiredCourse->course_code,
+                        'course_title' => $req->requiredCourse->course_title,
+                    ];
+                })->values() : [],
+            ]);
+        }));
     }
 
     public function store(Request $request)
