@@ -250,3 +250,70 @@
     }
   }
 }
+
+/* ==========================================================================
+   RESPONSIVE MEDIA QUERIES (AUTO-ADJUST)
+   Add this to the very bottom of profile-page.component.scss
+   ========================================================================== */
+
+/* --- TABLETS & SMALL DESKTOPS (Screens 1024px and below) --- */
+@media (max-width: 1024px) {
+  .split-layout {
+    /* Switch from 3 columns (Left, Divider, Right) to a single stacked column */
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .v-divider {
+    /* Hide the vertical line since sections are now stacked on top of each other */
+    display: none; 
+  }
+
+  .right-section {
+    /* Remove the desktop-specific spacing that pushes this down */
+    padding-top: 0; 
+    margin-left: 0;
+    align-items: center; /* Center the form fields */
+  }
+
+  .address-grid {
+    /* Shrink the address section from 3 columns down to 2 columns */
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 2rem;
+  }
+}
+
+/* --- MOBILE PHONES (Screens 768px and below) --- */
+@media (max-width: 768px) {
+  .compact-row {
+    /* Stack the side-by-side inputs (e.g., Birthdate and Sex) vertically */
+    flex-direction: column; 
+    gap: var(--spacing-md);
+  }
+
+  /* Override all the fixed pixel widths so inputs fill the mobile screen naturally */
+  .faculty-code, 
+  .program-id, 
+  .birthdate, 
+  .sex, 
+  .form-control-group {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .address-grid {
+    /* Shrink the address section down to 1 single column */
+    grid-template-columns: 1fr;
+  }
+
+  .action-row {
+    /* Stack the buttons on mobile so they are easier to tap */
+    flex-direction: column; 
+    gap: 1rem;
+    
+    button {
+      width: 100%; 
+    }
+  }
+}

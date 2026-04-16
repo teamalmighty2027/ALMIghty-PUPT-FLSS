@@ -130,7 +130,9 @@
 
 html,
 body {
-  height: 100%;
+  /* Remove 'height: 100%;' and replace it with this: */
+  min-height: 100vh;
+  height: auto; 
 }
 
 body {
@@ -523,9 +525,9 @@ span[mat-symbol] {
 #sienna-widget-button, 
 .sienna-trigger,
 .sienna-accessibility-btn {
-    background-color: #800000 !important; /* PUP Maroon */
+    background-color: #800000 !important;
     color: #ffffff !important;
-    z-index: 9999 !important; /* Keeps it above the mobile footer */
+    z-index: 9999 !important;
 }
 
 /* Fix for the icon color */
@@ -535,8 +537,10 @@ span[mat-symbol] {
     fill: #ffffff !important;
 }
 
-/* Optional: Match the menu accent to Maroon */
 .sienna-menu {
     border-top: 4px solid #800000 !important;
 }
 
+.cdk-overlay-container {
+  z-index: 10000 !important;
+}

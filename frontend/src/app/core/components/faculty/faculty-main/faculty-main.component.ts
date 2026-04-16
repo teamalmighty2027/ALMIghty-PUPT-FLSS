@@ -1,10 +1,10 @@
-import { Component, AfterViewInit, ElementRef, Renderer2, OnDestroy, NgZone, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, Renderer2, OnDestroy, NgZone, OnInit } from '@angular/core';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatBottomSheet, MatBottomSheetModule, MatBottomSheetRef } from '@angular/material/bottom-sheet';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatRippleModule } from '@angular/material/core';
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 
@@ -30,20 +30,17 @@ import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-
     CommonModule,
     MatTooltipModule,
     MatSymbolDirective,
-    MatBottomSheetModule,
     MatRippleModule,
+    MatMenuModule,
   ],
   animations: [slideUpDown],
 })
 export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('bottomSheetTemplate') bottomSheetTemplate!: TemplateRef<any>;
-
   private destroy$ = new Subject<void>();
   private isInitialLoad = true;
   private resizeObserver!: ResizeObserver;
   public isDropdownOpen = false;
   private documentClickListener!: () => void;
-  private bottomSheetRef: MatBottomSheetRef | null = null;
 
   private readonly MOBILE_BREAKPOINT = 512;
   private readonly SLIDER_TRANSITION_SCALE = 0.95;
@@ -72,12 +69,11 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private authService: AuthService,
     private dialog: MatDialog,
     private cookieService: CookieService,
-    private bottomSheet: MatBottomSheet,
   ) {}
 
   navigateToProfile() {
-  this.router.navigate(['/faculty/profile']);
-  this.isDropdownOpen = false;
+    this.router.navigate(['/faculty/profile']);
+    this.isDropdownOpen = false;
   }
 
   ngOnInit(): void {
@@ -103,9 +99,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
-    if (this.bottomSheetRef) {
-      this.bottomSheetRef.dismiss();
-    }
     this.removeDocumentClickListener();
   }
 
@@ -116,21 +109,23 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleDropdown(event: Event) {
     event.stopPropagation();
-
-    if (window.innerWidth > this.MOBILE_BREAKPOINT) {
-      this.bottomSheetRef = this.bottomSheet.open(this.bottomSheetTemplate, {});
-
-      this.bottomSheetRef.afterDismissed().subscribe((result) => {
-        if (result === 'theme') {
-          this.toggleTheme();
-        } else if (result === 'logout') {
-          this.logout();
-        } else if (result === 'change-password') {
-          this.openChangePasswordDialog();
-        }
-      });
-    } else {
+    
+    // We ONLY need this manual toggle for mobile now. 
+    // Desktop is handled automatically by mat-menu!
+    if (window.innerWidth <= this.MOBILE_BREAKPOINT) {
       this.isDropdownOpen = !this.isDropdownOpen;
+    }
+  }
+
+  onMenuAction(action: string) {
+    if (action === 'profile') {
+      this.navigateToProfile();
+    } else if (action === 'theme' || action === 'toggle-theme') {
+      this.toggleTheme();
+    } else if (action === 'logout') {
+      this.logout();
+    } else if (action === 'change-password') {
+      this.openChangePasswordDialog();
     }
   }
 
@@ -257,10 +252,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   logout() {
-    if (this.bottomSheetRef) {
-      this.bottomSheetRef.dismiss();
-    }
-
     const dialogConfig: DialogData = {
       title: 'Log Out',
       content:
@@ -295,43 +286,17 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
           next: () => {
             this.authService.clearCookies();
             loadingDialogRef.close();
-            if (this.bottomSheetRef) {
-              this.bottomSheetRef.dismiss();
-            }
             this.router.navigate(['/login']);
           },
           error: () => {
             loadingDialogRef.close();
-            if (this.bottomSheetRef) {
-              this.bottomSheetRef.dismiss();
-            }
           },
         });
       }
     });
   }
 
-  onBottomSheetAction(action: string) {
-    if (action === 'profile') {
-      this.navigateToProfile();
-      this.bottomSheet.dismiss();
-    } else if (action === 'theme' || action === 'toggle-theme') {
-      this.toggleTheme();
-      this.bottomSheet.dismiss();
-    } else if (action === 'logout') {
-      this.logout();
-      this.bottomSheet.dismiss();
-    } else if (action === 'change-password') {
-      this.openChangePasswordDialog();
-      this.bottomSheet.dismiss();
-    }
-  }
-
   openChangePasswordDialog() {
-    if (this.bottomSheetRef) {
-      this.bottomSheetRef.dismiss();
-    }
-
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
       disableClose: true,
       autoFocus: true,
