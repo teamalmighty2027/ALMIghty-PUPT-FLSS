@@ -52,6 +52,27 @@ export interface Faculty {
   };
 }
 
+// NEW: Interface specifically for the Profile Page data
+export interface FacultyProfileData {
+  first_name: string;
+  last_name: string;
+  middle_name?: string;
+  suffix_name?: string;
+  email?: string;
+  code?: string;
+  faculty_profile_id?: number;
+  program_id?: number;
+  birthdate?: string;
+  sex?: 'Male' | 'Female';
+  house_num?: string;
+  street?: string;
+  barangay?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  zipcode?: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,6 +80,10 @@ export class FacultyService {
   private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
+
+  // ==========================================
+  // EXISTING ADMIN MANAGEMENT METHODS
+  // ==========================================
 
   getFaculty(): Observable<Faculty[]> {
     return this.http.get<any[]>(`${this.baseUrl}/faculty`).pipe(
@@ -99,5 +124,24 @@ export class FacultyService {
     faculty: Omit<Faculty, 'code'>
   ): Observable<Faculty> {
     return this.http.put<Faculty>(`${this.baseUrl}/faculty/${id}`, faculty);
+  }
+
+  // ==========================================
+  // NEW PERSONAL PROFILE METHODS
+  // ==========================================
+
+  /**
+   * Fetches the currently authenticated faculty's own profile.
+   * Relies on the API recognizing the user via their Auth token (e.g., Sanctum).
+   */
+  getProfile(): Observable<FacultyProfileData> {
+    return this.http.get<FacultyProfileData>(`${this.baseUrl}/faculty/profile`);
+  }
+
+  /**
+   * Updates the currently authenticated faculty's own profile.
+   */
+  updateProfile(payload: FacultyProfileData): Observable<any> {
+    return this.http.put<any>(`${this.baseUrl}/faculty/profile`, payload);
   }
 }
