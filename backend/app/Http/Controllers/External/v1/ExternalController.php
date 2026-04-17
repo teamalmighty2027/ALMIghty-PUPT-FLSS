@@ -140,6 +140,7 @@ class ExternalController extends Controller
             })
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.idp_user_id',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
@@ -183,6 +184,7 @@ class ExternalController extends Controller
                 if (! isset($faculties[$schedule->faculty_id])) {
                     $faculties[$schedule->faculty_id] = [
                         'faculty_id'      => $schedule->faculty_id,
+                        'idp_user_id'     => $schedule->idp_user_id,
                         'faculty_email'   => $users[$schedule->user_id]->email ?? null,
                         'last_name'       => $users[$schedule->user_id]->last_name ?? null,
                         'first_name'      => $users[$schedule->user_id]->first_name ?? null,
@@ -369,6 +371,7 @@ class ExternalController extends Controller
             })
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.idp_user_id',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
@@ -407,6 +410,7 @@ class ExternalController extends Controller
                 if (! isset($faculties[$schedule->faculty_id])) {
                     $faculties[$schedule->faculty_id] = [
                         'faculty_id'      => $schedule->faculty_id,
+                        'idp_user_id'     => $schedule->idp_user_id,
                         'last_name'       => $users[$schedule->user_id]->last_name ?? null,
                         'first_name'      => $users[$schedule->user_id]->first_name ?? null,
                         'middle_name'     => $users[$schedule->user_id]->middle_name ?? null,
@@ -589,6 +593,7 @@ class ExternalController extends Controller
             ->select(
                 'schedules.schedule_id as course_schedule_id',
                 'faculty.id as user_login_id',
+                'faculty.idp_user_id',
                 'programs.program_title as program',
                 'courses.course_code',
                 'courses.course_title as course_subjects',
@@ -626,6 +631,7 @@ class ExternalController extends Controller
             return [
                 'course_schedule_id' => $firstSchedule->course_schedule_id,
                 'user_login_id'      => $firstSchedule->user_login_id,
+                'idp_user_id'        => $firstSchedule->idp_user_id,
                 'program'            => $firstSchedule->program,
                 'course_code'        => $firstSchedule->course_code,
                 'course_subjects'    => $firstSchedule->course_subjects,
@@ -730,6 +736,7 @@ class ExternalController extends Controller
             ->where('faculty_schedule_publication.is_published', '=', 1)
             ->select(
                 'faculty.id as user_login_id',
+                'faculty.idp_user_id',
                 'current_schedules.schedule_id as course_schedule_id',
                 'courses.course_title as subject',
                 DB::raw("'" . $this->formatSemesterLabel($activeSemester->semester) . "' as semester"),
@@ -769,6 +776,7 @@ class ExternalController extends Controller
             ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.idp_user_id',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'users.last_name',
@@ -801,6 +809,7 @@ class ExternalController extends Controller
 
             $data = [
                 'faculty_id'    => $faculty->user_id,
+                'idp_user_id'   => $faculty->idp_user_id,
                 'first_name'    => $faculty->first_name,
                 'middle_name'   => $faculty->middle_name,
                 'last_name'     => $faculty->last_name,
@@ -869,6 +878,7 @@ class ExternalController extends Controller
             
             $data = [
                 'faculty_id'    => $user->id,
+                'idp_user_id'   => $profile->faculty->idp_user_id,
                 'first_name'    => $user->first_name,
                 'middle_name'   => $user->middle_name,
                 'last_name'     => $user->last_name,
@@ -964,6 +974,7 @@ class ExternalController extends Controller
 
                 return [
                     'faculty_id'    => $user->id,
+                    'idp_user_id'   => $profile->faculty->idp_user_id,
                     'first_name'    => $user->first_name,
                     'middle_name'   => $user->middle_name,
                     'last_name'     => $user->last_name,
