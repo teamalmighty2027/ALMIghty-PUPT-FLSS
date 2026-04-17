@@ -716,26 +716,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Maps requirement links to course codes, used for bridging courses
-   * @param requirements 
-   * @param type 
-   * @returns 
-   */
-  private mapRequirementCodesFromCourse(
-    requirements: CourseRequirementLink[] | undefined,
-    type: 'pre' | 'co'
-  ): string[] {
-    if (!requirements?.length) {
-      return [];
-    }
-
-    return requirements
-      .filter((req) => req.requirement_type === type)
-      .map((req) => req.requiredCourse?.course_code ?? req.required_course?.course_code)
-      .filter((code): code is string => !!code);
-  }
-
-  /**
    * Handles adding a bridging course from a specific group.
    * @param group The group from which to add a bridging course.
    */
@@ -819,19 +799,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (courses) => {
           this.bridgingCourses = courses.map((course) => {
-            const preReqCodes =
-              course.prerequisites?.map((req) => req.course_code) ??
-              this.mapRequirementCodesFromCourse(
-                course.course?.requirements,
-                'pre'
-              );
-
-            const coReqCodes =
-              course.corequisites?.map((req) => req.course_code) ??
-              this.mapRequirementCodesFromCourse(
-                course.course?.requirements,
-                'co'
-              );
+            const preReqCodes = course.prerequisites?.map((req) => req.course_code) || [];
+            const coReqCodes = course.corequisites?.map((req) => req.course_code) || [];
 
             return {
               ...course,
