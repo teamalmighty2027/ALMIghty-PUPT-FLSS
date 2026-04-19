@@ -257,11 +257,11 @@ class AuthController extends Controller
               ->whereIn('role', $requestedRole)
               ->first();
 
-            // Persist the IDP user ID on the faculty record
-            if ($user && $user->faculty && $id) {
-                $user->faculty->update([
-                    'idp_user_id' => $id
-                ]);
+            // Persist the IDP user ID on the faculty record only if it has changed
+            if ($user && $user->faculty && $id && strlen($id) <= 36) {
+                if ($user->faculty->idp_user_id !== $id) {
+                    $user->faculty->update(['idp_user_id' => $id]);
+                }
             }
 
             // Collect the roles of the user
