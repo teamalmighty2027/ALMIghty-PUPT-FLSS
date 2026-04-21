@@ -16,6 +16,7 @@ import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { OverviewService, OverviewDetails, RequestNotification } from '../../../services/admin/overview/overview.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { AuthService } from '../../../services/auth/auth.service';
+import { PermissionService } from '../../../services/permission/permission.service';
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
 import { CommonModule } from '@angular/common';
@@ -73,6 +74,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   requestNotifications: RequestNotification[] = [];
 
+  // Permission flags
+  canEditPreferences = false;
+  canAssignSchedules = false;
+  canViewReports = false;
+
   isAnimatingOut = false;
 
   constructor(
@@ -81,13 +87,24 @@ export class OverviewComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private overviewService: OverviewService,
     private preferencesService: PreferencesService,
-    private authService: AuthService,    
+    private authService: AuthService,
+    private permissionService: PermissionService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
     this.initializeAdminInfo();
+    this.checkPermissions();
     this.loadAllData();
+  }
+
+  /**
+   * Initializes permission flags for the component
+   */
+  private checkPermissions(): void {
+    this.canEditPreferences = this.permissionService.canEditFacultyPreferences();
+    this.canAssignSchedules = this.permissionService.canAssignSchedules();
+    this.canViewReports = this.permissionService.canViewReports();
   }
 
   ngOnDestroy(): void {
@@ -200,6 +217,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // ================
 
   togglePreferencesSubmission(): void {
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     const deadlineDate = this.globalDeadline
       ? new Date(this.globalDeadline)
       : null;
@@ -232,6 +254,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   togglePublishSchedules(): void {
+    if (!this.canAssignSchedules) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     if (this.facultyWithSchedulesCount === 0) {
       this.showSchedulingRedirectMessage();
       return;
@@ -258,6 +285,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   generateReports(): void {
+    if (!this.canViewReports) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     if (this.facultyWithSchedulesCount === 0) {
       this.showSchedulingRedirectMessage();
       return;
@@ -300,6 +332,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // ======================
 
   approveRequest(request: RequestNotification): void {
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     const dialogData: DialogTogglePreferencesData = {
       type: 'single_preferences',
       academicYear: this.activeYear,
@@ -352,6 +389,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   discardRequest(request: RequestNotification): void {
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     const discardedRequest = { ...request };
 
     this.isAnimatingOut = true;
@@ -428,6 +470,14 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
   private showErrorMessage(message: string): void {
     this.snackBar.open(message, 'Close', { duration: this.SNACKBAR_DURATION });
+  }
+
+  private showNoPermissionMessage(): void {
+    this.snackBar.open(
+      'You do not have permission to perform this action.',
+      'Close',
+      { duration: this.SNACKBAR_DURATION }
+    );
   }
 
   private handleError(errorMessage: string) {
