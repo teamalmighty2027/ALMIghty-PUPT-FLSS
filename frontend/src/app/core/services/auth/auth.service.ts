@@ -109,7 +109,7 @@ export class AuthService {
         return of(response);
       }),
       catchError((error) => {
-        console.error('Error in handleIdpCallback:', error);
+        console.error('Error in handleIdpCallback:', error.error?.message);
         throw error;
       }),
     );

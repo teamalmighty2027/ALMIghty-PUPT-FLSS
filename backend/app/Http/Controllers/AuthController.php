@@ -213,8 +213,8 @@ class AuthController extends Controller
                 Log::warning("IDP token exchange failed for client {$clientId}: " . $errorMessage);
                 
                 return response()->json([
-                    'message' => 'IDP session has expired. Please log in again.',
-                    'idp_error' => $errorMessage
+                    'message' => $errorMessage,
+                    'error'   => true
                 ], 401);
             }   
 
@@ -241,7 +241,8 @@ class AuthController extends Controller
 
             if (!is_array($userData) || !isset($userData['email'])) {
                 return response()->json([
-                    'message' => 'Invalid user data received from IDP.'
+                    'message' => 'Invalid user data received from IDP.',
+                    'error'   => true
                 ], 401);
             }
 
