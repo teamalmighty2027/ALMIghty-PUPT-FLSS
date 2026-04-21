@@ -236,6 +236,8 @@ class ExternalController extends Controller
 
         // Step 5: Structure the response
         return response()->json([
+            'academic_year'              => $activeSemester->year_start . '-' . $activeSemester->year_end,
+            'semester'                   => $this->formatSemesterLabel($activeSemester->semester),
             'parttime_faculty_schedules' => array_values($faculties),
         ]);
     }
