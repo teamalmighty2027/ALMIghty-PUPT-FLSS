@@ -526,18 +526,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Course Management
+   * Add course to the frontend table and tabledata
    */
   public async addCourseToTable(course: Course): Promise<void> {   
-    
+    // If no program is selected, populate possible programs
     if (this.selectedProgram() === undefined) {
       this.populatePossiblePrograms(course);
       return;
     }
 
+    // If program is selected, check if another section is selected
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
 
+    // If another section is selected, set the section
     const section = this.selectedSection();
     if (section) {
       course.section = section;
@@ -546,7 +548,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // If course is already added, reset selections and show snackbar
     if (this.isCourseAlreadyAdded(course)) {
+      this.selectedProgram.set(undefined);
+      this.selectedSection.set(undefined);
       this.showSnackBar('You already selected this course.');
       return;
     }
