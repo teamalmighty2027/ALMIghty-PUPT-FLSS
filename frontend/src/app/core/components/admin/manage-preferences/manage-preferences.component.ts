@@ -457,7 +457,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- UPDATED EXPORT ALL: Now routes through DialogExportComponent ---
+  /**
+   * Export all event listener passed to dialogExportComponent
+   */
   onExportAll(): void {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
@@ -496,7 +498,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- UPDATED EXPORT SINGLE: Now routes through DialogExportComponent ---
+  /**
+   * Export single event listener passed to dialogExportComponent
+   * @param faculty 
+   * @returns 
+   */
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -531,7 +537,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- NEW EXCEL EXPORT LOGIC ---
+  /**
+   * Generate Excel blob for faculty preferences
+   * @param isAll 
+   * @param faculties 
+   * @returns 
+   */
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 

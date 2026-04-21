@@ -434,8 +434,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           course.is_ignored = response.is_ignored;
           this.showSnackbar(response.message || `Preference successfully ${course.is_ignored ? 'ignored' : 'restored'}.`);
         },
-        error: () => {
-          this.showSnackbar(`Failed to ${course.is_ignored ? 'restore' : 'ignore'} preference. Please try again.`);
+        error: (error) => {
+          this.showSnackbar(error.error?.message || error.message || 
+            `Failed to ${course.is_ignored ? 'restore' : 'ignore'} preference. Please try again.`
+          );
         }
       });
   }
