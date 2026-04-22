@@ -145,7 +145,6 @@ export class PreferencesService {
     return this.http.patch(url, {}).pipe(
       tap(() => {
         this.clearCaches(facultyId);
-        // Also clear the general preferences cache to reflect changes in the admin list
         this.clearPreferencesCache();
       }),
       catchError((error) => {
