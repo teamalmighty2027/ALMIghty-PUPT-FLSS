@@ -500,8 +500,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Export single event listener passed to dialogExportComponent
-   * @param faculty 
-   * @returns 
    */
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
@@ -539,9 +537,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Generate Excel blob for faculty preferences
-   * @param isAll 
-   * @param faculties 
-   * @returns 
    */
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();

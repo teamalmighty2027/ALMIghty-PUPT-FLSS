@@ -213,6 +213,7 @@
               <div class="item-group one">
                 <!--Action: Toggle Faculty Preferences Submission-->
                 <div
+                  role="button"
                   class="item faculty-pref"
                   [class.disabled-action]="!canEditPreferences"
                   [matTooltip]="!canEditPreferences ? 'You do not have permission to manage faculty preferences' : ''"
@@ -289,6 +290,7 @@
             } @else if (!requestNotifications.length && !isAnimatingOut) {
               <div class="no-requests">
                 <img
+                  alt="empty image"
                   class="no-img"
                   src="../../../../../assets/images/empty.svg"
                 />
@@ -316,6 +318,9 @@
                         <button
                           class="approve-btn"
                           [class.disabled-action]="!canEditPreferences"
+                          [disabled]="!canEditPreferences"
+                          [attr.aria-disabled]="!canEditPreferences"
+                          [attr.aria-label]="canEditPreferences ? 'Approve request' : 'Approve request - You do not have permission to approve requests'"
                           [matTooltip]="!canEditPreferences ? 'You do not have permission to approve requests' : ''"
                           (click)="approveRequest(request)"
                         >
@@ -325,6 +330,9 @@
                         <button
                           class="discard-btn"
                           [class.disabled-action]="!canEditPreferences"
+                          [disabled]="!canEditPreferences"
+                          [attr.aria-disabled]="!canEditPreferences"
+                          [attr.aria-label]="canEditPreferences ? 'Discard request' : 'Discard request - You do not have permission to discard requests'"
                           [matTooltip]="!canEditPreferences ? 'You do not have permission to discard requests' : ''"
                           (click)="discardRequest(request)"
                         >
