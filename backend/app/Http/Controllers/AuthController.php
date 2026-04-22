@@ -196,7 +196,9 @@ class AuthController extends Controller
         // Validate configuration before proceeding
         if (!$baseUrl || !$clientId || !$clientSecret) {
             Log::error('IDP Configuration missing at callback');
-            return response()->json(['message' => 'Authentication configuration error.'], 500);
+            return response()->json([
+              'message' => 'Authentication configuration error.'
+            ], 500);
         }
 
         // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
@@ -212,13 +214,14 @@ class AuthController extends Controller
         try {
             if (!$tokenResponse->successful()) {
                 $errorBody = $tokenResponse->json();
-                $errorMessage = $errorBody['error'] ?? $tokenResponse->body() ?: 'Token exchange failed.';
+                $detailedError = $errorBody['error'] ?? 
+                  $tokenResponse->body() ?: 'Token exchange failed.';
                 
-                Log::warning("IDP token exchange failed for client {$clientId}: " . $errorMessage);
+                Log::warning("IDP token exchange failed for client {$clientId}: " . $detailedError);
                 
                 return response()->json([
-                    'message' => 'IDP session has expired. Please log in again.',
-                    'idp_error' => $errorMessage
+                    'message' => 'Authentication failed. Please try again.',
+                    'error'   => true
                 ], 401);
             }   
 
@@ -231,13 +234,15 @@ class AuthController extends Controller
 
             if (!$meResponse->successful()) {
                 $errorBody = $meResponse->json();
-                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                $detailedError = is_array($errorBody) && isset($errorBody['error'])
                     ? $errorBody['error']
                     : 'Failed to fetch user data from IDP.';
 
+                Log::warning("IDP user data fetch failed for client {$clientId}: " . $detailedError);
+
                 return response()->json([
-                    'error'   => True,
-                    'message' => $errorMessage
+                    'error'   => true,
+                    'message' => 'Failed to retrieve user information. Please try again.',
                 ], 401);
             }
 
@@ -245,7 +250,8 @@ class AuthController extends Controller
 
             if (!is_array($userData) || !isset($userData['email'])) {
                 return response()->json([
-                    'message' => 'Invalid user data received from IDP.'
+                    'message' => 'Invalid user data received from IDP.',
+                    'error'   => true
                 ], 401);
             }
 
@@ -260,6 +266,13 @@ class AuthController extends Controller
               ->where('email', $email)
               ->whereIn('role', $requestedRole)
               ->first();
+
+            // Persist the IDP user ID on the faculty record only if it has changed
+            if ($user && $user->faculty && $id && strlen($id) <= 36) {
+                if ($user->faculty->idp_user_id !== $id) {
+                    $user->faculty->update(['idp_user_id' => $id]);
+                }
+            }
 
             // Collect the roles of the user
             $roles = $user ? [$user->role] : [];

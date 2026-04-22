@@ -18,7 +18,8 @@ class Faculty extends Authenticatable
     protected $fillable = [
         'user_id',
         'faculty_type_id',
-        'faculty_profile_id', // Added this based on your earlier migration!
+        'faculty_profile_id',
+        'idp_user_id',
     ];
 
     protected $with = ['facultyType'];
