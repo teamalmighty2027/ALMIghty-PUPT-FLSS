@@ -192,7 +192,9 @@ class AuthController extends Controller
         // Validate configuration before proceeding
         if (!$baseUrl || !$clientId || !$clientSecret) {
             Log::error('IDP Configuration missing at callback');
-            return response()->json(['message' => 'Authentication configuration error.'], 500);
+            return response()->json([
+              'message' => 'Authentication configuration error.'
+            ], 500);
         }
 
         // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
@@ -208,12 +210,13 @@ class AuthController extends Controller
         try {
             if (!$tokenResponse->successful()) {
                 $errorBody = $tokenResponse->json();
-                $errorMessage = $errorBody['error'] ?? $tokenResponse->body() ?: 'Token exchange failed.';
+                $detailedError = $errorBody['error'] ?? 
+                  $tokenResponse->body() ?: 'Token exchange failed.';
                 
-                Log::warning("IDP token exchange failed for client {$clientId}: " . $errorMessage);
+                Log::warning("IDP token exchange failed for client {$clientId}: " . $detailedError);
                 
                 return response()->json([
-                    'message' => $errorMessage,
+                    'message' => 'Authentication failed. Please try again.',
                     'error'   => true
                 ], 401);
             }   
@@ -227,13 +230,15 @@ class AuthController extends Controller
 
             if (!$meResponse->successful()) {
                 $errorBody = $meResponse->json();
-                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                $detailedError = is_array($errorBody) && isset($errorBody['error'])
                     ? $errorBody['error']
                     : 'Failed to fetch user data from IDP.';
 
+                Log::warning("IDP user data fetch failed for client {$clientId}: " . $detailedError);
+
                 return response()->json([
-                    'error'   => True,
-                    'message' => $errorMessage
+                    'error'   => true,
+                    'message' => 'Failed to retrieve user information. Please try again.',
                 ], 401);
             }
 
