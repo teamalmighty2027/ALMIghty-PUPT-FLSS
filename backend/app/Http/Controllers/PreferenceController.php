@@ -943,12 +943,23 @@ class PreferenceController extends Controller
             ], 403);
         }
 
-        // Find and delete the specific preference along with its associated days
+        // Find and delete the specific preference along with its associated days.
+        // When sections_per_program_year_id is falsy (0 or absent), the stored
+        // record has NULL in that column, so we must use whereNull to match it.
         $preferenceQuery = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
-            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
+            ->where(function ($query) use ($sectionsPerProgramYearId) {
+                if (!$sectionsPerProgramYearId || $sectionsPerProgramYearId == 0) {
+                    $query->whereNull('sections_per_program_year_id');
+                } else {
+                    $query->where(
+                        'sections_per_program_year_id',
+                        $sectionsPerProgramYearId
+                    );
+                }
+            })
             ->where(function ($query) use ($preference_id) {
-                // try matching by course_assignment_id first, 
+                // Try matching by course_assignment_id first,
                 // then by temporary_course_offering_id.
                 $query->where('course_assignment_id', $preference_id)
                       ->orWhere('temporary_course_offering_id', $preference_id);
