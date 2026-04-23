@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -77,6 +77,11 @@ interface Program {
   semester?: string;
 }
 
+interface TimeSlot {
+  time: string;
+  minutes: number;
+}
+
 @Component({
   selector: 'app-report-programs',
   imports: [
@@ -125,6 +130,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   isTermsLoading = true;
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
+  timeSlots: TimeSlot[] = [];
 
   private searchInput$ = new Subject<string>();
 
@@ -140,6 +146,8 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.generateTimeSlots();
+
     this.reportsService.selectedTerm$
       .pipe(
         takeUntil(this.destroy$),
@@ -161,6 +169,21 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private generateTimeSlots() {
+    const startTime = 7 * 60; // 7:00 AM
+    const endTime = 21 * 60;  // 9:00 PM
+    const interval = 30;
+    this.timeSlots = [];
+    for (let time = startTime; time <= endTime; time += interval) {
+      const hours = Math.floor(time / 60);
+      const mins  = time % 60;
+      const ampm  = hours >= 12 ? 'PM' : 'AM';
+      const h     = hours % 12 || 12;
+      const timeStr = `${h}:${mins.toString().padStart(2, '0')} ${ampm}`;
+      this.timeSlots.push({ time: timeStr, minutes: time });
+    }
   }
 
   loadTerms() {
@@ -313,7 +336,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.filteredData.forEach((program) => {
       program.year_levels.forEach((yearLevel) => {
         yearLevel.sections.forEach((section) => {
-          // FIX: Only add to Export All if it ACTUALLY has schedules
           if (section.schedules && section.schedules.length > 0) {
             const title = `${program.program_code} - Year ${yearLevel.year_level} - Section ${section.section_name}`;
             scheduleGroups.push({
@@ -360,7 +382,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // NEW: ExcelJS generation method
+  // EXCEL METHODS
   private async generateExcelBlob(program: Program): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const selectedYearLevel = program.year_levels_selected ?? 'All';
@@ -455,22 +477,15 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
-  // NEW: ExcelJS generation method for ALL programs
   private async generateExcelBlobAll(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
-    // Loop through all filtered data to create sheets
     for (const program of this.filteredData) {
       for (const yearLevel of program.year_levels) {
         for (const section of yearLevel.sections) {
-          
-          // FIX: Only create a new tab if this section has schedules
           if (section.schedules && section.schedules.length > 0) {
-            
-            // Sheet names must be max 31 chars. e.g., "BSIT Y1 S1"
             const safeSheetName = `${program.program_code} Y${yearLevel.year_level} S${section.section_name}`.replace(/[^\w\s-]/gi, '').substring(0, 31);
             const worksheet = workbook.addWorksheet(safeSheetName);
-            
             this.applyExcelLayoutAndData(worksheet, program, yearLevel, section);
           }
         }
@@ -482,12 +497,11 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   private applyExcelLayoutAndData(worksheet: ExcelJS.Worksheet, program: Program, yearLevel: any, section: any) {
-    // PAGE SETUP: Forces it to print perfectly on one landscape page without cutting!
     worksheet.pageSetup = {
       orientation: 'landscape',
       paperSize: 9, // A4
       fitToPage: true,
-      fitToWidth: 1, // Forces all columns to fit on 1 page wide
+      fitToWidth: 1, 
       fitToHeight: 0,
       margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
     };
@@ -497,7 +511,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       { width: 8 }, { width: 15 }, { width: 12 }, { width: 20 }, { width: 8 }, { width: 22 }
     ];
 
-    // FIX: Merged A1:G1 instead of A1:B1 to give the Course Title plenty of room
     worksheet.mergeCells('A1:G1'); worksheet.mergeCells('H1:K1');
     worksheet.mergeCells('A2:G2'); worksheet.mergeCells('H2:K2');
 
@@ -513,7 +526,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
     });
 
-    worksheet.addRow([]); // Spacer
+    worksheet.addRow([]); 
 
     const secRow = worksheet.addRow([`Section : ${section.section_name}`]);
     worksheet.mergeCells(`A${secRow.number}:K${secRow.number}`);
@@ -547,7 +560,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
           section.section_name,
           schedule.room_code || 'TBA',
           schedule.faculty_name,
-          '60', // Fix: Showing default 60 slots as seen on paper
+          '60', 
           `${dayShort}\n${timeRange}`
         ]);
 
@@ -564,6 +577,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     }
   }
 
+  // DIALOGS & EXPORTS
   onOpenDialog(program: Program, field: 'yearLevel' | 'section') {
     let dialogFields: DialogFieldConfig[] = [];
     let title = '';
@@ -730,14 +744,12 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // UPDATED: Now triggers the DialogExportComponent instead of direct download
   onExportSingle(element: Program): void {
     const selectedYearLevel = element.year_levels_selected ?? 'All';
     const selectedSection = element.section_selected ?? 'All';
     const academicYear = element.academicYear || '';
     const semester = element.semester || '';
 
-    // Helper to generate base filename
     const getBaseFileName = () => {
       let fileName: string;
       if (selectedYearLevel === 'All' && selectedSection === 'All') {
@@ -750,7 +762,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       return fileName;
     };
 
-    // Open the updated DialogExportComponent
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
@@ -760,12 +771,10 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         customTitle: `${element.program_title} (${element.program_code})`,
         subtitle: `For Academic Year ${academicYear}, ${semester}`,
         
-        // 1. PDF Function (Previews inside iframe and downloads)
         generatePdfFunction: (preview: boolean) => {
           return this.createPdfBlob(element);
         },
         
-        // 2. Excel Function (Downloads directly on click)
         generateExcelFunction: async () => {
           const excelBlob = await this.generateExcelBlob(element);
           saveAs(excelBlob, `${getBaseFileName()}.xlsx`);
@@ -789,7 +798,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       program.year_levels.forEach((yearLevel) => {
         yearLevel.sections.forEach((section) => {
           
-          // FIX: Only draw a PDF page if there are schedules
           if (section.schedules && section.schedules.length > 0) {
             
             if (hasPages) {
@@ -923,180 +931,141 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     return currentY;
   }
 
-  drawScheduleTable(
-    doc: jsPDF,
-    scheduleData: any[],
-    subtitle: string,
-    startY: number,
-    margin: number,
-    pageWidth: number,
-  ): void {
+  drawScheduleTable(doc: jsPDF, scheduleData: any[], subtitle: string, startY: number, margin: number, pageWidth: number): void {
     const hasSchedules = scheduleData && scheduleData.length > 0;
+    if (!hasSchedules) return;
 
-    if (!hasSchedules) {
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(128, 128, 128);
-      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, {
-        align: 'center',
-      });
-      return;
-    }
-
-    const days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
-    const dayColumnWidth = (pageWidth - margin * 2) / days.length;
-    const pageHeight = doc.internal.pageSize.height;
-    const maxContentHeight = pageHeight - margin;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    // Matrix Constants
+    const timeColWidth = 20; 
+    const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
+    const rowHeight = 4.5; 
+    const maxContentHeight = doc.internal.pageSize.height - 15;
 
     let currentY = startY;
-    let maxYPosition = currentY;
 
-    const startNewPage = () => {
-      this.reportHeaderService.addStandardFooter(doc);
-      doc.addPage();
-      currentY = this.drawHeader(
-        doc,
-        15,
-        pageWidth,
-        margin,
-        22,
-        doc.getNumberOfPages() > 1
-          ? 'Room Schedule (Continued)'
-          : 'Room Schedule',
-        subtitle,
-      );
+    // --- Headers ---
+    doc.setFillColor(128, 0, 0);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
 
-      days.forEach((day, index) => {
-        const xPosition = margin + index * dayColumnWidth;
-        doc.setFillColor(128, 0, 0);
-        doc.setTextColor(255, 255, 255);
-        doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, {
-          align: 'center',
-        });
-      });
+    currentY -= 3; 
 
-      currentY += 12;
-      return currentY;
-    };
+    // Time Header
+    doc.rect(margin, currentY, timeColWidth, 10, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.rect(margin, currentY, timeColWidth, 10);
+    doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
 
+    // Day Headers
     days.forEach((day, index) => {
-      const xPosition = margin + index * dayColumnWidth;
+      const xPos = margin + timeColWidth + index * dayColumnWidth;
       doc.setFillColor(128, 0, 0);
-      doc.setTextColor(255, 255, 255);
-      doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, {
-        align: 'center',
-      });
+      doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
+      doc.rect(xPos, currentY, dayColumnWidth, 10);
+      doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
     });
 
-    currentY += 12;
+    currentY += 10;
 
-    days.forEach((day, dayIndex) => {
-      const xPosition = margin + dayIndex * dayColumnWidth;
-      let yPosition = currentY;
+    // --- Draw 3-Hour Time Labels (GRID REMOVED) ---
+    doc.setTextColor(0, 0, 0);
 
-      const daySchedule = scheduleData
-        .filter((item: any) => item.day === day)
-        .sort(
-          (a: any, b: any) =>
-            this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time),
-        );
+    this.timeSlots.forEach((slot, index) => {
+      const yPos = currentY + index * rowHeight;
+      
+      // Print the Time text and horizontal line every 3 hours starting at 7:30 AM
+      if (slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0) {
+        
+        doc.setDrawColor(200, 200, 200); 
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 3.5, { align: 'center' });
+      }
+    });
 
-      daySchedule.forEach((item: any) => {
-        const scheduleContent = [
-          item.course_details.course_code,
-          item.course_details.course_title,
-          item.faculty_name,
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
-          `${this.formatTimeTo12Hour(
-            item.start_time,
-          )} - ${this.formatTimeTo12Hour(item.end_time)}`,
-        ];
+    const finalY = currentY + this.timeSlots.length * rowHeight;
+    doc.setDrawColor(200, 200, 200);
+    
+    // Draw the bottom border
+    doc.line(margin, finalY, pageWidth - margin, finalY);
 
-        const boxHeight = this.calculateBoxHeight(
-          doc,
-          scheduleContent,
-          dayColumnWidth,
-        );
+    // Draw Vertical Lines
+    doc.line(margin, currentY, margin, finalY); 
+    doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
+    days.forEach((_, index) => {
+      const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
+      doc.line(xPos, currentY, xPos, finalY);
+    });
 
-        if (yPosition + boxHeight > maxContentHeight) {
-          days.forEach((_, i) => {
-            const lineX = margin + i * dayColumnWidth;
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(lineX, startY, lineX, maxYPosition);
-          });
-          doc.line(
-            pageWidth - margin,
-            startY,
-            pageWidth - margin,
-            maxYPosition,
-          );
+    // --- Draw the Blocks ---
+    const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
 
-          yPosition = startNewPage();
-          maxYPosition = yPosition;
-        }
+    sortedScheduleData.forEach(item => {
+      const dayIndex = days.indexOf(item.day);
+      if (dayIndex === -1) return;
 
-        doc.setFillColor(240, 240, 240);
-        doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
+      const startTime = this.timeToMinutes(item.start_time);
+      const endTime = this.timeToMinutes(item.end_time);
+      const startSlot = this.timeSlots.findIndex(slot => slot.minutes >= startTime);
+      const duration = Math.ceil((endTime - startTime) / 30);
 
-        let textYPosition = yPosition + 5;
-        scheduleContent.forEach((line: string, index) => {
-          doc.setTextColor(0);
-          doc.setFontSize(9);
-          doc.setFont(
-            index <= 1 ? 'helvetica' : 'helvetica',
-            index <= 1 ? 'bold' : 'normal',
-          );
+      if (startSlot === -1) return;
 
-          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 10);
-          wrappedLines.forEach((wrappedLine: string) => {
-            doc.text(wrappedLine, xPosition + 5, textYPosition);
-            textYPosition += 5;
-          });
+      const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+      const yPos = currentY + startSlot * rowHeight;
+      const height = duration * rowHeight;
 
-          if (index === scheduleContent.length - 1) {
-            const timeTextWidth = doc.getTextWidth(line);
-            doc.setDrawColor(0, 0, 0);
-            doc.setLineWidth(0.2);
-            doc.line(
-              xPosition + 5,
-              textYPosition - 4,
-              xPosition + 5 + timeTextWidth,
-              textYPosition - 4,
-            );
+      // Draw Block Box with distinct GRAY background and Maroon border
+      doc.setFillColor(240, 240, 240); // Gray background
+      doc.setDrawColor(128, 0, 0);     // Maroon border
+      doc.setLineWidth(0.3);
+      doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
+
+      // ALWAYS print the Time Range at the very bottom of the box first
+      const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
+      doc.setTextColor(0);
+      
+      // INCREASED: Time text size from 7 to 8.5
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - 2, { align: 'center' });
+
+      // Block Content
+      const content = [
+        item.course_details?.course_code || '',
+        item.course_details?.course_title || '',
+        item.faculty_name || '',
+        item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA'
+      ];
+
+      // Pushed starting text down slightly to fit the larger fonts
+      let textY = yPos + 5; 
+      
+      content.forEach((line, idx) => {
+        // INCREASED: Course Code is now 9pt (was 8), everything else is 8pt (was 7)
+        doc.setFontSize(idx === 0 ? 9 : 8);
+        doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+        
+        const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
+        wrappedLines.forEach((wLine: string) => {
+          
+          // Increased boundary from 5 to 6 to protect the bigger time text at the bottom
+          if (textY < yPos + height - 6) { 
+            doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
+            
+            // INCREASED line spacing from 3.2 to 3.8 so the bigger text doesn't overlap
+            textY += 3.8; 
           }
         });
-
-        yPosition += boxHeight + 5;
-        if (yPosition > maxYPosition) {
-          maxYPosition = yPosition;
-        }
       });
     });
-
-    days.forEach((_, i) => {
-      const lineX = margin + i * dayColumnWidth;
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.line(lineX, startY, lineX, maxYPosition);
-    });
-
-    doc.line(pageWidth - margin, startY, pageWidth - margin, maxYPosition);
-    doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
   }
 
   private formatTime(time: string): string {
@@ -1125,31 +1094,9 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         ),
     ),
   );
-}
-
-  private calculateBoxHeight(
-    doc: jsPDF,
-    content: string[],
-    columnWidth: number,
-  ): number {
-    const padding = 10;
-    let totalHeight = 5;
-
-    content.forEach((line: string, index: number) => {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
-
-      const wrappedLines = doc.splitTextToSize(line, columnWidth - padding);
-      totalHeight += wrappedLines.length * 5;
-    });
-
-    return totalHeight + 5;
   }
 
   private formatTimeTo12Hour(time: string): string {
-    const [hours, minutes] = time.split(':').map(Number);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const formattedHours = hours % 12 || 12;
-    return `${formattedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    return this.formatTime(time);
   }
 }

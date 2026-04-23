@@ -246,7 +246,9 @@ class AcademicYearController extends Controller
             $activePrograms = Program::where('status', 'active')->get();
 
             if ($activePrograms->isEmpty()) {
-                throw new \Exception('Cannot update an academic year—no active programs are found.');
+                throw new \Exception(
+                    'Cannot update an academic year—no active programs are found.'
+                );
             }
 
             // Step 2: Get the latest active curriculum
@@ -259,63 +261,89 @@ class AcademicYearController extends Controller
             }
 
             $latestCurriculumId = $latestCurriculum->curriculum_id;
+            $curriculumChanged = ($oldCurriculumId != $latestCurriculumId);
 
-            if ($oldCurriculumId == $latestCurriculumId) {
-                DB::rollBack();
-                return response()->json(['message' => 'No changes detected. Academic Year already uses the latest curriculum.'], 200);
+            // Step 3: Update academic_year_curricula when curriculum changed
+            if ($curriculumChanged) {
+                $updatedRows = AcademicYearCurricula::where(
+                    'academic_year_id', $academicYearId
+                )->update(['curriculum_id' => $latestCurriculumId]);
+
+                if ($updatedRows === 0) {
+                    AcademicYearCurricula::create([
+                        'academic_year_id' => $academicYearId,
+                        'curriculum_id'    => $latestCurriculumId,
+                    ]);
+                }
             }
 
-            // Step 3: Update academic_year_curricula to the latest curriculum
-            $updatedRows = AcademicYearCurricula::where('academic_year_id', $academicYearId)
-                ->update(['curriculum_id' => $latestCurriculumId]);
-
-            if ($updatedRows === 0) {
-                AcademicYearCurricula::create([
-                    'academic_year_id' => $academicYearId,
-                    'curriculum_id' => $latestCurriculumId,
-                ]);
-            }
-
-            // Step 4: Ensure 3 active_semesters exist (create if missing, preserve is_active state)
+            // Step 4: Ensure 3 active_semesters exist
+            // (create if missing, preserve is_active state)
             for ($semesterId = 1; $semesterId <= 3; $semesterId++) {
                 ActiveSemester::firstOrCreate([
                     'academic_year_id' => $academicYearId,
-                    'semester_id' => $semesterId,
+                    'semester_id'      => $semesterId,
                 ], [
                     'is_active' => 0,
                 ]);
             }
 
-            // Step 5: Update program_year_level_curricula to the latest curriculum for all existing year levels
+            // Step 5: Enroll all active programs into program_year_level_curricula.
+            // Always runs so that programs activated after AY creation are added.
+            $newProgramsEnrolled = false;
+
             foreach ($activePrograms as $program) {
                 $numberOfYears = $program->number_of_years;
 
                 for ($yearLevel = 1; $yearLevel <= $numberOfYears; $yearLevel++) {
-                    ProgramYearLevelCurricula::updateOrCreate(
-                        [
+                    $existing = ProgramYearLevelCurricula::where(
+                        'academic_year_id', $academicYearId
+                    )
+                        ->where('program_id', $program->program_id)
+                        ->where('year_level', $yearLevel)
+                        ->first();
+
+                    if (!$existing) {
+                        // New program/year-level — always create
+                        ProgramYearLevelCurricula::create([
                             'academic_year_id' => $academicYearId,
-                            'program_id' => $program->program_id,
-                            'year_level' => $yearLevel,
-                        ],
-                        [
-                            'curriculum_id' => $latestCurriculumId,
-                        ]
-                    );
+                            'program_id'       => $program->program_id,
+                            'year_level'       => $yearLevel,
+                            'curriculum_id'    => $latestCurriculumId,
+                        ]);
+                        $newProgramsEnrolled = true;
+                    } elseif ($curriculumChanged) {
+                        // Existing row — only update curriculum when it changed
+                        $existing->curriculum_id = $latestCurriculumId;
+                        $existing->save();
+                    }
                 }
             }
 
-            // Step 6: Ensure at least 1 section exists per program year level (create if missing)
+            // Step 6: Ensure at least 1 section exists per program year level.
+            // Always runs for the same reason as Step 5.
             foreach ($activePrograms as $program) {
                 $numberOfYears = $program->number_of_years;
 
                 for ($yearLevel = 1; $yearLevel <= $numberOfYears; $yearLevel++) {
                     SectionsPerProgramYear::firstOrCreate([
                         'academic_year_id' => $academicYearId,
-                        'program_id' => $program->program_id,
-                        'year_level' => $yearLevel,
-                        'section_name' => '1',
+                        'program_id'       => $program->program_id,
+                        'year_level'       => $yearLevel,
+                        'section_name'     => '1',
                     ]);
                 }
+            }
+
+            // If nothing actually changed, roll back and inform the caller
+            if (!$curriculumChanged && !$newProgramsEnrolled) {
+                DB::rollBack();
+                return response()->json([
+                    'message' =>
+                        'No changes detected. Academic Year already uses '
+                        . 'the latest curriculum and all active programs '
+                        . 'are already enrolled.',
+                ], 200);
             }
 
             DB::commit();
@@ -323,27 +351,40 @@ class AcademicYearController extends Controller
             // ═══════════════════════════════════════════════════════
             // AUDIT LOG: Academic Year Updated (Human Readable)
             // ═══════════════════════════════════════════════════════
-            $oldCurriculumYear = $oldCurriculumId ? Curriculum::find($oldCurriculumId)->curriculum_year : 'None';
-            
-            $changes = ["Curriculum: {$oldCurriculumYear} → {$latestCurriculum->curriculum_year}"];
+            $oldCurriculumYear = $oldCurriculumId
+                ? Curriculum::find($oldCurriculumId)->curriculum_year
+                : 'None';
+
+            $changes = [];
+            if ($curriculumChanged) {
+                $changes[] = "Curriculum: {$oldCurriculumYear}"
+                    . " → {$latestCurriculum->curriculum_year}";
+            }
+            if ($newProgramsEnrolled) {
+                $changes[] = 'Newly activated programs enrolled';
+            }
+
             AuditLogger::logUpdate(
                 model: 'AcademicYear',
                 modelId: $academicYearId,
                 oldData: ['curriculum_id' => $oldCurriculumId],
                 newData: ['curriculum_id' => $latestCurriculumId],
-                description: "Updated Academic Year {$academicYear->year_start}-{$academicYear->year_end} - " . implode(', ', $changes)
+                description: "Updated Academic Year "
+                    . "{$academicYear->year_start}-{$academicYear->year_end} - "
+                    . implode(', ', $changes)
             );
 
             return response()->json([
-                'status' => 'success',
-                'message' => "Academic Year ID: {$academicYearId} updated successfully with the latest curriculum.",
+                'status'  => 'success',
+                'message' => "Academic Year ID: {$academicYearId} updated "
+                    . 'successfully.',
             ], 200);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
             return response()->json([
-                'status' => 'error',
+                'status'  => 'error',
                 'message' => 'An error occurred: Academic Year could not be updated',
             ], 500);
         }
