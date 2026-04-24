@@ -616,7 +616,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     const presentDays = course.preferred_days.map(pref => pref.day);
     const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
 
-    const has_any_time = course.preferred_days.every(
+    const has_any_time = course.preferred_days.length > 0 && course.preferred_days.every(
       pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
     );
 
