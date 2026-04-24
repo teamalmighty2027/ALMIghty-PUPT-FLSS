@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\AcademicYear;
 use App\Models\ActiveSemester;
 use App\Models\Faculty;
