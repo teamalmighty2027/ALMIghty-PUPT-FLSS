@@ -77,6 +77,40 @@ class ExternalController extends Controller
 
     /**
      * For: Faculty Attendance System
+     * Retrieves temporary faculty schedules for FAS integration.
+     * Returns faculty details with their assigned schedules for the current active semester.
+     */
+    public function temporaryFacultySchedules(Request $request)
+    {
+        $this->logExternalAccess($request, 'Temporary faculty schedules');
+
+        // Step 1: Retrieve the current active semester with academic year details
+        $activeSemester = $this->getActiveSemester();
+
+        if (! $activeSemester) {
+            return response()->json(['message' => 'No active semester found.'], 404);
+        }
+
+        // Check if there are any published schedules for the active semester
+        if (! $this->checkPublishedSchedules($activeSemester)) {
+            return $this->buildUnpublishedResponse($activeSemester);
+        }
+
+        // Step 2: Prepare queries and fetch data
+        $schedulesSub = $this->buildFacultyScheduleSubquery($activeSemester);
+        $rows = $this->fetchFacultyWithSchedules($activeSemester, $schedulesSub);
+        $faculties = $this->groupFacultySchedules($rows, 'temporary');
+
+        // Step 3: Structure the response
+        return response()->json([
+            'academic_year'              => $activeSemester->year_start . '-' . $activeSemester->year_end,
+            'semester'                   => $this->formatSemesterLabel($activeSemester->semester),
+            'temporary_faculty_schedules' => $faculties,
+        ]);
+    }
+
+    /**
+     * For: Faculty Attendance System
      * Returns all rooms
      */
     public function roomsList(Request $request)
