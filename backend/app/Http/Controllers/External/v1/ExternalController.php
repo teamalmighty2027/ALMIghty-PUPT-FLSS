@@ -48,197 +48,30 @@ class ExternalController extends Controller
      */
     public function partTimeFacultySchedules(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Part-time faculty schedules accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Part-time faculty schedules accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Part-time faculty schedules');
 
         // Step 1: Retrieve the current active semester with academic year details
-        $activeSemester = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
-            ->select(
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester',
-                'active_semesters.academic_year_id',
-                'active_semesters.semester_id',
-                'active_semesters.active_semester_id',
-                'active_semesters.start_date',
-                'active_semesters.end_date'
-            )
-            ->first();
+        $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
         // Check if there are any published schedules for the active semester
-        $hasPublishedSchedules = DB::table('faculty_schedule_publication')
-            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
-            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
-            ->where('faculty_schedule_publication.is_published', 1)
-            ->exists();
-
-        if (! $hasPublishedSchedules) {
-            return response()->json([
-                'status' => 'unpublished',
-                'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
-                $activeSemester->year_start . "-" . $activeSemester->year_end .
-                ", " . $this->formatSemesterLabel($activeSemester->semester) .
-                " is not yet published.",
-            ]);
+        if (! $this->checkPublishedSchedules($activeSemester)) {
+            return $this->buildUnpublishedResponse($activeSemester);
         }
 
-        // Step 2: Prepare a subquery to get schedules for the current semester and academic year
-        $schedulesSub = DB::table('schedules')
-            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
-            ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->join('faculty_schedule_publication', function ($join) use ($activeSemester) {
-                $join->on('faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
-                    ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
-                    ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id)
-                    ->where('faculty_schedule_publication.is_published', '=', 1);
-            })
-            ->where('ca_semesters.semester', '=', $activeSemester->semester)
-            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
-            ->select(
-                'schedules.schedule_id',
-                'schedules.faculty_id',
-                'schedules.day',
-                'schedules.start_time',
-                'schedules.end_time',
-                'schedules.room_id',
-                'schedules.section_course_id'
-            );
+        // Step 2: Prepare queries and fetch data
+        $schedulesSub = $this->buildFacultyScheduleSubquery($activeSemester);
+        $rows = $this->fetchFacultyWithSchedules($activeSemester, $schedulesSub);
+        $faculties = $this->groupFacultySchedules($rows, 'part-time');
 
-        // Step 3: Join faculties with current schedules
-        $facultySchedules = DB::table('faculty')
-            ->join('users', 'faculty.user_id', '=', 'users.id')
-            ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
-            ->leftJoinSub($schedulesSub, 'current_schedules', function ($join) {
-                $join->on('current_schedules.faculty_id', '=', 'faculty.id');
-            })
-            ->leftJoin('section_courses', 'current_schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->leftJoin('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
-            ->leftJoin('rooms', 'rooms.room_id', '=', 'current_schedules.room_id')
-            ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
-                $join->on('faculty_schedule_publication.faculty_id', '=', 'faculty.id')
-                    ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
-                    ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id);
-            })
-            ->select(
-                'faculty.id as faculty_id',
-                'faculty.idp_user_id',
-                'users.id as user_id',
-                'users.code as faculty_code',
-                'faculty_type.faculty_type',
-                'current_schedules.schedule_id',
-                'current_schedules.day',
-                'current_schedules.start_time',
-                'current_schedules.end_time',
-                'rooms.room_code',
-                'course_assignments.course_assignment_id',
-                'courses.course_title',
-                'courses.course_code',
-                'courses.lec_hours',
-                'courses.lab_hours',
-                'courses.units',
-                'courses.tuition_hours',
-                'programs.program_code',
-                'programs.program_title',
-                'sections_per_program_year.year_level',
-                'sections_per_program_year.section_name',
-                DB::raw('IFNULL(faculty_schedule_publication.is_published, 0) as is_published')
-            )
-            ->get();
-
-        // Step 3.1: Collect unique user_ids to fetch User models
-        $userIds = $facultySchedules->pluck('user_id')->unique()->toArray();
-
-        // Step 3.2: Fetch User models
-        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
-
-        // Step 4: Group the data by faculty and structure schedules
-        $faculties = [];
-
-        foreach ($facultySchedules as $schedule) {
-            // Only process faculty members who have schedules
-            if ($schedule->schedule_id) {
-                // Check if faculty_type is 'Part-Time' before adding to the response
-                if (strtolower($schedule->faculty_type) !== 'part-time') {
-                    continue;
-                }
-
-                if (! isset($faculties[$schedule->faculty_id])) {
-                    $faculties[$schedule->faculty_id] = [
-                        'faculty_id'      => $schedule->faculty_id,
-                        'idp_user_id'     => $schedule->idp_user_id,
-                        'faculty_email'   => $users[$schedule->user_id]->email ?? null,
-                        'last_name'       => $users[$schedule->user_id]->last_name ?? null,
-                        'first_name'      => $users[$schedule->user_id]->first_name ?? null,
-                        'middle_name'     => $users[$schedule->user_id]->middle_name ?? null,
-                        'suffix_name'     => $users[$schedule->user_id]->suffix_name ?? null,
-                        'faculty_code'    => $schedule->faculty_code,
-                        'faculty_type'    => $schedule->faculty_type,
-                        'assigned_units'  => 0,
-                        'schedules'       => [],
-                        'tracked_courses' => [],
-                    ];
-                }
-
-                // Only add units if we haven't counted this course assignment before
-                if (! in_array($schedule->course_assignment_id, $faculties[$schedule->faculty_id]['tracked_courses'])) {
-                    $faculties[$schedule->faculty_id]['assigned_units'] += $schedule->units;
-                    $faculties[$schedule->faculty_id]['tracked_courses'][] = $schedule->course_assignment_id;
-                }
-
-                $faculties[$schedule->faculty_id]['schedules'][] = [
-                    'day'            => $schedule->day,
-                    'start_time'     => $schedule->start_time,
-                    'end_time'       => $schedule->end_time,
-                    'room_code'      => $schedule->room_code,
-                    'program_code'   => $schedule->program_code,
-                    'program_title'  => $schedule->program_title,
-                    'year_level'     => $schedule->year_level,
-                    'section_name'   => $schedule->section_name,
-                    'course_details' => [
-                        'course_assignment_id' => $schedule->course_assignment_id,
-                        'course_title'         => $schedule->course_title,
-                        'course_code'          => $schedule->course_code,
-                        'lec'                  => $schedule->lec_hours,
-                        'lab'                  => $schedule->lab_hours,
-                        'units'                => $schedule->units,
-                        'tuition_hours'        => $schedule->tuition_hours,
-                    ],
-                ];
-            }
-        }
-
-        // Remove the tracking array before sending response
-        foreach ($faculties as &$faculty) {
-            unset($faculty['tracked_courses']);
-        }
-
-        // Step 4.1: Sort the faculties by faculty_name
-        $faculties = collect($faculties)->sortBy('last_name')->values()->all();
-
-        // Step 5: Structure the response
+        // Step 3: Structure the response
         return response()->json([
             'academic_year'              => $activeSemester->year_start . '-' . $activeSemester->year_end,
             'semester'                   => $this->formatSemesterLabel($activeSemester->semester),
-            'parttime_faculty_schedules' => array_values($faculties),
+            'parttime_faculty_schedules' => $faculties,
         ]);
     }
 
@@ -248,15 +81,7 @@ class ExternalController extends Controller
      */
     public function roomsList(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Rooms list accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Rooms list accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Rooms list');
 
         $rooms = Room::with('building')
             ->orderBy('room_code')
@@ -281,52 +106,18 @@ class ExternalController extends Controller
      */
     public function facultySchedules(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("All faculty schedules accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "All faculty schedules accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'All faculty schedules');
 
         // Step 1: Retrieve the current active semester with academic year details
-        $activeSemester = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
-            ->select(
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester',
-                'active_semesters.academic_year_id',
-                'active_semesters.semester_id',
-                'active_semesters.active_semester_id',
-                'active_semesters.start_date',
-                'active_semesters.end_date'
-            )
-            ->first();
+        $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
         // Check if there are any published schedules for the active semester
-        $hasPublishedSchedules = DB::table('faculty_schedule_publication')
-            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
-            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
-            ->where('faculty_schedule_publication.is_published', 1)
-            ->exists();
-
-        if (! $hasPublishedSchedules) {
-            return response()->json([
-                'status' => 'unpublished',
-                'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
-                $activeSemester->year_start . "-" . $activeSemester->year_end .
-                ", " . $this->formatSemesterLabel($activeSemester->semester) .
-                " is not yet published.",
-            ]);
+        if (! $this->checkPublishedSchedules($activeSemester)) {
+            return $this->buildUnpublishedResponse($activeSemester);
         }
 
         // Step 2: Prepare a subquery to get schedules for the current semester and academic year
@@ -526,50 +317,18 @@ class ExternalController extends Controller
      */
     public function courseSchedules(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Course schedules accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Course schedules accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Course schedules');
 
         // Step 1: Get active semester
-        $activeSemester = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
-            ->select(
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester',
-                'active_semesters.academic_year_id',
-                'active_semesters.semester_id',
-                'active_semesters.active_semester_id'
-            )
-            ->first();
+        $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
         // Step 2: Check if there are any published schedules
-        $hasPublishedSchedules = DB::table('faculty_schedule_publication')
-            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
-            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
-            ->where('faculty_schedule_publication.is_published', 1)
-            ->exists();
-
-        if (! $hasPublishedSchedules) {
-            return response()->json([
-                'status' => 'unpublished',
-                'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
-                $activeSemester->year_start . "-" . $activeSemester->year_end .
-                ", " . $this->formatSemesterLabel($activeSemester->semester) .
-                " is not yet published.",
-            ]);
+        if (! $this->checkPublishedSchedules($activeSemester)) {
+            return $this->buildUnpublishedResponse($activeSemester);
         }
 
         // Get faculty schedules - starting with faculty table
@@ -655,50 +414,18 @@ class ExternalController extends Controller
      */
     public function courseFiles(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Course files accessed by external system: {$clientSystem}", 
-        ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Course files accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Course files');
 
         // Step 1: Get active semester
-        $activeSemester = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
-            ->select(
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester',
-                'active_semesters.academic_year_id',
-                'active_semesters.semester_id',
-                'active_semesters.active_semester_id'
-            )
-            ->first();
+        $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
         }
 
         // Step 2: Check if there are any published schedules
-        $hasPublishedSchedules = DB::table('faculty_schedule_publication')
-            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
-            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
-            ->where('faculty_schedule_publication.is_published', 1)
-            ->exists();
-
-        if (! $hasPublishedSchedules) {
-            return response()->json([
-                'status' => 'unpublished',
-                'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
-                $activeSemester->year_start . "-" . $activeSemester->year_end .
-                ", " . $this->formatSemesterLabel($activeSemester->semester) .
-                " is not yet published.",
-            ]);
+        if (! $this->checkPublishedSchedules($activeSemester)) {
+            return $this->buildUnpublishedResponse($activeSemester);
         }
 
         // Step 3: Get all course files for published schedules
@@ -762,16 +489,7 @@ class ExternalController extends Controller
      */
     public function facultyList(Request $request)
     {
-        // Identify which system is making the request
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Faculty list accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Faculty list accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $clientSystem = $this->logExternalAccess($request, 'Faculty list');
 
         $faculties = DB::table('faculty')
             ->join('users', 'faculty.user_id', '=', 'users.id')
@@ -838,17 +556,7 @@ class ExternalController extends Controller
      * Returns faculty list with details for DMS and OCMS integration.
      */
     public function facultyProfiles(Request $request) {
-        // Identify which system is making the request
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-
-        Log::info("Faculty profiles accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Faculty profiles accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $clientSystem = $this->logExternalAccess($request, 'Faculty profiles');
 
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
@@ -922,15 +630,7 @@ class ExternalController extends Controller
      */
     public function departmentList(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Department list accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Department list accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Department list');
 
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
@@ -1043,29 +743,10 @@ class ExternalController extends Controller
 
     public function labSchedules(Request $request)
     {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-        Log::info("Computer laboratory schedules accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "Computer laboratory schedules accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
+        $this->logExternalAccess($request, 'Computer laboratory schedules');
 
         // Step 1: Get active semester
-        $activeSemester = DB::table('active_semesters')
-            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
-            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
-            ->select(
-                'academic_years.year_start',
-                'academic_years.year_end',
-                'semesters.semester',
-                'active_semesters.academic_year_id',
-                'active_semesters.semester_id'
-            )
-            ->first();
+        $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
             return response()->json(['message' => 'No active semester found.'], 404);
@@ -1166,6 +847,245 @@ class ExternalController extends Controller
                 'rooms'               => $rooms,
             ],
         ]);
+    }
+
+    // -------------------------
+    // Helper Functions
+    // -------------------------
+
+    /**
+     * Retrieves the current active semester with academic year details.
+     *
+     * @return object|null
+     */
+    private function getActiveSemester()
+    {
+        return DB::table('active_semesters')
+            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
+            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
+            ->where('active_semesters.is_active', 1)
+            ->select(
+                'academic_years.year_start',
+                'academic_years.year_end',
+                'semesters.semester',
+                'active_semesters.academic_year_id',
+                'active_semesters.semester_id',
+                'active_semesters.active_semester_id',
+                'active_semesters.start_date',
+                'active_semesters.end_date'
+            )
+            ->first();
+    }
+
+    /**
+     * Checks if there are any published schedules for the active semester.
+     *
+     * @param  object  $activeSemester
+     * @return bool
+     */
+    private function checkPublishedSchedules($activeSemester): bool
+    {
+        return DB::table('faculty_schedule_publication')
+            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
+            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
+            ->where('faculty_schedule_publication.is_published', 1)
+            ->exists();
+    }
+
+    /**
+     * Builds the standardized unpublished response.
+     *
+     * @param  object  $activeSemester
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function buildUnpublishedResponse($activeSemester)
+    {
+        return response()->json([
+            'status' => 'unpublished',
+            'message' => "PUP Taguig faculty load and schedules for " . "A.Y. " .
+            $activeSemester->year_start . "-" . $activeSemester->year_end .
+            ", " . $this->formatSemesterLabel($activeSemester->semester) .
+            " is not yet published.",
+        ]);
+    }
+
+    /**
+     * Logs and audits an external system access event.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  string  $resource
+     * @return string
+     */
+    private function logExternalAccess(Request $request, string $resource): string
+    {
+        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
+
+        Log::info("{$resource} accessed by external system: {$clientSystem}", 
+          ['ip' => $request->ip()]);
+
+        AuditLogger::log(
+            action: 'view',
+            description: "{$resource} accessed by external system: {$clientSystem}",
+            metadata: ['client_system' => $clientSystem]
+        );
+
+        return $clientSystem;
+    }
+
+    /**
+     * Builds the faculty schedule subquery for the given active semester.
+     *
+     * @param  object  $activeSemester
+     * @return \Illuminate\Database\Query\Builder
+     */
+    private function buildFacultyScheduleSubquery($activeSemester)
+    {
+        return DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->join('faculty_schedule_publication', function ($join) use ($activeSemester) {
+                $join->on('faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
+                    ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
+                    ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id)
+                    ->where('faculty_schedule_publication.is_published', '=', 1);
+            })
+            ->where('ca_semesters.semester', '=', $activeSemester->semester)
+            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->select(
+                'schedules.schedule_id',
+                'schedules.faculty_id',
+                'schedules.day',
+                'schedules.start_time',
+                'schedules.end_time',
+                'schedules.room_id',
+                'schedules.section_course_id'
+            );
+    }
+
+    /**
+     * Fetches raw faculty data with their schedules for the active semester.
+     *
+     * @param  object  $activeSemester
+     * @param  \Illuminate\Database\Query\Builder  $schedulesSub
+     * @return \Illuminate\Support\Collection
+     */
+    private function fetchFacultyWithSchedules($activeSemester, $schedulesSub)
+    {
+        return DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
+            ->leftJoinSub($schedulesSub, 'current_schedules', function ($join) {
+                $join->on('current_schedules.faculty_id', '=', 'faculty.id');
+            })
+            ->leftJoin('section_courses', 'current_schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->leftJoin('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
+            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
+            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
+            ->leftJoin('courses', 'courses.course_id', '=', 'course_assignments.course_id')
+            ->leftJoin('rooms', 'rooms.room_id', '=', 'current_schedules.room_id')
+            ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
+                $join->on('faculty_schedule_publication.faculty_id', '=', 'faculty.id')
+                    ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
+                    ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id);
+            })
+            ->select(
+                'faculty.id as faculty_id',
+                'faculty.idp_user_id',
+                'users.id as user_id',
+                'users.code as faculty_code',
+                'faculty_type.faculty_type',
+                'current_schedules.schedule_id',
+                'current_schedules.day',
+                'current_schedules.start_time',
+                'current_schedules.end_time',
+                'rooms.room_code',
+                'course_assignments.course_assignment_id',
+                'courses.course_title',
+                'courses.course_code',
+                'courses.lec_hours',
+                'courses.lab_hours',
+                'courses.units',
+                'courses.tuition_hours',
+                'programs.program_code',
+                'programs.program_title',
+                'sections_per_program_year.year_level',
+                'sections_per_program_year.section_name',
+                DB::raw('IFNULL(faculty_schedule_publication.is_published, 0) as is_published')
+            )
+            ->get();
+    }
+
+    /**
+     * Groups raw faculty schedule rows into the standardized structure.
+     *
+     * @param  \Illuminate\Support\Collection  $facultySchedules
+     * @param  string  $typeFilter
+     * @return array
+     */
+    private function groupFacultySchedules($facultySchedules, string $typeFilter)
+    {
+        $userIds = $facultySchedules->pluck('user_id')->unique()->toArray();
+        $users = User::whereIn('id', $userIds)->get()->keyBy('id');
+
+        $faculties = [];
+
+        foreach ($facultySchedules as $schedule) {
+            if ($schedule->schedule_id) {
+                if (strtolower($schedule->faculty_type) !== strtolower($typeFilter)) {
+                    continue;
+                }
+
+                if (! isset($faculties[$schedule->faculty_id])) {
+                    $faculties[$schedule->faculty_id] = [
+                        'faculty_id'      => $schedule->faculty_id,
+                        'idp_user_id'     => $schedule->idp_user_id,
+                        'faculty_email'   => $users[$schedule->user_id]->email ?? null,
+                        'last_name'       => $users[$schedule->user_id]->last_name ?? null,
+                        'first_name'      => $users[$schedule->user_id]->first_name ?? null,
+                        'middle_name'     => $users[$schedule->user_id]->middle_name ?? null,
+                        'suffix_name'     => $users[$schedule->user_id]->suffix_name ?? null,
+                        'faculty_code'    => $schedule->faculty_code,
+                        'faculty_type'    => $schedule->faculty_type,
+                        'assigned_units'  => 0,
+                        'schedules'       => [],
+                        'tracked_courses' => [],
+                    ];
+                }
+
+                if (! in_array($schedule->course_assignment_id, $faculties[$schedule->faculty_id]['tracked_courses'])) {
+                    $faculties[$schedule->faculty_id]['assigned_units'] += $schedule->units;
+                    $faculties[$schedule->faculty_id]['tracked_courses'][] = $schedule->course_assignment_id;
+                }
+
+                $faculties[$schedule->faculty_id]['schedules'][] = [
+                    'day'            => $schedule->day,
+                    'start_time'     => $schedule->start_time,
+                    'end_time'       => $schedule->end_time,
+                    'room_code'      => $schedule->room_code,
+                    'program_code'   => $schedule->program_code,
+                    'program_title'  => $schedule->program_title,
+                    'year_level'     => $schedule->year_level,
+                    'section_name'   => $schedule->section_name,
+                    'course_details' => [
+                        'course_assignment_id' => $schedule->course_assignment_id,
+                        'course_title'         => $schedule->course_title,
+                        'course_code'          => $schedule->course_code,
+                        'lec'                  => $schedule->lec_hours,
+                        'lab'                  => $schedule->lab_hours,
+                        'units'                => $schedule->units,
+                        'tuition_hours'        => $schedule->tuition_hours,
+                    ],
+                ];
+            }
+        }
+
+        foreach ($faculties as &$faculty) {
+            unset($faculty['tracked_courses']);
+        }
+
+        return collect($faculties)->sortBy('last_name')->values()->all();
     }
 
     /**
