@@ -504,8 +504,6 @@ class ReportsController extends Controller
                     ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
             })
             ->whereNotNull('schedules.day')
-            ->whereNotNull('schedules.faculty_id')
-            ->whereNotNull('schedules.room_id')
             ->select(
                 'schedules.schedule_id',
                 'schedules.faculty_id',

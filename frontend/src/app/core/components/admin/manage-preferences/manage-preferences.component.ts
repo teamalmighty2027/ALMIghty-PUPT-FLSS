@@ -604,14 +604,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
       activeSemester.courses.forEach((course: any, index: number) => {
         const preferredDays = course.preferred_days || [];
-        const formattedDayTimes = preferredDays
-          .map((pd: any) => {
-            const day = pd.day;
-            const startTime = pd.start_time ? this.formatTimeTo12Hour(pd.start_time) : 'N/A';
-            const endTime = pd.end_time ? this.formatTimeTo12Hour(pd.end_time) : 'N/A';
-            return `${day} - ${startTime} to ${endTime}`;
-          })
-          .join('\n');
+        const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
 
         const sectionName = course.section_details?.section_name || course.course_details?.section_name || '';
         const yearLevel = course.course_details?.year_level || '';
@@ -689,18 +682,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             const courseData = activeSemester.courses.map(
               (course: any, index: number) => {
                 const preferredDays = course.preferred_days || [];
-                const formattedDayTimes = preferredDays
-                  .map((pd: any) => {
-                    const day = pd.day;
-                    const startTime = pd.start_time
-                      ? this.formatTimeTo12Hour(pd.start_time)
-                      : 'N/A';
-                    const endTime = pd.end_time
-                      ? this.formatTimeTo12Hour(pd.end_time)
-                      : 'N/A';
-                    return `${day} - ${startTime} to ${endTime}`;
-                  })
-                  .join('\n');
+                const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
 
                 return [
                   (index + 1).toString(),
@@ -833,6 +815,60 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const period = hours >= 12 ? 'PM' : 'AM';
     const formattedHour = hours % 12 || 12;
     return `${formattedHour}:${minutesFormatted} ${period}`;
+  }
+
+  /**
+   * Detects if the course preferences contain modifiers for "Any Day" or "Any Time".
+   * @param preferredDays The array of preferred days.
+   * @returns An object indicating boolean presence of any_day and any_time modifiers.
+   */
+  private detectAnyModifiers(preferredDays: any[]): { has_any_day: boolean; has_any_time: boolean } {
+    const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const ANY_DAY_START = '07:00:00';
+    const ANY_DAY_END = '21:00:00';
+
+    const presentDays = preferredDays.map(pref => pref.day);
+    const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
+
+    const has_any_time = preferredDays.length > 0 && preferredDays.every(
+      pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
+    );
+
+    return { has_any_day, has_any_time };
+  }
+
+  /**
+   * Formats the preferred days and times for display, accounting for "Any Day" and "Any Time" logic.
+   * @param preferredDays The array of preferred days.
+   */
+  private formatPreferredDaysAndTime(preferredDays: any[]): string {
+    const { has_any_day, has_any_time } = this.detectAnyModifiers(preferredDays);
+
+    if (has_any_day && has_any_time) {
+      return 'Any Day, Any Time';
+    }
+
+    if (has_any_day && preferredDays.length > 0) {
+      const firstDay = preferredDays[0];
+      const timeRange = `${this.formatTimeTo12Hour(
+        firstDay.start_time,
+      )} - ${this.formatTimeTo12Hour(firstDay.end_time)}`;
+      return `Any Day, ${timeRange}`;
+    }
+
+    if (has_any_time) {
+      const daysString = preferredDays.map(pref => pref.day).join(', ');
+      return `${daysString}, Any Time`;
+    }
+
+    return preferredDays
+      .map((pref) => {
+        const time = `${this.formatTimeTo12Hour(
+          pref.start_time,
+        )} - ${this.formatTimeTo12Hour(pref.end_time)}`;
+        return `${pref.day} (${time})`;
+      })
+      .join('\n');
   }
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
