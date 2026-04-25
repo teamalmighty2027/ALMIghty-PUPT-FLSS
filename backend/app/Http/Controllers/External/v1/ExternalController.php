@@ -62,7 +62,7 @@ class ExternalController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'academic_years.year_start',
                 'academic_years.year_end',
@@ -295,7 +295,7 @@ class ExternalController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'academic_years.year_start',
                 'academic_years.year_end',
@@ -540,7 +540,7 @@ class ExternalController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'academic_years.year_start',
                 'academic_years.year_end',
@@ -669,7 +669,7 @@ class ExternalController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'academic_years.year_start',
                 'academic_years.year_end',
@@ -1057,7 +1057,7 @@ class ExternalController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'academic_years.year_start',
                 'academic_years.year_end',
