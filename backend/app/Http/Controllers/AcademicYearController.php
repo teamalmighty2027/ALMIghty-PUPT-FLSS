@@ -481,16 +481,57 @@ class AcademicYearController extends Controller
             )
             ->first();
 
+        $facultyViewSemester = DB::table('active_semesters')
+            ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
+            ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
+            ->where('active_semesters.is_faculty_view', 1)
+            ->select(
+                DB::raw("CONCAT(academic_years.year_start, '-', academic_years.year_end) as academic_year"),
+                'semesters.semester as semester_number'
+            )
+            ->first();
+
         if ($activeSemester) {
             return response()->json([
                 'activeYear' => $activeSemester->academic_year,
                 'activeSemester' => $activeSemester->semester_number,
                 'startDate' => $activeSemester->start_date,
                 'endDate' => $activeSemester->end_date,
+                // Faculty view context
+                'facultyViewYear' => $facultyViewSemester ? $facultyViewSemester->academic_year : null,
+                'facultyViewSemester' => $facultyViewSemester ? $facultyViewSemester->semester_number : null,
             ]);
         }
 
         return response()->json(['message' => 'No active academic year and semester found'], 404);
+    }
+
+    /**
+     * Sets which active_semesters row faculty can view their schedules for.
+     * Clears is_faculty_view on all other rows first.
+     */
+    public function setFacultyViewSemester(Request $request)
+    {
+        $validated = $request->validate([
+            'academic_year_id' => 'required|integer|exists:academic_years,academic_year_id',
+            'semester_id'      => 'required|integer|exists:semesters,semester_id',
+        ]);
+
+        DB::transaction(function () use ($validated) {
+            // Clear existing faculty view flag
+            DB::table('active_semesters')
+                ->update(['is_faculty_view' => 0]);
+
+            // Set the new faculty view semester
+            DB::table('active_semesters')
+                ->where('academic_year_id', $validated['academic_year_id'])
+                ->where('semester_id', $validated['semester_id'])
+                ->update(['is_faculty_view' => 1]);
+        });
+
+        return response()->json([
+            'message' => 'Faculty view semester updated successfully.',
+        ]);
     }
 
     /**
@@ -538,6 +579,9 @@ class AcademicYearController extends Controller
                 'individual_start_date' => null,
             ]);
 
+            // Note: is_faculty_view is intentionally NOT updated here.
+            // The admin manually controls the faculty view semester to allow scheduling
+            // the upcoming semester while faculty still see the current one.
             ActiveSemester::where('academic_year_id', $academicYearId)
                 ->where('semester_id', $semesterId)
                 ->update([
