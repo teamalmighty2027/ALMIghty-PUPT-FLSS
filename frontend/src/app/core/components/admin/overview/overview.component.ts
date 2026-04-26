@@ -71,6 +71,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   schedulesPublished = false;
   notificationsLoaded = false;
   facultyWithSchedulesCount = 0;
+  isMismatchedSemester = false;
 
   requestNotifications: RequestNotification[] = [];
 
@@ -183,6 +184,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   private updateBasicInfo(data: OverviewDetails): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
+    this.isMismatchedSemester = data.isMismatchedSemester ?? false;
     this.activeFacultyCount = data.activeFacultyCount;
     this.activeProgramsCount = data.activeProgramsCount;
     this.activeCurricula = data.activeCurricula;
@@ -210,6 +212,27 @@ export class OverviewComponent implements OnInit, OnDestroy {
   getCircleOffset(percentage: number): number {
     const circumference = 2 * Math.PI * 45;
     return circumference - (percentage / 100) * circumference;
+  }
+
+  /**
+   * Helper function that formats the semester integer/string to a text label.
+   * @param semester The semester value (1, 2, 3)
+   * @returns The formatted semester string
+   */
+  formatSemester(semester: any): string {
+    if (!semester || semester === 'None') return 'None';
+
+    const sem = semester.toString();
+    switch (sem) {
+      case '1':
+        return '1st Semester';
+      case '2':
+        return '2nd Semester';
+      case '3':
+        return 'Summer Semester';
+      default:
+        return sem;
+    }
   }
 
   // ================
@@ -270,6 +293,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       semester: this.activeSemester,
       currentState: this.schedulesPublished,
       hasSecondaryText: true,
+      isMismatchedSemester: this.isMismatchedSemester,
     };
 
     const dialogRef = this.dialog.open(DialogActionComponent, {

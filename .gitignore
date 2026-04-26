@@ -17,6 +17,9 @@ bazel-out/
 *.launch
 .settings/
 *.sublime-workspace
+.agents
+.agent/
+.workflows/
 
 # Angular CLI
 .angular/
