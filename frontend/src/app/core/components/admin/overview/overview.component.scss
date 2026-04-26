@@ -73,6 +73,10 @@
     border-radius: var(--border-radius-md);
     color: white;
 
+    &.mismatched {
+      @include mixins.gradient-secondary(315deg);
+    }
+
     .text,
     .label {
       @include mixins.reset-styles;

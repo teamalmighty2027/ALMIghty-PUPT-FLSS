@@ -14,7 +14,7 @@
           Here's the key overview of the loading and scheduling this semester.
         </p>
       </div>
-      <div class="active-year-sem-container">
+      <div class="active-year-sem-container" [class.mismatched]="isMismatchedSemester">
         <p class="text">A.Y. {{ activeYear }}, {{ formatSemester(activeSemester) }}</p>
         <p class="label">Active Year & Semester</p>
       </div>

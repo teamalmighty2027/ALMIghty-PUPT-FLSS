@@ -208,17 +208,17 @@
   z-index: 10;
   margin: 0 var(--spacing-lg) var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-lg);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--blur-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  border: 1px solid var(--neutral-border);
   border-radius: var(--border-radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--glass-shadow);
 
   .draft-info {
     @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
     
     .amber-icon {
-      color: #ed6c02;
+      color: var(--neutral-button);
     }
 
     .texts {
@@ -229,7 +229,7 @@
       }
       .desc {
         font-size: var(--font-size-xs);
-        color: #ed6c02; // Using a solid amber-orange for better visibility
+        color: var(--neutral-button);
         font-weight: 500;
       }
     }
