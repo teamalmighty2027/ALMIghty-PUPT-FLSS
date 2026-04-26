@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { forkJoin, Observable, Subject, takeUntil } from 'rxjs';
+import { forkJoin, Observable, Subject, take, takeUntil } from 'rxjs';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatTableModule } from '@angular/material/table';
@@ -980,15 +980,25 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
       autoFocus: true,
     });
 
-    dialogRef.afterClosed().subscribe((result) => {
+    dialogRef
+      .afterClosed()
+      .pipe(take(1), takeUntil(this.destroy$))
+      .subscribe((result) => {
       if (result === 'Update') {
-        this.academicYearService.setFacultyViewSemester(academicYearId, semesterId).subscribe({
+        this.academicYearService
+          .setFacultyViewSemester(academicYearId, semesterId)
+          .pipe(take(1), takeUntil(this.destroy$))
+          .subscribe({
           next: () => {
-            this.snackBar.open('Faculty view semester updated.', 'Close', { duration: 3000 });
+            this.snackBar.open('Faculty view semester updated.', 
+              'Close', { duration: 3000 }
+            );
             this.loadData();
           },
           error: (err) => {
-            this.snackBar.open('Failed to update faculty view semester.', 'Close', { duration: 5000 });
+            this.snackBar.open('Failed to update faculty view semester.', 
+              'Close', { duration: 5000 }
+            );
           }
         });
       }
@@ -1072,7 +1082,10 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             }
           });
 
-        dialogRef.afterClosed().subscribe((result) => {
+        dialogRef
+          .afterClosed()
+          .pipe(take(1), takeUntil(this.destroy$))
+          .subscribe((result) => {
           if (result) {
             const selectedYearObj = academicYears.find(
               (year) => year.academic_year === result.academicYear
@@ -1087,6 +1100,7 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
                   selectedYearObj.academic_year_id,
                   selectedSemesterObj.semester_id
                 )
+                .pipe(take(1), takeUntil(this.destroy$))
                 .subscribe({
                   next: () => {
                     this.snackBar.open(
