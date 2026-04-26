@@ -25,8 +25,8 @@
     </div>
 
     @if (data.isMismatchedSemester) {
-    <div class="warning-text" style="color: #d32f2f; margin-top: 10px; padding: 10px; background-color: #fdeded; border-radius: 4px; display: flex; gap: 8px; align-items: start;">
-      <span mat-symbol="warning" style="color: #d32f2f;"></span>
+    <div class="warning-text">
+      <span mat-symbol="warning"></span>
       <span>
         <strong>Warning:</strong> The scheduling semester (A.Y. {{ data.academicYear }}, {{ data.semester }}) 
         is different from the faculty view semester. Publishing will update schedules for the scheduling semester, 

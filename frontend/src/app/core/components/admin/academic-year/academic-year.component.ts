@@ -1040,8 +1040,12 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             title: 'Set Faculty View Semester',
             fields: fields,
             initialValue: {
-              academicYear: this.facultyViewYear && this.facultyViewYear !== 'None' ? this.facultyViewYear : academicYearOptions[0] || '',
-              semester: this.facultyViewSemester && this.facultyViewSemester !== 'None' ? this.facultyViewSemester : semesterOptions[0] || '',
+              academicYear: this.facultyViewYear && 
+                this.facultyViewYear !== 'None' ? 
+                this.facultyViewYear : academicYearOptions[0] || '',
+              semester: this.facultyViewSemester && 
+                this.facultyViewSemester !== 'None' ? 
+                this.facultyViewSemester : semesterOptions[0]?.value || '',
             },
           },
           disableClose: true,

@@ -54,6 +54,21 @@
     }
   }
 
+  .warning-text {
+    @include mixins.flex-layout($align: flex-start, $gap: var(--spacing-sm));
+    padding: var(--spacing-md);
+    background-color: var(--primary-fade);
+    color: var(--primary-warning);
+    border-radius: var(--border-radius-sm);
+    margin-top: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-md);
+
+    span[mat-symbol] {
+      color: var(--primary-warning);
+    }
+  }
+
   .secondary-text {
     .link {
       color: var(--primary-text);
