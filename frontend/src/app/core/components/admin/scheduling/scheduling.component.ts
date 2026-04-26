@@ -166,8 +166,15 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           if (this.isSubmissionEnabled === 1 && !this.shouldSkipDialog()) {
             this.openInfoDialog();
           }
+
+          this.isLoading = false;
+          this.cdr.detectChanges();
         },
-        error: this.handleError('Error initializing scheduling component'),
+        error: (err) => {
+          this.isLoading = false;
+          this.cdr.detectChanges();
+          this.handleError('Error initializing scheduling component')(err);
+        },
       });
   }
 

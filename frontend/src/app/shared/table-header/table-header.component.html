@@ -131,7 +131,7 @@
           matRipple
         >
           <p class="text">
-            A.Y. {{ activeYear }}, {{ activeSemester }}
+            A.Y. {{ activeYear }}, {{ formatSemester(activeSemester) }}
             @if (readOnlyBadge) {
               <mat-icon class="lock-icon">lock_outline</mat-icon>
             }
@@ -152,7 +152,7 @@
           matRipple
         >
           <p class="text">
-            A.Y. {{ facultyViewYear }}, {{ facultyViewSemester }}
+            A.Y. {{ facultyViewYear }}, {{ formatSemester(facultyViewSemester) }}
           </p>
           <p class="label">Faculty View Semester</p>
         </div>

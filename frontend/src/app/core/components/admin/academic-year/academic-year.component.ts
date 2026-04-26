@@ -1008,8 +1008,15 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
           return;
         }
 
-        const academicYearOptions = academicYears.map((year: AcademicYear) => year.academic_year);
-        const semesterOptions = academicYears[0]?.semesters?.map((sem: Semester) => sem.semester_number) || [];
+        const academicYearOptions = academicYears.map(
+          (year: AcademicYear) => year.academic_year
+        );
+        const semesterOptions = (academicYears[0]?.semesters || []).map(
+          (sem: Semester) => ({
+            label: this.formatSemester(sem.semester_number),
+            value: sem.semester_number,
+          })
+        );
 
         const fields = [
           {
@@ -1048,33 +1055,75 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             const selectedYearObj = academicYears.find((year) => year.academic_year === selectedYear);
             if (selectedYearObj) {
               dialogRef.componentInstance.form.get('semester')?.reset();
-              dialogRef.componentInstance.data.fields[1].options = selectedYearObj.semesters.map((sem: Semester) => sem.semester_number);
+              dialogRef.componentInstance.data.fields[1].options =
+                selectedYearObj.semesters.map((sem: Semester) => ({
+                  label: this.formatSemester(sem.semester_number),
+                  value: sem.semester_number,
+                }));
               if (selectedYearObj.semesters.length > 0) {
-                dialogRef.componentInstance.form?.get('semester')?.setValue(selectedYearObj.semesters[0].semester_number);
+                dialogRef.componentInstance.form
+                  ?.get('semester')
+                  ?.setValue(selectedYearObj.semesters[0].semester_number);
               }
             }
           });
 
         dialogRef.afterClosed().subscribe((result) => {
           if (result) {
-            const selectedYearObj = academicYears.find((year) => year.academic_year === result.academicYear);
-            const selectedSemesterObj = selectedYearObj?.semesters.find((sem) => sem.semester_number === result.semester);
+            const selectedYearObj = academicYears.find(
+              (year) => year.academic_year === result.academicYear
+            );
+            const selectedSemesterObj = selectedYearObj?.semesters.find(
+              (sem) => sem.semester_number === result.semester
+            );
 
             if (selectedYearObj && selectedSemesterObj) {
               this.academicYearService
-                .setFacultyViewSemester(selectedYearObj.academic_year_id, selectedSemesterObj.semester_id)
+                .setFacultyViewSemester(
+                  selectedYearObj.academic_year_id,
+                  selectedSemesterObj.semester_id
+                )
                 .subscribe({
                   next: () => {
-                    this.snackBar.open('Faculty view semester has been set successfully.', 'Close', { duration: 3000 });
+                    this.snackBar.open(
+                      'Faculty view semester has been set successfully.',
+                      'Close',
+                      { duration: 3000 }
+                    );
                     this.loadData();
                   },
                   error: (err) => {
-                    this.snackBar.open('Failed to update faculty view semester.', 'Close', { duration: 5000 });
-                  }
+                    this.snackBar.open(
+                      'Failed to update faculty view semester.',
+                      'Close',
+                      { duration: 5000 }
+                    );
+                  },
                 });
             }
           }
         });
       });
+  }
+
+  /**
+   * Formats the semester integer/string to a text label.
+   * @param semester The semester value (1, 2, 3)
+   * @returns The formatted semester string
+   */
+  formatSemester(semester: any): string {
+    if (!semester || semester === 'None') return 'None';
+
+    const sem = semester.toString();
+    switch (sem) {
+      case '1':
+        return '1st Semester';
+      case '2':
+        return '2nd Semester';
+      case '3':
+        return 'Summer Semester';
+      default:
+        return sem;
+    }
   }
 }

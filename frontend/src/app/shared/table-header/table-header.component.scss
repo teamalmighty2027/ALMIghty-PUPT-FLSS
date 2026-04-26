@@ -114,14 +114,11 @@
 
         &.read-only {
           cursor: default;
-          background: var(--neutral-background) !important;
-          color: var(--text-secondary) !important;
-          border: 1px solid var(--border-color);
         }
       }
 
       .faculty-view-container {
-        background: linear-gradient(315deg, var(--secondary-one) 0%, var(--secondary-two) 100%);
+        @include mixins.gradient-secondary(315deg);
       }
     }
   }
