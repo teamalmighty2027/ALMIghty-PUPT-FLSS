@@ -7,13 +7,13 @@
 
 .header-container {
   @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-sm));
-  flex-wrap: nowrap; // Prevent wrapping of the main header parts if possible
+  flex-wrap: wrap;
   @include mixins.default-transition;
   padding-bottom: var(--spacing-sm);
 
   .input-container {
-    @include mixins.flex-layout($gap: var(--spacing-sm));
-    flex-wrap: nowrap;
+    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: flex-start);
+    flex-wrap: wrap;
     flex: 1 1 auto;
     margin-bottom: 0;
 
@@ -22,12 +22,13 @@
     }
 
     .search-field {
-      width: auto;
-      flex: 1;
+      max-width: 25rem;
+      width: 100%;
+      flex: 1 1 auto;
     }
 
     .program-field {
-      max-width: 25rem;
+      max-width: 35rem;
       width: auto;
       flex: 1.2;
     }
@@ -62,9 +63,9 @@
   }
 
   .header-actions {
-    @include mixins.flex-layout($align: center, $justify: flex-end, $gap: var(--spacing-sm));
-    flex-wrap: nowrap;
-    flex: 0 0 auto;
+    @include mixins.flex-layout($align: center, $justify: flex-end, $gap: var(--spacing-md));
+    flex-wrap: wrap;
+    flex: 1 0 auto;
 
     .button-container {
       @include mixins.flex-layout($align: center, $justify: center, $gap: var(--spacing-md));
@@ -162,33 +163,28 @@
 
 @media screen and (max-width: bp.$breakpoint-lgx) {
   .header-container {
-    @include mixins.flex-layout(
-      $direction: row,
-      $align: center,
-      $justify: space-between,
-      $gap: var(--spacing-md)
-    );
-    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-lg);
   }
 
-  .header-container .object-container {
-    @include mixins.flex-layout(
-      $direction: row,
-      $align: center,
-      $justify: flex-end,
-      $gap: var(--spacing-md)
-    );
+  .input-container {
+    justify-content: center;
+    flex: 1 1 100%;
+  }
+
+  .header-actions {
+    justify-content: center;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+
+    .button-container,
+    .object-container {
+      justify-content: center;
+      width: auto;
+    }
 
     .active-year-sem-container {
       padding: var(--spacing-sm) !important;
     }
-  }
-
-  .header-container .button-container {
-    @include mixins.flex-layout(
-      $align: center,
-      $justify: center,
-      $gap: var(--spacing-md)
-    );
   }
 }
