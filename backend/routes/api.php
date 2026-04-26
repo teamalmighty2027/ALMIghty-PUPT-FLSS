@@ -356,7 +356,15 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
+        // Legacy route (backward compatibility)
         Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+
+        // RESTful faculty schedule routes
+        Route::prefix('faculty-schedules')->group(function () {
+            Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
+            Route::get('/temporary', [ExternalController::class, 'temporaryFacultySchedules']);
+        });
+
         Route::get('/rooms', [ExternalController::class, 'roomsList']);
     });
 
@@ -377,7 +385,7 @@ Route::prefix('v1')->group(function () {
 
     /**
      * Biometric Synchronization System (BioSync)
-     * Deprecated Route
+     * ! Deprecated Route
      */
     // Route::middleware(['check.hmac:biosync'])->group(function () {
     //     Route::get('/computer-laboratory-schedules', [ExternalController::class, 'labSchedules']);
@@ -387,8 +395,7 @@ Route::prefix('v1')->group(function () {
 /**
  * Faculty Data Management and Evaluation System with Research Repository (FESR)
  * 
- * ⚠️ DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
- * TODO: Replace with new internal event synchronization system.
+ * ! DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
  */
 Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']); // Removed - use new event system
+// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']);
