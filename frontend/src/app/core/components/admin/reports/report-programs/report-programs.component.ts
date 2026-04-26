@@ -1074,31 +1074,36 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         let timeBottomPadding = 2;
 
         if (duration <= 2) { 
-          // 👇 1 hour or less (17mm tall box). Fonts bumped up significantly!
           startPadding = 3.5;
           lineSpacing = 2.8;
           bottomBoundary = 3.5;
-          codeFontSize = 7.5;   // Was 6.5
-          textFontSize = 6.5;   // Was 5.5
-          timeFontSize = 7;     // Was 5.5
+          codeFontSize = 7.5;
+          textFontSize = 6.5;
+          timeFontSize = 7;
           timeBottomPadding = 1.2;
         } else if (duration === 3) { 
-          // 👇 1.5 hours (25.5mm tall box). Fonts bumped up!
           startPadding = 4;
           lineSpacing = 3.4;
           bottomBoundary = 4.5;
-          codeFontSize = 8.5;   // Was 7.5
-          textFontSize = 7.5;   // Was 6.5
-          timeFontSize = 8;     // Was 7
+          codeFontSize = 8.5;   
+          textFontSize = 7.5;   
+          timeFontSize = 8;     
           timeBottomPadding = 1.5;
         } else if (duration === 4) { 
-          // 👇 2 hours (34mm tall box). Fonts bumped up!
+          startPadding = 4;
+          lineSpacing = 3.4;
+          bottomBoundary = 4.5;
+          codeFontSize = 8.5;
+          textFontSize = 7.5;
+          timeFontSize = 8;
+          timeBottomPadding = 1.5;
+        } else if (duration === 4) { 
           startPadding = 5;
           lineSpacing = 4;
           bottomBoundary = 5;
-          codeFontSize = 9.5;   // Was 8.5
-          textFontSize = 8.5;   // Was 7.5
-          timeFontSize = 9;     // Was 8
+          codeFontSize = 9.5;
+          textFontSize = 8.5;
+          timeFontSize = 9;
           timeBottomPadding = 1.8;
         }
 

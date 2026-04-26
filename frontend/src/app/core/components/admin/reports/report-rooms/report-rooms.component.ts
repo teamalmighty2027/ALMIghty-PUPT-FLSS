@@ -646,7 +646,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         let timeBottomPadding = 2;
 
         if (duration <= 2) { 
-          // 👇 1 hour or less (17mm tall box). Fonts bumped up significantly!
           startPadding = 3.5;
           lineSpacing = 2.8;
           bottomBoundary = 3.5;
@@ -655,7 +654,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           timeFontSize = 7;     
           timeBottomPadding = 1.2;
         } else if (duration === 3) { 
-          // 👇 1.5 hours (25.5mm tall box). Fonts bumped up!
           startPadding = 4;
           lineSpacing = 3.4;
           bottomBoundary = 4.5;
@@ -664,7 +662,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           timeFontSize = 8;     
           timeBottomPadding = 1.5;
         } else if (duration === 4) { 
-          // 👇 2 hours (34mm tall box). Fonts bumped up!
           startPadding = 5;
           lineSpacing = 4;
           bottomBoundary = 5;
