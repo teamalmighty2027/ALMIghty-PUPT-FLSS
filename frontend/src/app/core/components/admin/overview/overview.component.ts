@@ -71,6 +71,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   schedulesPublished = false;
   notificationsLoaded = false;
   facultyWithSchedulesCount = 0;
+  isMismatchedSemester = false;
 
   requestNotifications: RequestNotification[] = [];
 
@@ -183,6 +184,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   private updateBasicInfo(data: OverviewDetails): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
+    this.isMismatchedSemester = data.isMismatchedSemester ?? false;
     this.activeFacultyCount = data.activeFacultyCount;
     this.activeProgramsCount = data.activeProgramsCount;
     this.activeCurricula = data.activeCurricula;
@@ -270,6 +272,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       semester: this.activeSemester,
       currentState: this.schedulesPublished,
       hasSecondaryText: true,
+      isMismatchedSemester: this.isMismatchedSemester,
     };
 
     const dialogRef = this.dialog.open(DialogActionComponent, {

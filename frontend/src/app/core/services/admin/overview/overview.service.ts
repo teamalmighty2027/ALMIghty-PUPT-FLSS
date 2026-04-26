@@ -12,6 +12,7 @@ export interface OverviewDetails {
   global_start_date: null;
   activeAcademicYear: string;
   activeSemester: string;
+  isMismatchedSemester?: boolean;
   activeFacultyCount: number;
   activeProgramsCount: number;
   activeCurricula: Array<{

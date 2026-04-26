@@ -211,10 +211,14 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     }
   }
 
+  isMismatchedSemester = false;
+
   fetchFacultyData(termId: number | null = null): void {
     this.isLoading = true;
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
+        this.isMismatchedSemester = response.faculty_schedule_reports.isMismatchedSemester ?? false;
+        
         const facultyData = response.faculty_schedule_reports.faculties.map(
           (faculty: any) => ({
             facultyName: faculty.faculty_name,
@@ -468,6 +472,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         academicYear: this.filteredData[0]?.academicYear || '',
         semester: this.filteredData[0]?.semester || '',
         hasSecondaryText: false, sendEmail: this.sendEmail,
+        isMismatchedSemester: this.isMismatchedSemester,
       },
       disableClose: true, autoFocus: true,
     });
@@ -493,6 +498,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         type: 'single_publish', currentState: element.isEnabled,
         facultyName: element.facultyName, faculty_id: element.facultyId,
         academicYear: element.academicYear, semester: element.semester,
+        isMismatchedSemester: this.isMismatchedSemester,
       },
       disableClose: true, autoFocus: true,
     });
