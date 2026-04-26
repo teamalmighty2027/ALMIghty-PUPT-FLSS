@@ -451,12 +451,11 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         }
         hasPages = true;
 
+        const title = `Room ${room.roomCode} Schedule`;
         const subtitle = this.getAcademicYearSubtitle(room);
-        let currentY = this.drawHeader(
-          doc, topMargin, pageWidth, margin, logoSize,
-          `Room ${room.roomCode} Schedule`, subtitle,
-        );
-        this.drawScheduleTable(doc, room.schedules, subtitle, currentY, margin, pageWidth);
+        let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+        
+        this.drawScheduleTable(doc, room.schedules, title, subtitle, currentY, margin, pageWidth);
       }
     });
 
@@ -475,14 +474,13 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     const margin = 10;
     const topMargin = 15;
     const logoSize = 22;
-    const subtitle = this.getAcademicYearSubtitle(room);
-
+    
     if (room.schedules && room.schedules.length > 0) {
-      let currentY = this.drawHeader(
-        doc, topMargin, pageWidth, margin, logoSize,
-        `Room ${room.roomCode}`, subtitle,
-      );
-      this.drawScheduleTable(doc, room.schedules, subtitle, currentY, margin, pageWidth);
+      const title = `Room ${room.roomCode}`;
+      const subtitle = this.getAcademicYearSubtitle(room);
+
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      this.drawScheduleTable(doc, room.schedules, title, subtitle, currentY, margin, pageWidth);
     }
 
     this.reportHeaderService.addStandardFooter(doc);
@@ -495,138 +493,218 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     return currentY;
   }
 
-  drawScheduleTable(doc: jsPDF, scheduleData: any[], subtitle: string, startY: number, margin: number, pageWidth: number): void {
+  drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
     const hasSchedules = scheduleData && scheduleData.length > 0;
     if (!hasSchedules) return;
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    // Matrix Constants
-    const timeColWidth = 20; 
+    const timeColWidth = 22; 
     const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
-    const rowHeight = 4.5; 
-    const maxContentHeight = doc.internal.pageSize.height - 15;
+    
+    // MASSIVE row height for large fonts
+    const rowHeight = 8.5; 
 
+    // Split the day into Morning and Afternoon chunks
+    const chunks = [
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
+      { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 }
+    ];
+
+    // Only process chunks that actually contain classes
+    const activeChunks = chunks.filter(chunk => {
+      return scheduleData.some(s => {
+        const sStart = this.timeToMinutes(s.start_time);
+        const sEnd = this.timeToMinutes(s.end_time);
+        return Math.max(sStart, chunk.start) < Math.min(sEnd, chunk.end);
+      });
+    });
+
+    if (activeChunks.length === 0) {
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
+      return;
+    }
+
+    let pageUsed = false;
     let currentY = startY;
 
-    // --- Headers ---
-    doc.setFillColor(128, 0, 0);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-
-    currentY -= 3; 
-
-    // Time Header
-    doc.rect(margin, currentY, timeColWidth, 10, 'F');
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, currentY, timeColWidth, 10);
-    doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
-
-    // Day Headers
-    days.forEach((day, index) => {
-      const xPos = margin + timeColWidth + index * dayColumnWidth;
-      doc.setFillColor(128, 0, 0);
-      doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
-      doc.rect(xPos, currentY, dayColumnWidth, 10);
-      doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
-    });
-
-    currentY += 10;
-
-    // --- Draw 3-Hour Time Labels (GRID REMOVED) ---
-    doc.setTextColor(0, 0, 0);
-
-    this.timeSlots.forEach((slot, index) => {
-      const yPos = currentY + index * rowHeight;
+    activeChunks.forEach(chunk => {
       
-      // Print the Time text and horizontal line every 3 hours starting at 7:30 AM
-      if (slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0) {
-        
-        doc.setDrawColor(200, 200, 200); 
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(slot.time, margin + timeColWidth / 2, yPos + 3.5, { align: 'center' });
+      if (pageUsed) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+        currentY = this.drawHeader(doc, 15, pageWidth, margin, 22, title, subtitle);
       }
-    });
-
-    const finalY = currentY + this.timeSlots.length * rowHeight;
-    doc.setDrawColor(200, 200, 200);
-    
-    // Draw the bottom border
-    doc.line(margin, finalY, pageWidth - margin, finalY);
-
-    // Draw Vertical Lines (We keep these so the days are clearly separated)
-    doc.line(margin, currentY, margin, finalY); 
-    doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
-    days.forEach((_, index) => {
-      const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
-      doc.line(xPos, currentY, xPos, finalY);
-    });
-
-    // --- Draw the Blocks ---
-    const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
-
-    sortedScheduleData.forEach(item => {
-      const dayIndex = days.indexOf(item.day);
-      if (dayIndex === -1) return;
-
-      const startTime = this.timeToMinutes(item.start_time);
-      const endTime = this.timeToMinutes(item.end_time);
-      const startSlot = this.timeSlots.findIndex(slot => slot.minutes >= startTime);
-      const duration = Math.ceil((endTime - startTime) / 30);
-
-      if (startSlot === -1) return;
-
-      const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
-      const yPos = currentY + startSlot * rowHeight;
-      const height = duration * rowHeight;
-
-      // Draw Block Box with distinct GRAY background and Maroon border
-      doc.setFillColor(240, 240, 240); // Gray background
-      doc.setDrawColor(128, 0, 0);     // Maroon border
-      doc.setLineWidth(0.3);
-      doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
-
-      // ALWAYS print the Time Range at the very bottom of the box first
-      const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
-      doc.setTextColor(0);
       
-      // 👇 INCREASED: Time text size from 7 to 8.5
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - 2, { align: 'center' });
+      pageUsed = true;
+      currentY -= 3; 
 
-      // Block Content
-      const content = [
-        item.course_details?.course_code || '',
-        item.course_details?.course_title || '',
-        `${item.program_code} ${item.year_level} - ${item.section_name}`,
-        item.faculty_name || ''
-      ];
+      // --- Draw Headers ---
+      doc.setFillColor(128, 0, 0);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
 
-      // 👇 Pushed starting text down slightly to fit the larger fonts
-      let textY = yPos + 5; 
-      
-      content.forEach((line, idx) => {
-        // 👇 INCREASED: Course Code is now 9pt (was 8), everything else is 8pt (was 7)
-        doc.setFontSize(idx === 0 ? 9 : 8);
-        doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+      // Time Header
+      doc.rect(margin, currentY, timeColWidth, 10, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, currentY, timeColWidth, 10);
+      doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
+
+      // Day Headers
+      days.forEach((day, index) => {
+        const xPos = margin + timeColWidth + index * dayColumnWidth;
+        doc.setFillColor(128, 0, 0);
+        doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
+        doc.rect(xPos, currentY, dayColumnWidth, 10);
+        doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
+      });
+
+      currentY += 10;
+
+      // --- Draw Time Grid for this Chunk ---
+      doc.setTextColor(0, 0, 0);
+      const chunkSlots = this.timeSlots.filter(s => s.minutes >= chunk.start && s.minutes < chunk.end);
+
+      chunkSlots.forEach((slot, index) => {
+        const yPos = currentY + index * rowHeight;
         
-        const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
-        wrappedLines.forEach((wLine: string) => {
+        // Flag the top row, the bottom row, and our standard 3-hour gaps
+        const isTopRow = index === 0;
+        const isBottomRow = index === chunkSlots.length - 1;
+        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
+
+        // Print the Time text if it matches any of those conditions
+        if (isTopRow || isBottomRow || isThreeHourGap) {
           
-          // 👇 Increased boundary from 5 to 6 to protect the bigger time text at the bottom
-          if (textY < yPos + height - 6) { 
-            doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
-            
-            // 👇 INCREASED line spacing from 3.2 to 3.8 so the bigger text doesn't overlap
-            textY += 3.8; 
+          if (!isTopRow) {
+            doc.setDrawColor(200, 200, 200); 
+            doc.setLineWidth(0.5);
+            doc.line(margin, yPos, pageWidth - margin, yPos);
           }
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        }
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      
+      // Bottom border
+      doc.line(margin, finalY, pageWidth - margin, finalY);
+
+      // Vertical Lines
+      doc.line(margin, currentY, margin, finalY); 
+      doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
+      days.forEach((_, index) => {
+        const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
+        doc.line(xPos, currentY, xPos, finalY);
+      });
+
+      // --- Draw the Blocks ---
+      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+
+      sortedScheduleData.forEach(item => {
+        const dayIndex = days.indexOf(item.day);
+        if (dayIndex === -1) return;
+
+        const originalStart = this.timeToMinutes(item.start_time);
+        const originalEnd = this.timeToMinutes(item.end_time);
+
+        const cappedStart = Math.max(originalStart, chunk.start);
+        const cappedEnd = Math.min(originalEnd, chunk.end);
+
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(slot => slot.minutes === cappedStart);
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+
+        if (startSlot === -1) return;
+
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        // Draw Block Box
+        doc.setFillColor(240, 240, 240); 
+        doc.setDrawColor(128, 0, 0);     
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
+
+        // --- DYNAMIC TEXT SCALING ---
+        let startPadding = 5;
+        let lineSpacing = 4.2;
+        let bottomBoundary = 6;
+        let codeFontSize = 10;
+        let textFontSize = 9;
+        let timeFontSize = 9.5;
+        let timeBottomPadding = 2;
+
+        if (duration <= 2) { 
+          startPadding = 3.5;
+          lineSpacing = 2.8;
+          bottomBoundary = 3.5;
+          codeFontSize = 7.5;   
+          textFontSize = 6.5;   
+          timeFontSize = 7;     
+          timeBottomPadding = 1.2;
+        } else if (duration === 3) { 
+          startPadding = 4;
+          lineSpacing = 3.4;
+          bottomBoundary = 4.5;
+          codeFontSize = 8.5;   
+          textFontSize = 7.5;   
+          timeFontSize = 8;     
+          timeBottomPadding = 1.5;
+        } else if (duration === 4) { 
+          startPadding = 5;
+          lineSpacing = 4;
+          bottomBoundary = 5;
+          codeFontSize = 9.5;   
+          textFontSize = 8.5;   
+          timeFontSize = 9;     
+          timeBottomPadding = 1.8;
+        }
+
+        // ALWAYS print the Time Range at the very bottom of the box first
+        const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
+        doc.setTextColor(0);
+        doc.setFontSize(timeFontSize);
+        doc.setFont('helvetica', 'normal');
+        doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
+
+        // Clean up the faculty name so it doesn't just say an ugly "N/A"
+        let facultyName = item.faculty_name || '';
+        if (facultyName.trim().toUpperCase() === 'N/A') {
+          facultyName = 'Faculty TBA'; 
+        }
+
+        // Block Content (Tailored for Rooms)
+        const content = [
+          item.course_details?.course_code || '',
+          item.course_details?.course_title || '',
+          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+          facultyName
+        ].filter(line => line !== ''); 
+
+        let textY = yPos + startPadding; 
+        
+        content.forEach((line, idx) => {
+          doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
+          doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+          
+          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
+          wrappedLines.forEach((wLine: string) => {
+            if (textY < yPos + height - bottomBoundary) { 
+              doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
+              textY += lineSpacing; 
+            }
+          });
         });
       });
     });
