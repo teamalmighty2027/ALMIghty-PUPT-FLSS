@@ -198,6 +198,20 @@
 .draft-toggle-container {
   padding: var(--spacing-sm) var(--spacing-lg);
   @include mixins.flex-layout($justify: flex-end);
+
+  button {
+    @include mixins.gradient-primary(315deg);
+    color: white !important;
+    min-width: 200px;
+    height: 46px;
+    border-radius: 23px;
+    padding: 0 var(--spacing-lg);
+    box-shadow: var(--shadow-level-1);
+    
+    mat-icon {
+      margin-right: var(--spacing-xs);
+    }
+  }
 }
 
 .draft-toolbar {
