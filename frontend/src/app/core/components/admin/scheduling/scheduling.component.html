@@ -30,7 +30,8 @@
         }"
         [activeYear]="activeYear"
         [activeSemester]="activeSemesterLabel"
-        (activeYearSemClick)="openActiveYearSemesterDialog()"
+        [readOnlyBadge]="true"
+        [activeYearTooltip]="'Manage scheduling semester in Academic Year settings'"
       ></app-table-header>
 
       <!-- Draft Mode Toggle (Only when NOT in draft mode) -->

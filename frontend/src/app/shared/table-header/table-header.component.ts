@@ -58,13 +58,21 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Input() activeYear = '';
   @Input() activeSemester = '';
   @Input() tooltipMessage = '';
+  @Input() readOnlyBadge = false;
+  @Input() activeYearTooltip = '';
   @Input() isLoading: boolean = false;
+
+  @Input() showFacultyViewBadge = false;
+  @Input() facultyViewYear = '';
+  @Input() facultyViewSemester = '';
+  @Input() facultyViewTooltip = '';
 
   @Output() add = new EventEmitter<void>();
   @Output() inputChange = new EventEmitter<{ [key: string]: any }>();
   @Output() export = new EventEmitter<'all' | 'current' | undefined>();
   @Output() search = new EventEmitter<string>();
   @Output() activeYearSemClick = new EventEmitter<void>();
+  @Output() facultyViewClick = new EventEmitter<void>();
   @Output() addAcademicYear = new EventEmitter<void>();
 
   form: FormGroup;
@@ -128,7 +136,13 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   }
 
   onActiveYearSemClick(): void {
-    this.activeYearSemClick.emit();
+    if (!this.readOnlyBadge) {
+      this.activeYearSemClick.emit();
+    }
+  }
+
+  onFacultyViewClick(): void {
+    this.facultyViewClick.emit();
   }
 
   onAddAcademicYearClick(): void {

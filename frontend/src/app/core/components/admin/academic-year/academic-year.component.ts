@@ -30,6 +30,7 @@ import {
   AcademicYear,
   Program,
   YearLevel,
+  Semester,
 } from '../../../models/scheduling.model';
 
 import {
@@ -58,6 +59,16 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
     [];
   selectedAcademicYear = '';
   selectedAcademicYearId: number | null = null;
+  
+  activeYear = '';
+  activeSemester = '';
+  activeSemesterLabel = '';
+  startDate = '';
+  endDate = '';
+  
+  facultyViewYear = '';
+  facultyViewSemester = '';
+
   private destroy$ = new Subject<void>();
   isLoading = true;
 
@@ -105,11 +116,11 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
     forkJoin({
       academicYears: this.academicYearService.getAcademicYears(),
-      activeYear: this.academicYearService.getActiveYearAndSemester(),
+      activeYearData: this.academicYearService.getActiveYearAndSemester(),
     })
       .pipe(takeUntil(this.destroy$))
       .subscribe(
-        ({ academicYears, activeYear }) => {
+        ({ academicYears, activeYearData }) => {
           // Map academic years for dropdown
           this.academicYearOptions = academicYears.map((ay: AcademicYear) => ({
             academic_year_id: ay.academic_year_id,
@@ -120,9 +131,18 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             (ay) => ay.academic_year
           );
 
+          this.activeYear = activeYearData.activeYear;
+          this.activeSemester = activeYearData.activeSemester.toString();
+          this.activeSemesterLabel = activeYearData.activeSemester.toString();
+          this.startDate = activeYearData.startDate;
+          this.endDate = activeYearData.endDate;
+          
+          this.facultyViewYear = activeYearData.facultyViewYear || 'None';
+          this.facultyViewSemester = activeYearData.facultyViewSemester ? activeYearData.facultyViewSemester.toString() : 'None';
+
           // Find and set the currently active academic year
           const activeAcademicYear = this.academicYearOptions.find(
-            (ay) => ay.academic_year === activeYear.activeYear
+            (ay) => ay.academic_year === activeYearData.activeYear
           );
 
           if (activeAcademicYear) {
@@ -792,5 +812,269 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
         );
       }
     );
+  }
+
+  /**
+   * Helper function to format date to YYYY-MM-DD format.
+   * @param date - The date to format.
+   * @returns The formatted date string.
+   */
+  private formatDateToYMD(date: Date): string {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * Open dialog to set the active academic year and semester.
+   */
+  openActiveYearSemesterDialog(): void {
+    this.academicYearService
+      .getAcademicYears()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((academicYears: AcademicYear[]) => {
+        if (!academicYears.length) {
+          this.snackBar.open('No academic years available.', 'Close', { duration: 3000 });
+          return;
+        }
+
+        const academicYearOptions = academicYears.map((year: AcademicYear) => year.academic_year);
+        const semesterOptions = academicYears[0]?.semesters?.map((sem: Semester) => sem.semester_number) || [];
+
+        const fields = [
+          {
+            label: 'Academic Year',
+            formControlName: 'academicYear',
+            type: 'select',
+            options: academicYearOptions,
+            required: true,
+          },
+          {
+            label: 'Semester',
+            formControlName: 'semester',
+            type: 'select',
+            options: semesterOptions,
+            required: true,
+          },
+          {
+            label: 'Start Date',
+            formControlName: 'startDate',
+            type: 'date',
+            required: true,
+          },
+          {
+            label: 'End Date',
+            formControlName: 'endDate',
+            type: 'date',
+            required: true,
+          },
+        ];
+
+        const dialogRef = this.dialog.open(TableDialogComponent, {
+          data: {
+            title: 'Set Scheduling Semester',
+            fields: fields,
+            initialValue: {
+              academicYear: this.activeYear || academicYearOptions[0] || '',
+              semester: this.activeSemesterLabel || semesterOptions[0] || '',
+              startDate: this.startDate ? new Date(this.startDate) : null,
+              endDate: this.endDate ? new Date(this.endDate) : null,
+            },
+          },
+          disableClose: true,
+          autoFocus: true,
+        });
+
+        dialogRef.componentInstance.form
+          .get('academicYear')
+          ?.valueChanges.pipe(takeUntil(this.destroy$))
+          .subscribe((selectedYear: string) => {
+            const selectedYearObj = academicYears.find((year) => year.academic_year === selectedYear);
+            if (selectedYearObj) {
+              dialogRef.componentInstance.form.get('semester')?.reset();
+              dialogRef.componentInstance.data.fields[1].options = selectedYearObj.semesters.map((sem: Semester) => sem.semester_number);
+
+              if (selectedYearObj.semesters.length > 0) {
+                const firstSemester = selectedYearObj.semesters[0];
+                dialogRef.componentInstance.form?.get('semester')?.setValue(firstSemester.semester_number);
+                dialogRef.componentInstance.form?.get('startDate')?.setValue(firstSemester.start_date);
+                dialogRef.componentInstance.form?.get('endDate')?.setValue(firstSemester.end_date);
+              }
+            }
+          });
+
+        dialogRef.componentInstance.form
+          ?.get('semester')
+          ?.valueChanges.pipe(takeUntil(this.destroy$))
+          .subscribe((selectedSemesterNumber: string) => {
+            const selectedYearObj = academicYears.find(
+              (year) => year.academic_year === dialogRef.componentInstance.form.get('academicYear')?.value
+            );
+            if (selectedYearObj) {
+              const selectedSemesterObj = selectedYearObj.semesters.find(
+                (sem) => sem.semester_number === selectedSemesterNumber
+              );
+
+              if (selectedSemesterObj) {
+                dialogRef.componentInstance.form?.get('startDate')?.setValue(selectedSemesterObj.start_date);
+                dialogRef.componentInstance.form?.get('endDate')?.setValue(selectedSemesterObj.end_date);
+              }
+            }
+          });
+
+        dialogRef.afterClosed().subscribe((result) => {
+          if (result) {
+            const selectedYearObj = academicYears.find((year) => year.academic_year === result.academicYear);
+            const selectedSemesterObj = selectedYearObj?.semesters.find((sem) => sem.semester_number === result.semester);
+
+            if (selectedYearObj && selectedSemesterObj) {
+              const formattedStartDate = this.formatDateToYMD(new Date(result.startDate));
+              const formattedEndDate = this.formatDateToYMD(new Date(result.endDate));
+
+              this.academicYearService
+                .setActiveYearAndSemester(
+                  selectedYearObj.academic_year_id,
+                  selectedSemesterObj.semester_id,
+                  formattedStartDate,
+                  formattedEndDate
+                )
+                .subscribe({
+                  next: () => {
+                    this.snackBar.open('Scheduling semester has been set successfully.', 'Close', { duration: 3000 });
+                    this.loadData();
+
+                    // Prompt to ask if they want to update the Faculty View Semester as well
+                    this.promptUpdateFacultyView(selectedYearObj.academic_year_id, selectedSemesterObj.semester_id, result.academicYear, result.semester);
+                  },
+                  error: (err) => {
+                    this.snackBar.open('Failed to update scheduling semester.', 'Close', { duration: 5000 });
+                  }
+                });
+            }
+          }
+        });
+      });
+  }
+
+  /**
+   * Prompt user if they want to update the faculty view semester.
+   * @param academicYearId - The ID of the new academic year.
+   * @param semesterId - The ID of the new semester.
+   * @param academicYearText - The text of the new academic year.
+   * @param semesterText - The text of the new semester.
+   */
+  private promptUpdateFacultyView(academicYearId: number, semesterId: number, academicYearText: string, semesterText: string): void {
+    const dialogData: DialogData = {
+      title: 'Update Faculty View Semester?',
+      content: `You have updated the scheduling semester to A.Y. ${academicYearText}, ${semesterText}. Do you also want to update the semester that faculty members see to this new semester?`,
+      actionText: 'Update Faculty View',
+      cancelText: 'Keep Current',
+      action: 'Update',
+    };
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: dialogData,
+      disableClose: true,
+      panelClass: 'dialog-base',
+      autoFocus: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result === 'Update') {
+        this.academicYearService.setFacultyViewSemester(academicYearId, semesterId).subscribe({
+          next: () => {
+            this.snackBar.open('Faculty view semester updated.', 'Close', { duration: 3000 });
+            this.loadData();
+          },
+          error: (err) => {
+            this.snackBar.open('Failed to update faculty view semester.', 'Close', { duration: 5000 });
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Open dialog to set the faculty view semester.
+   */
+  openFacultyViewSemesterDialog(): void {
+    this.academicYearService
+      .getAcademicYears()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((academicYears: AcademicYear[]) => {
+        if (!academicYears.length) {
+          this.snackBar.open('No academic years available.', 'Close', { duration: 3000 });
+          return;
+        }
+
+        const academicYearOptions = academicYears.map((year: AcademicYear) => year.academic_year);
+        const semesterOptions = academicYears[0]?.semesters?.map((sem: Semester) => sem.semester_number) || [];
+
+        const fields = [
+          {
+            label: 'Academic Year',
+            formControlName: 'academicYear',
+            type: 'select',
+            options: academicYearOptions,
+            required: true,
+          },
+          {
+            label: 'Semester',
+            formControlName: 'semester',
+            type: 'select',
+            options: semesterOptions,
+            required: true,
+          },
+        ];
+
+        const dialogRef = this.dialog.open(TableDialogComponent, {
+          data: {
+            title: 'Set Faculty View Semester',
+            fields: fields,
+            initialValue: {
+              academicYear: this.facultyViewYear && this.facultyViewYear !== 'None' ? this.facultyViewYear : academicYearOptions[0] || '',
+              semester: this.facultyViewSemester && this.facultyViewSemester !== 'None' ? this.facultyViewSemester : semesterOptions[0] || '',
+            },
+          },
+          disableClose: true,
+          autoFocus: true,
+        });
+
+        dialogRef.componentInstance.form
+          .get('academicYear')
+          ?.valueChanges.pipe(takeUntil(this.destroy$))
+          .subscribe((selectedYear: string) => {
+            const selectedYearObj = academicYears.find((year) => year.academic_year === selectedYear);
+            if (selectedYearObj) {
+              dialogRef.componentInstance.form.get('semester')?.reset();
+              dialogRef.componentInstance.data.fields[1].options = selectedYearObj.semesters.map((sem: Semester) => sem.semester_number);
+              if (selectedYearObj.semesters.length > 0) {
+                dialogRef.componentInstance.form?.get('semester')?.setValue(selectedYearObj.semesters[0].semester_number);
+              }
+            }
+          });
+
+        dialogRef.afterClosed().subscribe((result) => {
+          if (result) {
+            const selectedYearObj = academicYears.find((year) => year.academic_year === result.academicYear);
+            const selectedSemesterObj = selectedYearObj?.semesters.find((sem) => sem.semester_number === result.semester);
+
+            if (selectedYearObj && selectedSemesterObj) {
+              this.academicYearService
+                .setFacultyViewSemester(selectedYearObj.academic_year_id, selectedSemesterObj.semester_id)
+                .subscribe({
+                  next: () => {
+                    this.snackBar.open('Faculty view semester has been set successfully.', 'Close', { duration: 3000 });
+                    this.loadData();
+                  },
+                  error: (err) => {
+                    this.snackBar.open('Failed to update faculty view semester.', 'Close', { duration: 5000 });
+                  }
+                });
+            }
+          }
+        });
+      });
   }
 }
