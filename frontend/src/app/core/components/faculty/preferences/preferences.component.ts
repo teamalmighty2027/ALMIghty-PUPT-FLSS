@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom, throwError, catchError } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -258,9 +258,11 @@ export class PreferencesComponent implements OnInit, OnDestroy {
             this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
             
-            // Sort courses alphabetically by course code for better UX in course selection
+            // Sort courses alphabetically by course code for better UX
             this.courses.set(
-              [...this.courses()].sort((a, b) => a.course_code.localeCompare(b.course_code))
+              [...this.courses()].sort((a, b) =>
+                a.course_code.localeCompare(b.course_code),
+              ),
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -285,6 +287,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       const activeSemester = facultyPreference.active_semesters[0];
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
+      this.activeSemesterId.set(activeSemester.active_semester_id);
 
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
@@ -754,6 +757,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         courseTitle: course.course_title
       },
       autoFocus: true,
+      panelClass: 'dialog-base',
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -839,8 +843,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
 
     this.dialog.open(DialogImportHistoryComponent, {
-      maxWidth: '90vw',
-      width: '700px',
+      maxWidth: '95vw',
+      width: 'auto',
       data: {
         facultyId: parseInt(this.facultyId()!, 10),
         availableCourses: this.courses(),
@@ -849,6 +853,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       },
       disableClose: false,
       autoFocus: true,
+      panelClass: 'dialog-base',
     }).afterClosed()
       .subscribe((selectedCourses: Course[] | undefined) => {
         if (selectedCourses && selectedCourses.length > 0) {
@@ -861,7 +866,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * Process multiple courses imported from history
    */
   private async processBatchImport(courses: Course[]): Promise<void> {
+    let sectionToAutoSelect: Section | undefined;
+
     for (const course of courses) {
+      sectionToAutoSelect = undefined;
       // Try to find the program from previous data
       let program: Program | undefined;
       if (course.previousProgramCode) {
@@ -884,14 +892,48 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         
         if (course.previousSectionName) {
           const targetYear = program.year_levels.find(yl => yl.year_level === course.year_level);
-          const section = targetYear?.sections.find(s => s.section_name === course.previousSectionName);
-          if (section) {
-            this.selectedSection.set(section);
+          sectionToAutoSelect = targetYear?.sections.find(s => s.section_name === course.previousSectionName);
+          if (sectionToAutoSelect) {
+            this.selectedSection.set(sectionToAutoSelect);
           }
         }
       }
 
       await this.addCourseToTable(course);
+
+      // 4. Auto-submit to backend if it has preferred days and section
+      if (course.preferred_days && course.preferred_days.length > 0 && sectionToAutoSelect) {
+        const preferenceData: any = {
+          faculty_id: parseInt(this.facultyId()),
+          active_semester_id: this.activeSemesterId(),
+          sections_per_program_year_id: sectionToAutoSelect.section_id,
+          preferred_days: course.preferred_days.map((d: any) => ({
+            day: d.day,
+            start_time: d.start_time,
+            end_time: d.end_time,
+          })),
+        };
+
+        if (course.temporary_course_offering_id != null) {
+          preferenceData.temporary_course_offering_id = course.temporary_course_offering_id;
+        } else if (course.course_assignment_id != null) {
+          preferenceData.course_assignment_id = course.course_assignment_id;
+        }
+
+        if (preferenceData.faculty_id && preferenceData.active_semester_id && preferenceData.sections_per_program_year_id) {
+          try {
+            await firstValueFrom(this.preferencesService.submitSinglePreference(preferenceData).pipe(
+              catchError(err => {
+                console.error('Error auto-submitting imported preference:', err);
+                this.showSnackBar(`Failed to save ${course.course_code} to backend.`);
+                return throwError(() => err);
+              })
+            ));
+          } catch (e) {
+            console.error(`Skipping ${course.course_code} due to error:`, e);
+          }
+        }
+      }
     }
   }
 
