@@ -1,13 +1,12 @@
 <div class="dialog-pref-success-container">
-  <!-- Content -->
   <div class="content">
-    <!-- Main Text -->
     <div class="main-text">
       <span mat-symbol="recent_actors"></span>
-      <p class="success-text">Request for Submission Access</p>
+      <p class="success-text">
+        Request for {{ isAppeal ? 'Appeal' : 'Submission' }} Access
+      </p>
     </div>
 
-    <!--Status-->
     @if (hasRequest) {
     <div class="status-badge">
       <span mat-symbol="clock_loader_40"></span>
@@ -16,18 +15,17 @@
     }
 
     <p class="message">
-      @if (hasRequest) 
-      { You have requested the administrator to re-enable your
-        access to submit preferences for the upcoming academic year and semester.
-      }
+      @if (hasRequest) { 
+        You have requested the administrator to re-enable your access to submit 
+        {{ isAppeal ? 'schedule appeals' : 'preferences' }} for the upcoming academic year and semester. 
+      } 
       @else { 
-        Request the administrator to re-enable your access to submit
-        preferences for the upcoming academic year and semester. 
+        Request the administrator to re-enable your access to submit 
+        {{ isAppeal ? 'schedule appeals' : 'preferences' }} for the upcoming academic year and semester. 
       }
     </p>
   </div>
 
-  <!-- Actions -->
   <div class="actions">
     <button mat-button class="cancel-button" (click)="closeDialog()">
       {{ hasRequest ? "Close" : "Cancel" }}

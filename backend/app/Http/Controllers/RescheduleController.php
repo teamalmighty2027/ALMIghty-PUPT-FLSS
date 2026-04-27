@@ -10,6 +10,9 @@ use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Mail\AppealAccessRequested;
+use App\Mail\AppealAccessApproved;
+use Illuminate\Support\Facades\Mail;
 
 class RescheduleController extends Controller
 {
@@ -339,5 +342,121 @@ class RescheduleController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN / FACULTY — Appeal Access Toggles & Requests
+    // ─────────────────────────────────────────────────────────
+
+    public function toggleFacultyAppealAccess(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'faculty_id' => 'required|exists:faculty,id',
+            'is_enabled' => 'required|boolean',
+        ]);
+
+        $faculty = \App\Models\Faculty::findOrFail($validated['faculty_id']);
+
+        $faculty->update([
+                'is_appeal_enabled' => $validated['is_enabled'],
+                'has_appeal_request' => 0 
+        ]);
+
+        // Send Email if turning ON
+        if ($validated['is_enabled'] && $faculty->user) {
+            Mail::to($faculty->user->email)->send(new AppealAccessApproved($faculty->user->first_name));
+        }
+
+        return response()->json(['message' => 'Appeal access updated successfully']);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN — Reject an Appeal Access Request (From Overview)
+    // ─────────────────────────────────────────────────────────
+    public function rejectAppealAccessRequest(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'faculty_id' => 'required|exists:faculty,id'
+        ]);
+
+        $faculty = \App\Models\Faculty::with('user')->findOrFail($validated['faculty_id']);
+        
+        // Remove the orange badge
+        $faculty->update(['has_appeal_request' => 0]);
+
+        // Send Rejection Email
+        if ($faculty->user && $faculty->user->email) {
+            \Illuminate\Support\Facades\Mail::to($faculty->user->email)
+                ->send(new \App\Mail\AppealAccessDenied($faculty->user->first_name));
+        }
+
+        return response()->json(['message' => 'Appeal request denied and email sent.']);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN — Toggle All Appeal Access (With Email Option)
+    // ─────────────────────────────────────────────────────────
+    public function toggleAllFacultyAppealAccess(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'is_enabled' => 'required|boolean',
+            'active_semester_id' => 'required|integer',
+            'send_email' => 'boolean' // <-- New parameter
+        ]);
+
+        $isEnabled = $validated['is_enabled'];
+
+        DB::table('faculty')->update([
+            'is_appeal_enabled' => $isEnabled,
+            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request')
+        ]);
+
+        // If toggled ON and admin checked the email box, send to everyone
+        if ($isEnabled && !empty($validated['send_email'])) {
+            $users = \App\Models\User::where('status', 'Active')
+                ->whereHas('faculty')
+                ->get();
+                
+            foreach ($users as $user) {
+                if ($user->email) {
+                    \Illuminate\Support\Facades\Mail::to($user->email)
+                        ->send(new \App\Mail\AppealAccessApproved($user->first_name));
+                }
+            }
+        }
+
+        return response()->json(['message' => 'All faculty appeal access updated.']);
+    }
+
+    public function requestAppealAccess(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        // Use with('user') to ensure the relationship is there
+        $faculty = \App\Models\Faculty::with('user')->where('user_id', $user->id)->first();
+
+        if (!$faculty) {
+            return response()->json(['message' => 'Faculty profile not found.'], 404);
+        }
+
+        $faculty->update(['has_appeal_request' => 1]);
+
+        // Use the null-safe operator (?->) or a fallback to prevent the crash
+        $firstName = $faculty->user?->first_name ?? 'Faculty';
+        $lastName = $faculty->user?->last_name ?? 'Member';
+
+        $adminEmail = 'pupt.flss2027@gmail.com'; 
+        Mail::to($adminEmail)->send(new AppealAccessRequested($firstName, $lastName));
+
+        return response()->json(['message' => 'Appeal request sent successfully']);
+    }
+
+    public function cancelAppealAccessRequest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $faculty = \App\Models\Faculty::where('user_id', $user->id)->firstOrFail();
+
+        $faculty->update(['has_appeal_request' => 0]);
+
+        return response()->json(['message' => 'Appeal request cancelled']);
     }
 }

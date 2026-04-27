@@ -234,6 +234,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
 
+    // In routes/api.php
+    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
+    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
+    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
+
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);

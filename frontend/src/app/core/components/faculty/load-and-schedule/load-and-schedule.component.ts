@@ -15,6 +15,7 @@ import { FacultyScheduleTimetableComponent } from '../../../../shared/faculty-sc
 import { DialogScheduleHistoryComponent } from '../../../../shared/dialog-schedule-history/dialog-schedule-history.component';
 import { DialogAppealScheduleComponent } from '../../../../shared/dialog-appeal-schedule/dialog-appeal-schedule.component';
 import { DialogMyAppealsComponent } from '../../../../shared/dialog-my-appeals/dialog-my-appeals.component';
+import { DialogRequestAccessComponent } from '../../../../shared/dialog-request-access/dialog-request-access.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../services/admin/reports/reports.service';
@@ -68,6 +69,8 @@ export class LoadAndScheduleComponent implements OnInit {
   myAppeals: any[] = []; 
   isLoading = true;
   isPublished = false;
+  isAppealEnabled = false;
+  hasAppealRequest = false;
 
   activeView: ScheduleView = 'official';
   readonly timeOptions: string[] = this.generateTimeOptions();
@@ -91,10 +94,19 @@ export class LoadAndScheduleComponent implements OnInit {
         scheduleReq: this.reportsService.getSingleFacultySchedule(+facultyId),
         appealsReq: this.reschedulingService.getMyAppeals()
       }).subscribe({
-        next: ({ scheduleReq, appealsReq }) => {
-          this.facultySchedule = scheduleReq.faculty_schedule;
-          this.myAppeals = appealsReq;
+        next: (res: any) => {
+          // 1. Assign the main schedule data
+          this.facultySchedule = res.scheduleReq.faculty_schedule;
+          this.myAppeals = res.appealsReq;
+          
+          // 2. Map the publication status
           this.isPublished = this.facultySchedule.is_published === 1;
+          
+          // 3. Map the Appeal Flags (Check if they are in the root or inside faculty_status)
+          // Map from the new root-level properties we added to the backend response
+          this.isAppealEnabled = !!res.scheduleReq.is_appeal_enabled;
+          this.hasAppealRequest = !!res.scheduleReq.has_appeal_request;
+          
           this.isLoading = false;
         },
         error: () => { this.isLoading = false; }
@@ -120,6 +132,12 @@ export class LoadAndScheduleComponent implements OnInit {
   openAppealDialog(block: any): void {
     if (!this.isPublished) {
       this.snackBar.open('No official schedule published yet.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    // Intercept if appeals are disabled
+    if (!this.isAppealEnabled) {
+      this.openRequestAppealAccessDialog();
       return;
     }
 
@@ -159,6 +177,27 @@ export class LoadAndScheduleComponent implements OnInit {
     dialogRef.afterClosed().subscribe(res => {
       if (res) this.loadFacultySchedule();
     });
+  }
+
+  openRequestAppealAccessDialog(): void {
+    this.dialog
+      .open(DialogRequestAccessComponent, {
+        disableClose: true,
+        data: {
+          has_request: this.hasAppealRequest,
+          facultyId: this.authService.getUserFacultyId(),
+          requestType: 'appeal'
+        },
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        // If result is true, the user just submitted a request
+        // If result is false, the user just cancelled a request
+        if (result !== undefined) {
+          // Re-fetch everything to ensure flags are updated
+          this.loadFacultySchedule(); 
+        }
+      });
   }
 
   openMyAppealsDialog(block: any): void {
@@ -243,14 +282,12 @@ export class LoadAndScheduleComponent implements OnInit {
     }
   }
 
-  // --- NEW: Excel Export Logic ---
   async onExportExcel() {
     if (!this.facultySchedule) {
       this.snackBar.open('No schedule data available to export.', 'Close', { duration: 3000 });
       return;
     }
 
-    // Determine which schedule data to use based on the currently active view
     const scheduleToExport = this.isOfficialView ? this.facultySchedule : this.internalArrangementSchedule;
     const schedulesArray = scheduleToExport?.schedules || [];
 
@@ -261,12 +298,10 @@ export class LoadAndScheduleComponent implements OnInit {
 
     const workbook = new ExcelJS.Workbook();
     
-    // Create a safe, short name for the tab
     const viewLabel = this.isOfficialView ? 'Official' : 'Arrangement';
     const tabName = `Schedule (${viewLabel})`;
     const worksheet = workbook.addWorksheet(tabName);
 
-    // Apply exact same layout formatting as the Admin side
     worksheet.pageSetup = {
       orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
       margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
@@ -292,7 +327,7 @@ export class LoadAndScheduleComponent implements OnInit {
       cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
     });
 
-    worksheet.addRow([]); // Spacer
+    worksheet.addRow([]);
 
     const headerRow = worksheet.addRow([
       'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Section', 'Room No.', 'Schedule'
@@ -305,7 +340,6 @@ export class LoadAndScheduleComponent implements OnInit {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
     });
 
-    // Sort by day to keep it organized (optional but nice)
     const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const sortedSchedules = [...schedulesArray].sort((a, b) => {
       return daysOrder.indexOf(a.day) - daysOrder.indexOf(b.day);
@@ -335,7 +369,6 @@ export class LoadAndScheduleComponent implements OnInit {
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     
-    // Generate filename based on view
     const safeName = scheduleToExport.faculty_name.split(',')[0].replace(/[^\w\s]/gi, '_');
     const fileName = `${safeName}_${viewLabel}_Schedule_${this.academicYear.replace('-', '_')}.xlsx`;
     

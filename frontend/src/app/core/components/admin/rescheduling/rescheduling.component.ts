@@ -15,6 +15,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
@@ -63,6 +64,7 @@ interface ReschedulingAppeal {
 }
 
 interface FacultyArrangement {
+  facultyId: number;
   facultyName: string;
   facultyCode: string;
   facultyType: string;
@@ -70,6 +72,8 @@ interface FacultyArrangement {
   schedules: any[];
   academicYear?: string;
   semester?: string;
+  isAppealEnabled?: boolean;
+  hasAppealRequest?: boolean;
 }
 
 interface TimeSlot {
@@ -96,7 +100,8 @@ interface TimeSlot {
     LoadingComponent,
     TableHeaderComponent,
     MatTabsModule,
-    ReportsHeaderComponent
+    ReportsHeaderComponent,
+    MatCheckboxModule,
   ],
   animations: [
     trigger('fadeAnimation', [
@@ -114,6 +119,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   isInitLoading = true;
   selectedTabIndex = 0;
 
+  // Master Toggle State
+  isAllAppealsEnabled = false;
+
   // ── Shared Term Variables ──
   selectedTermId: number | null = null;
   availableTerms: any[] = [];
@@ -126,10 +134,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
   dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
   @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild('toggleAllDialog') toggleAllDialog!: TemplateRef<any>;
+  sendEmailToAll = false;
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -369,18 +379,23 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           });
 
           return {
+            facultyId: fac.faculty_id,
             facultyName: fac.faculty_name,
             facultyCode: fac.faculty_code,
             facultyType: fac.faculty_type,
             facultyUnits: fac.assigned_units || fac.units || 0,
             schedules: mergedSchedules,
             academicYear: this.academicYear,
-            semester: this.semester
+            semester: this.semester,
+            isAppealEnabled: !!fac.is_appeal_enabled, 
+            hasAppealRequest: !!fac.has_appeal_request
           };
         });
 
         this.allFaculties = mergedFaculties;
         this.arrangementsDataSource.data = mergedFaculties;
+        this.updateMasterToggleState(); // Determine if master toggle should be on/off
+        this.cdr.detectChanges();
         this.hasAnyArrangements = mergedFaculties.some(f => f.schedules.length > 0);
 
         this.isLoading = false;
@@ -433,6 +448,73 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       'part-time': type.includes('part-time'),
       'temporary': type.includes('temporary'),
     };
+  }
+
+  // ── Toggle Methods ──────────────────────────────────────────────
+
+  updateMasterToggleState(): void {
+    if (this.allFaculties.length === 0) {
+      this.isAllAppealsEnabled = false;
+      return;
+    }
+    // Only turn master toggle ON if EVERY faculty is enabled
+    this.isAllAppealsEnabled = this.allFaculties.every(f => f.isAppealEnabled);
+  }
+
+  toggleAllAppeals(event: any): void {
+    const isEnabled = event.checked;
+    
+    // Save state in case of failure
+    const previousState = this.allFaculties.map(f => ({ ...f }));
+
+    // Optimistic UI update
+    this.isAllAppealsEnabled = isEnabled;
+    this.allFaculties.forEach(f => {
+      f.isAppealEnabled = isEnabled;
+      if (isEnabled) f.hasAppealRequest = false; 
+    });
+    this.arrangementsDataSource.data = [...this.allFaculties];
+    this.cdr.detectChanges();
+
+    this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!)
+      .subscribe({
+        next: () => {
+          const status = isEnabled ? 'enabled' : 'disabled';
+          this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
+        },
+        error: () => {
+          // Revert toggle on failure
+          this.allFaculties = previousState;
+          this.arrangementsDataSource.data = [...this.allFaculties];
+          this.updateMasterToggleState();
+          this.cdr.detectChanges();
+          this.snackBar.open('Failed to update appeal access for all faculty.', 'Close', { duration: 3000 });
+        }
+      });
+  }
+
+  toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
+    const isEnabled = event.checked;
+    
+    // Optimistic UI update
+    faculty.isAppealEnabled = isEnabled;
+    if (isEnabled) faculty.hasAppealRequest = false; // clear the badge instantly
+
+    this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!)
+      .subscribe({
+        next: () => {
+          const status = isEnabled ? 'enabled' : 'disabled';
+          this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
+          this.updateMasterToggleState();
+        },
+        error: (err) => {
+          // Revert toggle on failure
+          faculty.isAppealEnabled = !isEnabled;
+          event.source.checked = !isEnabled;
+          this.updateMasterToggleState();
+          this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+        }
+      });
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────
@@ -1204,12 +1286,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   denyAppeal(): void {
     if (!this.selectedAppeal) return;
+    
+    // We pass the adminRemarks to the backend so the email can explain WHY it was rejected
     this.reschedulingService.denyAppeal(this.selectedAppeal.rawAppealId, this.adminRemarks)
       .subscribe({
         next: () => { 
           this.updateLocalStatus(this.selectedAppeal!.id, 'Denied'); 
           this.closeDialog();
-          this.snackBar.open('Appeal denied successfully.', 'Close', { duration: 5000 });
+          
+          // Show a richer snackbar confirming the email was sent
+          this.snackBar.open('Appeal denied and notification email sent to faculty.', 'Close', { duration: 5000 });
         },
         error: (err) => {
           const errorMessage = this.getErrorMessage(err, 'Failed to deny appeal');

@@ -492,3 +492,26 @@
     color: var(--secondary-text) !important;
   }
 }
+
+.reports-tab-header-content {
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center;    /* Center vertically */
+  gap: 16px;              /* Standard space between components */
+  width: 100%;            /* Ensure it spans full width */
+  margin-top: 20px;       /* Match spacing shown in image */
+}
+
+/* Ensure the elements inside have proper widths to look centered */
+.reports-tab-header-content {
+  mat-form-field.term-select-field {
+    min-width: 250px;
+    width: auto;
+    margin-bottom: 0; /* Align perfectly with table header */
+  }
+
+  app-table-header {
+    width: auto;
+    flex-grow: 0; /* Prevent the search bar from expanding full width */
+  }
+}
