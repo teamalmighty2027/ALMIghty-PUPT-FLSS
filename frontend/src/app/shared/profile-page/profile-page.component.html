@@ -97,13 +97,13 @@
     </div>
 
     <div class="action-row">
-       <button type="button" class="btn-secondary-outline pop">Change Password</button>
-       <button type="submit" 
-               class="sienna-btn" 
+        <button type="button" class="outline-btn">Change Password</button>
+        <button type="submit" 
+               class="maroon-btn" 
                [disabled]="profileForm.invalid || isLoading"
                [class.force-disabled]="profileForm.invalid || isLoading">
         {{ isLoading ? 'Saving...' : 'Save Changes' }}
-       </button>
+        </button>
     </div>
   </form>
 </div>
