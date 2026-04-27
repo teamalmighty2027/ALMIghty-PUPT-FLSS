@@ -1,17 +1,30 @@
 @use "../../../styles/mixins";
 
 .dialog-import-container {
-  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
-  padding: var(--spacing-lg);
-  max-height: 85vh;
+  @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+  padding: var(--spacing-md);
+  max-height: 80vh;
+  width: 550px;
+  max-width: 95vw;
 
   .dialog-header {
     @include mixins.flex-layout($align: center, $justify: space-between);
+    margin-bottom: var(--spacing-xs);
     
     h2 {
       margin: 0;
-      font-size: var(--font-size-xl);
-      font-weight: 600;
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+      color: var(--primary-one);
+    }
+
+    .close-btn {
+      color: var(--text-secondary);
+      @include mixins.default-transition;
+      &:hover {
+        color: var(--primary-warning);
+        background: var(--primary-fade);
+      }
     }
   }
 
@@ -22,12 +35,14 @@
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
 
     .description {
-      color: var(--text-secondary);
+      color: var(--neutral-button);
       font-size: var(--font-size-sm);
       margin: 0;
+      line-height: 1.4;
 
       strong {
-        color: var(--primary-color);
+        color: var(--primary-one);
+        font-weight: 600;
       }
     }
 
@@ -41,56 +56,83 @@
     .table-container {
       flex: 1;
       overflow: auto;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      min-height: 200px;
+      border: 1px solid var(--neutral-border);
+      border-radius: var(--border-radius-sm);
+      min-height: 250px;
       max-height: 400px;
+      @include mixins.custom-scrollbar;
 
       .import-table {
         width: 100%;
 
         th.mat-header-cell {
-          background: var(--bg-surface-secondary);
-          color: var(--text-primary);
-          font-weight: 600;
+          background: var(--neutral-light);
+          color: var(--neutral-base);
+          font-weight: 700;
+          font-size: var(--font-size-xs);
+          text-transform: uppercase;
+          padding: var(--spacing-sm);
+        }
+
+        td.mat-cell {
+          padding: var(--spacing-sm);
+          font-size: var(--font-size-sm);
         }
 
         .mat-row {
           cursor: pointer;
-          transition: background 0.2s ease;
+          @include mixins.default-transition;
 
           &:hover:not(.row-disabled) {
-            background: var(--bg-hover);
+            background: var(--neutral-hover);
           }
 
           &.row-selected {
-            background: var(--bg-selected);
+            background: var(--primary-fade);
+            td.mat-cell {
+                color: var(--primary-one);
+                font-weight: 600;
+            }
           }
 
           &.row-disabled {
             cursor: not-allowed;
-            opacity: 0.6;
-            background: var(--bg-disabled);
+            opacity: 0.5;
+            background: var(--neutral-light);
           }
         }
 
         .already-added-tag {
           font-size: var(--font-size-xs);
-          color: var(--text-disabled);
+          color: var(--neutral-button-lighter);
           margin-left: var(--spacing-xs);
           font-style: italic;
+          background: var(--neutral-light);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .mat-column-select {
+          width: 40px;
+          padding-right: 0;
         }
       }
 
       .no-data {
         @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-sm));
-        padding: var(--spacing-xl);
-        color: var(--text-secondary);
+        padding: var(--spacing-2xl);
+        color: var(--neutral-button-lighter);
         text-align: center;
 
-        span {
+        span[mat-symbol] {
           font-size: 48px;
           opacity: 0.3;
+          color: var(--primary-one);
+        }
+
+        p {
+          font-size: var(--font-size-md);
+          max-width: 350px;
         }
       }
     }
@@ -98,12 +140,35 @@
 
   .loading-wrapper {
     @include mixins.flex-layout($align: center, $justify: center);
-    padding: var(--spacing-xl);
+    padding: var(--spacing-2xl);
   }
 
   .dialog-actions {
     margin-top: var(--spacing-md);
     @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
     padding: 0;
+
+    button {
+      padding: 0 var(--spacing-lg);
+      height: 2.5rem;
+      border-radius: var(--border-radius-sm);
+      font-weight: 600;
+    }
+    
+    .import-btn {
+        background-color: var(--primary-one);
+        color: white !important;
+        &:disabled {
+            background: var(--neutral-light);
+            color: var(--neutral-button-lighter) !important;
+        }
+    }
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .dialog-import-container {
+    width: 100%;
+    padding: var(--spacing-sm);
   }
 }

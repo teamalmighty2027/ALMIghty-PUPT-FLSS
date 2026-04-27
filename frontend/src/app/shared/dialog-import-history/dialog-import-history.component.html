@@ -96,7 +96,7 @@
 
   <div mat-dialog-actions class="dialog-actions">
     <button mat-button (click)="dialogRef.close()">Cancel</button>
-    <button mat-flat-button color="primary" 
+    <button mat-flat-button class="import-btn"
             [disabled]="selectedCourses.size === 0"
             (click)="importSelected()">
       Import {{ selectedCourses.size }} Courses

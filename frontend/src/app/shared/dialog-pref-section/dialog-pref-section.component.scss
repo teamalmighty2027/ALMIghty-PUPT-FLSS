@@ -5,61 +5,106 @@
     $direction: column,
     $align: stretch,
     $justify: flex-start,
-    $gap: var(--spacing-md)
+    $gap: var(--spacing-lg)
   );
   padding: var(--spacing-lg);
-  height: 100%;
+  min-width: 400px;
+  max-width: 500px;
 
   .dialog-title {
     margin: 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    @include mixins.gradient-primary-text(315deg);
   }
 
   .course-context {
-    background: var(--bg-surface-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-sm) var(--spacing-md);
-    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
-    border: 1px solid var(--border-color);
+    background: var(--primary-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+    border: 1px solid var(--primary-border);
 
     .program-badge {
-      background: var(--primary-color);
+      @include mixins.gradient-primary(315deg);
       color: white;
-      padding: 2px 8px;
-      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      border-radius: var(--border-radius-sm);
       font-size: var(--font-size-xs);
-      font-weight: bold;
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
     }
 
     .course-details {
       font-size: var(--font-size-sm);
-      color: var(--text-secondary);
+      color: var(--primary-text);
+      line-height: 1.4;
       
       strong {
-        color: var(--text-primary);
+        display: block;
+        font-size: var(--font-size-md);
+        color: var(--primary-color);
       }
     }
+  }
+
+  .section-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: calc(var(--spacing-xs) * -1);
   }
 
   mat-button-toggle-group {
     width: 100%;
     border: none !important;
-    @include mixins.flex-layout($gap: var(--spacing-xs), $wrap: wrap);
+    @include mixins.flex-layout($gap: var(--spacing-sm));
+    flex-wrap: wrap;
 
     mat-button-toggle {
-      border: 1px solid var(--border-color) !important;
-      border-radius: var(--radius-md) !important;
+      border: 1.5px solid var(--border-color) !important;
+      border-radius: var(--border-radius-md) !important;
       overflow: hidden;
+      @include mixins.default-transition;
+
+      &:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-fade);
+      }
+
+      &.mat-button-toggle-checked {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-fade);
+        
+        ::ng-deep .mat-button-toggle-label-content {
+          color: var(--primary-color);
+          font-weight: 700;
+        }
+      }
 
       ::ng-deep .mat-button-toggle-label-content {
-        padding: 0 var(--spacing-md);
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-md);
       }
     }
   }
 
   .dialog-actions {
     margin-top: var(--spacing-md);
-    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
+
+    button {
+      padding: 0 var(--spacing-xl);
+      height: 3rem;
+      border-radius: var(--border-radius-md);
+      font-weight: 600;
+    }
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .dialog-pref-section-container {
+    min-width: 100%;
+    padding: var(--spacing-md);
   }
 }
