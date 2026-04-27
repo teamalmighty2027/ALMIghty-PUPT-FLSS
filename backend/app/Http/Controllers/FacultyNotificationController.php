@@ -28,7 +28,7 @@ class FacultyNotificationController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'active_semesters.active_semester_id',
                 'active_semesters.academic_year_id',
@@ -85,7 +85,7 @@ class FacultyNotificationController extends Controller
     public function getRequestNotifications()
     {
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
+            ->where('is_faculty_view', 1)
             ->first();
 
         if (!$activeSemester) {

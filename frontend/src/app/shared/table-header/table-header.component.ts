@@ -58,13 +58,21 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Input() activeYear = '';
   @Input() activeSemester = '';
   @Input() tooltipMessage = '';
+  @Input() readOnlyBadge = false;
+  @Input() activeYearTooltip = '';
   @Input() isLoading: boolean = false;
+
+  @Input() showFacultyViewBadge = false;
+  @Input() facultyViewYear = '';
+  @Input() facultyViewSemester = '';
+  @Input() facultyViewTooltip = '';
 
   @Output() add = new EventEmitter<void>();
   @Output() inputChange = new EventEmitter<{ [key: string]: any }>();
   @Output() export = new EventEmitter<'all' | 'current' | undefined>();
   @Output() search = new EventEmitter<string>();
   @Output() activeYearSemClick = new EventEmitter<void>();
+  @Output() facultyViewClick = new EventEmitter<void>();
   @Output() addAcademicYear = new EventEmitter<void>();
 
   form: FormGroup;
@@ -128,7 +136,13 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   }
 
   onActiveYearSemClick(): void {
-    this.activeYearSemClick.emit();
+    if (!this.readOnlyBadge) {
+      this.activeYearSemClick.emit();
+    }
+  }
+
+  onFacultyViewClick(): void {
+    this.facultyViewClick.emit();
   }
 
   onAddAcademicYearClick(): void {
@@ -160,5 +174,26 @@ export class TableHeaderComponent implements OnInit, OnChanges {
 
     // If the item is a primitive, return the item itself
     return item;
+  }
+
+  /**
+   * Helper function that formats the semester integer/string to a text label.
+   * @param semester The semester value (1, 2, 3)
+   * @returns The formatted semester string
+   */
+  formatSemester(semester: any): string {
+    if (!semester || semester === 'None') return 'None';
+
+    const sem = semester.toString();
+    switch (sem) {
+      case '1':
+        return '1st Semester';
+      case '2':
+        return '2nd Semester';
+      case '3':
+        return 'Summer Semester';
+      default:
+        return sem;
+    }
   }
 }

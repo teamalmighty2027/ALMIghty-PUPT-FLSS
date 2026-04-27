@@ -93,6 +93,8 @@ export class AcademicYearService {
     activeSemester: number;
     startDate: string;
     endDate: string;
+    facultyViewYear: string;
+    facultyViewSemester: number;
   }> {
     return this.http
       .get<{
@@ -100,7 +102,24 @@ export class AcademicYearService {
         activeSemester: number;
         startDate: string;
         endDate: string;
+        facultyViewYear: string;
+        facultyViewSemester: number;
       }>(`${this.baseUrl}/get-active-year-semester`)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Sets which semester faculty can view their published schedules for.
+   */
+  setFacultyViewSemester(
+    academicYearId: number,
+    semesterId: number
+  ): Observable<void> {
+    return this.http
+      .post<void>(`${this.baseUrl}/set-faculty-view-semester`, {
+        academic_year_id: academicYearId,
+        semester_id: semesterId,
+      })
       .pipe(catchError(this.handleError));
   }
 

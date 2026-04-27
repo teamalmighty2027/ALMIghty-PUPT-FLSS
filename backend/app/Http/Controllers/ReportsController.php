@@ -178,9 +178,18 @@ class ReportsController extends Controller
         // Step 4.1: Sort the faculties by faculty_name
         $faculties = collect($faculties)->sortBy('faculty_name')->values()->all();
 
+        // Check if active semester differs from faculty view semester
+        $facultyViewSemester = DB::table('active_semesters')
+            ->where('is_faculty_view', 1)
+            ->first();
+            
+        $isMismatchedSemester = $facultyViewSemester ? 
+            ($activeSemester->active_semester_id !== $facultyViewSemester->active_semester_id) : false;
+
         // Step 5: Structure the response
         return response()->json([
             'faculty_schedule_reports' => [
+                'isMismatchedSemester' => $isMismatchedSemester,
                 'academic_year_id' => $activeSemester->academic_year_id,
                 'year_start' => $activeSemester->year_start,
                 'year_end' => $activeSemester->year_end,
@@ -1191,8 +1200,17 @@ class ReportsController extends Controller
             ->whereNotNull('global_start_date')
             ->value('global_start_date');
 
+        // Check if active semester differs from faculty view semester
+        $facultyViewSemester = DB::table('active_semesters')
+            ->where('is_faculty_view', 1)
+            ->first();
+            
+        $isMismatchedSemester = $facultyViewSemester ? 
+            ($activeSemester->active_semester_id !== $facultyViewSemester->active_semester_id) : false;
+
         // Step 11: Structure the response with the new field
         return response()->json([
+            'isMismatchedSemester' => $isMismatchedSemester,
             'activeAcademicYear' => "{$activeSemester->year_start}-{$activeSemester->year_end}",
             'activeSemester' => $this->getSemesterLabel($activeSemester->semester),
             'activeFacultyCount' => $activeFacultyCount,

@@ -24,6 +24,7 @@ export interface DialogActionData {
   hasSecondaryText?: boolean;
   facultyName?: string;
   faculty_id?: number;
+  isMismatchedSemester?: boolean;
 }
 
 @Component({
