@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\Schedule;
 use App\Models\SectionCourse;
 use App\Models\Room;
@@ -1114,9 +1113,6 @@ class ScheduleController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                // Dispatch external service job
-                ProcessExternalScheduleChange::dispatch('toggleAllSchedules', $validated['is_published']);
-
                 // ═══════════════════════════════════════════════════════
                 // AUDIT LOG: All Schedules Published/Unpublished
                 // ═══════════════════════════════════════════════════════
@@ -1218,8 +1214,6 @@ class ScheduleController extends Controller
                         'individual_deadline' => null,
                         'updated_at' => now(),
                     ]);
-
-                ProcessExternalScheduleChange::dispatch('toggleSingleSchedule', $validated['is_published'], $validated['faculty_id']);
 
                 // ═══════════════════════════════════════════════════════
                 // AUDIT LOG: Single Faculty Schedule Published/Unpublished
