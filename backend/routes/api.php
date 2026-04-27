@@ -240,6 +240,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
     Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
 
+    Route::post('/rescheduling-appeals/reject-access', [RescheduleController::class, 'rejectAppealAccessRequest']);
+    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
+    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
+
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);

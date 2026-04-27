@@ -22,6 +22,7 @@ import { TableHeaderComponent } from '../../../../shared/table-header/table-head
 import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
@@ -464,57 +465,92 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleAllAppeals(event: any): void {
     const isEnabled = event.checked;
     
-    // Save state in case of failure
-    const previousState = this.allFaculties.map(f => ({ ...f }));
+    // 1. Instantly revert the toggle visually. It only stays changed if they hit 'Confirm' in the dialog.
+    event.source.checked = !isEnabled;
 
-    // Optimistic UI update
-    this.isAllAppealsEnabled = isEnabled;
-    this.allFaculties.forEach(f => {
-      f.isAppealEnabled = isEnabled;
-      if (isEnabled) f.hasAppealRequest = false; 
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'all_appeals', 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled // If they clicked to turn ON (isEnabled=true), the current state was OFF (false).
+      },
+      disableClose: true,
+      autoFocus: false
     });
-    this.arrangementsDataSource.data = [...this.allFaculties];
-    this.cdr.detectChanges();
 
-    this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!)
-      .subscribe({
-        next: () => {
-          const status = isEnabled ? 'enabled' : 'disabled';
-          this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
-        },
-        error: () => {
-          // Revert toggle on failure
-          this.allFaculties = previousState;
-          this.arrangementsDataSource.data = [...this.allFaculties];
-          this.updateMasterToggleState();
-          this.cdr.detectChanges();
-          this.snackBar.open('Failed to update appeal access for all faculty.', 'Close', { duration: 3000 });
-        }
-      });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Optimistic update
+        this.isAllAppealsEnabled = isEnabled;
+        this.allFaculties.forEach(f => {
+          f.isAppealEnabled = isEnabled;
+          if (isEnabled) f.hasAppealRequest = false;
+        });
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.cdr.detectChanges();
+
+        this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!, result.startDate, result.endDate, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
+            },
+            error: () => {
+              // Revert on failure
+              this.isAllAppealsEnabled = !isEnabled;
+              this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.updateMasterToggleState();
+              this.cdr.detectChanges();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
   }
 
   toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
     const isEnabled = event.checked;
     
-    // Optimistic UI update
-    faculty.isAppealEnabled = isEnabled;
-    if (isEnabled) faculty.hasAppealRequest = false; // clear the badge instantly
+    // Revert visually until confirmed
+    event.source.checked = !isEnabled;
 
-    this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!)
-      .subscribe({
-        next: () => {
-          const status = isEnabled ? 'enabled' : 'disabled';
-          this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
-          this.updateMasterToggleState();
-        },
-        error: (err) => {
-          // Revert toggle on failure
-          faculty.isAppealEnabled = !isEnabled;
-          event.source.checked = !isEnabled;
-          this.updateMasterToggleState();
-          this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
-        }
-      });
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'single_appeal', 
+        facultyName: faculty.facultyName, 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled,
+      },
+      disableClose: true,
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        faculty.isAppealEnabled = isEnabled;
+        if (isEnabled) faculty.hasAppealRequest = false;
+
+        this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!, result.startDate, result.endDate, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
+              this.updateMasterToggleState();
+            },
+            error: () => {
+              faculty.isAppealEnabled = !isEnabled;
+              event.source.checked = !isEnabled;
+              this.updateMasterToggleState();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────

@@ -318,54 +318,64 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // ======================
 
   approveRequest(request: RequestNotification): void {
-    if (!this.canEditPreferences) {
-      this.showNoPermissionMessage();
-      return;
-    }
+  if (!this.canEditPreferences) {
+    this.showNoPermissionMessage();
+    return;
+  }
 
-    // 🟢 NEW LOGIC: Branch based on request type
-    if (request.request_type === 'appeal') {
-      this.reschedulingService.toggleFacultyAppealAccess(request.faculty_id, true, this.activeSemesterId || 1)
-        .subscribe({
+  // Define shared dialog data
+  const isAppeal = request.request_type === 'appeal';
+  const dialogData: DialogTogglePreferencesData = {
+    type: isAppeal ? 'single_appeal' : 'single_preferences', // Logic inside dialog handles the label
+    academicYear: this.activeYear,
+    semester: this.activeSemester,
+    currentState: false, // We are enabling access
+    facultyName: request.faculty_name,
+    faculty_id: request.faculty_id,
+    global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+    global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
+  };
+
+  const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+    data: dialogData, 
+    disableClose: true, 
+    autoFocus: true,
+  });
+
+  dialogRef.afterClosed().subscribe((result) => {
+    // Result should now contain { confirmed: true, startDate, endDate, sendEmail }
+    if (result) {
+      if (isAppeal) {
+        // Pass the dates and email flag from the dialog to your service
+        this.reschedulingService.toggleFacultyAppealAccess(
+          request.faculty_id, 
+          true, 
+          this.activeSemesterId || 1,
+          result.startDate, // Ensure your service accepts these
+          result.endDate,
+          result.sendEmail
+        ).subscribe({
           next: () => {
             this.removeNotificationLocally(request);
-            this.showSuccessMessage('Appeal submission access granted.');
+            this.showSuccessMessage('Appeal access granted and faculty notified.');
           },
           error: this.handleError('Failed to grant appeal access.')
         });
-    } else {
-      // Original Preferences Logic
-      const dialogData: DialogTogglePreferencesData = {
-        type: 'single_preferences',
-        academicYear: this.activeYear,
-        semester: this.activeSemester,
-        currentState: false,
-        facultyName: request.faculty_name,
-        faculty_id: request.faculty_id,
-        global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
-        global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
-      };
-
-      const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-        data: dialogData, disableClose: true, autoFocus: true,
-      });
-
-      dialogRef.afterClosed().subscribe((result: boolean) => {
-        if (result) {
-          this.preferencesService
-            .cancelRequestAccess(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-              next: () => {
-                this.removeNotificationLocally(request);
-                this.showSuccessMessage('Faculty preferences access has been enabled.');
-              },
-              error: this.handleError('Failed to process request. Please try again.'),
-            });
-        }
-      });
+      } else {
+        // Handle Preferences (Standard Logic)
+        this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              this.removeNotificationLocally(request);
+              this.showSuccessMessage('Faculty preferences access enabled.');
+            },
+            error: this.handleError('Failed to process request.')
+          });
+      }
     }
-  }
+  });
+}
 
   discardRequest(request: RequestNotification): void {
     if (!this.canEditPreferences) {
@@ -375,57 +385,38 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
     const discardedRequest = { ...request };
 
+    // 1. Optimistic UI Update (Hide it instantly)
     this.isAnimatingOut = true;
     this.requestNotifications = this.requestNotifications.filter(
       (r) => r.faculty_id !== request.faculty_id
     );
     this.cdr.detectChanges();
 
-    const snackBarRef = this.snackBar.open('Faculty request has been discarded.', 'Undo', { duration: 3000 });
-    const cancelAction = new Subject<void>();
-    let animationTimeout: any;
-
-    snackBarRef.onAction().pipe(takeUntil(this.destroy$)).subscribe(() => {
-      cancelAction.next();
-      cancelAction.complete();
-      clearTimeout(animationTimeout);
-      this.isAnimatingOut = false;
-      this.requestNotifications = [...this.requestNotifications, discardedRequest];
-      this.cdr.detectChanges();
-      this.showSuccessMessage('Action cancelled.');
-    });
-
-    animationTimeout = setTimeout(() => {
+    setTimeout(() => {
       this.isAnimatingOut = false;
       this.cdr.detectChanges();
     }, 600);
 
-    snackBarRef.afterDismissed().pipe(takeUntil(this.destroy$)).subscribe((dismissedByAction) => {
-      if (!dismissedByAction.dismissedByAction) {
-
-        // Inside discardRequest() in overview.component.ts
-        if (request.request_type === 'appeal') {
-           // 🟢 CHANGED: Now uses rejectAppealAccessRequest to send the email
-           this.reschedulingService.rejectAppealAccessRequest(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$), takeUntil(cancelAction))
-            .subscribe({
-              next: () => {
-                 this.cdr.detectChanges();
-                 this.snackBar.open('Request denied and faculty notified via email.', 'Close', { duration: 3000 });
-              },
-              error: (err) => this.revertDiscard(discardedRequest, err)
-            });
-        } else {
-           // Original Preferences Logic
-           this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$), takeUntil(cancelAction))
-            .subscribe({
-              next: () => this.cdr.detectChanges(),
-              error: (err) => this.revertDiscard(discardedRequest, err)
-            });
-        }
-      }
-    });
+    // 2. IMMEDIATE API Call
+    if (request.request_type === 'appeal') {
+      this.reschedulingService.rejectAppealAccessRequest(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Request denied and faculty notified via email.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    } else {
+      this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Faculty preference request discarded.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    }
   }
 
   private removeNotificationLocally(request: RequestNotification) {

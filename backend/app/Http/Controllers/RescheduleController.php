@@ -331,7 +331,7 @@ class RescheduleController extends Controller
             $appeal = Appeal::findOrFail($id);
 
             $appeal->update([
-                'is_approved'   => 0,                             
+                'is_approved'   => 0,                               
                 'admin_remarks' => $validated['admin_remarks'] ?? null,
             ]);
 
@@ -353,17 +353,22 @@ class RescheduleController extends Controller
         $validated = $request->validate([
             'faculty_id' => 'required|exists:faculty,id',
             'is_enabled' => 'required|boolean',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+            'send_email' => 'nullable|boolean'
         ]);
 
         $faculty = \App\Models\Faculty::findOrFail($validated['faculty_id']);
 
         $faculty->update([
-                'is_appeal_enabled' => $validated['is_enabled'],
-                'has_appeal_request' => 0 
+            'is_appeal_enabled'  => $validated['is_enabled'],
+            'has_appeal_request' => 0,
+            'appeal_start_date'  => $validated['is_enabled'] ? ($validated['start_date'] ?? null) : null,
+            'appeal_end_date'    => $validated['is_enabled'] ? ($validated['end_date'] ?? null) : null,
         ]);
 
-        // Send Email if turning ON
-        if ($validated['is_enabled'] && $faculty->user) {
+        // Send Email if turning ON and requested
+        if ($validated['is_enabled'] && !empty($validated['send_email']) && $faculty->user) {
             Mail::to($faculty->user->email)->send(new AppealAccessApproved($faculty->user->first_name));
         }
 
@@ -384,10 +389,18 @@ class RescheduleController extends Controller
         // Remove the orange badge
         $faculty->update(['has_appeal_request' => 0]);
 
-        // Send Rejection Email
-        if ($faculty->user && $faculty->user->email) {
-            \Illuminate\Support\Facades\Mail::to($faculty->user->email)
-                ->send(new \App\Mail\AppealAccessDenied($faculty->user->first_name));
+        // Send Rejection Email gracefully
+        try {
+            if ($faculty->user && $faculty->user->email) {
+                \Illuminate\Support\Facades\Mail::to($faculty->user->email)
+                    ->send(new \App\Mail\AppealAccessDenied($faculty->user->first_name));
+            }
+        } catch (\Throwable $e) {
+            // If the email fails (or class is missing), we catch the error, log it, and prevent the 500 crash.
+            \Illuminate\Support\Facades\Log::error('Failed to send rejection email: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Appeal request denied, but the email failed to send.'
+            ], 200); 
         }
 
         return response()->json(['message' => 'Appeal request denied and email sent.']);
@@ -399,16 +412,20 @@ class RescheduleController extends Controller
     public function toggleAllFacultyAppealAccess(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'is_enabled' => 'required|boolean',
+            'is_enabled'         => 'required|boolean',
             'active_semester_id' => 'required|integer',
-            'send_email' => 'boolean' // <-- New parameter
+            'start_date'         => 'nullable|date',
+            'end_date'           => 'nullable|date',
+            'send_email'         => 'nullable|boolean'
         ]);
 
         $isEnabled = $validated['is_enabled'];
 
         DB::table('faculty')->update([
-            'is_appeal_enabled' => $isEnabled,
-            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request')
+            'is_appeal_enabled'  => $isEnabled,
+            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request'),
+            'appeal_start_date'  => $isEnabled ? ($validated['start_date'] ?? null) : null,
+            'appeal_end_date'    => $isEnabled ? ($validated['end_date'] ?? null) : null,
         ]);
 
         // If toggled ON and admin checked the email box, send to everyone

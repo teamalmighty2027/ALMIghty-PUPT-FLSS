@@ -111,7 +111,7 @@
 
             <p><strong>{{ $firstName }} {{ $lastName }}</strong> has requested access to submit a schedule appeal for the upcoming academic semester.</p>
 
-            <p>You can review this request and enable their submission access directly from the <strong>Internal Arrangements</strong> tab in the <strong>Rescheduling</strong> module of the PUPT-FLSS Admin portal.</p>
+            <p>You can review this request and enable their submission access directly from <strong>Overview Dashboard</strong> or the <strong>Internal Arrangements</strong> tab in the <strong>Rescheduling</strong> module of the PUPT-FLSS Admin portal.</p>
 
             <p class="important-note">Need help? Contact system support at <a
                     href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>

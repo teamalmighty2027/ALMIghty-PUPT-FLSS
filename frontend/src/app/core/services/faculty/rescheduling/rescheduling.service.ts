@@ -138,15 +138,43 @@ export class ReschedulingService {
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
-  toggleFacultyAppealAccess(facultyId: number, isEnabled: boolean, activeSemesterId: number): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {
-        faculty_id: facultyId,
-        is_enabled: isEnabled,
-        active_semester_id: activeSemesterId
-      })
-      .pipe(catchError((error: any) => throwError(() => error)));
-  }
+  toggleFacultyAppealAccess(
+  facultyId: number, 
+  isEnabled: boolean, 
+  activeSemesterId: number,
+  startDate?: string,  // New parameter
+  endDate?: string,    // New parameter
+  sendEmail?: boolean  // New parameter
+): Observable<any> {
+  return this.http
+    .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {
+      faculty_id: facultyId,
+      is_enabled: isEnabled,
+      active_semester_id: activeSemesterId,
+      start_date: startDate,
+      end_date: endDate,
+      send_email: sendEmail
+    })
+    .pipe(catchError((error: any) => throwError(() => error)));
+}
+
+toggleAllFacultyAppealAccess(
+  isEnabled: boolean, 
+  activeSemesterId: number,
+  startDate?: string,
+  endDate?: string,
+  sendEmail?: boolean
+): Observable<any> {
+  return this.http
+    .post(`${this.baseUrl}/rescheduling-appeals/toggle-all-access`, {
+      is_enabled: isEnabled,
+      active_semester_id: activeSemesterId,
+      start_date: startDate,
+      end_date: endDate,
+      send_email: sendEmail
+    })
+    .pipe(catchError((error: any) => throwError(() => error)));
+}
 
   // >>> ADDED MISSING METHODS HERE <<<
   requestAppealAccess(facultyId: string): Observable<any> {
@@ -158,15 +186,6 @@ export class ReschedulingService {
   cancelAppealAccessRequest(facultyId: string): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/rescheduling-appeals/cancel-request`, { faculty_id: facultyId })
-      .pipe(catchError((error: any) => throwError(() => error)));
-  }
-
-  toggleAllFacultyAppealAccess(isEnabled: boolean, activeSemesterId: number): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/rescheduling-appeals/toggle-all-access`, {
-        is_enabled: isEnabled,
-        active_semester_id: activeSemesterId
-      })
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 

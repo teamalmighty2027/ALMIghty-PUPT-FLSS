@@ -19,7 +19,7 @@ import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, Na
 import { PreferencesService } from '../../core/services/faculty/preference/preferences.service';
 
 export interface DialogTogglePreferencesData {
-  type: 'all_preferences' | 'single_preferences';
+  type: 'all_preferences' | 'single_preferences' | 'single_appeal';
   currentState: boolean;
   academicYear?: string;
   semester?: string;
@@ -102,6 +102,7 @@ export class DialogTogglePreferencesComponent {
   remainingDays: number = 0;
 
   startDate: Date | null = null;
+  endDate: Date | null = null;
   showStartDatePicker = false;
   isStartDateToday = false;
   remainingDaysStart: number = 0;
@@ -150,6 +151,16 @@ export class DialogTogglePreferencesComponent {
     this.isPreferencesScheduled =
       Boolean(this.data.global_start_date || this.data.individual_start_date) &&
       !this.data.currentState;
+  }
+
+  ngOnInit(): void {
+    // Initialize dates from the global/existing values passed in
+    if (this.data.global_start_date) {
+      this.startDate = new Date(this.data.global_start_date);
+    }
+    if (this.data.global_deadline) {
+      this.endDate = new Date(this.data.global_deadline);
+    }
   }
 
   /**
