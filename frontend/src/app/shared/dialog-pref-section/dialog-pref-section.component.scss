@@ -8,8 +8,8 @@
     $gap: var(--spacing-lg)
   );
   padding: var(--spacing-lg);
-  min-width: 400px;
-  max-width: 500px;
+  width: min(600px, 95vw);
+  min-width: 500px;
 
   .dialog-title {
     margin: 0;

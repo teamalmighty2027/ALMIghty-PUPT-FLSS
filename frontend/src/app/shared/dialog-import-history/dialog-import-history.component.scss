@@ -3,9 +3,8 @@
 .dialog-import-container {
   @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
   padding: var(--spacing-md);
-  max-height: 80vh;
-  width: 550px;
-  max-width: 95vw;
+  max-height: 85vh;
+  width: min(580px, 95vw);
 
   .dialog-header {
     @include mixins.flex-layout($align: center, $justify: space-between);
@@ -58,8 +57,8 @@
       overflow: auto;
       border: 1px solid var(--neutral-border);
       border-radius: var(--border-radius-sm);
-      min-height: 250px;
-      max-height: 400px;
+      min-height: 200px;
+      max-height: calc(85vh - 250px);
       @include mixins.custom-scrollbar;
 
       .import-table {

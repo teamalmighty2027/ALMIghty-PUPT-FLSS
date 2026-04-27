@@ -153,10 +153,13 @@
 
     #courses_search {
       @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
+      flex-wrap: wrap;
+      row-gap: var(--spacing-sm);
       margin-bottom: var(--spacing-sm);
 
       .custom-mat-search {
         flex: 1;
+        min-width: 250px;
 
         input::placeholder {
           color: var(--neutral-button-lighter);
@@ -186,18 +189,34 @@
         height: 3.5rem;
         padding: 0 var(--spacing-md);
         border-radius: var(--border-radius-md);
-        border: 1px solid var(--border-color);
-        color: var(--text-secondary);
+        border: 1.5px solid var(--primary-one);
+        color: white;
+        background-color: var(--primary-one);
+        font-weight: 600;
         @include mixins.flex-layout($gap: var(--spacing-xs));
+        @include mixins.default-transition;
+        box-shadow: var(--shadow-sm);
 
         span[mat-symbol] {
           font-size: var(--font-size-lg);
         }
 
         &:hover {
-          background-color: var(--bg-hover);
-          color: var(--primary-color);
-          border-color: var(--primary-color);
+          background-color: var(--primary-one-hover);
+          border-color: var(--primary-one-hover);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        &:active {
+          transform: translateY(0);
+          box-shadow: var(--shadow-sm);
+        }
+
+        @media screen and (max-width: bp.$breakpoint-sm) {
+          width: 100%;
+          justify-content: center;
+          margin-top: var(--spacing-xs);
         }
       }
     }
