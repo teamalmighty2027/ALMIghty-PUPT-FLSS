@@ -20,6 +20,7 @@ interface ImportHistoryDialogData {
   availableCourses: Course[];
   existingKeys: string[];
   currentSemesterId: number;
+  currentActiveSemesterId: number;
 }
 
 @Component({
@@ -96,9 +97,14 @@ export class DialogImportHistoryComponent implements OnInit {
       .subscribe({
         next: (response) => {
           // Filter academic years to only include those that have the target semester
-          const filteredYears = response.academic_years.filter((ay: any) => 
-            ay.semesters.some((s: any) => s.semester_id === this.data.currentSemesterId)
-          );
+          // AND exclude the currently active one to prevent redundant imports
+          const filteredYears = response.academic_years.filter((ay: any) => {
+            const semestersArray = Object.values(ay.semesters);
+            return semestersArray.some((s: any) => 
+              s.semester_id === this.data.currentSemesterId &&
+              s.active_semester_id !== this.data.currentActiveSemesterId
+            );
+          });
           
           this.academicYearList.set(filteredYears);
           
@@ -133,7 +139,8 @@ export class DialogImportHistoryComponent implements OnInit {
       return;
     }
 
-    const sem = year.semesters.find((s: any) => s.semester_id === semId);
+    const semestersArray = Object.values(year.semesters);
+    const sem = semestersArray.find((s: any) => s.semester_id === semId) as any;
     this.historyPreferences.set(sem?.preferences ?? []);
     this.selectedCourses.clear();
     this.isLoading.set(false);

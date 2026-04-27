@@ -849,7 +849,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
         facultyId: parseInt(this.facultyId()!, 10),
         availableCourses: this.courses(),
         existingKeys: existingKeys,
-        currentSemesterId: this.semesterId()
+        currentSemesterId: this.semesterId(),
+        currentActiveSemesterId: this.activeSemesterId()
       },
       disableClose: false,
       autoFocus: true,
