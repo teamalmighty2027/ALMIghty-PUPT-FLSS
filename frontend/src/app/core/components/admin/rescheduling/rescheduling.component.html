@@ -6,6 +6,7 @@
   } @else {
     <mat-tab-group
       [(selectedIndex)]="selectedTabIndex"
+      (selectedTabChange)="onTabChange($event)"
       animationDuration="250ms"
       class="reports-tab bottom-tabs"
       style="height: 100%; display: flex; flex-direction: column"
@@ -482,15 +483,14 @@
           <div class="doc-row">
             <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
             <span class="doc-name">{{ selectedAppeal?.filePath }}</span>
-            <a
+            <button
               mat-icon-button
               class="doc-view-btn"
-              [href]="getFileUrl(selectedAppeal?.filePath)"
-              target="_blank"
-              rel="noopener"
+              (click)="downloadAppealDocument(selectedAppeal?.id, selectedAppeal?.facultyName || 'Faculty')"
+              matTooltip="Download Document"
             >
-              <mat-icon>open_in_new</mat-icon>
-            </a>
+              <mat-icon>download</mat-icon>
+            </button>
           </div>
         </div>
         <div class="reason-section">

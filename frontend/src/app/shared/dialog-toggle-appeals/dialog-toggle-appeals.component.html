@@ -33,11 +33,19 @@
         </mat-form-field>
     </div>
 
-    <div style="margin-top: 16px;">
-      <mat-checkbox [(ngModel)]="sendEmail" color="primary">
-        Send notification email to {{ data.type === 'all_appeals' ? 'all faculty members' : data.facultyName }}
-      </mat-checkbox>
-    </div>
+    @if (data.currentState) {
+      <div style="margin-top: 16px; padding: 12px; background-color: #f8d7da; color: #721c24; border-radius: 4px; font-size: 14px;">
+        This will <strong>immediately</strong> disable the appeals submission and bypass the currently set deadline.
+      </div>
+    }
+
+    @if (!data.currentState) {
+      <div style="margin-top: 16px;">
+        <mat-checkbox [(ngModel)]="sendEmail" color="primary">
+          Send notification email to {{ data.type === 'all_appeals' ? 'all faculty members' : data.facultyName }}
+        </mat-checkbox>
+      </div>
+    }
   </div>
 
   <div mat-dialog-actions align="end" style="margin-top: 16px;">

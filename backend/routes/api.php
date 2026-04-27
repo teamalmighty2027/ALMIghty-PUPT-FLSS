@@ -246,6 +246,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
     Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
 
+    Route::get('/rescheduling-appeals/{id}/download', [App\Http\Controllers\RescheduleController::class, 'downloadAppealDocument']);
+
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);

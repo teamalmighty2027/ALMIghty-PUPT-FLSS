@@ -180,25 +180,29 @@ export class LoadAndScheduleComponent implements OnInit {
   }
 
   openRequestAppealAccessDialog(): void {
-    this.dialog
-      .open(DialogRequestAccessComponent, {
-        disableClose: true,
-        data: {
-          has_request: this.hasAppealRequest,
-          facultyId: this.authService.getUserFacultyId(),
-          requestType: 'appeal'
-        },
-      })
-      .afterClosed()
-      .subscribe((result) => {
-        // If result is true, the user just submitted a request
-        // If result is false, the user just cancelled a request
-        if (result !== undefined) {
-          // Re-fetch everything to ensure flags are updated
-          this.loadFacultySchedule(); 
-        }
-      });
-  }
+  const dialogRef = this.dialog.open(DialogRequestAccessComponent, {
+    disableClose: true,
+    data: {
+      has_request: this.hasAppealRequest,
+      facultyId: this.authService.getUserFacultyId(),
+      requestType: 'appeal'
+    },
+  });
+
+  dialogRef.afterClosed().subscribe((result) => {
+    if (result === true) {
+      // Faculty just SENT a request
+      this.hasAppealRequest = true;
+      // DO NOT reload - keep local state, avoid re-triggering popup
+    } else if (result === false) {
+      // Faculty just CANCELLED their request
+      this.hasAppealRequest = false;
+      // DO NOT reload here either
+    }
+    // Only reload if result is undefined (dialog closed via X / Close button with no action)
+    // Even then, don't reload — just trust local state
+  });
+}
 
   openMyAppealsDialog(block: any): void {
     this.dialog.open(DialogMyAppealsComponent, {

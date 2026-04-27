@@ -293,45 +293,47 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Submit the appeal form button handler
   onSubmit(): void {
-    this.dialogRef.close();
-    this.snackBar.open('Submitting your appeal...', '', { duration: 2000 });
-
-    if (this.appealForm.valid) {
-      // Validate end time is after start time
-      const startTime = this.appealForm.value.appealStartTime;
-      const endTime = this.appealForm.value.appealEndTime;
-      
-      if (this.compareTimeStrings(startTime, endTime) >= 0) {
-        this.snackBar.open('End time must be after start time.');
-        return;
-      }
-
-      this.reschedulingService.submitReschedulingAppeal(
-        this.data.original.scheduleId,
-        this.selectedFile,
-        this.appealForm.value.reason,
-        {
-          day: this.appealForm.value.appealDay,
-          startTime: this.appealForm.value.appealStartTime,
-          endTime: this.appealForm.value.appealEndTime,
-          roomCode: this.appealForm.value.appealRoom
-        },          
-      )
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (response) => {
-            this.snackBar.open(response.message || 'Appeal submitted successfully.', 
-              'Close', {duration: 3000,}
-            );
-          },
-          error: (error) => {
-            console.error('Appeal error:', JSON.stringify(error));
-            this.snackBar.open(error.message, 
-              'Close', {duration: 3000,}
-            );
-          }
-        });
+    if (!this.appealForm.valid) {
+      this.appealForm.markAllAsTouched();
+      return;
     }
+
+    const startTime = this.appealForm.value.appealStartTime;
+    const endTime = this.appealForm.value.appealEndTime;
+    
+    if (this.compareTimeStrings(startTime, endTime) >= 0) {
+      this.snackBar.open('End time must be after start time.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    this.reschedulingService.submitReschedulingAppeal(
+      this.data.original.scheduleId,
+      this.selectedFile,
+      this.appealForm.value.reason,
+      {
+        day: this.appealForm.value.appealDay,
+        startTime: this.appealForm.value.appealStartTime,
+        endTime: this.appealForm.value.appealEndTime,
+        roomCode: this.appealForm.value.appealRoom
+      },          
+    )
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response) => {
+        this.snackBar.open(
+          response.message || 'Appeal submitted successfully.', 
+          'Close', { duration: 3000 }
+        );
+        this.dialogRef.close(true); // Close AFTER success
+      },
+      error: (error) => {
+        console.error('Appeal error:', error);
+        this.snackBar.open(
+          error?.error?.message || 'Failed to submit appeal. Please try again.', 
+          'Close', { duration: 3000 }
+        );
+      }
+    });
   }
 
   /**

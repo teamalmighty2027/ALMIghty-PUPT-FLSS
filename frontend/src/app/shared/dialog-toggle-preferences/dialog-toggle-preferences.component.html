@@ -90,7 +90,7 @@
     }
 
     <!-- Email Notification Section -->
-    @if (showEmailOption && !data.currentState && !isPreferencesScheduled) {
+    @if (showEmailOption && !data.currentState) {
     <div class="checkbox-container email">
       <mat-checkbox [(ngModel)]="sendEmail" class="email-checkbox">
         <span class="checkbox-content">

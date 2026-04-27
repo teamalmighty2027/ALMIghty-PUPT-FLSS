@@ -20,7 +20,8 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { PermissionService } from '../../../services/permission/permission.service';
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
+import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 interface CurriculumInfo {
   curriculum_id: number;
@@ -316,66 +317,84 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // ======================
   // Request Action Methods
   // ======================
-
   approveRequest(request: RequestNotification): void {
-  if (!this.canEditPreferences) {
-    this.showNoPermissionMessage();
-    return;
-  }
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
 
-  // Define shared dialog data
-  const isAppeal = request.request_type === 'appeal';
-  const dialogData: DialogTogglePreferencesData = {
-    type: isAppeal ? 'single_appeal' : 'single_preferences', // Logic inside dialog handles the label
-    academicYear: this.activeYear,
-    semester: this.activeSemester,
-    currentState: false, // We are enabling access
-    facultyName: request.faculty_name,
-    faculty_id: request.faculty_id,
-    global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
-    global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
-  };
+    const isAppeal = request.request_type === 'appeal';
 
-  const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-    data: dialogData, 
-    disableClose: true, 
-    autoFocus: true,
-  });
+    if (isAppeal) {
+      const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+        width: '500px',
+        data: {
+          type: 'single_appeal',
+          facultyName: request.faculty_name,
+          academicYear: this.activeYear,
+          semester: this.activeSemester,
+          currentState: false, // We are enabling access
+          startDate: null,
+          endDate: null
+        },
+        disableClose: true,
+        autoFocus: false
+      });
 
-  dialogRef.afterClosed().subscribe((result) => {
-    // Result should now contain { confirmed: true, startDate, endDate, sendEmail }
-    if (result) {
-      if (isAppeal) {
-        // Pass the dates and email flag from the dialog to your service
-        this.reschedulingService.toggleFacultyAppealAccess(
-          request.faculty_id, 
-          true, 
-          this.activeSemesterId || 1,
-          result.startDate, // Ensure your service accepts these
-          result.endDate,
-          result.sendEmail
-        ).subscribe({
-          next: () => {
-            this.removeNotificationLocally(request);
-            this.showSuccessMessage('Appeal access granted and faculty notified.');
-          },
-          error: this.handleError('Failed to grant appeal access.')
-        });
-      } else {
-        // Handle Preferences (Standard Logic)
-        this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
+      dialogRef.afterClosed().subscribe((result) => {
+        if (result) {
+          // THIS IS THE FIX: We must format the raw dates before sending to Laravel!
+          const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+          const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+          this.reschedulingService.toggleFacultyAppealAccess(
+            request.faculty_id,
+            true,
+            this.activeSemesterId || 1,
+            formattedStart, // Pass the formatted MySQL string
+            formattedEnd,   // Pass the formatted MySQL string
+            result.sendEmail
+          ).subscribe({
             next: () => {
               this.removeNotificationLocally(request);
-              this.showSuccessMessage('Faculty preferences access enabled.');
+              this.showSuccessMessage('Appeal access granted and faculty notified.');
             },
-            error: this.handleError('Failed to process request.')
+            error: this.handleError('Failed to grant appeal access.')
           });
-      }
+        }
+      });
+    } else {
+      // --- PREFERENCES LOGIC ---
+      const dialogData: DialogTogglePreferencesData = {
+        type: 'single_preferences',
+        academicYear: this.activeYear,
+        semester: this.activeSemester,
+        currentState: false,
+        facultyName: request.faculty_name,
+        faculty_id: request.faculty_id,
+        global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+        global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
+      };
+
+      const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+        data: dialogData, disableClose: true, autoFocus: true,
+      });
+
+      dialogRef.afterClosed().subscribe((result: boolean) => {
+        if (result) {
+          this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: () => {
+                this.removeNotificationLocally(request);
+                this.showSuccessMessage('Faculty preferences access enabled.');
+              },
+              error: this.handleError('Failed to process request.')
+            });
+        }
+      });
     }
-  });
-}
+  }
 
   discardRequest(request: RequestNotification): void {
     if (!this.canEditPreferences) {

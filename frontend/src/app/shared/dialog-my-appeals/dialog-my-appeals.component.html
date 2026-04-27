@@ -89,9 +89,9 @@
           <div class="doc-row">
             <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
             <span class="doc-name">{{ appeal.filePath }}</span>
-            <a mat-icon-button [href]="getFileUrl(appeal.filePath)" target="_blank" rel="noopener">
-              <mat-icon>open_in_new</mat-icon>
-            </a>
+            <button mat-icon-button (click)="downloadDocument(appeal.appealId)" matTooltip="Download Document">
+              <mat-icon>download</mat-icon>
+            </button>
           </div>
         </div>
 

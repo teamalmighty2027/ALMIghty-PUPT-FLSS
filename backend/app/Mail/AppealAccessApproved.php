@@ -14,13 +14,17 @@ class AppealAccessApproved extends Mailable
     use Queueable, SerializesModels;
 
     public $firstName;
+    public $startDate;
+    public $endDate;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($firstName)
+    public function __construct($firstName, $startDate = null, $endDate = null)
     {
         $this->firstName = $firstName;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
     }
 
     /**

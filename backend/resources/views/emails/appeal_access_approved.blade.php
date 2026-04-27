@@ -111,7 +111,17 @@
 
             <p>The administrator has granted your request to submit a schedule appeal for the active academic semester.</p>
 
-            <p>Please log in to the PUPT-FLSS Faculty portal and navigate to the <strong>Load and Schedule</strong> module. You can now click the "Appeal" button on your Internal Arrangemen blocks to submit your requested changes.</p>
+            <p>Please log in to the PUPT-FLSS Faculty portal and navigate to the <strong>Load and Schedule</strong> module. You can now click the "Appeal" button on your Internal Arrangement blocks to submit your requested changes.</p>
+
+            @if($startDate && $endDate)
+            <div style="background-color: #ffffff; border-left: 4px solid #800000; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0 0 5px 0;"><strong>Submission Timeline:</strong></p>
+                <p style="margin: 0; color: #444;">
+                    Opens: {{ \Carbon\Carbon::parse($startDate)->format('F j, Y') }}<br>
+                    Closes: {{ \Carbon\Carbon::parse($endDate)->format('F j, Y \a\t 11:59 A\M') }}
+                </p>
+            </div>
+            @endif
 
             <p class="important-note">Need help? Contact us at <a
                     href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>

@@ -224,4 +224,10 @@ toggleAllFacultyAppealAccess(
       }
     );
   }
+  
+  downloadAppealDocument(appealId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/rescheduling-appeals/${appealId}/download`, {
+      responseType: 'blob' // This tells Angular we expect a file, not JSON
+    });
+  }
 }
