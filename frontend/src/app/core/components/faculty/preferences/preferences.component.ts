@@ -31,6 +31,7 @@ import { Program, Course, PreferredDay, Section } from '../../../models/preferen
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
+import { DialogImportHistoryComponent } from '../../../../shared/dialog-import-history/dialog-import-history.component';
 
 interface TableData extends Course {
   preferredDays: PreferredDay[];
@@ -101,6 +102,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   hasRequest = signal(false);
   isSchedulesPublished = signal(false);
   activeSemesterId = signal<number | null>(null);
+  semesterId = signal<number | null>(null);
   submissionDeadline = signal<Date | null>(null);
 
   // Search
@@ -253,6 +255,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
             this.programs.set(programsResponse.programs);
             this.activeSemesterId.set(programsResponse.active_semester_id);
+            this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
             
             // Sort courses alphabetically by course code for better UX in course selection
@@ -735,7 +738,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
       data: { 
-        sections: targetYear.sections
+        sections: targetYear.sections,
+        programCode: this.selectedProgram()?.program_code ?? '',
+        courseCode: course.course_code,
+        courseTitle: course.course_title
       },
       autoFocus: true,
     });
@@ -814,6 +820,35 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       disableClose: true,
       autoFocus: true,
     });
+  }
+
+  /**
+   * Opens the import from history dialog
+   */
+  public openImportHistoryDialog(): void {
+    const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
+
+    this.dialog.open(DialogImportHistoryComponent, {
+      maxWidth: '90vw',
+      width: '700px',
+      data: {
+        facultyId: parseInt(this.facultyId()!, 10),
+        availableCourses: this.courses(),
+        existingKeys: existingKeys,
+        currentSemesterId: this.semesterId()
+      },
+      disableClose: false,
+      autoFocus: true,
+    }).afterClosed()
+      .subscribe((selectedCourses: Course[] | undefined) => {
+
+        if (selectedCourses && selectedCourses.length > 0) {
+          // Add each selected course to the table
+          selectedCourses.forEach(course => {
+            this.addCourseToTable(course);
+          });
+        }
+      });
   }
 
   /**
