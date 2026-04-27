@@ -8,31 +8,35 @@
     $gap: var(--spacing-lg)
   );
   padding: var(--spacing-lg);
-  width: min(600px, 95vw);
+  width: fit-content;
   min-width: 500px;
 
   .dialog-title {
     margin: 0;
-    font-size: var(--font-size-xl);
-    font-weight: 700;
-    @include mixins.gradient-primary-text(315deg);
+    font-size: var(--font-size-2xl);
+    font-weight: 800;
+    color: var(--primary-one);
+    letter-spacing: -0.5px;
   }
 
   .course-context {
     background: var(--primary-fade);
     border-radius: var(--border-radius-md);
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm);
     @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
     border: 1px solid var(--primary-border);
+    max-width: 90%;
+    margin: auto;
 
     .program-badge {
-      @include mixins.gradient-primary(315deg);
+      background: var(--primary-one);
       color: white;
-      padding: 4px 10px;
+      padding: 6px 12px;
       border-radius: var(--border-radius-sm);
       font-size: var(--font-size-xs);
       font-weight: 700;
       box-shadow: var(--shadow-sm);
+      text-transform: uppercase;
     }
 
     .course-details {
@@ -58,8 +62,9 @@
   mat-button-toggle-group {
     width: 100%;
     border: none !important;
-    @include mixins.flex-layout($gap: var(--spacing-sm));
+    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: flex-start);
     flex-wrap: wrap;
+    background: transparent !important;
 
     mat-button-toggle {
       border: 1.5px solid var(--border-color) !important;
@@ -95,9 +100,26 @@
 
     button {
       padding: 0 var(--spacing-xl);
-      height: 3rem;
+      height: 3.5rem;
       border-radius: var(--border-radius-md);
       font-weight: 600;
+      @include mixins.default-transition;
+
+      &.confirm-btn {
+        background-color: var(--primary-one);
+        color: white;
+        
+        &:hover:not(:disabled) {
+          background-color: var(--primary-one-hover);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        &:disabled {
+          background-color: var(--neutral-fade);
+          color: var(--neutral-button-lighter);
+        }
+      }
     }
   }
 }

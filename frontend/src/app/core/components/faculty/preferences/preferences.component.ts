@@ -750,6 +750,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
+      width: 'min(600px, 90vw)',
       data: { 
         sections: targetYear.sections,
         programCode: this.selectedProgram()?.program_code ?? '',
