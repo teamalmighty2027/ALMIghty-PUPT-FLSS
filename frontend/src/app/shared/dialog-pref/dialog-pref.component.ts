@@ -118,6 +118,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
       (response) => {
           this.academicYearList = response.academic_years;
+
+          if (this.data.isViewHistory) {
+            this.preselectHistoryDefault();
+          }
       },
       (error) => {
           console.error('Error fetching academic years:', error);
@@ -216,6 +220,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     if (!semesterId) return;
 
     this.selectedSemester = semesterId;
+
+    // Ensure academic year label is updated from the current selection
+    if (this.selectedHistory) {
+      this.academicYear = this.selectedHistory.academic_year;
+    }
+
     this.updateTableFromSelection();
   }
 
@@ -253,8 +263,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
 
     const ay = this.academicYearList.find(
-      (y) => y.academic_year_id === this.selectedYear || y.academic_year === this.academicYear,
+      (y) => y.academic_year_id === this.selectedYear
     );
+
+    if (ay) {
+      this.academicYear = ay.academic_year;
+    }
 
     if (!ay) {
       this.isLoading = false;
@@ -299,6 +313,29 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     }));
 
     this.isLoading = false;
+  }
+
+  /**
+   * Pre-selects the first available academic year and semester
+   * so the history view is not blank on first open.
+   */
+  private preselectHistoryDefault(): void {
+    if (!this.academicYearList?.length) return;
+    const firstAy = this.academicYearList[0];
+    const semesters = (firstAy as any).semesters
+      ?? (firstAy as any).semester ?? [];
+    
+    // Find the first semester that has preferences or just the first one
+    const firstSem = semesters.find(
+      (s: any) => (s.preferences ?? s.courses ?? []).length > 0
+    ) ?? semesters[0];
+    
+    if (!firstSem) return;
+
+    this.selectedHistory = firstAy;
+    this.selectedYear = firstAy.academic_year_id;
+    this.selectedSemester = firstSem.semester_id;
+    this.updateTableFromSelection();
   }
 
   /**
