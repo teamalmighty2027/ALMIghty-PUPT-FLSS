@@ -1,0 +1,109 @@
+@use "../../../styles/mixins";
+
+.dialog-import-container {
+  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+  padding: var(--spacing-lg);
+  max-height: 85vh;
+
+  .dialog-header {
+    @include mixins.flex-layout($align: center, $justify: space-between);
+    
+    h2 {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+    }
+  }
+
+  .dialog-content {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+
+    .description {
+      color: var(--text-secondary);
+      font-size: var(--font-size-sm);
+      margin: 0;
+
+      strong {
+        color: var(--primary-color);
+      }
+    }
+
+    .filters {
+      .ay-select {
+        width: 100%;
+        max-width: 300px;
+      }
+    }
+
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      min-height: 200px;
+      max-height: 400px;
+
+      .import-table {
+        width: 100%;
+
+        th.mat-header-cell {
+          background: var(--bg-surface-secondary);
+          color: var(--text-primary);
+          font-weight: 600;
+        }
+
+        .mat-row {
+          cursor: pointer;
+          transition: background 0.2s ease;
+
+          &:hover:not(.row-disabled) {
+            background: var(--bg-hover);
+          }
+
+          &.row-selected {
+            background: var(--bg-selected);
+          }
+
+          &.row-disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background: var(--bg-disabled);
+          }
+        }
+
+        .already-added-tag {
+          font-size: var(--font-size-xs);
+          color: var(--text-disabled);
+          margin-left: var(--spacing-xs);
+          font-style: italic;
+        }
+      }
+
+      .no-data {
+        @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-sm));
+        padding: var(--spacing-xl);
+        color: var(--text-secondary);
+        text-align: center;
+
+        span {
+          font-size: 48px;
+          opacity: 0.3;
+        }
+      }
+    }
+  }
+
+  .loading-wrapper {
+    @include mixins.flex-layout($align: center, $justify: center);
+    padding: var(--spacing-xl);
+  }
+
+  .dialog-actions {
+    margin-top: var(--spacing-md);
+    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+    padding: 0;
+  }
+}
