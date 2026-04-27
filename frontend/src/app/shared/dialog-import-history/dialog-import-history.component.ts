@@ -177,7 +177,12 @@ export class DialogImportHistoryComponent implements OnInit {
   importSelected(): void {
     const selected = this.importableCourses()
       .filter(c => this.selectedCourses.has(c.key))
-      .map(c => c.currentMatch);
+      .map(c => ({
+        ...c.currentMatch,
+        previousSectionName: c.section_details?.section_name,
+        previousProgramCode: c.course_details?.program_code,
+        preferred_days: c.preferred_days
+      }));
     
     this.dialogRef.close(selected);
   }

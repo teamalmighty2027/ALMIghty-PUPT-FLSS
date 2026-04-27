@@ -365,6 +365,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   ): void {    
     program.year_levels.forEach((yearLevel) => {
       yearLevel.semester.courses.forEach((course) => {
+        // Ensure course has year_level from the program structure
+        course.year_level = yearLevel.year_level;
         const key = this.getCourseListKey(course);
         coursesMap.set(key, course);
       });
@@ -374,7 +376,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /** 
    * Populate possible programs based on selected course
    */
-  private populatePossiblePrograms(course: Course): void {
+  private async populatePossiblePrograms(course: Course): Promise<void> {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
     this.searchState.set('courseSelection');
@@ -392,7 +394,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
 
     if (possiblePrograms.length === 1) {
-      this.selectPossibleProgram(possiblePrograms[0]);
+      await this.selectPossibleProgram(possiblePrograms[0]);
       return;
     }
 
@@ -534,7 +536,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public async addCourseToTable(course: Course): Promise<void> {   
     // If no program is selected, populate possible programs
     if (this.selectedProgram() === undefined) {
-      this.populatePossiblePrograms(course);
+      await this.populatePossiblePrograms(course);
       return;
     }
 
@@ -559,14 +561,19 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const preferredDays = this.daysOfWeek.map((day) => {
+      const existing = course.preferred_days?.find((d) => d.day === day);
+      return {
+        day,
+        start_time: existing?.start_time ?? '',
+        end_time: existing?.end_time ?? '',
+      };
+    });
+
     const newCourse: TableData = {
       ...course,
-      preferredDays: this.daysOfWeek.map((day) => ({
-        day,
-        start_time: '',
-        end_time: '',
-      })),
-      isSubmitted: false,
+      preferredDays,
+      isSubmitted: !!course.preferred_days,
       program_details: this.selectedProgram(),
       year_section: `${course.year_level}-${course.section.section_name}`
     };
@@ -717,17 +724,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * if the course has multiple sections.
    */
   private async willSelectAnotherSection(course: Course): Promise<boolean> {  
+    if (this.selectedSection() !== undefined) {
+      return true;
+    }
     const yearLevels = this.selectedProgram()?.year_levels;
     if (course.year_level == null) {
       return true;
     }
 
-    const targetYear = yearLevels?.[course.year_level - 1];
+    const targetYear = yearLevels?.find(yl => yl.year_level === course.year_level);
     if (!targetYear) return true;
 
     // If only one or no section, set it and continue
-    const maxSections = Number(targetYear.sections.length);
-    if (isNaN(maxSections) || maxSections <= 1) {
+    const maxSections = targetYear.sections?.length ?? 0;
+    if (maxSections <= 1) {
       const firstSection = targetYear.sections[0];
 
       if (firstSection) {
@@ -841,14 +851,48 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       autoFocus: true,
     }).afterClosed()
       .subscribe((selectedCourses: Course[] | undefined) => {
-
         if (selectedCourses && selectedCourses.length > 0) {
-          // Add each selected course to the table
-          selectedCourses.forEach(course => {
-            this.addCourseToTable(course);
-          });
+          this.processBatchImport(selectedCourses);
         }
       });
+  }
+
+  /**
+   * Process multiple courses imported from history
+   */
+  private async processBatchImport(courses: Course[]): Promise<void> {
+    for (const course of courses) {
+      // Try to find the program from previous data
+      let program: Program | undefined;
+      if (course.previousProgramCode) {
+        program = this.programs().find(p => p.program_code === course.previousProgramCode);
+      }
+
+      // Fallback: If no match by code, but only one program offers this course, use it
+      if (!program) {
+        const possible = this.programs().filter(p => 
+          p.year_levels.some(yl => yl.semester.courses.some(c => this.isSameCourseOffering(c, course)))
+        );
+        if (possible.length === 1) {
+          program = possible[0];
+        }
+      }
+
+      // If program found, set it and try to pre-select the section from previous data
+      if (program) {
+        this.selectedProgram.set(program);
+        
+        if (course.previousSectionName) {
+          const targetYear = program.year_levels.find(yl => yl.year_level === course.year_level);
+          const section = targetYear?.sections.find(s => s.section_name === course.previousSectionName);
+          if (section) {
+            this.selectedSection.set(section);
+          }
+        }
+      }
+
+      await this.addCourseToTable(course);
+    }
   }
 
   /**
