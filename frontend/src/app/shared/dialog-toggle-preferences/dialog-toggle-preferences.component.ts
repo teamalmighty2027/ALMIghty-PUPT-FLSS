@@ -19,7 +19,7 @@ import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, Na
 import { PreferencesService } from '../../core/services/faculty/preference/preferences.service';
 
 export interface DialogTogglePreferencesData {
-  type: 'all_preferences' | 'single_preferences';
+  type: 'all_preferences' | 'single_preferences' | 'single_appeal';
   currentState: boolean;
   academicYear?: string;
   semester?: string;
@@ -102,6 +102,7 @@ export class DialogTogglePreferencesComponent {
   remainingDays: number = 0;
 
   startDate: Date | null = null;
+  endDate: Date | null = null;
   showStartDatePicker = false;
   isStartDateToday = false;
   remainingDaysStart: number = 0;
@@ -125,36 +126,37 @@ export class DialogTogglePreferencesComponent {
       this.showStartDatePicker = true;
       this.calculateRemainingDaysStart();
     } else if (this.data.type === 'single_preferences') {
-      this.submissionDeadline =
-        this.data.individual_deadline || this.data.global_deadline || null;
+      this.submissionDeadline = this.data.individual_deadline || this.data.global_deadline || null;
       this.facultyName = this.data.facultyName || '';
       this.showDeadlinePicker = true;
       this.calculateRemainingDays();
 
-      this.startDate =
-        this.data.individual_start_date || this.data.global_start_date || null;
+      this.startDate = this.data.individual_start_date || this.data.global_start_date || null;
       this.showStartDatePicker = true;
       this.calculateRemainingDaysStart();
-    }
-
-    if (this.submissionDeadline) {
+    } else if (this.data.type === 'single_appeal') {
+      // NEW LOGIC: Support single appeals
+      this.submissionDeadline = this.data.global_deadline || null;
+      this.startDate = this.data.global_start_date || null;
+      this.facultyName = this.data.facultyName || '';
+      this.showDeadlinePicker = true;
+      this.showStartDatePicker = true;
       this.calculateRemainingDays();
-    }
-
-    if (this.startDate) {
       this.calculateRemainingDaysStart();
     }
 
-    this.hasIndividualDeadlines = this.data.hasIndividualDeadlines || false;
+    if (this.submissionDeadline) this.calculateRemainingDays();
+    if (this.startDate) this.calculateRemainingDaysStart();
 
-    this.isPreferencesScheduled =
-      Boolean(this.data.global_start_date || this.data.individual_start_date) &&
-      !this.data.currentState;
+    this.hasIndividualDeadlines = this.data.hasIndividualDeadlines || false;
+    this.isPreferencesScheduled = Boolean(this.data.global_start_date || this.data.individual_start_date) && !this.data.currentState;
   }
 
-  /**
-   * Initializes dialog content based on the action type
-   */
+  ngOnInit(): void {
+    if (this.data.global_start_date) this.startDate = new Date(this.data.global_start_date);
+    if (this.data.global_deadline) this.endDate = new Date(this.data.global_deadline);
+  }
+
   private initializeDialogContent(): void {
     switch (this.data.type) {
       case 'all_preferences':
@@ -162,32 +164,30 @@ export class DialogTogglePreferencesComponent {
         this.actionText = this.data.currentState ? 'Disable' : 'Enable';
         this.showEmailOption = !this.data.currentState;
         break;
-
       case 'single_preferences':
         this.dialogTitle = `Faculty Preferences Submission`;
         this.actionText = this.data.currentState ? 'Disable' : 'Enable';
         this.showEmailOption = !this.data.currentState;
         this.showDeadlinePicker = true;
         break;
+      case 'single_appeal':
+        this.dialogTitle = `Schedule Appeal Access`;
+        this.actionText = this.data.currentState ? 'Disable' : 'Enable';
+        this.showEmailOption = !this.data.currentState;
+        this.showDeadlinePicker = true;
+        this.showStartDatePicker = true;
+        break;
     }
   }
 
-  /**
-   * Handles the confirmation action based on dialog type
-   */
   confirmAction(): void {
-    // Check if both startDate and submissionDeadline are filled out
-    if (this.showStartDatePicker && !this.startDate) {
-      this.snackBar.open('Please select a start date.', 'Close', {
-        duration: this.SNACKBAR_DURATION,
-      });
+    if (this.showStartDatePicker && !this.startDate && !this.data.currentState) {
+      this.snackBar.open('Please select a start date.', 'Close', { duration: this.SNACKBAR_DURATION });
       return;
     }
 
-    if (this.showDeadlinePicker && !this.submissionDeadline) {
-      this.snackBar.open('Please select a submission deadline.', 'Close', {
-        duration: this.SNACKBAR_DURATION,
-      });
+    if (this.showDeadlinePicker && !this.submissionDeadline && !this.data.currentState) {
+      this.snackBar.open('Please select a submission deadline.', 'Close', { duration: this.SNACKBAR_DURATION });
       return;
     }
 
@@ -201,66 +201,68 @@ export class DialogTogglePreferencesComponent {
       case 'single_preferences':
         operation$ = this.handleSinglePreferenceOperation();
         break;
+      case 'single_appeal':
+        const newStatus = !this.data.currentState;
+        let formattedStartDate: string | null = null;
+        let formattedDeadline: string | null = null;
+
+        if (newStatus && this.startDate) {
+          const date = new Date(this.startDate);
+          date.setHours(0, 0, 0, 0);
+          formattedStartDate = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
+        }
+
+        if (newStatus && this.submissionDeadline) {
+          const date = new Date(this.submissionDeadline);
+          date.setHours(23, 59, 59, 999);
+          formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
+        }
+        
+        // Return object directly so overview dashboard can use it
+        operation$ = of({
+          startDate: formattedStartDate,
+          endDate: formattedDeadline,
+          sendEmail: this.sendEmail
+        });
+        break;
       default:
         operation$ = of(null);
     }
 
     operation$
-      .pipe(
-        finalize(() => {
-          this.isProcessing = false;
-        })
-      )
+      .pipe(finalize(() => { this.isProcessing = false; }))
       .subscribe({
-        next: () => {
-          const successMessage = this.getSuccessMessage();
-          this.snackBar.open(successMessage, 'Close', {
-            duration: this.SNACKBAR_DURATION,
-          });
-          this.dialogRef.close(true);
+        next: (res) => {
+          if (this.data.type !== 'single_appeal') {
+             this.snackBar.open(this.getSuccessMessage(), 'Close', { duration: this.SNACKBAR_DURATION });
+          }
+          // Pass the generated object back if it's an appeal, otherwise standard true boolean
+          this.dialogRef.close(this.data.type === 'single_appeal' ? res : true);
         },
         error: (error) => {
           console.error('Operation failed:', error);
-          const errorMessage = this.getErrorMessage();
-          this.snackBar.open(errorMessage, 'Close', {
-            duration: this.SNACKBAR_DURATION,
-          });
+          this.snackBar.open(this.getErrorMessage(), 'Close', { duration: this.SNACKBAR_DURATION });
           this.dialogRef.close(false);
         },
       });
   }
 
-  /**
-   * Closes the dialog if not processing
-   */
   closeDialog(): void {
-    if (!this.isProcessing) {
-      this.dialogRef.close(false);
-    }
+    if (!this.isProcessing) this.dialogRef.close(false);
   }
 
-  /**
-   * Calculates remaining days between today and start date
-   * and determines if the start date is today
-   */
   public calculateRemainingDaysStart(): void {
     if (this.startDate) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
       const startDate = new Date(this.startDate);
       startDate.setHours(0, 0, 0, 0);
-
       const diffTime = startDate.getTime() - today.getTime();
       this.remainingDaysStart = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
       this.isStartDateToday = this.remainingDaysStart <= 0;
     }
   }
 
-  /**
-   * Handles start date change
-   */
   public onStartDateChange(event: any): void {
     this.startDate = event.value;
     this.calculateRemainingDaysStart();
@@ -274,206 +276,116 @@ export class DialogTogglePreferencesComponent {
     }
   }
 
-  /**
-   * Calculates remaining days between start date and submission deadline
-   * and determines if the deadline is today
-   */
   public calculateRemainingDays(): void {
     if (this.submissionDeadline && this.startDate) {
       const startDate = new Date(this.startDate);
       startDate.setHours(0, 0, 0, 0);
-
       const deadline = new Date(this.submissionDeadline);
       deadline.setHours(0, 0, 0, 0);
-
       const diffTime = deadline.getTime() - startDate.getTime();
       this.remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
       this.isDeadlineToday = this.remainingDays === 0;
     }
   }
 
-  /**
-   * Handles deadline date change
-   */
   public onDeadlineChange(event: any): void {
     this.submissionDeadline = event.value;
     this.calculateRemainingDays();
   }
 
-  /**
-   * Placeholder method for canceling scheduled submission
-   */
   public cancelScheduledSubmission(): void {
     this.isProcessing = true;
-
     let operation$: Observable<any>;
     let successMessage = '';
 
     if (this.data.type === 'all_preferences') {
-      operation$ = this.preferencesService.toggleAllPreferences(
-        false,
-        null,
-        null,
-        false
-      );
+      operation$ = this.preferencesService.toggleAllPreferences(false, null, null, false);
       successMessage = 'Scheduled submission canceled successfully.';
     } else if (this.data.type === 'single_preferences') {
-      operation$ = this.preferencesService.toggleSingleFacultyPreferences(
-        this.data.faculty_id!,
-        false,
-        null,
-        null,
-        false
-      );
+      operation$ = this.preferencesService.toggleSingleFacultyPreferences(this.data.faculty_id!, false, null, null, false);
       successMessage = `Scheduled submission for ${this.data.facultyName} canceled successfully.`;
     } else {
       operation$ = of(null);
     }
 
-    operation$
-      .pipe(
-        finalize(() => {
-          this.isProcessing = false;
-        })
-      )
-      .subscribe({
-        next: () => {
-          this.snackBar.open(successMessage, 'Close', {
-            duration: this.SNACKBAR_DURATION,
-          });
-          this.dialogRef.close(true);
-        },
-        error: (error) => {
-          console.error('Operation failed:', error);
-          const errorMessage = 'Failed to cancel scheduled submission.';
-          this.snackBar.open(errorMessage, 'Close', {
-            duration: this.SNACKBAR_DURATION,
-          });
-          this.dialogRef.close(false);
-        },
-      });
+    operation$.pipe(finalize(() => { this.isProcessing = false; })).subscribe({
+      next: () => {
+        this.snackBar.open(successMessage, 'Close', { duration: this.SNACKBAR_DURATION });
+        this.dialogRef.close(true);
+      },
+      error: (error) => {
+        console.error('Operation failed:', error);
+        this.snackBar.open('Failed to cancel scheduled submission.', 'Close', { duration: this.SNACKBAR_DURATION });
+        this.dialogRef.close(false);
+      },
+    });
   }
 
-  /**
-   * Handles the confirmation action based on dialog type
-   */
   private handleAllPreferencesOperation(): Observable<any> {
     const newStatus = !this.data.currentState;
-
     let formattedStartDate: string | null = null;
     if (newStatus && this.startDate) {
       const date = new Date(this.startDate);
       date.setHours(0, 0, 0, 0);
       formattedStartDate = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
-
     let formattedDeadline: string | null = null;
     if (newStatus && this.submissionDeadline) {
       const date = new Date(this.submissionDeadline);
       date.setHours(23, 59, 59, 999);
       formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
-
-    return this.preferencesService.toggleAllPreferences(
-      newStatus,
-      formattedDeadline,
-      formattedStartDate,
-      this.sendEmail
-    );
+    return this.preferencesService.toggleAllPreferences(newStatus, formattedDeadline, formattedStartDate, this.sendEmail);
   }
 
   private handleSinglePreferenceOperation(): Observable<any> {
     const newStatus = !this.data.currentState;
-
     let formattedStartDate: string | null = null;
     if (newStatus && this.startDate) {
       const date = new Date(this.startDate);
       date.setHours(0, 0, 0, 0);
       formattedStartDate = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
-
     let formattedDeadline: string | null = null;
     if (newStatus && this.submissionDeadline) {
       const date = new Date(this.submissionDeadline);
       date.setHours(23, 59, 59, 999);
       formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
-
-    return this.preferencesService.toggleSingleFacultyPreferences(
-      this.data.faculty_id!,
-      newStatus,
-      formattedDeadline,
-      formattedStartDate,
-      this.sendEmail
-    );
+    return this.preferencesService.toggleSingleFacultyPreferences(this.data.faculty_id!, newStatus, formattedDeadline, formattedStartDate, this.sendEmail);
   }
 
-  /**
-   * Handles the Start Date Field Mat Hint Description
-   */
   public getStartDateDescription(): string {
     if (!this.startDate) return 'in 0 days';
-
-    if (this.isStartDateToday) {
-      return 'today, immediately';
-    }
-
-    if (this.remainingDaysStart === 1) {
-      return 'tomorrow';
-    }
-
+    if (this.isStartDateToday) return 'today, immediately';
+    if (this.remainingDaysStart === 1) return 'tomorrow';
     return `in ${this.remainingDaysStart} days`;
   }
 
-  /**
-   * Handles the Deadline Field Mat Hint Description
-   */
   public getDeadlineDescription(): string {
     if (!this.submissionDeadline) return '';
-
-    if (this.isDeadlineToday) {
-      return 'today at 11:59 PM';
-    }
-
-    if (this.remainingDays === 1) {
-      return 'tomorrow at 11:59 PM';
-    }
-
+    if (this.isDeadlineToday) return 'today at 11:59 PM';
+    if (this.remainingDays === 1) return 'tomorrow at 11:59 PM';
     return `in ${this.remainingDays} days`;
   }
 
-  /**
-   * Gets success message based on the action type
-   */
   private getSuccessMessage(): string {
     switch (this.data.type) {
       case 'all_preferences':
-        return `Preferences submission for all faculty ${
-          !this.data.currentState ? 'updated' : 'disabled'
-        } successfully.${this.sendEmail ? ' Email sent.' : ''}`;
+        return `Preferences submission for all faculty ${!this.data.currentState ? 'updated' : 'disabled'} successfully.${this.sendEmail ? ' Email sent.' : ''}`;
       case 'single_preferences':
-        return `Preferences submission for ${this.facultyName} ${
-          !this.data.currentState ? 'updated' : 'disabled'
-        } successfully.${this.sendEmail ? ' Email sent.' : ''}`;
+        return `Preferences submission for ${this.facultyName} ${!this.data.currentState ? 'updated' : 'disabled'} successfully.${this.sendEmail ? ' Email sent.' : ''}`;
       default:
         return 'Operation completed successfully.';
     }
   }
 
-  /**
-   * Gets error message based on the action type
-   */
   private getErrorMessage(): string {
     switch (this.data.type) {
       case 'all_preferences':
-        return `Failed to ${
-          !this.data.currentState ? 'enable' : 'disable'
-        } preferences for all faculty.`;
+        return `Failed to ${!this.data.currentState ? 'enable' : 'disable'} preferences for all faculty.`;
       case 'single_preferences':
-        return `Failed to ${
-          !this.data.currentState ? 'enable' : 'disable'
-        } preferences for ${this.facultyName}.`;
+        return `Failed to ${!this.data.currentState ? 'enable' : 'disable'} preferences for ${this.facultyName}.`;
       default:
         return 'Operation failed.';
     }

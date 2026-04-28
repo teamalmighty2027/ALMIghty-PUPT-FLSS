@@ -131,6 +131,65 @@ export class ReschedulingService {
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
+  // ── ADMIN / FACULTY — Appeal Access Toggles & Requests ────────
+  rejectAppealAccessRequest(facultyId: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/reject-access`, { faculty_id: facultyId })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
+  toggleFacultyAppealAccess(
+  facultyId: number, 
+  isEnabled: boolean, 
+  activeSemesterId: number,
+  startDate?: string,  // New parameter
+  endDate?: string,    // New parameter
+  sendEmail?: boolean  // New parameter
+): Observable<any> {
+  return this.http
+    .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {
+      faculty_id: facultyId,
+      is_enabled: isEnabled,
+      active_semester_id: activeSemesterId,
+      start_date: startDate,
+      end_date: endDate,
+      send_email: sendEmail
+    })
+    .pipe(catchError((error: any) => throwError(() => error)));
+}
+
+toggleAllFacultyAppealAccess(
+  isEnabled: boolean, 
+  activeSemesterId: number,
+  startDate?: string,
+  endDate?: string,
+  sendEmail?: boolean
+): Observable<any> {
+  return this.http
+    .post(`${this.baseUrl}/rescheduling-appeals/toggle-all-access`, {
+      is_enabled: isEnabled,
+      active_semester_id: activeSemesterId,
+      start_date: startDate,
+      end_date: endDate,
+      send_email: sendEmail
+    })
+    .pipe(catchError((error: any) => throwError(() => error)));
+}
+
+  // >>> ADDED MISSING METHODS HERE <<<
+  requestAppealAccess(facultyId: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/request-access`, { faculty_id: facultyId })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
+  cancelAppealAccessRequest(facultyId: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/cancel-request`, { faculty_id: facultyId })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
+  // ── VALIDATION ────────────────────────────────────────────────
   validateAppealBeforeApproval(
     appealId: number,
     proposedDay: string,
@@ -164,5 +223,11 @@ export class ReschedulingService {
         room_id: proposedRoomId,
       }
     );
+  }
+  
+  downloadAppealDocument(appealId: number): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/rescheduling-appeals/${appealId}/download`, {
+      responseType: 'blob' // This tells Angular we expect a file, not JSON
+    });
   }
 }

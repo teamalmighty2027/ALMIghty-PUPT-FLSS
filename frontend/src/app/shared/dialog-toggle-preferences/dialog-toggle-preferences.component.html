@@ -23,18 +23,9 @@
     </div>
     }
 
-    <!-- Start Date Picker Section -->
-    @if (showStartDatePicker && !isPreferencesScheduled) {
+    @if (showStartDatePicker) { 
     <div class="date-picker">
-      <mat-form-field
-        appearance="fill"
-        [ngClass]="{
-          'has-hint':
-            !data.currentState &&
-            (data.type === 'all_preferences' ||
-              data.type === 'single_preferences')
-        }"
-      >
+      <mat-form-field appearance="fill" ...>
         <mat-label>Start Date</mat-label>
         <input
           matInput
@@ -42,25 +33,18 @@
           [min]="currentDate"
           [(ngModel)]="startDate"
           (dateChange)="onStartDateChange($event)"
-          [disabled]="data.currentState"
-          readonly
+          [disabled]="data.currentState"  readonly
           required
-          (click)="startPicker.open()"
-        />
+          (click)="!data.currentState && startPicker.open()" />
         <mat-datepicker-toggle
           matIconSuffix
           [for]="startPicker"
-        ></mat-datepicker-toggle>
+          [disabled]="data.currentState" ></mat-datepicker-toggle>
         <mat-datepicker #startPicker></mat-datepicker>
-
-        @if (!data.currentState && (data.type === 'all_preferences' || data.type
-        === 'single_preferences')) {
-        <mat-hint>
-          The submission will start
-          <strong>{{ getStartDateDescription() }}</strong>
-        </mat-hint>
+        
+        @if (!data.currentState && (data.type === 'all_preferences' || data.type === 'single_preferences')) {
+          <mat-hint>The submission will start <strong>{{ getStartDateDescription() }}</strong></mat-hint>
         }
-        <!-- no mat-hint if data.currentState === true -->
       </mat-form-field>
     </div>
     }
@@ -106,7 +90,7 @@
     }
 
     <!-- Email Notification Section -->
-    @if (showEmailOption && !data.currentState && !isPreferencesScheduled) {
+    @if (showEmailOption && !data.currentState) {
     <div class="checkbox-container email">
       <mat-checkbox [(ngModel)]="sendEmail" class="email-checkbox">
         <span class="checkbox-content">

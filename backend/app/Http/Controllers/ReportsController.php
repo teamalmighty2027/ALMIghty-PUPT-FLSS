@@ -91,6 +91,10 @@ class ReportsController extends Controller
             })
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.is_appeal_enabled',
+                'faculty.has_appeal_request',
+                'faculty.appeal_start_date',
+                'faculty.appeal_end_date',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
@@ -131,6 +135,11 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'is_appeal_enabled' => $schedule->is_appeal_enabled,
+                    'has_appeal_request' => $schedule->has_appeal_request,
+                    'appeal_start_date' => $schedule->appeal_start_date,
+                    'appeal_end_date' => $schedule->appeal_end_date,
+                    
                     'assigned_units' => 0,
                     'is_published' => 0,
                     'schedules' => [],
@@ -689,6 +698,8 @@ class ReportsController extends Controller
 
         // Step 4: Prepare the base response
         $response = [
+            'is_appeal_enabled' => (bool)$faculty->is_appeal_enabled,
+            'has_appeal_request' => (bool)$faculty->has_appeal_request,
             'faculty_schedule' => [
                 'academic_year_id' => $activeSemester->academic_year_id,
                 'year_start' => $activeSemester->year_start,

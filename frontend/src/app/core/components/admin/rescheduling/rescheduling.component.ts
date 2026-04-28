@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, ViewChild, TemplateRef, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -15,18 +15,21 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
+
 import {
   PopulateSchedulesResponse,
   Room,
@@ -63,6 +66,7 @@ interface ReschedulingAppeal {
 }
 
 interface FacultyArrangement {
+  facultyId: number;
   facultyName: string;
   facultyCode: string;
   facultyType: string;
@@ -70,6 +74,10 @@ interface FacultyArrangement {
   schedules: any[];
   academicYear?: string;
   semester?: string;
+  isAppealEnabled?: boolean;
+  hasAppealRequest?: boolean;
+  appealStartDate?: string | null;
+  appealEndDate?: string | null;
 }
 
 interface TimeSlot {
@@ -96,7 +104,8 @@ interface TimeSlot {
     LoadingComponent,
     TableHeaderComponent,
     MatTabsModule,
-    ReportsHeaderComponent
+    ReportsHeaderComponent,
+    MatCheckboxModule,
   ],
   animations: [
     trigger('fadeAnimation', [
@@ -114,6 +123,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   isInitLoading = true;
   selectedTabIndex = 0;
 
+  // Master Toggle State
+  isAllAppealsEnabled = false;
+
   // ── Shared Term Variables ──
   selectedTermId: number | null = null;
   availableTerms: any[] = [];
@@ -126,10 +138,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
   dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
   @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild('toggleAllDialog') toggleAllDialog!: TemplateRef<any>;
+  sendEmailToAll = false;
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -178,44 +192,55 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.reportsService.clearAllCaches();
     this.isInitLoading = true;
     this.isLoading = true;
-
     this.generateTimeSlots();
+    this.generateTimeOptions();
 
-    forkJoin({
-      appeals: this.reschedulingService.getAllAppeals(),
-      terms: this.reportsService.getAllTermsForDropdown()
-    }).subscribe({
-      next: ({ appeals, terms }) => {
-        this.appeals = appeals;
-        const mappedAppeals = appeals.map(a => this.mapAppeal(a));
-        this.dataSource.data = mappedAppeals;
-
+    // Load terms FIRST so dropdown appears immediately
+    this.reportsService.getAllTermsForDropdown().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (terms) => {
         this.availableTerms = terms;
         const activeTerm = terms.find((term: any) => term.is_active === 1);
         if (activeTerm) {
           this.selectedTermId = activeTerm.active_semester_id;
           this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
           this.semester = this.getSemesterDisplay(activeTerm.semester);
-          if (this.selectedTermId !== null) {
-            this.loadValidationCaches(mappedAppeals);
-            this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
-          } else {
+        }
+        this.cdr.detectChanges(); // Dropdown renders immediately
+
+        // THEN load appeals and arrangements in parallel
+        forkJoin({
+          appeals: this.reschedulingService.getAllAppeals(),
+          arrangements: this.selectedTermId 
+            ? this.reportsService.getFacultySchedulesReport(this.selectedTermId)
+            : null as any
+        }).pipe(takeUntil(this.destroy$)).subscribe({
+          next: ({ appeals, arrangements }) => {
+            this.appeals = appeals;
+            const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+            this.dataSource.data = mappedAppeals;
+
+            if (arrangements && this.selectedTermId) {
+              this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+            } else {
+              this.isLoading = false;
+              this.isInitLoading = false;
+            }
+          },
+          error: (err) => {
+            console.error('Failed to load data:', err);
             this.isLoading = false;
             this.isInitLoading = false;
           }
-        } else {
-          this.isLoading = false;
-          this.isInitLoading = false;
-        }
+        });
       },
       error: (err) => {
-        console.error('Failed to initialize rescheduling data:', err);
+        console.error('Failed to load terms:', err);
         this.isLoading = false;
         this.isInitLoading = false;
       }
     });
-
-    this.generateTimeOptions();
   }
 
   ngAfterViewInit(): void {
@@ -369,18 +394,25 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           });
 
           return {
+            facultyId: fac.faculty_id,
             facultyName: fac.faculty_name,
             facultyCode: fac.faculty_code,
             facultyType: fac.faculty_type,
             facultyUnits: fac.assigned_units || fac.units || 0,
             schedules: mergedSchedules,
             academicYear: this.academicYear,
-            semester: this.semester
+            semester: this.semester,
+            isAppealEnabled: !!fac.is_appeal_enabled, 
+            hasAppealRequest: !!fac.has_appeal_request,
+            appealStartDate: fac.appeal_start_date,
+            appealEndDate: fac.appeal_end_date
           };
         });
 
         this.allFaculties = mergedFaculties;
         this.arrangementsDataSource.data = mergedFaculties;
+        this.updateMasterToggleState(); // Determine if master toggle should be on/off
+        this.cdr.detectChanges();
         this.hasAnyArrangements = mergedFaculties.some(f => f.schedules.length > 0);
 
         this.isLoading = false;
@@ -433,6 +465,222 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       'part-time': type.includes('part-time'),
       'temporary': type.includes('temporary'),
     };
+  }
+
+  // ── Toggle Methods ──────────────────────────────────────────────
+
+  updateMasterToggleState(): void {
+    if (this.allFaculties.length === 0) {
+      this.isAllAppealsEnabled = false;
+      return;
+    }
+    // Only turn master toggle ON if EVERY faculty is enabled
+    this.isAllAppealsEnabled = this.allFaculties.every(f => f.isAppealEnabled);
+  }
+
+  toggleAllAppeals(event: any): void {
+    const isEnabled = event.checked;
+    
+    // Instantly revert the toggle visually. It only stays changed if they hit 'Confirm'.
+    event.source.checked = !isEnabled;
+
+    // Grab existing dates from an enabled faculty member to show in the dialog if disabling
+    const activeFaculty = this.allFaculties.find(f => f.isAppealEnabled);
+
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'all_appeals', 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled,
+        startDate: activeFaculty?.appealStartDate ? new Date(activeFaculty.appealStartDate) : null,
+        endDate: activeFaculty?.appealEndDate ? new Date(activeFaculty.appealEndDate) : null
+      },
+      disableClose: true,
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
+        const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+        // Optimistic update
+        this.isAllAppealsEnabled = isEnabled;
+        this.allFaculties.forEach(f => {
+          f.isAppealEnabled = isEnabled;
+          if (isEnabled) {
+            f.hasAppealRequest = false;
+            // UPDATE LOCAL MEMORY WITH NEW DATES
+            f.appealStartDate = formattedStart;
+            f.appealEndDate = formattedEnd;
+          } else {
+            // WIPE LOCAL MEMORY IF DISABLED
+            f.appealStartDate = null;
+            f.appealEndDate = null;
+          }
+        });
+        
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.cdr.detectChanges();
+
+        this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
+              
+              // Refresh to sync dates from server
+              if (this.selectedTermId) {
+                this.loadArrangementsForTerm(this.selectedTermId, this.dataSource.data);
+              }
+            },
+            error: () => {
+              // Revert on failure
+              this.isAllAppealsEnabled = !isEnabled;
+              this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.updateMasterToggleState();
+              this.cdr.detectChanges();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
+  }
+
+  toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
+    const isEnabled = event.checked;
+    event.source.checked = !isEnabled;
+
+    // Helper function to safely parse SQL dates across all browsers
+    const parseSqlDate = (dateStr: string | null | undefined) => 
+      dateStr ? new Date(dateStr.replace(' ', 'T')) : null;
+
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'single_appeal', 
+        facultyName: faculty.facultyName, 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled,
+        // USE THE SAFE PARSER HERE
+        startDate: parseSqlDate(faculty.appealStartDate),
+        endDate: parseSqlDate(faculty.appealEndDate)
+      },
+      disableClose: true,
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
+        const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+        faculty.isAppealEnabled = isEnabled;
+        
+        // UPDATE LOCAL MEMORY WITH NEW DATES
+        if (isEnabled) {
+          faculty.hasAppealRequest = false;
+          faculty.appealStartDate = formattedStart;
+          faculty.appealEndDate = formattedEnd;
+        } else {
+          faculty.appealStartDate = null;
+          faculty.appealEndDate = null;
+        }
+
+        this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
+              this.updateMasterToggleState();
+            },
+            error: () => {
+              faculty.isAppealEnabled = !isEnabled;
+              event.source.checked = !isEnabled;
+              this.updateMasterToggleState();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
+  }
+
+  onTabChange(event: any): void {
+    const newIndex = event.index;
+    
+    if (newIndex === 1) {
+      // Appeals tab — silent background refresh, no loading state
+      this.reschedulingService.getAllAppeals().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (appeals) => {
+          this.appeals = appeals;
+          const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+          this.dataSource.data = mappedAppeals;
+          this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
+        },
+        error: (err) => console.error('Failed to refresh appeals:', err)
+      });
+    } else if (newIndex === 0 && this.selectedTermId) {
+      // Arrangements tab — silent refresh, NO isLoading flag so animation plays
+      this.reportsService.getFacultySchedulesReport(this.selectedTermId).pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (facultiesReq) => {
+          const mappedAppeals = this.dataSource.data;
+          const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
+          const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
+
+          const mergedFaculties: FacultyArrangement[] = rawFaculties.map((fac: any) => {
+            const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
+            const mergedSchedules = (fac.schedules || []).map((sched: any) => {
+              const matchingAppeal = facultyAppeals.find(a => a.courseTitle === sched.course_details.course_title);
+              if (matchingAppeal) {
+                return {
+                  ...sched,
+                  day: matchingAppeal.preferredDay,
+                  start_time: matchingAppeal.rawPreferredStartTime,
+                  end_time: matchingAppeal.rawPreferredEndTime,
+                  room_code: matchingAppeal.room || 'TBA',
+                  course_details: {
+                    ...sched.course_details,
+                    course_title: `${sched.course_details.course_title} (Internal Arrangement)`
+                  }
+                };
+              }
+              return sched;
+            });
+
+            return {
+              facultyId: fac.faculty_id,
+              facultyName: fac.faculty_name,
+              facultyCode: fac.faculty_code,
+              facultyType: fac.faculty_type,
+              facultyUnits: fac.assigned_units || fac.units || 0,
+              schedules: mergedSchedules,
+              academicYear: this.academicYear,
+              semester: this.semester,
+              isAppealEnabled: !!fac.is_appeal_enabled,
+              hasAppealRequest: !!fac.has_appeal_request,
+              appealStartDate: fac.appeal_start_date,
+              appealEndDate: fac.appeal_end_date
+            };
+          });
+
+          this.allFaculties = mergedFaculties;
+          this.arrangementsDataSource.data = mergedFaculties;
+          this.updateMasterToggleState();
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('Failed to refresh arrangements:', err)
+      });
+    }
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────
@@ -1084,19 +1332,20 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedAppeal = { ...appeal };
     this.newSchedule = this.selectedAppeal.appealVerification !== 'Pending'
       ? { ...this.selectedAppeal }
-      : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, preferredEndTime: undefined, room: undefined };
+      : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, 
+          preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
     this.conflictMessages = [];
     
-    // Load room options
     this.loadRoomOptions();
-    
-    // Initialize available end times
     this.availableEndTimes = [...this.timeOptions];
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
     }
-    
+
+    // Load validation caches NOW (lazily, only when actually needed)
+    this.loadValidationCaches(this.dataSource.data);
+
     this.dialog.open(this.appealDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
@@ -1204,12 +1453,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   denyAppeal(): void {
     if (!this.selectedAppeal) return;
+    
+    // We pass the adminRemarks to the backend so the email can explain WHY it was rejected
     this.reschedulingService.denyAppeal(this.selectedAppeal.rawAppealId, this.adminRemarks)
       .subscribe({
         next: () => { 
           this.updateLocalStatus(this.selectedAppeal!.id, 'Denied'); 
           this.closeDialog();
-          this.snackBar.open('Appeal denied successfully.', 'Close', { duration: 5000 });
+          
+          // Show a richer snackbar confirming the email was sent
+          this.snackBar.open('Appeal denied and notification email sent to faculty.', 'Close', { duration: 5000 });
         },
         error: (err) => {
           const errorMessage = this.getErrorMessage(err, 'Failed to deny appeal');
@@ -1273,9 +1526,25 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onExportAll(): void { console.log('Export all appeals', this.dataSource.data); }
 
-  getFileUrl(filePath: string | null | undefined): string {
-    if (!filePath) return '#';
-    return `http://127.0.0.1:8000/storage/${filePath}`;
+  downloadAppealDocument(appealId: number | undefined, facultyName: string): void {
+    if (!appealId) {
+      this.snackBar.open('No valid appeal selected.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    this.snackBar.open('Downloading document...', 'Close', { duration: 2000 });
+
+    // Use the secure Angular HTTP Client which automatically attaches your Auth token
+    this.reschedulingService.downloadAppealDocument(appealId).subscribe({
+      next: (blob: Blob) => {
+        const cleanName = (facultyName || 'Faculty').replace(/[^a-zA-Z0-9]/g, '_');
+        saveAs(blob, `${cleanName}_Appeal_Document.pdf`); // Triggers the actual download
+      },
+      error: (err) => {
+        console.error('Download error:', err);
+        this.snackBar.open('Failed to download document. You might be unauthorized or it was deleted.', 'Close', { duration: 3000 });
+      }
+    });
   }
 
   ngOnDestroy(): void {

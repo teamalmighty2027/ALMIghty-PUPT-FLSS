@@ -13,17 +13,23 @@ import { DialogActionComponent, DialogActionData } from '../../../../shared/dial
 import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
-import { OverviewService, OverviewDetails, RequestNotification } from '../../../services/admin/overview/overview.service';
+import { OverviewService, OverviewDetails, RequestNotification as BaseRequestNotification } from '../../../services/admin/overview/overview.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
+import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; 
 import { AuthService } from '../../../services/auth/auth.service';
 import { PermissionService } from '../../../services/permission/permission.service';
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
+import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 interface CurriculumInfo {
   curriculum_id: number;
   curriculum_year: string;
+}
+
+export interface RequestNotification extends BaseRequestNotification {
+  request_type?: 'preference' | 'appeal';
 }
 
 @Component({
@@ -51,6 +57,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // Academic info
   activeYear = 'N/A';
   activeSemester = 'N/A';
+  activeSemesterId: number | null = null; 
   activeFacultyCount = 0;
   activeProgramsCount = 0;
   activeCurricula: CurriculumInfo[] = [
@@ -88,6 +95,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private overviewService: OverviewService,
     private preferencesService: PreferencesService,
+    private reschedulingService: ReschedulingService, 
     private authService: AuthService,
     private permissionService: PermissionService,
     private router: Router
@@ -99,9 +107,6 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.loadAllData();
   }
 
-  /**
-   * Initializes permission flags for the component
-   */
   private checkPermissions(): void {
     this.canEditPreferences = this.permissionService.canEditFacultyPreferences();
     this.canAssignSchedules = this.permissionService.canAssignSchedules();
@@ -156,21 +161,16 @@ export class OverviewComponent implements OnInit, OnDestroy {
       });
   }
 
-  /**
-   * Processes overview data and updates component state
-   */
   private handleOverviewData(
     data: OverviewDetails,
     resetAnimation: boolean
   ): void {
-    // Update non-progress data
     this.updateBasicInfo(data);
 
     if (resetAnimation) {
       this.resetProgressMetrics();
       this.cdr.detectChanges();
 
-      // Trigger animations after delay
       setTimeout(() => {
         this.updateProgressMetrics(data);
         this.cdr.detectChanges();
@@ -181,9 +181,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateBasicInfo(data: OverviewDetails): void {
+  private updateBasicInfo(data: any): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
+    this.activeSemesterId = data.activeSemesterId || 1; 
     this.isMismatchedSemester = data.isMismatchedSemester ?? false;
     this.activeFacultyCount = data.activeFacultyCount;
     this.activeProgramsCount = data.activeProgramsCount;
@@ -214,24 +215,15 @@ export class OverviewComponent implements OnInit, OnDestroy {
     return circumference - (percentage / 100) * circumference;
   }
 
-  /**
-   * Helper function that formats the semester integer/string to a text label.
-   * @param semester The semester value (1, 2, 3)
-   * @returns The formatted semester string
-   */
   formatSemester(semester: any): string {
     if (!semester || semester === 'None') return 'None';
 
     const sem = semester.toString();
     switch (sem) {
-      case '1':
-        return '1st Semester';
-      case '2':
-        return '2nd Semester';
-      case '3':
-        return 'Summer Semester';
-      default:
-        return sem;
+      case '1': return '1st Semester';
+      case '2': return '2nd Semester';
+      case '3': return 'Summer Semester';
+      default: return sem;
     }
   }
 
@@ -245,34 +237,22 @@ export class OverviewComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const deadlineDate = this.globalDeadline
-      ? new Date(this.globalDeadline)
-      : null;
-
-    const StartDate = this.globalStartDate
-      ? new Date(this.globalStartDate)
-      : null;
-
     const dialogData: DialogTogglePreferencesData = {
       type: 'all_preferences',
       academicYear: this.activeYear,
       semester: this.activeSemester,
       hasSecondaryText: true,
       currentState: this.preferencesEnabled,
-      global_deadline: deadlineDate,
-      global_start_date: StartDate,
+      global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+      global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
     };
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-      data: dialogData,
-      disableClose: true,
-      autoFocus: false,
+      data: dialogData, disableClose: true, autoFocus: false,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.loadAllData(true);
-      }
+      if (result) this.loadAllData(true);
     });
   }
 
@@ -297,14 +277,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
     };
 
     const dialogRef = this.dialog.open(DialogActionComponent, {
-      data: dialogData,
-      disableClose: true,
+      data: dialogData, disableClose: true,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.loadAllData(true);
-      }
+      if (result) this.loadAllData(true);
     });
   }
 
@@ -319,17 +296,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const dialogRef = this.dialog.open(DialogActionComponent, {
-      data: {
-        type: 'reports',
-        academicYear: this.activeYear,
-        semester: this.activeSemester,
-      },
+    this.dialog.open(DialogActionComponent, {
+      data: { type: 'reports', academicYear: this.activeYear, semester: this.activeSemester, },
       disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      console.log('Export All dialog closed', result);
     });
   }
 
@@ -337,79 +306,94 @@ export class OverviewComponent implements OnInit, OnDestroy {
     const snackBarRef = this.snackBar.open(
       'No schedule has been made yet.',
       'Go to Scheduling',
-      {
-        duration: this.SNACKBAR_DURATION,
-      }
+      { duration: this.SNACKBAR_DURATION }
     );
 
     snackBarRef.onAction().subscribe(() => {
-      this.navigateToScheduling();
+      this.router.navigate(['/admin/scheduling']);
     });
-  }
-
-  private navigateToScheduling(): void {
-    this.router.navigate(['/admin/scheduling']);
   }
 
   // ======================
   // Request Action Methods
   // ======================
-
   approveRequest(request: RequestNotification): void {
     if (!this.canEditPreferences) {
       this.showNoPermissionMessage();
       return;
     }
 
-    const dialogData: DialogTogglePreferencesData = {
-      type: 'single_preferences',
-      academicYear: this.activeYear,
-      semester: this.activeSemester,
-      currentState: false,
-      facultyName: request.faculty_name,
-      faculty_id: request.faculty_id,
-      global_deadline: this.globalDeadline
-        ? new Date(this.globalDeadline)
-        : null,
-      global_start_date: this.globalStartDate
-        ? new Date(this.globalStartDate)
-        : null,
-    };
+    const isAppeal = request.request_type === 'appeal';
 
-    const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-      data: dialogData,
-      disableClose: true,
-      autoFocus: true,
-    });
+    if (isAppeal) {
+      const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+        width: '500px',
+        data: {
+          type: 'single_appeal',
+          facultyName: request.faculty_name,
+          academicYear: this.activeYear,
+          semester: this.activeSemester,
+          currentState: false, // We are enabling access
+          startDate: null,
+          endDate: null
+        },
+        disableClose: true,
+        autoFocus: false
+      });
 
-    dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.preferencesService
-          .cancelRequestAccess(request.faculty_id.toString())
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
+      dialogRef.afterClosed().subscribe((result) => {
+        if (result) {
+          // THIS IS THE FIX: We must format the raw dates before sending to Laravel!
+          const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+          const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+          this.reschedulingService.toggleFacultyAppealAccess(
+            request.faculty_id,
+            true,
+            this.activeSemesterId || 1,
+            formattedStart, // Pass the formatted MySQL string
+            formattedEnd,   // Pass the formatted MySQL string
+            result.sendEmail
+          ).subscribe({
             next: () => {
-              this.isAnimatingOut = true;
-              this.requestNotifications = this.requestNotifications.filter(
-                (r) => r.faculty_id !== request.faculty_id
-              );
-              this.cdr.detectChanges();
-
-              setTimeout(() => {
-                this.isAnimatingOut = false;
-                this.cdr.detectChanges();
-              }, 600);
-
-              this.showSuccessMessage(
-                'Faculty preferences access has been enabled.'
-              );
+              this.removeNotificationLocally(request);
+              this.showSuccessMessage('Appeal access granted and faculty notified.');
             },
-            error: this.handleError(
-              'Failed to process request. Please try again.'
-            ),
+            error: this.handleError('Failed to grant appeal access.')
           });
-      }
-    });
+        }
+      });
+    } else {
+      // --- PREFERENCES LOGIC ---
+      const dialogData: DialogTogglePreferencesData = {
+        type: 'single_preferences',
+        academicYear: this.activeYear,
+        semester: this.activeSemester,
+        currentState: false,
+        facultyName: request.faculty_name,
+        faculty_id: request.faculty_id,
+        global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+        global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
+      };
+
+      const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+        data: dialogData, disableClose: true, autoFocus: true,
+      });
+
+      dialogRef.afterClosed().subscribe((result: boolean) => {
+        if (result) {
+          this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: () => {
+                this.removeNotificationLocally(request);
+                this.showSuccessMessage('Faculty preferences access enabled.');
+              },
+              error: this.handleError('Failed to process request.')
+            });
+        }
+      });
+    }
   }
 
   discardRequest(request: RequestNotification): void {
@@ -420,68 +404,57 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
     const discardedRequest = { ...request };
 
+    // 1. Optimistic UI Update (Hide it instantly)
     this.isAnimatingOut = true;
     this.requestNotifications = this.requestNotifications.filter(
       (r) => r.faculty_id !== request.faculty_id
     );
     this.cdr.detectChanges();
 
-    const snackBarRef = this.snackBar.open(
-      'Faculty request has been discarded.',
-      'Undo',
-      { duration: 3000 }
-    );
-
-    const cancelAction = new Subject<void>();
-    let animationTimeout: any;
-
-    snackBarRef
-      .onAction()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        cancelAction.next();
-        cancelAction.complete();
-
-        clearTimeout(animationTimeout);
-        this.isAnimatingOut = false;
-        this.requestNotifications = [
-          ...this.requestNotifications,
-          discardedRequest,
-        ];
-        this.cdr.detectChanges();
-        this.showSuccessMessage('Action cancelled.');
-      });
-
-    animationTimeout = setTimeout(() => {
+    setTimeout(() => {
       this.isAnimatingOut = false;
       this.cdr.detectChanges();
     }, 600);
 
-    snackBarRef
-      .afterDismissed()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((dismissedByAction) => {
-        if (!dismissedByAction.dismissedByAction) {
-          this.preferencesService
-            .cancelRequestAccess(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$), takeUntil(cancelAction))
-            .subscribe({
-              next: () => {
-                this.cdr.detectChanges();
-              },
-              error: (error) => {
-                this.requestNotifications = [
-                  ...this.requestNotifications,
-                  discardedRequest,
-                ];
-                this.cdr.detectChanges();
-                this.handleError(
-                  'Failed to discard request. Please try again.'
-                )(error);
-              },
-            });
-        }
-      });
+    // 2. IMMEDIATE API Call
+    if (request.request_type === 'appeal') {
+      this.reschedulingService.rejectAppealAccessRequest(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Request denied and faculty notified via email.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    } else {
+      this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Faculty preference request discarded.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    }
+  }
+
+  private removeNotificationLocally(request: RequestNotification) {
+    this.isAnimatingOut = true;
+    this.requestNotifications = this.requestNotifications.filter(
+      (r) => r.faculty_id !== request.faculty_id
+    );
+    this.cdr.detectChanges();
+
+    setTimeout(() => {
+      this.isAnimatingOut = false;
+      this.cdr.detectChanges();
+    }, 600);
+  }
+
+  private revertDiscard(discardedRequest: RequestNotification, error: any) {
+    this.requestNotifications = [...this.requestNotifications, discardedRequest];
+    this.cdr.detectChanges();
+    this.handleError('Failed to discard request. Please try again.')(error);
   }
 
   // ================
