@@ -10,6 +10,9 @@ use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Mail\AppealAccessRequested;
+use App\Mail\AppealAccessApproved;
+use Illuminate\Support\Facades\Mail;
 
 class RescheduleController extends Controller
 {
@@ -19,8 +22,6 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
-        // Temporary fix for "headers already sent" error
-        // TODO: Fix file handling to avoid this hack
         while (ob_get_level() > 0) { @ob_end_clean(); }
         @ini_set('display_errors', '0');
         error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
@@ -39,25 +40,17 @@ class RescheduleController extends Controller
             return response()->json(['message' => 'The end time must be after the start time.'], 422);
         }
 
-        $schedule = Schedule::with(['room'])
-            ->join('rooms as r', 'schedules.room_id', '=', 'r.room_id')
-            ->where('schedules.schedule_id', $validated['scheduleId'])
-            ->select('schedules.*', 'r.room_code as room_code')
-            ->first();
+        // Use findOrFail to directly grab the schedule without the strict inner join 
+        // to prevent failure if the room_id is currently null/TBA
+        $schedule = Schedule::findOrFail($validated['scheduleId']);
 
         $filePath = null;
         $aiSummary = null;
 
         if ($request->hasFile('appealFile')) {
             $file = $request->file('appealFile');
-            
-            // 1. Store the file in storage/app/public/appeals
             $filePath = $file->store('appeals', 'public');
-            
-            // 2. Get the absolute path to the permanently saved file
             $absolutePath = storage_path('app/public/' . $filePath);
-            
-            // 3. Send the absolute path to Gemini
             $aiSummary = GeminiService::summarizeAppealDocument($absolutePath);
         }
         
@@ -67,27 +60,30 @@ class RescheduleController extends Controller
             $roomId = $room?->room_id;
         }
 
-        // 🟢 CHANGE #2: Combine the typed reason and the AI summary
         $finalReasoning = $validated['reason'];
         if ($aiSummary) {
             $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . trim($aiSummary);
         }
 
-        // 🟢 CHANGE #3: Save the combined $finalReasoning to the database
+        // Map the missing audit fields into the Appeal
         $appeal = Appeal::create([
-            'schedule_id' => $validated['scheduleId'],
-            'day'         => $validated['day'],
-            'start_time'  => $validated['startTime'],
-            'end_time'    => $validated['endTime'],
-            'room_id'     => $roomId,
-            'file_path'   => $filePath,
-            'reasoning'   => $finalReasoning, // Updated this line!
-            'is_approved' => null,
+            'schedule_id'         => $validated['scheduleId'],
+            'original_day'        => $schedule->day,
+            'original_start_time' => $schedule->start_time,
+            'original_end_time'   => $schedule->end_time,
+            'original_room_id'    => $schedule->room_id,
+            'day'                 => $validated['day'],
+            'start_time'          => $validated['startTime'],
+            'end_time'            => $validated['endTime'],
+            'room_id'             => $roomId,
+            'file_path'           => $filePath,
+            'reasoning'           => $finalReasoning, 
+            'is_approved'         => null,
         ]);
 
         return response()->json(['message' => 'Appeal submitted successfully.', 'appeal' => $appeal], 201);
     }
-    
+
     // ─────────────────────────────────────────────────────────
     //  FACULTY — Get my own appeals
     //  GET /api/my-appeals
@@ -328,7 +324,7 @@ class RescheduleController extends Controller
             $appeal = Appeal::findOrFail($id);
 
             $appeal->update([
-                'is_approved'   => 0,                             
+                'is_approved'   => 0,                               
                 'admin_remarks' => $validated['admin_remarks'] ?? null,
             ]);
 
@@ -339,5 +335,186 @@ class RescheduleController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN / FACULTY — Appeal Access Toggles & Requests
+    // ─────────────────────────────────────────────────────────
+
+    public function toggleFacultyAppealAccess(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'faculty_id' => 'required|exists:faculty,id',
+                'is_enabled' => 'required|boolean',
+                'start_date' => 'nullable|date',
+                'end_date'   => 'nullable|date',
+                'send_email' => 'nullable|boolean'
+            ]);
+
+            $faculty = \App\Models\Faculty::with('user')->findOrFail($request->input('faculty_id'));
+
+            $faculty->update([
+                'is_appeal_enabled'  => $request->input('is_enabled'),
+                'has_appeal_request' => 0,
+                'appeal_start_date'  => $request->input('is_enabled') ? $request->input('start_date') : null,
+                'appeal_end_date'    => $request->input('is_enabled') ? $request->input('end_date') : null,
+            ]);
+
+            // Send Email if turning ON and requested
+            if ($request->input('is_enabled') && $request->input('send_email') && $faculty->user && $faculty->user->email) {
+                \Illuminate\Support\Facades\Mail::to($faculty->user->email)->send(new \App\Mail\AppealAccessApproved(
+                    $faculty->user->first_name,
+                    $request->input('start_date'),
+                    $request->input('end_date')
+                ));
+            }
+
+            return response()->json(['message' => 'Appeal access updated successfully']);
+
+        } catch (\Exception $e) {
+            // This logs the exact crash reason to storage/logs/laravel.log
+            \Illuminate\Support\Facades\Log::error('Toggle Appeal Error: ' . $e->getMessage());
+            
+            // This sends the exact crash reason back to your browser console!
+            return response()->json([
+                'message' => 'Server Error: ' . $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ], 500);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN — Reject an Appeal Access Request (From Overview)
+    // ─────────────────────────────────────────────────────────
+    public function rejectAppealAccessRequest(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'faculty_id' => 'required|exists:faculty,id'
+        ]);
+
+        $faculty = \App\Models\Faculty::with('user')->findOrFail($validated['faculty_id']);
+        
+        // Remove the orange badge
+        $faculty->update(['has_appeal_request' => 0]);
+
+        // Send Rejection Email gracefully
+        try {
+            if ($faculty->user && $faculty->user->email) {
+                \Illuminate\Support\Facades\Mail::to($faculty->user->email)
+                    ->send(new \App\Mail\AppealAccessDenied($faculty->user->first_name));
+            }
+        } catch (\Throwable $e) {
+            // If the email fails (or class is missing), we catch the error, log it, and prevent the 500 crash.
+            \Illuminate\Support\Facades\Log::error('Failed to send rejection email: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Appeal request denied, but the email failed to send.'
+            ], 200); 
+        }
+
+        return response()->json(['message' => 'Appeal request denied and email sent.']);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN — Toggle All Appeal Access (With Email Option)
+    // ─────────────────────────────────────────────────────────
+    public function toggleAllFacultyAppealAccess(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'is_enabled'         => 'required|boolean',
+            'active_semester_id' => 'required|integer',
+            'start_date'         => 'nullable|date',
+            'end_date'           => 'nullable|date',
+            'send_email'         => 'nullable|boolean'
+        ]);
+
+        $isEnabled = $validated['is_enabled'];
+
+        DB::table('faculty')->update([
+            'is_appeal_enabled'  => $isEnabled,
+            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request'),
+            'appeal_start_date'  => $isEnabled ? ($validated['start_date'] ?? null) : null,
+            'appeal_end_date'    => $isEnabled ? ($validated['end_date'] ?? null) : null,
+        ]);
+
+        // If toggled ON and admin checked the email box, send to everyone
+        if ($isEnabled && !empty($validated['send_email'])) {
+            $users = \App\Models\User::where('status', 'Active')->whereHas('faculty')->get();
+                
+            foreach ($users as $user) {
+                if ($user->email) {
+                    \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\AppealAccessApproved(
+                        $user->first_name,
+                        $validated['start_date'] ?? null,
+                        $validated['end_date'] ?? null
+                    ));
+                }
+            }
+        }
+
+        return response()->json(['message' => 'All faculty appeal access updated.']);
+    }
+
+    public function requestAppealAccess(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $faculty = \App\Models\Faculty::where('user_id', $user->id)->first();
+
+        if (!$faculty) {
+            return response()->json(['message' => 'Faculty profile not found.'], 404);
+        }
+
+        $faculty->update(['has_appeal_request' => 1]);
+
+        $fName = $user->first_name ?? 'Faculty';
+        $lName = $user->last_name ?? '';
+
+        try {
+            \Illuminate\Support\Facades\Mail::to('pupt.flss2027@gmail.com')
+                ->send(new \App\Mail\AppealAccessRequested($fName, $lName));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send appeal request email: ' . $e->getMessage());
+            // Still return success since the DB was updated — email is secondary
+            return response()->json(['message' => 'Appeal request sent successfully (email delivery failed).']);
+        }
+
+        return response()->json(['message' => 'Appeal request sent successfully']);
+    }
+
+    public function cancelAppealAccessRequest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $faculty = \App\Models\Faculty::where('user_id', $user->id)->firstOrFail();
+
+        $faculty->update(['has_appeal_request' => 0]);
+
+        return response()->json(['message' => 'Appeal request cancelled']);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  ADMIN / FACULTY — Download Appeal Document
+    // ─────────────────────────────────────────────────────────
+    public function downloadAppealDocument(int $id)
+    {
+        $appeal = \App\Models\Appeal::findOrFail($id);
+
+        if (!$appeal->file_path) {
+            return response()->json(['message' => 'No document attached to this appeal.'], 404);
+        }
+
+        $path = storage_path('app/public/' . $appeal->file_path);
+
+        if (!file_exists($path)) {
+            return response()->json(['message' => 'File not found on server.'], 404);
+        }
+
+        // response()->download() forces the browser to save the file
+        return response()->download($path);
     }
 }

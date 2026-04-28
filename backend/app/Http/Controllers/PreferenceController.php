@@ -186,7 +186,7 @@ class PreferenceController extends Controller
     {
         // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
+            ->where('is_faculty_view', 1)
             ->first();
 
         if (! $activeSemester) {
@@ -381,7 +381,7 @@ class PreferenceController extends Controller
     {
         // ... Keep exactly as is ...
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
+            ->where('is_faculty_view', 1)
             ->first();
 
         if (! $activeSemester) {
@@ -569,7 +569,7 @@ class PreferenceController extends Controller
     public function getFacultyPreferencesById($faculty_id)
     {
         $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
+            ->where('is_faculty_view', 1)
             ->first();
 
         if (! $activeSemester) {

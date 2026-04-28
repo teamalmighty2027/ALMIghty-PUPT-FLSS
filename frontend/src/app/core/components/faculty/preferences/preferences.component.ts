@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom, throwError, catchError } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,6 +31,7 @@ import { Program, Course, PreferredDay, Section } from '../../../models/preferen
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
+import { DialogImportHistoryComponent } from '../../../../shared/dialog-import-history/dialog-import-history.component';
 
 interface TableData extends Course {
   preferredDays: PreferredDay[];
@@ -101,6 +102,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   hasRequest = signal(false);
   isSchedulesPublished = signal(false);
   activeSemesterId = signal<number | null>(null);
+  semesterId = signal<number | null>(null);
   submissionDeadline = signal<Date | null>(null);
 
   // Search
@@ -253,11 +255,14 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
             this.programs.set(programsResponse.programs);
             this.activeSemesterId.set(programsResponse.active_semester_id);
+            this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
             
-            // Sort courses alphabetically by course code for better UX in course selection
+            // Sort courses alphabetically by course code for better UX
             this.courses.set(
-              [...this.courses()].sort((a, b) => a.course_code.localeCompare(b.course_code))
+              [...this.courses()].sort((a, b) =>
+                a.course_code.localeCompare(b.course_code),
+              ),
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -282,6 +287,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       const activeSemester = facultyPreference.active_semesters[0];
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
+      this.activeSemesterId.set(activeSemester.active_semester_id);
 
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
@@ -362,6 +368,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   ): void {    
     program.year_levels.forEach((yearLevel) => {
       yearLevel.semester.courses.forEach((course) => {
+        // Ensure course has year_level from the program structure
+        course.year_level = yearLevel.year_level;
         const key = this.getCourseListKey(course);
         coursesMap.set(key, course);
       });
@@ -371,7 +379,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   /** 
    * Populate possible programs based on selected course
    */
-  private populatePossiblePrograms(course: Course): void {
+  private async populatePossiblePrograms(course: Course): Promise<void> {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
     this.searchState.set('courseSelection');
@@ -389,7 +397,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
 
     if (possiblePrograms.length === 1) {
-      this.selectPossibleProgram(possiblePrograms[0]);
+      await this.selectPossibleProgram(possiblePrograms[0]);
       return;
     }
 
@@ -531,7 +539,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   public async addCourseToTable(course: Course): Promise<void> {   
     // If no program is selected, populate possible programs
     if (this.selectedProgram() === undefined) {
-      this.populatePossiblePrograms(course);
+      await this.populatePossiblePrograms(course);
       return;
     }
 
@@ -556,14 +564,19 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const preferredDays = this.daysOfWeek.map((day) => {
+      const existing = course.preferred_days?.find((d) => d.day === day);
+      return {
+        day,
+        start_time: existing?.start_time ?? '',
+        end_time: existing?.end_time ?? '',
+      };
+    });
+
     const newCourse: TableData = {
       ...course,
-      preferredDays: this.daysOfWeek.map((day) => ({
-        day,
-        start_time: '',
-        end_time: '',
-      })),
-      isSubmitted: false,
+      preferredDays,
+      isSubmitted: !!course.preferred_days,
       program_details: this.selectedProgram(),
       year_section: `${course.year_level}-${course.section.section_name}`
     };
@@ -714,17 +727,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
    * if the course has multiple sections.
    */
   private async willSelectAnotherSection(course: Course): Promise<boolean> {  
+    if (this.selectedSection() !== undefined) {
+      return true;
+    }
     const yearLevels = this.selectedProgram()?.year_levels;
     if (course.year_level == null) {
       return true;
     }
 
-    const targetYear = yearLevels?.[course.year_level - 1];
+    const targetYear = yearLevels?.find(yl => yl.year_level === course.year_level);
     if (!targetYear) return true;
 
     // If only one or no section, set it and continue
-    const maxSections = Number(targetYear.sections.length);
-    if (isNaN(maxSections) || maxSections <= 1) {
+    const maxSections = targetYear.sections?.length ?? 0;
+    if (maxSections <= 1) {
       const firstSection = targetYear.sections[0];
 
       if (firstSection) {
@@ -734,10 +750,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
+      width: 'min(600px, 90vw)',
       data: { 
-        sections: targetYear.sections
+        sections: targetYear.sections,
+        programCode: this.selectedProgram()?.program_code ?? '',
+        courseCode: course.course_code,
+        courseTitle: course.course_title
       },
       autoFocus: true,
+      panelClass: 'dialog-base',
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -814,6 +835,108 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       disableClose: true,
       autoFocus: true,
     });
+  }
+
+  /**
+   * Opens the import from history dialog
+   */
+  public openImportHistoryDialog(): void {
+    const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
+
+    this.dialog.open(DialogImportHistoryComponent, {
+      maxWidth: '95vw',
+      width: 'auto',
+      data: {
+        facultyId: parseInt(this.facultyId()!, 10),
+        availableCourses: this.courses(),
+        existingKeys: existingKeys,
+        currentSemesterId: this.semesterId(),
+        currentActiveSemesterId: this.activeSemesterId()
+      },
+      disableClose: false,
+      autoFocus: true,
+      panelClass: 'dialog-base',
+    }).afterClosed()
+      .subscribe((selectedCourses: Course[] | undefined) => {
+        if (selectedCourses && selectedCourses.length > 0) {
+          this.processBatchImport(selectedCourses);
+        }
+      });
+  }
+
+  /**
+   * Process multiple courses imported from history
+   */
+  private async processBatchImport(courses: Course[]): Promise<void> {
+    let sectionToAutoSelect: Section | undefined;
+
+    for (const course of courses) {
+      sectionToAutoSelect = undefined;
+      // Try to find the program from previous data
+      let program: Program | undefined;
+      if (course.previousProgramCode) {
+        program = this.programs().find(p => p.program_code === course.previousProgramCode);
+      }
+
+      // Fallback: If no match by code, but only one program offers this course, use it
+      if (!program) {
+        const possible = this.programs().filter(p => 
+          p.year_levels.some(yl => yl.semester.courses.some(c => this.isSameCourseOffering(c, course)))
+        );
+        if (possible.length === 1) {
+          program = possible[0];
+        }
+      }
+
+      // If program found, set it and try to pre-select the section from previous data
+      if (program) {
+        this.selectedProgram.set(program);
+        
+        if (course.previousSectionName) {
+          const targetYear = program.year_levels.find(yl => yl.year_level === course.year_level);
+          sectionToAutoSelect = targetYear?.sections.find(s => s.section_name === course.previousSectionName);
+          if (sectionToAutoSelect) {
+            this.selectedSection.set(sectionToAutoSelect);
+          }
+        }
+      }
+
+      await this.addCourseToTable(course);
+
+      // 4. Auto-submit to backend if it has preferred days and section
+      if (course.preferred_days && course.preferred_days.length > 0 && sectionToAutoSelect) {
+        const preferenceData: any = {
+          faculty_id: parseInt(this.facultyId()),
+          active_semester_id: this.activeSemesterId(),
+          sections_per_program_year_id: sectionToAutoSelect.section_id,
+          preferred_days: course.preferred_days.map((d: any) => ({
+            day: d.day,
+            start_time: d.start_time,
+            end_time: d.end_time,
+          })),
+        };
+
+        if (course.temporary_course_offering_id != null) {
+          preferenceData.temporary_course_offering_id = course.temporary_course_offering_id;
+        } else if (course.course_assignment_id != null) {
+          preferenceData.course_assignment_id = course.course_assignment_id;
+        }
+
+        if (preferenceData.faculty_id && preferenceData.active_semester_id && preferenceData.sections_per_program_year_id) {
+          try {
+            await firstValueFrom(this.preferencesService.submitSinglePreference(preferenceData).pipe(
+              catchError(err => {
+                console.error('Error auto-submitting imported preference:', err);
+                this.showSnackBar(`Failed to save ${course.course_code} to backend.`);
+                return throwError(() => err);
+              })
+            ));
+          } catch (e) {
+            console.error(`Skipping ${course.course_code} due to error:`, e);
+          }
+        }
+      }
+    }
   }
 
   /**

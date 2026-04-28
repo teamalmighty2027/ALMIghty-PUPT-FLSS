@@ -22,7 +22,9 @@ export interface Course {
   petition_required?: boolean;
   preferred_days?: PreferredDay[];
   year_level: number | null;
-  section: Section
+  section: Section;
+  previousSectionName?: string;
+  previousProgramCode?: string;
 }
 export interface ActiveSemester {
   active_semester_id: number;

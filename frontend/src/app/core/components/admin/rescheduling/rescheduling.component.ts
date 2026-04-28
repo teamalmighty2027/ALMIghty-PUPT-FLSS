@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, ViewChild, TemplateRef, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -15,18 +15,21 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { TableHeaderComponent } from '../../../../shared/table-header/table-header.component';
 import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
+
 import {
   PopulateSchedulesResponse,
   Room,
@@ -63,6 +66,7 @@ interface ReschedulingAppeal {
 }
 
 interface FacultyArrangement {
+  facultyId: number;
   facultyName: string;
   facultyCode: string;
   facultyType: string;
@@ -70,6 +74,10 @@ interface FacultyArrangement {
   schedules: any[];
   academicYear?: string;
   semester?: string;
+  isAppealEnabled?: boolean;
+  hasAppealRequest?: boolean;
+  appealStartDate?: string | null;
+  appealEndDate?: string | null;
 }
 
 interface TimeSlot {
@@ -96,7 +104,8 @@ interface TimeSlot {
     LoadingComponent,
     TableHeaderComponent,
     MatTabsModule,
-    ReportsHeaderComponent
+    ReportsHeaderComponent,
+    MatCheckboxModule,
   ],
   animations: [
     trigger('fadeAnimation', [
@@ -114,6 +123,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   isInitLoading = true;
   selectedTabIndex = 0;
 
+  // Master Toggle State
+  isAllAppealsEnabled = false;
+
   // ── Shared Term Variables ──
   selectedTermId: number | null = null;
   availableTerms: any[] = [];
@@ -126,10 +138,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   displayedColumns: string[] = ['index', 'facultyName', 'programCode', 'originalSchedule', 'appealVerification', 'action'];
   dataSource = new MatTableDataSource<ReschedulingAppeal>([]);
   @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild('toggleAllDialog') toggleAllDialog!: TemplateRef<any>;
+  sendEmailToAll = false;
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -178,44 +192,55 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.reportsService.clearAllCaches();
     this.isInitLoading = true;
     this.isLoading = true;
-
     this.generateTimeSlots();
+    this.generateTimeOptions();
 
-    forkJoin({
-      appeals: this.reschedulingService.getAllAppeals(),
-      terms: this.reportsService.getAllTermsForDropdown()
-    }).subscribe({
-      next: ({ appeals, terms }) => {
-        this.appeals = appeals;
-        const mappedAppeals = appeals.map(a => this.mapAppeal(a));
-        this.dataSource.data = mappedAppeals;
-
+    // Load terms FIRST so dropdown appears immediately
+    this.reportsService.getAllTermsForDropdown().pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (terms) => {
         this.availableTerms = terms;
         const activeTerm = terms.find((term: any) => term.is_active === 1);
         if (activeTerm) {
           this.selectedTermId = activeTerm.active_semester_id;
           this.academicYear = `${activeTerm.year_start}-${activeTerm.year_end}`;
           this.semester = this.getSemesterDisplay(activeTerm.semester);
-          if (this.selectedTermId !== null) {
-            this.loadValidationCaches(mappedAppeals);
-            this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
-          } else {
+        }
+        this.cdr.detectChanges(); // Dropdown renders immediately
+
+        // THEN load appeals and arrangements in parallel
+        forkJoin({
+          appeals: this.reschedulingService.getAllAppeals(),
+          arrangements: this.selectedTermId 
+            ? this.reportsService.getFacultySchedulesReport(this.selectedTermId)
+            : null as any
+        }).pipe(takeUntil(this.destroy$)).subscribe({
+          next: ({ appeals, arrangements }) => {
+            this.appeals = appeals;
+            const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+            this.dataSource.data = mappedAppeals;
+
+            if (arrangements && this.selectedTermId) {
+              this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+            } else {
+              this.isLoading = false;
+              this.isInitLoading = false;
+            }
+          },
+          error: (err) => {
+            console.error('Failed to load data:', err);
             this.isLoading = false;
             this.isInitLoading = false;
           }
-        } else {
-          this.isLoading = false;
-          this.isInitLoading = false;
-        }
+        });
       },
       error: (err) => {
-        console.error('Failed to initialize rescheduling data:', err);
+        console.error('Failed to load terms:', err);
         this.isLoading = false;
         this.isInitLoading = false;
       }
     });
-
-    this.generateTimeOptions();
   }
 
   ngAfterViewInit(): void {
@@ -369,18 +394,25 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           });
 
           return {
+            facultyId: fac.faculty_id,
             facultyName: fac.faculty_name,
             facultyCode: fac.faculty_code,
             facultyType: fac.faculty_type,
             facultyUnits: fac.assigned_units || fac.units || 0,
             schedules: mergedSchedules,
             academicYear: this.academicYear,
-            semester: this.semester
+            semester: this.semester,
+            isAppealEnabled: !!fac.is_appeal_enabled, 
+            hasAppealRequest: !!fac.has_appeal_request,
+            appealStartDate: fac.appeal_start_date,
+            appealEndDate: fac.appeal_end_date
           };
         });
 
         this.allFaculties = mergedFaculties;
         this.arrangementsDataSource.data = mergedFaculties;
+        this.updateMasterToggleState(); // Determine if master toggle should be on/off
+        this.cdr.detectChanges();
         this.hasAnyArrangements = mergedFaculties.some(f => f.schedules.length > 0);
 
         this.isLoading = false;
@@ -433,6 +465,222 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       'part-time': type.includes('part-time'),
       'temporary': type.includes('temporary'),
     };
+  }
+
+  // ── Toggle Methods ──────────────────────────────────────────────
+
+  updateMasterToggleState(): void {
+    if (this.allFaculties.length === 0) {
+      this.isAllAppealsEnabled = false;
+      return;
+    }
+    // Only turn master toggle ON if EVERY faculty is enabled
+    this.isAllAppealsEnabled = this.allFaculties.every(f => f.isAppealEnabled);
+  }
+
+  toggleAllAppeals(event: any): void {
+    const isEnabled = event.checked;
+    
+    // Instantly revert the toggle visually. It only stays changed if they hit 'Confirm'.
+    event.source.checked = !isEnabled;
+
+    // Grab existing dates from an enabled faculty member to show in the dialog if disabling
+    const activeFaculty = this.allFaculties.find(f => f.isAppealEnabled);
+
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'all_appeals', 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled,
+        startDate: activeFaculty?.appealStartDate ? new Date(activeFaculty.appealStartDate) : null,
+        endDate: activeFaculty?.appealEndDate ? new Date(activeFaculty.appealEndDate) : null
+      },
+      disableClose: true,
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
+        const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+        // Optimistic update
+        this.isAllAppealsEnabled = isEnabled;
+        this.allFaculties.forEach(f => {
+          f.isAppealEnabled = isEnabled;
+          if (isEnabled) {
+            f.hasAppealRequest = false;
+            // UPDATE LOCAL MEMORY WITH NEW DATES
+            f.appealStartDate = formattedStart;
+            f.appealEndDate = formattedEnd;
+          } else {
+            // WIPE LOCAL MEMORY IF DISABLED
+            f.appealStartDate = null;
+            f.appealEndDate = null;
+          }
+        });
+        
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.cdr.detectChanges();
+
+        this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
+              
+              // Refresh to sync dates from server
+              if (this.selectedTermId) {
+                this.loadArrangementsForTerm(this.selectedTermId, this.dataSource.data);
+              }
+            },
+            error: () => {
+              // Revert on failure
+              this.isAllAppealsEnabled = !isEnabled;
+              this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.updateMasterToggleState();
+              this.cdr.detectChanges();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
+  }
+
+  toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
+    const isEnabled = event.checked;
+    event.source.checked = !isEnabled;
+
+    // Helper function to safely parse SQL dates across all browsers
+    const parseSqlDate = (dateStr: string | null | undefined) => 
+      dateStr ? new Date(dateStr.replace(' ', 'T')) : null;
+
+    const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+      width: '500px',
+      data: { 
+        type: 'single_appeal', 
+        facultyName: faculty.facultyName, 
+        academicYear: this.academicYear, 
+        semester: this.semester,
+        currentState: !isEnabled,
+        // USE THE SAFE PARSER HERE
+        startDate: parseSqlDate(faculty.appealStartDate),
+        endDate: parseSqlDate(faculty.appealEndDate)
+      },
+      disableClose: true,
+      autoFocus: false
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
+        const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
+        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+
+        faculty.isAppealEnabled = isEnabled;
+        
+        // UPDATE LOCAL MEMORY WITH NEW DATES
+        if (isEnabled) {
+          faculty.hasAppealRequest = false;
+          faculty.appealStartDate = formattedStart;
+          faculty.appealEndDate = formattedEnd;
+        } else {
+          faculty.appealStartDate = null;
+          faculty.appealEndDate = null;
+        }
+
+        this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
+          .subscribe({
+            next: () => {
+              const status = isEnabled ? 'scheduled' : 'disabled';
+              this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
+              this.updateMasterToggleState();
+            },
+            error: () => {
+              faculty.isAppealEnabled = !isEnabled;
+              event.source.checked = !isEnabled;
+              this.updateMasterToggleState();
+              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+            }
+          });
+      }
+    });
+  }
+
+  onTabChange(event: any): void {
+    const newIndex = event.index;
+    
+    if (newIndex === 1) {
+      // Appeals tab — silent background refresh, no loading state
+      this.reschedulingService.getAllAppeals().pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (appeals) => {
+          this.appeals = appeals;
+          const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+          this.dataSource.data = mappedAppeals;
+          this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
+        },
+        error: (err) => console.error('Failed to refresh appeals:', err)
+      });
+    } else if (newIndex === 0 && this.selectedTermId) {
+      // Arrangements tab — silent refresh, NO isLoading flag so animation plays
+      this.reportsService.getFacultySchedulesReport(this.selectedTermId).pipe(
+        takeUntil(this.destroy$)
+      ).subscribe({
+        next: (facultiesReq) => {
+          const mappedAppeals = this.dataSource.data;
+          const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
+          const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
+
+          const mergedFaculties: FacultyArrangement[] = rawFaculties.map((fac: any) => {
+            const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
+            const mergedSchedules = (fac.schedules || []).map((sched: any) => {
+              const matchingAppeal = facultyAppeals.find(a => a.courseTitle === sched.course_details.course_title);
+              if (matchingAppeal) {
+                return {
+                  ...sched,
+                  day: matchingAppeal.preferredDay,
+                  start_time: matchingAppeal.rawPreferredStartTime,
+                  end_time: matchingAppeal.rawPreferredEndTime,
+                  room_code: matchingAppeal.room || 'TBA',
+                  course_details: {
+                    ...sched.course_details,
+                    course_title: `${sched.course_details.course_title} (Internal Arrangement)`
+                  }
+                };
+              }
+              return sched;
+            });
+
+            return {
+              facultyId: fac.faculty_id,
+              facultyName: fac.faculty_name,
+              facultyCode: fac.faculty_code,
+              facultyType: fac.faculty_type,
+              facultyUnits: fac.assigned_units || fac.units || 0,
+              schedules: mergedSchedules,
+              academicYear: this.academicYear,
+              semester: this.semester,
+              isAppealEnabled: !!fac.is_appeal_enabled,
+              hasAppealRequest: !!fac.has_appeal_request,
+              appealStartDate: fac.appeal_start_date,
+              appealEndDate: fac.appeal_end_date
+            };
+          });
+
+          this.allFaculties = mergedFaculties;
+          this.arrangementsDataSource.data = mergedFaculties;
+          this.updateMasterToggleState();
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('Failed to refresh arrangements:', err)
+      });
+    }
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────
@@ -629,12 +877,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
       }
-      let currentY = this.drawHeader(
-        doc, topMargin, pageWidth, margin, logoSize,
-        `${faculty.facultyName} Schedule (Internal Arrangement)`,
-        this.getAcademicYearSubtitle(faculty)
-      );
-      this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
+      
+      const title = `${faculty.facultyName} Schedule (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle(faculty);
+      
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
     });
 
     this.reportHeaderService.addStandardFooter(doc);
@@ -649,12 +897,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     const logoSize = 22;
 
     if (faculty.schedules && faculty.schedules.length > 0) {
-      let currentY = this.drawHeader(
-        doc, topMargin, pageWidth, margin, logoSize,
-        `${faculty.facultyName} (Internal Arrangement)`,
-        this.getAcademicYearSubtitle(faculty)
-      );
-      this.drawScheduleTable(doc, faculty.schedules, currentY, margin, pageWidth, faculty.facultyName);
+      const title = `${faculty.facultyName} (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle(faculty);
+
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
     }
     
     this.reportHeaderService.addStandardFooter(doc);
@@ -669,7 +916,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return currentY;
   }
 
-  private drawScheduleTable(doc: jsPDF, scheduleData: any[], startY: number, margin: number, pageWidth: number, facultyName: string): void {
+  private drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
     const hasSchedules = scheduleData && scheduleData.length > 0;
 
     if (!hasSchedules) {
@@ -681,182 +928,210 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    // Matrix Constants
-    const timeColWidth = 20; 
+    const timeColWidth = 22; 
     const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
-    const rowHeight = 4.5; 
-    const maxContentHeight = doc.internal.pageSize.height - 15;
+    
+    // MASSIVE row height for large fonts
+    const rowHeight = 8.5; 
 
+    // Split the day into Morning and Afternoon chunks
+    const chunks = [
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
+      { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 }
+    ];
+
+    // Only process chunks that actually contain classes
+    const activeChunks = chunks.filter(chunk => {
+      return scheduleData.some(s => {
+        const sStart = this.timeToMinutes(s.start_time);
+        const sEnd = this.timeToMinutes(s.end_time);
+        return Math.max(sStart, chunk.start) < Math.min(sEnd, chunk.end);
+      });
+    });
+
+    if (activeChunks.length === 0) {
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
+      return;
+    }
+
+    let pageUsed = false;
     let currentY = startY;
 
-    const startNewPage = () => {
-      this.reportHeaderService.addStandardFooter(doc);
-      doc.addPage();
-      currentY = this.drawHeader(
-        doc, 15, pageWidth, margin, 22,
-        doc.getNumberOfPages() > 1 ? `${facultyName} Schedule (Continued)` : `${facultyName} Schedule`,
-        this.getAcademicYearSubtitle({ academicYear: this.academicYear, semester: this.semester } as any)
-      );
+    activeChunks.forEach(chunk => {
+      
+      if (pageUsed) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+        currentY = this.drawHeader(doc, 15, pageWidth, margin, 22, title, subtitle);
+      }
+      
+      pageUsed = true;
+      currentY -= 3; 
 
-      // Redraw Time Header
-      doc.setFillColor(128, 0, 0); doc.setTextColor(255, 255, 255);
-      doc.rect(margin, currentY - 3, timeColWidth, 10, 'F');
-      doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
-      doc.rect(margin, currentY - 3, timeColWidth, 10);
-      doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-      doc.text('Time', margin + timeColWidth / 2, currentY + 3.5, { align: 'center' });
+      // --- Draw Headers ---
+      doc.setFillColor(128, 0, 0);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
 
-      // Redraw Day Headers
+      // Time Header
+      doc.rect(margin, currentY, timeColWidth, 10, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, currentY, timeColWidth, 10);
+      doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
+
+      // Day Headers
       days.forEach((day, index) => {
         const xPos = margin + timeColWidth + index * dayColumnWidth;
-        doc.setFillColor(128, 0, 0); doc.setTextColor(255, 255, 255);
-        doc.rect(xPos, currentY - 3, dayColumnWidth, 10, 'F');
-        doc.rect(xPos, currentY - 3, dayColumnWidth, 10);
-        doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-        doc.text(day, xPos + dayColumnWidth / 2, currentY + 3.5, { align: 'center' });
+        doc.setFillColor(128, 0, 0);
+        doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
+        doc.rect(xPos, currentY, dayColumnWidth, 10);
+        doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
       });
-      currentY += 7;
-      return currentY;
-    };
 
-    currentY -= 3; 
+      currentY += 10;
 
-    // --- Headers ---
-    doc.setFillColor(128, 0, 0);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
+      // --- Draw Time Grid for this Chunk ---
+      doc.setTextColor(0, 0, 0);
+      const chunkSlots = this.timeSlots.filter(s => s.minutes >= chunk.start && s.minutes < chunk.end);
 
-    // Time Header
-    doc.rect(margin, currentY, timeColWidth, 10, 'F');
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, currentY, timeColWidth, 10);
-    doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
-
-    // Day Headers
-    days.forEach((day, index) => {
-      const xPos = margin + timeColWidth + index * dayColumnWidth;
-      doc.setFillColor(128, 0, 0);
-      doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
-      doc.rect(xPos, currentY, dayColumnWidth, 10);
-      doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
-    });
-
-    currentY += 10;
-
-    // --- Draw 3-Hour Time Labels (GRID REMOVED) ---
-    doc.setTextColor(0, 0, 0);
-
-    this.timeSlots.forEach((slot, index) => {
-      const yPos = currentY + index * rowHeight;
-      
-      // Print the Time text and horizontal line every 3 hours starting at 7:30 AM
-      if (slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0) {
+      chunkSlots.forEach((slot, index) => {
+        const yPos = currentY + index * rowHeight;
         
-        doc.setDrawColor(200, 200, 200); 
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.text(slot.time, margin + timeColWidth / 2, yPos + 3.5, { align: 'center' });
-      }
-    });
+        // Flag the top row, the bottom row, and our standard 3-hour gaps
+        const isTopRow = index === 0;
+        const isBottomRow = index === chunkSlots.length - 1;
+        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-    const finalY = currentY + this.timeSlots.length * rowHeight;
-    doc.setDrawColor(200, 200, 200);
-    
-    // Draw the bottom border
-    doc.line(margin, finalY, pageWidth - margin, finalY);
-
-    // Draw Vertical Lines
-    doc.line(margin, currentY, margin, finalY); 
-    doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
-    days.forEach((_, index) => {
-      const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
-      doc.line(xPos, currentY, xPos, finalY);
-    });
-
-    // --- Draw the Blocks ---
-    const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
-
-    let maxYPosition = finalY;
-
-    sortedScheduleData.forEach(item => {
-      const dayIndex = days.indexOf(item.day);
-      if (dayIndex === -1) return;
-
-      const startTime = this.timeToMinutes(item.start_time);
-      const endTime = this.timeToMinutes(item.end_time);
-      const startSlot = this.timeSlots.findIndex(slot => slot.minutes >= startTime);
-      const duration = Math.ceil((endTime - startTime) / 30);
-
-      if (startSlot === -1) return;
-
-      const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
-      let yPos = currentY + startSlot * rowHeight;
-      const height = duration * rowHeight;
-
-      if (yPos + height > maxContentHeight) {
-        yPos = startNewPage() + startSlot * rowHeight; 
-      }
-
-      // Draw Block Box with distinct GRAY background and Maroon border
-      doc.setFillColor(240, 240, 240); // Gray background
-      doc.setDrawColor(128, 0, 0);     // Maroon border
-      doc.setLineWidth(0.3);
-      doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
-
-      // ALWAYS print the Time Range at the very bottom of the box first
-      const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
-      doc.setTextColor(0);
-      
-      // INCREASED: Time text size from 7 to 8.5
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - 2, { align: 'center' });
-
-      // Block Content
-      const content = [
-        item.course_details?.course_code || '',
-        item.course_details?.course_title || '',
-        `${item.program_code} ${item.year_level} - ${item.section_name}`,
-        item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA'
-      ];
-
-      // Pushed starting text down slightly to fit the larger fonts
-      let textY = yPos + 5; 
-      
-      content.forEach((line, idx) => {
-        // INCREASED: Course Code is now 9pt (was 8), everything else is 8pt (was 7)
-        doc.setFontSize(idx === 0 ? 9 : 8);
-        doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
-        
-        const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
-        wrappedLines.forEach((wLine: string) => {
+        // Print the Time text if it matches any of those conditions
+        if (isTopRow || isBottomRow || isThreeHourGap) {
           
-          // Increased boundary from 5 to 6 to protect the bigger time text at the bottom
-          if (textY < yPos + height - 6) { 
-            doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
-            textY += 3.8; 
+          if (!isTopRow) {
+            doc.setDrawColor(200, 200, 200); 
+            doc.setLineWidth(0.5);
+            doc.line(margin, yPos, pageWidth - margin, yPos);
           }
+          
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'bold');
+          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        }
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      
+      // Bottom border
+      doc.line(margin, finalY, pageWidth - margin, finalY);
+
+      // Vertical Lines
+      doc.line(margin, currentY, margin, finalY); 
+      doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
+      days.forEach((_, index) => {
+        const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
+        doc.line(xPos, currentY, xPos, finalY);
+      });
+
+      // --- Draw the Blocks ---
+      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+
+      sortedScheduleData.forEach(item => {
+        const dayIndex = days.indexOf(item.day);
+        if (dayIndex === -1) return;
+
+        const originalStart = this.timeToMinutes(item.start_time);
+        const originalEnd = this.timeToMinutes(item.end_time);
+
+        const cappedStart = Math.max(originalStart, chunk.start);
+        const cappedEnd = Math.min(originalEnd, chunk.end);
+
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(slot => slot.minutes === cappedStart);
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+
+        if (startSlot === -1) return;
+
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        // Draw Block Box
+        doc.setFillColor(240, 240, 240); 
+        doc.setDrawColor(128, 0, 0);     
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
+
+        // --- DYNAMIC TEXT SCALING ---
+        let startPadding = 5;
+        let lineSpacing = 4.2;
+        let bottomBoundary = 6;
+        let codeFontSize = 10;
+        let textFontSize = 9;
+        let timeFontSize = 9.5;
+        let timeBottomPadding = 2;
+
+        if (duration <= 2) { 
+          startPadding = 3.5;
+          lineSpacing = 2.8;
+          bottomBoundary = 3.5;
+          codeFontSize = 7.5;   
+          textFontSize = 6.5;   
+          timeFontSize = 7;     
+          timeBottomPadding = 1.2;
+        } else if (duration === 3) { 
+          startPadding = 4;
+          lineSpacing = 3.4;
+          bottomBoundary = 4.5;
+          codeFontSize = 8.5;   
+          textFontSize = 7.5;   
+          timeFontSize = 8;     
+          timeBottomPadding = 1.5;
+        } else if (duration === 4) { 
+          startPadding = 5;
+          lineSpacing = 4;
+          bottomBoundary = 5;
+          codeFontSize = 9.5;   
+          textFontSize = 8.5;   
+          timeFontSize = 9;     
+          timeBottomPadding = 1.8;
+        }
+
+        // ALWAYS print the Time Range at the very bottom of the box first
+        const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
+        doc.setTextColor(0);
+        doc.setFontSize(timeFontSize);
+        doc.setFont('helvetica', 'normal');
+        doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
+
+        // Block Content (Tailored for Rescheduling - Internal Arrangements)
+        const content = [
+          item.course_details?.course_code || '',
+          item.course_details?.course_title || '',
+          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
+        ].filter(line => line !== ''); 
+
+        let textY = yPos + startPadding; 
+        
+        content.forEach((line, idx) => {
+          doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
+          doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+          
+          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
+          wrappedLines.forEach((wLine: string) => {
+            if (textY < yPos + height - bottomBoundary) { 
+              doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
+              textY += lineSpacing; 
+            }
+          });
         });
       });
     });
-  }
-
-  private calculateBoxHeight(doc: jsPDF, content: string[], columnWidth: number): number {
-    const padding = 10;
-    let totalHeight = 5;
-    content.forEach((line: string, index: number) => {
-      doc.setFontSize(9);
-      doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
-      const wrappedLines = doc.splitTextToSize(line, columnWidth - padding);
-      totalHeight += wrappedLines.length * 5;
-    });
-    return totalHeight + 5;
   }
 
   private formatTime(time: string): string {
@@ -1057,19 +1332,20 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedAppeal = { ...appeal };
     this.newSchedule = this.selectedAppeal.appealVerification !== 'Pending'
       ? { ...this.selectedAppeal }
-      : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, preferredEndTime: undefined, room: undefined };
+      : { ...appeal, preferredDay: undefined, preferredStartTime: undefined, 
+          preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
     this.conflictMessages = [];
     
-    // Load room options
     this.loadRoomOptions();
-    
-    // Initialize available end times
     this.availableEndTimes = [...this.timeOptions];
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
     }
-    
+
+    // Load validation caches NOW (lazily, only when actually needed)
+    this.loadValidationCaches(this.dataSource.data);
+
     this.dialog.open(this.appealDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
@@ -1177,12 +1453,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   denyAppeal(): void {
     if (!this.selectedAppeal) return;
+    
+    // We pass the adminRemarks to the backend so the email can explain WHY it was rejected
     this.reschedulingService.denyAppeal(this.selectedAppeal.rawAppealId, this.adminRemarks)
       .subscribe({
         next: () => { 
           this.updateLocalStatus(this.selectedAppeal!.id, 'Denied'); 
           this.closeDialog();
-          this.snackBar.open('Appeal denied successfully.', 'Close', { duration: 5000 });
+          
+          // Show a richer snackbar confirming the email was sent
+          this.snackBar.open('Appeal denied and notification email sent to faculty.', 'Close', { duration: 5000 });
         },
         error: (err) => {
           const errorMessage = this.getErrorMessage(err, 'Failed to deny appeal');
@@ -1246,9 +1526,25 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onExportAll(): void { console.log('Export all appeals', this.dataSource.data); }
 
-  getFileUrl(filePath: string | null | undefined): string {
-    if (!filePath) return '#';
-    return `http://127.0.0.1:8000/storage/${filePath}`;
+  downloadAppealDocument(appealId: number | undefined, facultyName: string): void {
+    if (!appealId) {
+      this.snackBar.open('No valid appeal selected.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    this.snackBar.open('Downloading document...', 'Close', { duration: 2000 });
+
+    // Use the secure Angular HTTP Client which automatically attaches your Auth token
+    this.reschedulingService.downloadAppealDocument(appealId).subscribe({
+      next: (blob: Blob) => {
+        const cleanName = (facultyName || 'Faculty').replace(/[^a-zA-Z0-9]/g, '_');
+        saveAs(blob, `${cleanName}_Appeal_Document.pdf`); // Triggers the actual download
+      },
+      error: (err) => {
+        console.error('Download error:', err);
+        this.snackBar.open('Failed to download document. You might be unauthorized or it was deleted.', 'Close', { duration: 3000 });
+      }
+    });
   }
 
   ngOnDestroy(): void {

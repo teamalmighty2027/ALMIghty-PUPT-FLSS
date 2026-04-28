@@ -15,6 +15,7 @@ class ActiveSemester extends Model
         'academic_year_id',
         'semester_id',
         'is_active',
+        'is_faculty_view',
         'start_date',
         'end_date',
     ];

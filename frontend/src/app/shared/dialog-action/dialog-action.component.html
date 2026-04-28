@@ -23,6 +23,17 @@
         A.Y. {{ data.academicYear }}, {{ data.semester }}.
       </span>
     </div>
+
+    @if (data.isMismatchedSemester) {
+    <div class="warning-text">
+      <span mat-symbol="warning"></span>
+      <span>
+        <strong>Warning:</strong> The scheduling semester (A.Y. {{ data.academicYear }}, {{ data.semester }}) 
+        is different from the faculty view semester. Publishing will update schedules for the scheduling semester, 
+        which faculty are not currently viewing.
+      </span>
+    </div>
+    }
     }
 
     <!-- Seondary Text Section -->

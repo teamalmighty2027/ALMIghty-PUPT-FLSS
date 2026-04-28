@@ -66,6 +66,15 @@
             </button>
             }
           </mat-form-field>
+
+          <button
+            mat-stroked-button
+            class="import-history-btn"
+            (click)="openImportHistoryDialog()"
+            matTooltip="Import courses from your history">
+            <span mat-symbol="history"></span>
+            Import from History
+          </button>
         </div>
 
         <mat-menu #filterMenu="matMenu">

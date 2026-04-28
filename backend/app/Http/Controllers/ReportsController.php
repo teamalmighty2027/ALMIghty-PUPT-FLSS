@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\AcademicYear;
 use App\Models\ActiveSemester;
 use App\Models\Faculty;
@@ -92,6 +91,10 @@ class ReportsController extends Controller
             })
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.is_appeal_enabled',
+                'faculty.has_appeal_request',
+                'faculty.appeal_start_date',
+                'faculty.appeal_end_date',
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
@@ -132,6 +135,11 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'is_appeal_enabled' => $schedule->is_appeal_enabled,
+                    'has_appeal_request' => $schedule->has_appeal_request,
+                    'appeal_start_date' => $schedule->appeal_start_date,
+                    'appeal_end_date' => $schedule->appeal_end_date,
+                    
                     'assigned_units' => 0,
                     'is_published' => 0,
                     'schedules' => [],
@@ -179,9 +187,18 @@ class ReportsController extends Controller
         // Step 4.1: Sort the faculties by faculty_name
         $faculties = collect($faculties)->sortBy('faculty_name')->values()->all();
 
+        // Check if active semester differs from faculty view semester
+        $facultyViewSemester = DB::table('active_semesters')
+            ->where('is_faculty_view', 1)
+            ->first();
+            
+        $isMismatchedSemester = $facultyViewSemester ? 
+            ($activeSemester->active_semester_id !== $facultyViewSemester->active_semester_id) : false;
+
         // Step 5: Structure the response
         return response()->json([
             'faculty_schedule_reports' => [
+                'isMismatchedSemester' => $isMismatchedSemester,
                 'academic_year_id' => $activeSemester->academic_year_id,
                 'year_start' => $activeSemester->year_start,
                 'year_end' => $activeSemester->year_end,
@@ -681,6 +698,8 @@ class ReportsController extends Controller
 
         // Step 4: Prepare the base response
         $response = [
+            'is_appeal_enabled' => (bool)$faculty->is_appeal_enabled,
+            'has_appeal_request' => (bool)$faculty->has_appeal_request,
             'faculty_schedule' => [
                 'academic_year_id' => $activeSemester->academic_year_id,
                 'year_start' => $activeSemester->year_start,
@@ -1192,8 +1211,17 @@ class ReportsController extends Controller
             ->whereNotNull('global_start_date')
             ->value('global_start_date');
 
+        // Check if active semester differs from faculty view semester
+        $facultyViewSemester = DB::table('active_semesters')
+            ->where('is_faculty_view', 1)
+            ->first();
+            
+        $isMismatchedSemester = $facultyViewSemester ? 
+            ($activeSemester->active_semester_id !== $facultyViewSemester->active_semester_id) : false;
+
         // Step 11: Structure the response with the new field
         return response()->json([
+            'isMismatchedSemester' => $isMismatchedSemester,
             'activeAcademicYear' => "{$activeSemester->year_start}-{$activeSemester->year_end}",
             'activeSemester' => $this->getSemesterLabel($activeSemester->semester),
             'activeFacultyCount' => $activeFacultyCount,

@@ -20,6 +20,8 @@ class Faculty extends Authenticatable
         'faculty_type_id',
         'faculty_profile_id',
         'idp_user_id',
+        'is_appeal_enabled',
+        'has_appeal_request',
     ];
 
     protected $with = ['facultyType'];

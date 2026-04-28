@@ -60,8 +60,14 @@ class CheckHmac
                     continue; 
                 }
 
+                $key = $apiKeyRecord->key;
+                if ($key === null) {
+                    Log::error("HMAC middleware: Key for system '{$system}' is null or could not be decrypted.");
+                    continue;
+                }
+
                 // If the signature matches this system's key, let them in!
-                if ($this->isSignatureValid($request, $signature, $timestamp, $nonce, $apiKeyRecord->key)) {
+                if ($this->isSignatureValid($request, $signature, $timestamp, $nonce, $key)) {
                     $request->attributes->add(['client_system' => $system]);
                     return $next($request);
                 }

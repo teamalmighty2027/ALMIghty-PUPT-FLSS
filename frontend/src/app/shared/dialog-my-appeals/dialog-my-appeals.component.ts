@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ReschedulingService, AppealResponse } from '../../core/services/faculty/rescheduling/rescheduling.service';
 import { environment } from '../../../environments/environment.dev';
+import { saveAs } from 'file-saver';
 
 interface AppealView {
   appealId:         number;
@@ -121,13 +122,20 @@ export class DialogMyAppealsComponent implements OnInit {
     });
   }
 
-  getFileUrl(filePath: string | null): string {
-    if (!filePath) return '#';
-    
-    // TODO: Temporary implementation. The process regarding file upload needs to be re-examined.
-    // This dynamically removes '/api' from the end of the environment URL to point to the base storage folder.
-    const baseUrl = environment.apiUrl.replace(/\/api\/?$/, '');
-    return `${baseUrl}/storage/${filePath}`;
+  downloadDocument(appealId: number): void {
+    if (!appealId) return;
+
+    this.snackBar.open('Downloading document...', 'Close', { duration: 2000 });
+
+    this.reschedulingService.downloadAppealDocument(appealId).subscribe({
+      next: (blob: Blob) => {
+        saveAs(blob, `My_Appeal_Document_${appealId}.pdf`);
+      },
+      error: (err) => {
+        console.error('Download error:', err);
+        this.snackBar.open('Failed to download document. It may have been removed.', 'Close', { duration: 3000 });
+      }
+    });
   }
 
   onClose(): void {

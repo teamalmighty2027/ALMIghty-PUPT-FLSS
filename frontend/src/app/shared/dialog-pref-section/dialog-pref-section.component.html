@@ -1,5 +1,13 @@
 <div class="dialog-pref-section-container">
-  <h3>Select Chosen Section</h3>
+  <h3 class="dialog-title">Select Section</h3>
+  <div class="course-context">
+    <span class="program-badge">{{ data.programCode }}</span>
+    <span class="course-details">
+      <strong>{{ data.courseCode }}</strong>: {{ data.courseTitle }}
+    </span>
+  </div>
+
+  <span class="section-label">Available Sections</span>
 
   <mat-button-toggle-group [(ngModel)]="selectedSection">
     @for (section of data.sections; track section.section_id) {
@@ -11,6 +19,6 @@
 
   <div class="dialog-actions">
     <button mat-button (click)="cancel()">Cancel</button>
-    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="!selectedSection">Add</button>
+    <button mat-flat-button class="confirm-btn" (click)="confirm()" [disabled]="!selectedSection">Add</button>
   </div>
 </div>
