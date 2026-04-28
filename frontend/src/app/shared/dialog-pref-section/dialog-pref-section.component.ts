@@ -18,7 +18,12 @@ export class DialogPrefSectionComponent implements OnInit {
 
   constructor(
     private dialogRef: MatDialogRef<DialogPrefSectionComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: {sections: Section[]}
+    @Inject(MAT_DIALOG_DATA) public data: {
+      sections: Section[];
+      programCode: string;
+      courseCode: string;
+      courseTitle: string;
+    }
   ) {}
 
   ngOnInit(): void {

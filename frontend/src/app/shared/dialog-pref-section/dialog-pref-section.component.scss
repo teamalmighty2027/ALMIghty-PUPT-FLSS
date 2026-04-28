@@ -5,19 +5,128 @@
     $direction: column,
     $align: stretch,
     $justify: flex-start,
-    $gap: var(--spacing-md)
+    $gap: var(--spacing-lg)
   );
   padding: var(--spacing-lg);
-  height: 100%;
+  width: fit-content;
+  min-width: 500px;
+
+  .dialog-title {
+    margin: 0;
+    font-size: var(--font-size-2xl);
+    font-weight: 800;
+    color: var(--primary-one);
+    letter-spacing: -0.5px;
+  }
+
+  .course-context {
+    background: var(--primary-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm);
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+    border: 1px solid var(--primary-border);
+    max-width: 90%;
+    margin: auto;
+
+    .program-badge {
+      background: var(--primary-one);
+      color: white;
+      padding: 6px 12px;
+      border-radius: var(--border-radius-sm);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      box-shadow: var(--shadow-sm);
+      text-transform: uppercase;
+    }
+
+    .course-details {
+      font-size: var(--font-size-sm);
+      color: var(--primary-text);
+      line-height: 1.4;
+      
+      strong {
+        display: block;
+        font-size: var(--font-size-md);
+        color: var(--primary-color);
+      }
+    }
+  }
+
+  .section-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: calc(var(--spacing-xs) * -1);
+  }
 
   mat-button-toggle-group {
-    width: fit-content;
+    width: 100%;
+    border: none !important;
+    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: flex-start);
+    flex-wrap: wrap;
+    background: transparent !important;
+
+    mat-button-toggle {
+      border: 1.5px solid var(--border-color) !important;
+      border-radius: var(--border-radius-md) !important;
+      overflow: hidden;
+      @include mixins.default-transition;
+
+      &:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-fade);
+      }
+
+      &.mat-button-toggle-checked {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-fade);
+        
+        ::ng-deep .mat-button-toggle-label-content {
+          color: var(--primary-color);
+          font-weight: 700;
+        }
+      }
+
+      ::ng-deep .mat-button-toggle-label-content {
+        padding: var(--spacing-sm) var(--spacing-lg);
+        font-size: var(--font-size-md);
+      }
+    }
   }
 
   .dialog-actions {
-    margin-top:16px;
-    display:flex;
-    gap:8px;
-    justify-content:flex-end;
+    margin-top: var(--spacing-md);
+    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
+
+    button {
+      padding: 0 var(--spacing-xl);
+      height: 3.5rem;
+      border-radius: var(--border-radius-md);
+      font-weight: 600;
+      @include mixins.default-transition;
+
+      &.confirm-btn {
+        background-color: var(--primary-one);
+        color: white;
+        
+        &:hover:not(:disabled) {
+          background-color: var(--primary-one-hover);
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+        }
+
+        &:disabled {
+          background-color: var(--neutral-fade);
+          color: var(--neutral-button-lighter);
+        }
+      }
+    }
+  }
+}
+
+@media screen and (max-width: 500px) {
+  .dialog-pref-section-container {
+    min-width: 100%;
+    padding: var(--spacing-md);
   }
 }

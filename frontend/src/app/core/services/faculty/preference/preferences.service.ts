@@ -20,6 +20,7 @@ export class PreferencesService {
   private programsCache$: Observable<{
     programs: Program[];
     active_semester_id: number;
+    semester_id: number;
   }> | null = null;
 
   constructor(private http: HttpClient) {}
@@ -31,6 +32,7 @@ export class PreferencesService {
   getPrograms(): Observable<{
     programs: Program[];
     active_semester_id: number;
+    semester_id: number;
   }> {
     if (!this.programsCache$) {
       const url = `${this.baseUrl}/offered-courses-sem`;
@@ -38,6 +40,7 @@ export class PreferencesService {
         map((response) => ({
           programs: response.programs,
           active_semester_id: response.active_semester_id,
+          semester_id: response.semester_id,
         })),
         shareReplay(1),
         catchError((error) => {
