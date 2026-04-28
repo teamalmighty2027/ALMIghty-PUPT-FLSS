@@ -384,6 +384,10 @@ class ExternalController extends Controller
 
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
+            ->filter(function ($profile) {
+                // Filter out profiles with missing required relationships before sorting
+                return !empty($profile->faculty) && !empty($profile->faculty->user);
+            })
             ->sortBy([
                 fn($faculty) => $faculty->faculty->user->last_name,
                 fn($faculty) => $faculty->faculty->user->first_name,
@@ -458,6 +462,10 @@ class ExternalController extends Controller
 
         $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
             ->get()
+            ->filter(function ($profile) {
+                // Filter out profiles with missing required relationships before sorting
+                return !empty($profile->faculty) && !empty($profile->faculty->user);
+            })
             ->sortBy([
                 fn($faculty) => $faculty->faculty->user->last_name,
                 fn($faculty) => $faculty->faculty->user->first_name,
