@@ -164,7 +164,7 @@
             </p>
 
             <div class="button-container">
-                <a href="{{ url('/') }}" class="button">
+                <a href="{{ url('/faculty/load-and-schedule') }}" class="button">
                     View Official Load and Schedule
                 </a>
             </div>

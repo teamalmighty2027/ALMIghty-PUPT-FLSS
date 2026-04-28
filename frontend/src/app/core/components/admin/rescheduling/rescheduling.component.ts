@@ -376,7 +376,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
 
           const mergedSchedules = (fac.schedules || []).map((sched: any) => {
-            const matchingAppeal = facultyAppeals.find(a => a.courseTitle === sched.course_details.course_title);
+            const matchingAppeal = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
             if (matchingAppeal) {
               return {
                 ...sched,
@@ -640,7 +640,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           const mergedFaculties: FacultyArrangement[] = rawFaculties.map((fac: any) => {
             const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
             const mergedSchedules = (fac.schedules || []).map((sched: any) => {
-              const matchingAppeal = facultyAppeals.find(a => a.courseTitle === sched.course_details.course_title);
+              const matchingAppeal = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
               if (matchingAppeal) {
                 return {
                   ...sched,
