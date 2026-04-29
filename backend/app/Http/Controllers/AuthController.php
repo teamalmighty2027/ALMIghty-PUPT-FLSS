@@ -388,14 +388,14 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'IDP authentication successful.',
-                'token'      => [
-                    'token' => $sanctumToken,
+                'token' => $sanctumToken,
+                'expires_at' => $expiresAt->toIso8601String(),
+                'user' => $userDataArray,
+                'idp' => [
                     'access_token' => $accessToken,
                     'refresh_token' => $token['refresh_token'] ?? null,
-                    'expires_in'   => $expiresIn, 
+                    'expires_in' => $expiresIn,
                 ],
-                'expires_at' => $expiresAt->toIso8601String(),
-                'data'       => $userDataArray,
             ])
             ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
             ->cookie('user_info', $userDataJson, $expiration);

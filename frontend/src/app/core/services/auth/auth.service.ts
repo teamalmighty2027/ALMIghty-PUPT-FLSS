@@ -101,18 +101,21 @@ export class AuthService {
       .post<any>(`${this.baseUrl}/auth/callback`, payload)
       .pipe(
         switchMap((response) => {
-          /**
-           * Extract token and user data from backend response.
-           */
+          // Extract token and user data from backend response.
           const token = response.token;
-          const user = response.data;
+          const user = response.user;
+          const idp = response.idp || {};
           const expiresAt = response.expires_at || null;
 
-          if (!token?.access_token) {
+          if (!token) {
+            throw new Error('No token received');
+          }
+
+          if (!idp?.access_token) {
             throw new Error('No access token received');
           }
 
-          if (!token?.expires_in) {
+          if (!idp?.expires_in) {
             throw new Error('No token expiry received');
           }
 
@@ -120,22 +123,20 @@ export class AuthService {
             throw new Error('No user role received from backend');
           }
 
-          /**
-           * Calculate expiry date for fallback when backend omits it.
-           */
-          const expiresIn = token.expires_in || 3600;
+          
+          // Calculate expiry date for fallback when backend omits it.
+           
+          const expiresIn = idp.expires_in || 3600;
           const fallbackExpiresAt =
             this.getExpiresAtIsoFromSeconds(expiresIn);
           const normalizedExpiresAt = expiresAt || fallbackExpiresAt;
 
-          /**
-           * Store user data and Sanctum token for Authorization header.
-           */
-          this.setUserData(response.data, normalizedExpiresAt);
-          localStorage.setItem('token', response.token?.token || '');
+          // Store user data and Sanctum token for Authorization header.          
+          this.setUserData(response.user, normalizedExpiresAt);
+          localStorage.setItem('token', response.token || '');
           this.setIdpToken(
-            token.access_token,
-            token.refresh_token || null,
+            idp.access_token,
+            idp.refresh_token || null,
             expiresIn,
           );
 
@@ -158,9 +159,7 @@ export class AuthService {
       return of(null);
     }
 
-    /**
-     * Send access token in request body to avoid Sanctum middleware checks.
-     */
+    // Send access token in request body to avoid Sanctum middleware checks.
     return this.http
       .post(`${this.baseUrl}/auth/session`, {
         idp_token: cookieToken,
@@ -306,9 +305,7 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-    /**
-     * Explicitly set flags for production HTTPS compatibility.
-     */
+    // Explicitly set flags for production HTTPS compatibility.
     const cookieOptions = {
       expires: expiryDate,
       path: '/',
@@ -366,9 +363,7 @@ export class AuthService {
       this.cookieService.delete(cookieName, '/');
     });
 
-    /**
-     * Clear localStorage.
-     */
+    // Clear localStorage.
     localStorage.removeItem('oauth_state');
     localStorage.removeItem('user_data');
     localStorage.removeItem('token');
@@ -454,9 +449,7 @@ export class AuthService {
   setUserData(user: any, expiresAt?: string | null): void {
     const resolvedExpiresAt = expiresAt || user.expires_at || null;
 
-    /**
-     * Only store non-sensitive user info in cache.
-     */
+    // Only store non-sensitive user info in cache.
     this.userDataCache = {
       id: user.id,
       name: user.name,
@@ -470,9 +463,7 @@ export class AuthService {
       is_full_access: user.is_full_access !== false,
       expires_at: resolvedExpiresAt,
     };
-    /**
-     * Save to localStorage (not cookies) for page reloads.
-     */
+    // Save userData to localStorage for page reloads.
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(resolvedExpiresAt);
   }
