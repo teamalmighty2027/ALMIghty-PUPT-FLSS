@@ -37,16 +37,20 @@ export class AuthService {
   private userDataCache: any = null;
   private sessionTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  // Wire up auth dependencies.
+  /**
+   * Wire up auth dependencies.
+   */
   constructor(
     private http: HttpClient,
     private cookieService: CookieService,
     private router: Router,
   ) {}
 
-  // ==============================
-  // IDP auth methods
-  // ==============================
+  /**
+   * ==============================
+   * IDP auth methods
+   * ==============================
+   */
 
   /**
    * Check if the IDP authorize endpoint is reachable.
@@ -97,7 +101,9 @@ export class AuthService {
       .post<any>(`${this.baseUrl}/auth/callback`, payload)
       .pipe(
         switchMap((response) => {
-          // Extract token and user data from backend response.
+          /**
+           * Extract token and user data from backend response.
+           */
           const token = response.token;
           const user = response.data;
           const expiresAt = response.expires_at || null;
@@ -114,13 +120,17 @@ export class AuthService {
             throw new Error('No user role received from backend');
           }
 
-          // Calculate expiry date for fallback when backend omits it.
+          /**
+           * Calculate expiry date for fallback when backend omits it.
+           */
           const expiresIn = token.expires_in || 3600;
           const fallbackExpiresAt =
             this.getExpiresAtIsoFromSeconds(expiresIn);
           const normalizedExpiresAt = expiresAt || fallbackExpiresAt;
 
-          // Store user data and Sanctum token for Authorization header.
+          /**
+           * Store user data and Sanctum token for Authorization header.
+           */
           this.setUserData(response.data, normalizedExpiresAt);
           localStorage.setItem('token', response.token?.token || '');
           this.setIdpToken(
@@ -148,7 +158,9 @@ export class AuthService {
       return of(null);
     }
 
-    // Send access token in request body to avoid Sanctum middleware checks.
+    /**
+     * Send access token in request body to avoid Sanctum middleware checks.
+     */
     return this.http
       .post(`${this.baseUrl}/auth/session`, {
         idp_token: cookieToken,
@@ -161,9 +173,11 @@ export class AuthService {
       );
   }
 
-  // ==============================
-  // Internal FLSS auth methods
-  // ==============================
+  /**
+   * ==============================
+   * Internal FLSS auth methods
+   * ==============================
+   */
   /**
    * Call the FLSS login endpoint.
    */
@@ -194,9 +208,11 @@ export class AuthService {
     );
   }
 
-  // ==============================
-  // Password Reset methods
-  // ==============================
+  /**
+   * ==============================
+   * Password Reset methods
+   * ==============================
+   */
   /**
    * Request a password reset email.
    */
@@ -231,9 +247,11 @@ export class AuthService {
     });
   }
 
-  // ==============================
-  // Password management methods
-  // ==============================
+  /**
+   * ==============================
+   * Password management methods
+   * ==============================
+   */
   /**
    * Change the current user's password.
    */
@@ -249,10 +267,14 @@ export class AuthService {
     });
   }
 
-  // ==============================
-  // Helper methods
-  // ==============================
-  // Generate a random string for OAuth-like flows.
+  /**
+   * ==============================
+   * Helper methods
+   * ==============================
+   */
+  /**
+   * Generate a random string for OAuth-like flows.
+   */
   private generateRandomState(): string {
     const array = new Uint32Array(8);
     crypto.getRandomValues(array);
@@ -261,15 +283,21 @@ export class AuthService {
     );
   }
 
-  // ==============================
-  // Cookies handling methods
-  // ==============================
-  // Read the stored Sanctum token.
+  /**
+   * ==============================
+   * Cookies handling methods
+   * ==============================
+   */
+  /**
+   * Read the stored Sanctum token.
+   */
   getToken(): string {
     return localStorage.getItem('token') || '';
   }
 
-  // Store IDP tokens in secure cookies.
+  /**
+   * Store IDP tokens in secure cookies.
+   */
   private setIdpToken(
     access_token: string,
     refresh_token: string | null,
@@ -278,7 +306,9 @@ export class AuthService {
     const expiryDate = new Date();
     expiryDate.setSeconds(expiryDate.getSeconds() + expiresIn);
 
-    // Explicitly set flags for production HTTPS compatibility.
+    /**
+     * Explicitly set flags for production HTTPS compatibility.
+     */
     const cookieOptions = {
       expires: expiryDate,
       path: '/',
@@ -293,10 +323,14 @@ export class AuthService {
     }
   }
 
-  // Store Sanctum token in a cookie for HTTP-only paths.
+  /**
+   * Store Sanctum token in a cookie for HTTP-only paths.
+   */
   setSanctumToken(sanctumToken: string, expiresAt: string): void {
     const expiryDate = new Date(expiresAt);
-    // Store Sanctum token as the main token.
+    /**
+     * Store Sanctum token as the main token.
+     */
     this.cookieService.set('token', sanctumToken, {
       expires: expiryDate,
       path: '/',
@@ -305,7 +339,9 @@ export class AuthService {
     });
   }
 
-  // Clear auth cookies, storage, and session timers.
+  /**
+   * Clear auth cookies, storage, and session timers.
+   */
   clearCookies(): void {
     this.clearSessionTimeout();
     const cookiesToClear = [
@@ -330,7 +366,9 @@ export class AuthService {
       this.cookieService.delete(cookieName, '/');
     });
 
-    // Clear localStorage.
+    /**
+     * Clear localStorage.
+     */
     localStorage.removeItem('oauth_state');
     localStorage.removeItem('user_data');
     localStorage.removeItem('token');
@@ -339,7 +377,9 @@ export class AuthService {
     this.userDataCache = null;
   }
 
-  // Handle login and persist user data on success.
+  /**
+   * Handle login and persist user data on success.
+   */
   handleLogin(
     email: string,
     password: string,
@@ -359,7 +399,9 @@ export class AuthService {
     );
   }
 
-  // Normalize errors for login responses.
+  /**
+   * Normalize errors for login responses.
+   */
   private handleLoginError(error: any): string {
     let errorMessage = '';
     if (error.error?.message) {
@@ -380,7 +422,9 @@ export class AuthService {
     return errorMessage;
   }
 
-  // Provide fallback messages for common status codes.
+  /**
+   * Provide fallback messages for common status codes.
+   */
   private getDefaultErrorMessage(status: number): string {
     switch (status) {
       case 401:
@@ -404,11 +448,15 @@ export class AuthService {
     }
   }
 
-  // Store safe user data and track session expiration.
+  /**
+   * Store safe user data and track session expiration.
+   */
   setUserData(user: any, expiresAt?: string | null): void {
     const resolvedExpiresAt = expiresAt || user.expires_at || null;
 
-    // Only store non-sensitive user info in cache.
+    /**
+     * Only store non-sensitive user info in cache.
+     */
     this.userDataCache = {
       id: user.id,
       name: user.name,
@@ -422,12 +470,16 @@ export class AuthService {
       is_full_access: user.is_full_access !== false,
       expires_at: resolvedExpiresAt,
     };
-    // Save to localStorage (not cookies) for page reloads.
+    /**
+     * Save to localStorage (not cookies) for page reloads.
+     */
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(resolvedExpiresAt);
   }
 
-  // Get cached user data, clearing it if expired.
+  /**
+   * Get cached user data, clearing it if expired.
+   */
   getUserData(): any {
     if (!this.userDataCache) {
       const rawData = localStorage.getItem('user_data') || '{}';
@@ -442,70 +494,96 @@ export class AuthService {
     return this.userDataCache;
   }
 
-  // Read the current user id.
+  /**
+   * Read the current user id.
+   */
   getUserId(): string {
     return this.getUserData().id;
   }
 
-  // Read the current user role.
+  /**
+   * Read the current user role.
+   */
   getUserRole(): string {
     return this.getUserData().role;
   }
 
-  // Read the current user roles list.
+  /**
+   * Read the current user roles list.
+   */
   getUserRoles(): string[] {
     const roles = this.getUserData().roles || [this.getUserData().role];
     return roles.filter((r: string) => !!r);
   }
 
-  // Read the current user display name.
+  /**
+   * Read the current user display name.
+   */
   getUserName(): string {
     return this.getUserData().name;
   }
 
-  // Read the current user email.
+  /**
+   * Read the current user email.
+   */
   getUserEmail(): string {
     return this.getUserData().email;
   }
 
-  // Read the user code for display or filtering.
+  /**
+   * Read the user code for display or filtering.
+   */
   getUserCode(): string {
     return this.getUserData().code || '';
   }
 
-  // Read the current user's faculty id, if any.
+  /**
+   * Read the current user's faculty id, if any.
+   */
   getUserFacultyId(): string {
     const faculty = this.getUserData().faculty;
     return faculty?.faculty_id ?? '';
   }
 
-  // Read the current user's permissions.
+  /**
+   * Read the current user's permissions.
+   */
   getPermissions(): string[] {
     return this.getUserData().permissions || [];
   }
 
-  // Check if the user has a specific permission key.
+  /**
+   * Check if the user has a specific permission key.
+   */
   hasPermission(key: string): boolean {
     const permissions = this.getPermissions();
     return permissions.includes(key);
   }
 
-  // Read the list of program ids the user can access.
+  /**
+   * Read the list of program ids the user can access.
+   */
   getAllowedPrograms(): number[] {
     return this.getUserData().allowed_programs || [];
   }
 
-  // Check if the user has full program access.
+  /**
+   * Check if the user has full program access.
+   */
   isFullProgramAccess(): boolean {
     return this.getUserData().is_full_access !== false;
   }
 
-  // Return true when a non-expired session exists.
+  /**
+   * Return true when a non-expired session exists.
+   */
   isAuthenticated(): boolean {
     return !!this.getUserData().id && !this.isTokenExpired();
   }
 
-  // Return true when the stored expiration has passed.
+  /**
+   * Return true when the stored expiration has passed.
+   */
   isTokenExpired(): boolean {
     const expiresAtMs = this.getExpiresAtMs();
 
@@ -516,13 +594,17 @@ export class AuthService {
     return Date.now() >= expiresAtMs;
   }
 
-  // Expire the local session without backend refresh.
+  /**
+   * Expire the local session without backend refresh.
+   */
   expireSession(): void {
     this.clearCookies();
     this.router.navigate(['/login']);
   }
 
-  // Parse the stored expiration into a timestamp.
+  /**
+   * Parse the stored expiration into a timestamp.
+   */
   private getExpiresAtMs(): number | null {
     const data = this.userDataCache
       ? this.userDataCache
@@ -538,7 +620,9 @@ export class AuthService {
     return Number.isNaN(parsed) ? null : parsed;
   }
 
-  // Schedule a timer to clear the session at expiration time.
+  /**
+   * Schedule a timer to clear the session at expiration time.
+   */
   private scheduleSessionExpiry(expiresAt?: string | null): void {
     this.clearSessionTimeout();
 
@@ -564,7 +648,9 @@ export class AuthService {
     }, timeoutMs);
   }
 
-  // Cancel any pending session expiry timer.
+  /**
+   * Cancel any pending session expiry timer.
+   */
   private clearSessionTimeout(): void {
     if (!this.sessionTimeoutId) {
       return;
@@ -574,7 +660,9 @@ export class AuthService {
     this.sessionTimeoutId = null;
   }
 
-  // Build an ISO string from the current time plus seconds.
+  /**
+   * Build an ISO string from the current time plus seconds.
+   */
   private getExpiresAtIsoFromSeconds(expiresIn: number): string {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + expiresIn);
