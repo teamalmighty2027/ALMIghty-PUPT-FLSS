@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -51,9 +52,9 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $tokenResult = $user->createToken('user-token');
-        $token       = $tokenResult->plainTextToken;
-        $expiration  = Carbon::now()->addHours(24);
+        $expiration = Carbon::now()->addHours(24);
+        $tokenResult = $user->createToken('user-token', ['*'], $expiration);
+        $token = $tokenResult->plainTextToken;
 
         $faculty = $user->faculty;
 
@@ -94,7 +95,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message'    => 'Login successful.',
-            'expires_at' => $expiration,
+            'expires_at' => $expiration->toIso8601String(),
             'token'      => $token,
             'user'       => json_decode($userData, true),
         ])
@@ -165,6 +166,58 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Your password has been changed successfully.',
         ]);
+    }
+
+    /**
+     * Refreshes the user's token by validating the existing token 
+     * and issuing a new one with extended expiration.
+     */
+    public function refreshToken(Request $request)
+    {
+        $plainTextToken = $this->getPlainTextToken($request);
+
+        if (! $plainTextToken) {
+            return response()->json([
+                'message' => 'Missing token.',
+            ], 401);
+        }
+
+        $accessToken = PersonalAccessToken::findToken($plainTextToken);
+
+        if (! $accessToken) {
+            return response()->json([
+                'message' => 'Invalid token.',
+            ], 401);
+        }
+
+        if ($accessToken->expires_at && Carbon::now()->greaterThan($accessToken->expires_at)) {
+            $accessToken->delete();
+
+            return response()->json([
+                'message' => 'Token expired.',
+            ], 401);
+        }
+
+        $user = $accessToken->tokenable;
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $expiration = Carbon::now()->addHours(24);
+        $tokenResult = $user->createToken('user-token', ['*'], $expiration);
+        $newToken = $tokenResult->plainTextToken;
+
+        $accessToken->delete();
+
+        return response()->json([
+            'message' => 'Token refreshed.',
+            'token' => $newToken,
+            'expires_at' => $expiration->toIso8601String(),
+        ])
+        ->cookie('token', $newToken, 1440, null, null, true, true);
     }
 
     //
@@ -288,12 +341,13 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            $tokenResult = $user->createToken('iDP-user-token');
-            $sanctumToken = $tokenResult->plainTextToken;
-
             // Use IDP token expiry for Sanctum token expiry
             $expiresIn = $token['expires_in'] ?? 3600;
+            $expiresAt = Carbon::now()->addSeconds($expiresIn);
             $expiration = (int) ceil($expiresIn / 60);
+
+            $tokenResult = $user->createToken('iDP-user-token', ['*'], $expiresAt);
+            $sanctumToken = $tokenResult->plainTextToken;
 
             // Get permissions and allowed programs for response
             $permissions = $user->permissions->pluck('permission_key')->toArray();
@@ -340,6 +394,7 @@ class AuthController extends Controller
                     'refresh_token' => $token['refresh_token'] ?? null,
                     'expires_in'   => $expiresIn, 
                 ],
+                'expires_at' => $expiresAt->toIso8601String(),
                 'data'       => $userDataArray,
             ])
             ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
@@ -414,5 +469,22 @@ class AuthController extends Controller
                 'message' => 'IDP logout proxy failed.',
             ], 502);
         }
+    }
+
+    /**
+     * Helper function to extract the plain text token from 
+     * either the Authorization header or cookies.
+     */
+    private function getPlainTextToken(Request $request): ?string
+    {
+        $bearerToken = $request->bearerToken();
+
+        if ($bearerToken) {
+            return $bearerToken;
+        }
+
+        $cookieToken = $request->cookie('token') ?? $request->cookie('user_token');
+
+        return $cookieToken ?: null;
     }
 }

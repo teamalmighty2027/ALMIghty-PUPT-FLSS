@@ -41,7 +41,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'token.expiration'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 });
@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
  */
 Route::prefix('auth')->group(function () {
     Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+    Route::post('/refresh', [AuthController::class, 'refreshToken']);
     Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
 });
 
@@ -64,7 +65,7 @@ Route::post('/password/verify-token', [PasswordResetController::class, 'verifyTo
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'token.expiration', 'super_admin'])->group(function () {
     Route::get('/showAccounts', [AccountController::class, 'index']);
     Route::post('/addAccount', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
@@ -105,7 +106,7 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 | General Protected Routes
 |--------------------------
  */
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'token.expiration'])->group(function () {
 
     /**
      * Academic Year
