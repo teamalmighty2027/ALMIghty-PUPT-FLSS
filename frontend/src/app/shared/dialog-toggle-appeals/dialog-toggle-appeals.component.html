@@ -1,58 +1,82 @@
-<div class="dialog-action-container" style="padding: 24px;">
-  <h2 mat-dialog-title style="margin: 0 0 16px 0; color: #7d1f1f; font-weight: 600;">
+<div class="dialog-action-container">
+  <!-- Dialog Title -->
+  <h2 mat-dialog-title class="dialog-title">
+    <span mat-symbol="{{ data.currentState ? 'block' : 'event_available' }}"></span>
     {{ data.currentState ? 'Disable Appeals Submission' : 'Enable Appeals Submission' }}
   </h2>
 
-  <div mat-dialog-content>
-    <div style="display: flex; flex-direction: column; gap: 16px;">
-        <mat-form-field appearance="fill" style="width: 100%;">
-            <mat-label>Start Date</mat-label>
-            <input matInput 
-                [matDatepicker]="startPicker" 
-                [min]="minDate" 
-                [(ngModel)]="startDate" 
-                [disabled]="data.currentState"
-                (dateChange)="onStartDateChange($event)" 
-                readonly required 
-                (click)="!data.currentState && startPicker.open()" />
-            <mat-datepicker-toggle matIconSuffix [for]="startPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
-            <mat-datepicker #startPicker></mat-datepicker>
-        </mat-form-field>
+  <!-- Dialog Content -->
+  <div mat-dialog-content class="dialog-content">
+    <div class="date-fields-container">
+      <mat-form-field appearance="fill">
+        <mat-label>Start Date</mat-label>
+        <input
+          matInput
+          [matDatepicker]="startPicker"
+          [min]="minDate"
+          [(ngModel)]="startDate"
+          [disabled]="data.currentState"
+          (dateChange)="onStartDateChange($event)"
+          readonly
+          required
+          (click)="!data.currentState && startPicker.open()"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="startPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
+        <mat-datepicker #startPicker></mat-datepicker>
+      </mat-form-field>
 
-        <mat-form-field appearance="fill" style="width: 100%;">
-            <mat-label>End Date</mat-label>
-            <input matInput 
-                [matDatepicker]="endPicker" 
-                [min]="startDate || minDate" 
-                [(ngModel)]="endDate" 
-                [disabled]="data.currentState"
-                readonly required 
-                (click)="!data.currentState && endPicker.open()" />
-            <mat-datepicker-toggle matIconSuffix [for]="endPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
-            <mat-datepicker #endPicker></mat-datepicker>
-        </mat-form-field>
+      <mat-form-field appearance="fill">
+        <mat-label>End Date</mat-label>
+        <input
+          matInput
+          [matDatepicker]="endPicker"
+          [min]="startDate || minDate"
+          [(ngModel)]="endDate"
+          [disabled]="data.currentState"
+          readonly
+          required
+          (click)="!data.currentState && endPicker.open()"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="endPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
+        <mat-datepicker #endPicker></mat-datepicker>
+      </mat-form-field>
     </div>
 
+    <!-- Alert banner for disabling -->
     @if (data.currentState) {
-      <div style="margin-top: 16px; padding: 12px; background-color: #f8d7da; color: #721c24; border-radius: 4px; font-size: 14px;">
-        This will <strong>immediately</strong> disable the appeals submission and bypass the currently set deadline.
-      </div>
+    <div class="info-banner">
+      <span mat-symbol="warning"></span>
+      <span>
+        This will <strong>immediately</strong> disable appeals submission and bypass the currently set deadline.
+      </span>
+    </div>
     }
 
+    <!-- Email Notification checkbox -->
     @if (!data.currentState) {
-      <div style="margin-top: 16px;">
-        <mat-checkbox [(ngModel)]="sendEmail" color="primary">
-          Send notification email to {{ data.type === 'all_appeals' ? 'all faculty members' : data.facultyName }}
-        </mat-checkbox>
-      </div>
+    <div class="checkbox-container">
+      <mat-checkbox [(ngModel)]="sendEmail" color="primary" class="email-checkbox">
+        <div class="checkbox-content">
+          <span mat-symbol="email"></span>
+          <span>
+            Send notification email to
+            {{ data.type === 'all_appeals' ? 'all faculty members' : data.facultyName }}
+          </span>
+        </div>
+      </mat-checkbox>
+    </div>
     }
   </div>
 
-  <div mat-dialog-actions align="end" style="margin-top: 16px;">
-    <button mat-button (click)="close()" style="color: #666;">Cancel</button>
-    <button mat-flat-button color="primary" (click)="confirm()" 
-            [disabled]="!data.currentState && (!startDate || !endDate)" 
-            style="background-color: #7d1f1f; color: white;">
+  <!-- Dialog Actions -->
+  <div mat-dialog-actions class="dialog-buttons">
+    <button mat-button (click)="close()" class="close-button">Cancel</button>
+    <button
+      mat-flat-button
+      class="action-button"
+      (click)="confirm()"
+      [disabled]="!data.currentState && (!startDate || !endDate)"
+    >
       Confirm
     </button>
   </div>
