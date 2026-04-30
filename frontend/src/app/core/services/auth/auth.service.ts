@@ -590,7 +590,9 @@ export class AuthService {
    */
   expireSession(): void {
     this.clearCookies();
-    this.router.navigate(['/login']);
+    this.router.navigate(['/login'], {
+      queryParams: { reason: 'session-expired' },
+    });
   }
 
   /**
