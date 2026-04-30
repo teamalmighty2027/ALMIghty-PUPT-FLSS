@@ -165,7 +165,7 @@
 }
 
 .faculty-code { flex: 0 0 210px; }
-.program-id   { flex: 0 0 180px; }
+.department   { flex: 0 0 180px; }
 .birthdate    { flex: 0 0 210px; }
 .sex          { flex: 0 0 180px; }
 
@@ -189,10 +189,17 @@
   border-radius: 50%;
   @include mixins.flex-layout();
   border: 1px solid var(--m3-neutral-90);
+  overflow: hidden; /* Added to keep image perfectly round */
   
   span[mat-symbol] {
     font-size: 60px;
     color: var(--sienna-primary-color);
+  }
+
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image fills the circle without stretching */
   }
 }
 
@@ -325,7 +332,7 @@
   }
 
   .faculty-code, 
-  .program-id, 
+  .department, 
   .birthdate, 
   .sex, 
   .form-control-group {
@@ -359,10 +366,6 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   }
 
-  .page-header h1 {
-    /* Keeping as var(--sienna-primary-color) */
-  }
-  
   .page-header p,
   .form-control-group label,
   .field-group label {

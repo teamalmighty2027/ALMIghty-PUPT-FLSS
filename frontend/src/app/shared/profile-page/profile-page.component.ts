@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-// Ensure your path to the service is correct
 import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service'; 
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -18,6 +17,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 export class ProfilePageComponent implements OnInit {
   profileForm!: FormGroup;
   isLoading = false;
+  selectedFile: File | null = null;
+  profilePictureUrl: string | null = null; // Holds the preview/current image
 
   constructor(
     private fb: FormBuilder,
@@ -37,15 +38,11 @@ export class ProfilePageComponent implements OnInit {
       last_name: ['', Validators.required],
       suffix_name: [''],
       email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
-      
-      // Removed the 'disabled: true' lock here so you can edit the code
-      code: [''], 
+      code: [{ value: '', disabled: true }], 
       faculty_profile_id: [{ value: '', disabled: true }],
-      program_id: [''],
-
+      department: [''], // <-- Changed from program_id
       birthdate: [''], 
       sex: [''],
-      
       house_num: [''],
       street: [''],
       barangay: [''],
@@ -58,7 +55,7 @@ export class ProfilePageComponent implements OnInit {
 
   loadProfileData(): void {
     this.isLoading = true;
-    this.profileForm.disable(); // Prevent editing while loading
+    this.profileForm.disable(); 
 
     this.facultyService.getProfile().subscribe({
       next: (data) => {
@@ -67,10 +64,10 @@ export class ProfilePageComponent implements OnInit {
           sex: data.sex || '' 
         };
         
-        // patchValue automatically maps the JSON keys to your form controls
-        this.profileForm.patchValue(data);
+        this.profilePictureUrl = data.profile_picture_url || null; // Load existing image
         
-        // Re-enable form, but keep specific fields locked (Notice 'code' is NOT locked anymore)
+        this.profileForm.patchValue(formData);
+        
         this.profileForm.enable();
         this.profileForm.get('email')?.disable();
         this.profileForm.get('faculty_profile_id')?.disable();
@@ -84,14 +81,47 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  onFileSelected(event: any): void {
+    const file = event.target.files[0];
+    if (file) {
+      this.selectedFile = file;
+      
+      // Show image preview locally before saving
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        this.profilePictureUrl = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
   onSubmit(): void {
     if (this.profileForm.valid) {
       this.isLoading = true;
-      const payload = this.profileForm.value; 
+      const formData = new FormData();
       
-      this.facultyService.updateProfile(payload).subscribe({
+      // Get all raw values (including disabled if you need them, but mostly standard value is fine)
+      const formValues = this.profileForm.getRawValue(); 
+
+      // Append standard text fields to FormData
+      Object.keys(formValues).forEach(key => {
+        if (formValues[key] !== null && formValues[key] !== '') {
+          formData.append(key, formValues[key]);
+        }
+      });
+
+      // Append the file if a new one was selected
+      if (this.selectedFile) {
+        formData.append('profile_picture', this.selectedFile);
+      }
+      
+      this.facultyService.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
+          // Update URL in case backend returned the new finalized path
+          if (response.profile_picture_url) {
+             this.profilePictureUrl = response.profile_picture_url;
+          }
           
           this.snackBar.open('Profile updated successfully!', 'Close', {
             duration: 3000, 
@@ -103,7 +133,6 @@ export class ProfilePageComponent implements OnInit {
         error: (err: HttpErrorResponse) => {
           this.isLoading = false;
           console.error('Update failed', err);
-          
           this.snackBar.open('Failed to update profile. Please try again.', 'Close', {
             duration: 4000,
             panelClass: ['error-snackbar']
