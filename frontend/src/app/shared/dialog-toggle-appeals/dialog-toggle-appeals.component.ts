@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
+import { MatSymbolDirective } from '../../imports/mat-symbol.directive';
 
 // 1. The custom adapter (Notice the @Injectable decorator here)
 @Injectable()
@@ -50,7 +51,8 @@ export const MY_DATE_FORMATS = {
     MatFormFieldModule,
     MatInputModule,
     MatCheckboxModule,
-    MatIconModule
+    MatIconModule,
+    MatSymbolDirective
   ],
   providers: [
     { provide: DateAdapter, useClass: CustomDateAdapter },
