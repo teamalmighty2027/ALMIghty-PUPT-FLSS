@@ -13,7 +13,11 @@ import { DialogActionComponent, DialogActionData } from '../../../../shared/dial
 import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
-import { OverviewService, OverviewDetails, RequestNotification as BaseRequestNotification } from '../../../services/admin/overview/overview.service';
+import { 
+  OverviewService, 
+  OverviewDetails, 
+  RequestNotification as BaseRequestNotification 
+} from '../../../services/admin/overview/overview.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; 
 import { AuthService } from '../../../services/auth/auth.service';
@@ -21,7 +25,9 @@ import { PermissionService } from '../../../services/permission/permission.servi
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
 import { CommonModule, formatDate } from '@angular/common';
-import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+import { 
+  DialogToggleAppealsComponent 
+} from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 interface CurriculumInfo {
   curriculum_id: number;
@@ -101,28 +107,44 @@ export class OverviewComponent implements OnInit, OnDestroy {
     private router: Router
   ) {}
 
+  /**
+   * Initializes the component by fetching admin info, checking permissions, and loading data.
+   */
   ngOnInit(): void {
     this.initializeAdminInfo();
     this.checkPermissions();
     this.loadAllData();
   }
 
+  /**
+   * Checks and updates the user's administrative permissions.
+   */
   private checkPermissions(): void {
     this.canEditPreferences = this.permissionService.canEditFacultyPreferences();
     this.canAssignSchedules = this.permissionService.canAssignSchedules();
     this.canViewReports = this.permissionService.canViewReports();
   }
 
+  /**
+   * Cleans up the component by completing the destroy subject.
+   */
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Retrieves and formats the administrator's name from the auth service.
+   */
   private initializeAdminInfo(): void {
     const fullName = this.authService.getUserName();
     this.adminName = fullName.split(' ')[0];
   }
 
+  /**
+   * Fetches overview details and notifications from the service.
+   * @param resetAnimation boolean
+   */
   private loadAllData(resetAnimation = true): void {
     this.isLoading = true;
     this.notificationsLoaded = false;
@@ -161,6 +183,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Processes fetched overview data and updates metrics.
+   * @param data OverviewDetails
+   * @param resetAnimation boolean
+   */
   private handleOverviewData(
     data: OverviewDetails,
     resetAnimation: boolean
@@ -181,6 +208,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Updates the component's basic academic and status information.
+   * @param data any
+   */
   private updateBasicInfo(data: any): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
@@ -196,6 +227,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.globalStartDate = data.global_start_date || null;
   }
 
+  /**
+   * Resets all progress indicators to zero.
+   */
   private resetProgressMetrics(): void {
     this.preferencesProgress = 0;
     this.schedulingProgress = 0;
@@ -203,6 +237,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.publishProgress = 0;
   }
 
+  /**
+   * Updates the progress metric values from the provided data.
+   * @param data OverviewDetails
+   */
   private updateProgressMetrics(data: OverviewDetails): void {
     this.preferencesProgress = data.preferencesProgress;
     this.schedulingProgress = data.schedulingProgress;
@@ -210,11 +248,21 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.publishProgress = data.publishProgress;
   }
 
+  /**
+   * Calculates the SVG dash-offset for progress circles.
+   * @param percentage number
+   * @returns number
+   */
   getCircleOffset(percentage: number): number {
     const circumference = 2 * Math.PI * 45;
     return circumference - (percentage / 100) * circumference;
   }
 
+  /**
+   * Formats the semester ID into a human-readable label.
+   * @param semester any
+   * @returns string
+   */
   formatSemester(semester: any): string {
     if (!semester || semester === 'None') return 'None';
 
@@ -231,6 +279,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // Toggle Methods
   // ================
 
+  /**
+   * Opens the dialog to enable or disable global preferences submission.
+   */
   togglePreferencesSubmission(): void {
     if (!this.canEditPreferences) {
       this.showNoPermissionMessage();
@@ -256,6 +307,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the dialog to publish or unpublish faculty schedules.
+   */
   togglePublishSchedules(): void {
     if (!this.canAssignSchedules) {
       this.showNoPermissionMessage();
@@ -285,6 +339,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the report generation dialog for academic schedules.
+   */
   generateReports(): void {
     if (!this.canViewReports) {
       this.showNoPermissionMessage();
@@ -302,6 +359,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Displays a snackbar message if no schedules exist, with a link to scheduling.
+   */
   private showSchedulingRedirectMessage(): void {
     const snackBarRef = this.snackBar.open(
       'No schedule has been made yet.',
@@ -317,6 +377,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // ======================
   // Request Action Methods
   // ======================
+  /**
+   * Handles approval of faculty access requests for preferences or appeals.
+   * @param request RequestNotification
+   */
   approveRequest(request: RequestNotification): void {
     if (!this.canEditPreferences) {
       this.showNoPermissionMessage();
@@ -326,7 +390,8 @@ export class OverviewComponent implements OnInit, OnDestroy {
     const isAppeal = request.request_type === 'appeal';
 
     if (isAppeal) {
-      // Helper function to safely parse SQL dates
+      // Pre-populates the dialog with existing dates if available 
+      // from the notification payload.
       const parseSqlDate = (dateStr: string | null | undefined) => 
         dateStr ? new Date(dateStr.replace(' ', 'T')) : null;
 
@@ -347,16 +412,22 @@ export class OverviewComponent implements OnInit, OnDestroy {
 
       dialogRef.afterClosed().subscribe((result) => {
         if (result) {
-          // THIS IS THE FIX: We must format the raw dates before sending to Laravel!
-          const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
-          const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+          // Format raw dates before sending to Laravel to ensure 
+          // MySQL compatibility (yyyy-MM-dd HH:mm:ss).
+          const formattedStart = result.startDate 
+            ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') 
+            : undefined;
+
+          const formattedEnd = result.endDate 
+            ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') 
+            : undefined;
 
           this.reschedulingService.toggleFacultyAppealAccess(
             request.faculty_id,
             true,
             this.activeSemesterId || 1,
-            formattedStart, // Pass the formatted MySQL string
-            formattedEnd,   // Pass the formatted MySQL string
+            formattedStart,
+            formattedEnd,
             result.sendEmail
           ).subscribe({
             next: () => {
@@ -400,6 +471,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Handles the rejection or cancellation of faculty access requests.
+   * @param request RequestNotification
+   */
   discardRequest(request: RequestNotification): void {
     if (!this.canEditPreferences) {
       this.showNoPermissionMessage();
@@ -442,6 +517,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Removes a notification from the local list with an animation.
+   * @param request RequestNotification
+   */
   private removeNotificationLocally(request: RequestNotification) {
     this.isAnimatingOut = true;
     this.requestNotifications = this.requestNotifications.filter(
@@ -455,6 +534,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }, 600);
   }
 
+  /**
+   * Restores a discarded notification to the list in case of an API error.
+   * @param discardedRequest RequestNotification
+   * @param error any
+   */
   private revertDiscard(discardedRequest: RequestNotification, error: any) {
     this.requestNotifications = [...this.requestNotifications, discardedRequest];
     this.cdr.detectChanges();
@@ -465,14 +549,25 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // Utility Methods
   // ================
 
+  /**
+   * Displays a success message in a snackbar.
+   * @param message string
+   */
   private showSuccessMessage(message: string): void {
     this.snackBar.open(message, 'Close', { duration: this.SNACKBAR_DURATION });
   }
 
+  /**
+   * Displays an error message in a snackbar.
+   * @param message string
+   */
   private showErrorMessage(message: string): void {
     this.snackBar.open(message, 'Close', { duration: this.SNACKBAR_DURATION });
   }
 
+  /**
+   * Displays a standardized "no permission" warning.
+   */
   private showNoPermissionMessage(): void {
     this.snackBar.open(
       'You do not have permission to perform this action.',
@@ -481,6 +576,11 @@ export class OverviewComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Returns an error handling function that logs and displays a message.
+   * @param errorMessage string
+   * @returns Function
+   */
   private handleError(errorMessage: string) {
     return (error: any) => {
       console.error('Operation failed:', error);
