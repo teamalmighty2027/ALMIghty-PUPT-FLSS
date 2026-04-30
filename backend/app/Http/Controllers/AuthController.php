@@ -16,6 +16,9 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    /**
+     * Handle login and issue a role-based session token.
+     */
     public function login(Request $request)
     {
         $loginUserData = $request->validate([
@@ -52,7 +55,8 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $expiration = Carbon::now()->addHours(24);
+        $expiration = $this->getRoleExpiration($user->role);
+        $cookieMinutes = $this->getCookieMinutes($expiration);
         $tokenResult = $user->createToken('user-token', ['*'], $expiration);
         $token = $tokenResult->plainTextToken;
 
@@ -82,8 +86,10 @@ class AuthController extends Controller
         ]);
 
         // Store the token and user info in cookies
-        Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
-        Cookie::queue(Cookie::make('user_info', $userData, 1440));
+        Cookie::queue(
+            Cookie::make('user_token', $token, $cookieMinutes, null, null, true, true)
+        );
+        Cookie::queue(Cookie::make('user_info', $userData, $cookieMinutes));
 
         // AuditLogger automatically grabs their Name, Role, and ID
         Auth::setUser($user);
@@ -99,9 +105,12 @@ class AuthController extends Controller
             'token'      => $token,
             'user'       => json_decode($userData, true),
         ])
-        ->cookie('token', $token, 1440, null, null, true, true);
+        ->cookie('token', $token, $cookieMinutes, null, null, true, true);
     }
 
+    /**
+     * Handle logout by revoking the current token and clearing cookies.
+     */
     public function logout(Request $request)
     {
         if ($request->user()) {
@@ -206,7 +215,8 @@ class AuthController extends Controller
             ], 401);
         }
 
-        $expiration = Carbon::now()->addHours(24);
+        $expiration = $this->getRoleExpiration($user->role);
+        $cookieMinutes = $this->getCookieMinutes($expiration);
         $tokenResult = $user->createToken('user-token', ['*'], $expiration);
         $newToken = $tokenResult->plainTextToken;
 
@@ -217,7 +227,7 @@ class AuthController extends Controller
             'token' => $newToken,
             'expires_at' => $expiration->toIso8601String(),
         ])
-        ->cookie('token', $newToken, 1440, null, null, true, true);
+        ->cookie('token', $newToken, $cookieMinutes, null, null, true, true);
     }
 
     //
@@ -341,10 +351,14 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            // Use IDP token expiry for Sanctum token expiry
+            // Use the earlier of IDP expiry and role-based expiry.
             $expiresIn = $token['expires_in'] ?? 3600;
-            $expiresAt = Carbon::now()->addSeconds($expiresIn);
-            $expiration = (int) ceil($expiresIn / 60);
+            $idpExpiresAt = Carbon::now()->addSeconds($expiresIn);
+            $roleExpiresAt = $this->getRoleExpiration($user->role);
+            $expiresAt = $idpExpiresAt->lessThan($roleExpiresAt)
+                ? $idpExpiresAt
+                : $roleExpiresAt;
+            $expiration = $this->getCookieMinutes($expiresAt);
 
             $tokenResult = $user->createToken('iDP-user-token', ['*'], $expiresAt);
             $sanctumToken = $tokenResult->plainTextToken;
@@ -486,5 +500,27 @@ class AuthController extends Controller
         $cookieToken = $request->cookie('token') ?? $request->cookie('user_token');
 
         return $cookieToken ?: null;
+    }
+
+    /**
+     * Resolve the role-based session expiration.
+     */
+    private function getRoleExpiration(string $role): Carbon
+    {
+        if ($role === 'admin' || $role === 'superadmin') {
+            return Carbon::now()->addDays(5);
+        }
+
+        return Carbon::now()->addHours(24);
+    }
+
+    /**
+     * Convert an expiration into cookie minutes.
+     */
+    private function getCookieMinutes(Carbon $expiresAt): int
+    {
+        $seconds = Carbon::now()->diffInSeconds($expiresAt);
+
+        return (int) ceil($seconds / 60);
     }
 }
