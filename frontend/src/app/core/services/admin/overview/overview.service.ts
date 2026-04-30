@@ -6,6 +6,9 @@ import { environment } from '../../../../../environments/environment.dev';
 export interface RequestNotification {
   faculty_id: number;
   faculty_name: string;
+  request_type?: 'preference' | 'appeal';
+  appeal_start_date?: string | null;
+  appeal_end_date?: string | null;
 }
 
 export interface OverviewDetails {

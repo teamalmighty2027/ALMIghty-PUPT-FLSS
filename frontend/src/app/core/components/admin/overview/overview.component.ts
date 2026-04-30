@@ -326,6 +326,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     const isAppeal = request.request_type === 'appeal';
 
     if (isAppeal) {
+      // Helper function to safely parse SQL dates
+      const parseSqlDate = (dateStr: string | null | undefined) => 
+        dateStr ? new Date(dateStr.replace(' ', 'T')) : null;
+
       const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
         width: '500px',
         data: {
@@ -333,9 +337,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
           facultyName: request.faculty_name,
           academicYear: this.activeYear,
           semester: this.activeSemester,
-          currentState: false, // We are enabling access
-          startDate: null,
-          endDate: null
+          currentState: false,
+          startDate: parseSqlDate(request.appeal_start_date),
+          endDate: parseSqlDate(request.appeal_end_date)
         },
         disableClose: true,
         autoFocus: false

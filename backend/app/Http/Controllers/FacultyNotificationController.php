@@ -110,13 +110,21 @@ class FacultyNotificationController extends Controller
         $appealRequests = \App\Models\Faculty::query()
             ->join('users', 'faculty.user_id', '=', 'users.id')
             ->where('faculty.has_appeal_request', 1)
-            ->select('faculty.id as faculty_id', 'users.first_name', 'users.last_name')
+            ->select(
+                'faculty.id as faculty_id',
+                'faculty.appeal_start_date',
+                'faculty.appeal_end_date',
+                'users.first_name',
+                'users.last_name'
+            )
             ->get()
             ->map(function ($f) {
                 return [
                     'faculty_id' => $f->faculty_id,
                     'faculty_name' => "{$f->first_name} {$f->last_name}",
-                    'request_type' => 'appeal' // This tag tells the dashboard to show the orange badge
+                    'request_type' => 'appeal', // This tag tells the dashboard to show the orange badge
+                    'appeal_start_date' => $f->appeal_start_date,
+                    'appeal_end_date' => $f->appeal_end_date,
                 ];
             });
 
