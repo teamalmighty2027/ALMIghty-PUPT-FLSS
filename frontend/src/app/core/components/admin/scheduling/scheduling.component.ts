@@ -1338,10 +1338,17 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           }
 
           pref.active_semesters.forEach((semester) => {
-            semester.courses.forEach((course) => {
+            semester.courses.forEach((course: any) => {
               if (course.is_ignored) return;
-              
-              if (course.course_details.course_id === schedule.course_id) {
+
+              // Extract the section_id from the preference payload
+              const prefSectionId = course.section_details?.section_id;
+
+              // Check BOTH course_id AND section_id
+              if (
+                course.course_details.course_id === schedule.course_id &&
+                prefSectionId === sectionId
+              ) {
                 const existingFaculty = suggestedFaculty.find(
                   (f) => f.faculty_id === facultyDetails.faculty_id
                 );
@@ -1350,7 +1357,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                   faculty_id: facultyDetails.faculty_id,
                   name: pref.faculty_name,
                   type: facultyDetails.faculty_type,
-                  preferences: course.preferred_days.map((prefDay) => ({
+                  preferences: course.preferred_days.map((prefDay: any) => ({
                     day: prefDay.day,
                     time: `${this.formatTimeFromBackend(
                       prefDay.start_time
