@@ -55,6 +55,18 @@
   <!-- Dialog Content -->
   <div class="dialog-content">
     @if (facultySchedule) {
+    <!-- Schedule Summary -->
+    <div class="schedule-summary-bar" [@fadeAnimation]>
+      <div class="summary-item">
+        <span class="label">Total Units:</span>
+        <span class="value">{{ facultySchedule.assigned_units }} units</span>
+      </div>
+      <div class="summary-item">
+        <span class="label">Total Hours:</span>
+        <span class="value">{{ facultySchedule.total_hours }} hours</span>
+      </div>
+    </div>
+
     <app-faculty-schedule-timetable
       [facultySchedule]="facultySchedule"
       [showPreview]="false"></app-faculty-schedule-timetable>
