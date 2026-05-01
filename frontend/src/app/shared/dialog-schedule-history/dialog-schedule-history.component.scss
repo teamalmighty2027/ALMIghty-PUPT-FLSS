@@ -59,16 +59,16 @@
 .schedule-summary-bar {
   @include mixins.flex-layout($gap: var(--spacing-lg));
   padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--surface-container);
+  background: var(--neutral-extra);
   border-radius: var(--border-radius-md);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--neutral-border);
 
   .summary-item {
     @include mixins.flex-layout($gap: var(--spacing-xxs), $align: center);
     
     .label {
       font-size: var(--font-size-sm);
-      color: var(--text-secondary);
+      color: var(--neutral-button-lighter);
       font-weight: 500;
     }
 
@@ -82,10 +82,23 @@
 
 .no-schedule-message {
   height: 50vh;
-  @include mixins.flex-layout($gap: var(--spacing-xs));
+  @include mixins.flex-layout(
+    $direction: column,
+    $gap: var(--spacing-xs),
+    $align: center,
+    $justify: center
+  );
+  color: var(--neutral-button-lighter);
 
   span[mat-symbol] {
-    font-size: 100%;
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 500;
   }
 }
 
