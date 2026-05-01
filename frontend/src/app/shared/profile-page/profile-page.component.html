@@ -10,13 +10,21 @@
       <div class="left-section">
         <div class="avatar-container">
           <div class="profile-avatar">
-            <span mat-symbol>person</span>
+            <!-- Show Image if it exists, else show the default icon -->
+            <img *ngIf="profilePictureUrl" [src]="profilePictureUrl" alt="Profile Picture" class="avatar-img">
+            <span *ngIf="!profilePictureUrl" mat-symbol>person</span>
           </div>
+
+          <!-- Hidden file input -->
+          <input type="file" #fileInput hidden (change)="onFileSelected($event)" accept="image/*">
+          
+          <!-- Trigger button -->
           <button 
             type="button"
-            mat-flat-button 
-            class="preferences-btn">
-            Update Photo
+            class="maroon-btn"
+            style="margin-top: 10px;"
+            (click)="fileInput.click()">
+            Change Profile Picture
           </button>
         </div>
 
@@ -44,11 +52,12 @@
         <div class="compact-row">
           <div class="field-group faculty-code">
             <label>Faculty Code</label>
-            <input formControlName="code" class="pill-input" placeholder="e.g., 1234">
+            <!-- Add readonly attribute -->
+            <input formControlName="code" class="pill-input" placeholder="e.g., 1234" readonly>
           </div>
-          <div class="field-group program-id">
-            <label>Program ID</label>
-            <input formControlName="program_id" class="pill-input" placeholder="e.g., BSIT">
+          <div class="field-group department">
+            <label>Department</label>
+            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept">
           </div>
         </div>
 

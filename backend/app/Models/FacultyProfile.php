@@ -12,6 +12,7 @@ class FacultyProfile extends Model
 
     protected $fillable = [
         'faculty_id',
+        'profile_picture',
         'house_num',
         'street',
         'barangay',
@@ -19,50 +20,39 @@ class FacultyProfile extends Model
         'province',
         'country',
         'zipcode',
-        'program_id',
+        'department',
         'birthdate',
         'sex',
     ];
 
-    /**
-     * Get the faculty associated with this profile.
-     */
+    // Automatically append the full image URL when this model is fetched
+    protected $appends = ['profile_picture_url'];
+
     public function faculty()
     {
         return $this->belongsTo(Faculty::class, 'faculty_id', 'id');
     }
 
-    /**
-     * Get the program associated with this profile.
-     */
-    public function program()
-    {
-        return $this->belongsTo(Program::class, 'program_id', 'program_id');
-    }
+    // You can delete the program() relationship since program_id is gone
 
-    /**
-     * Format birthdate with robust null/type checking.
-     * Accessible as $model->birthday throughout the application.
-     */
     public function getBirthdayAttribute(): ?string
     {
         return $this->formatBirthdate($this->attributes['birthdate'] ?? null);
     }
 
-    /**
-     * Helper method to format birthdate.
-     * Handles Carbon instances, strings, and null values gracefully.
-     */
+    // Accessor for the Profile Picture URL
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        if (!empty($this->attributes['profile_picture'])) {
+            return asset('storage/' . $this->attributes['profile_picture']);
+        }
+        return null;
+    }
+
     private function formatBirthdate($birthdate): ?string
     {
-        if (empty($birthdate)) {
-            return null;
-        }
-
-        if ($birthdate instanceof Carbon) {
-            return $birthdate->format('Y-m-d');
-        }
-
+        if (empty($birthdate)) return null;
+        if ($birthdate instanceof Carbon) return $birthdate->format('Y-m-d');
         try {
             return Carbon::parse($birthdate)->format('Y-m-d');
         } catch (\Throwable $e) {
