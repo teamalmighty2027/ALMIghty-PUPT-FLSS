@@ -460,6 +460,9 @@ class PreferenceController extends Controller
                                 'program_id'   => $submittedCourse->program_id ?? null,
                                 'program_code' => $submittedCourse->program_code ?? null,
                             ],
+                            'section_details'      => [
+                                'section_id'   => $preference->sections_per_program_year_id,
+                            ],
                             'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
                             'units'          => $submittedCourse->units ?? 0,
@@ -506,6 +509,9 @@ class PreferenceController extends Controller
                             'course_title' => $temporaryOffering->course_title ?? null,
                             'program_id'   => $temporaryOffering->program_id ?? null,
                             'program_code' => $temporaryOffering->program_code ?? null,
+                        ],
+                        'section_details'      => [
+                            'section_id'   => $preference->sections_per_program_year_id,
                         ],
                         'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
