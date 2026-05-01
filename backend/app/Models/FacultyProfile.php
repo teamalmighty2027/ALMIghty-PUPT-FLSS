@@ -12,7 +12,7 @@ class FacultyProfile extends Model
 
     protected $fillable = [
         'faculty_id',
-        'profile_picture', // <-- Added
+        'profile_picture',
         'house_num',
         'street',
         'barangay',
@@ -20,7 +20,7 @@ class FacultyProfile extends Model
         'province',
         'country',
         'zipcode',
-        'department',      // <-- Changed from program_id
+        'department',
         'birthdate',
         'sex',
     ];

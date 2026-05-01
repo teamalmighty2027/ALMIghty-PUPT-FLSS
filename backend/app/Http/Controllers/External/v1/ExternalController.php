@@ -382,7 +382,7 @@ class ExternalController extends Controller
     public function facultyProfiles(Request $request) {
         $clientSystem = $this->logExternalAccess($request, 'Faculty profiles');
 
-        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType'])
             ->get()
             ->filter(function ($profile) {
                 // Filter out profiles with missing required relationships before sorting
@@ -414,6 +414,13 @@ class ExternalController extends Controller
 
             $user = $profile->faculty->user;
             
+            $department = $profile->department;
+
+            // If department is missing, try to infer it and save it permanently
+            if (empty($department)) {
+                $department = $this->assignDepartmentFromSchedules($profile);
+            }
+
             $data = [
                 'faculty_id'    => $user->id,
                 'idp_user_id'   => $profile->faculty->idp_user_id,
@@ -423,7 +430,7 @@ class ExternalController extends Controller
                 'suffix_name'   => $user->suffix_name ?? null,
                 'faculty_code'  => $user->code,
                 'faculty_type'  => $profile->faculty->facultyType->faculty_type,
-                'department'    => $profile->program?->program_title,
+                'department'    => $department,
                 'email'         => $user->email,
                 'status'        => $user->status
             ];
@@ -460,7 +467,7 @@ class ExternalController extends Controller
     {
         $this->logExternalAccess($request, 'Department list');
 
-        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType', 'program'])
+        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType'])
             ->get()
             ->filter(function ($profile) {
                 // Filter out profiles with missing required relationships before sorting
@@ -471,19 +478,16 @@ class ExternalController extends Controller
                 fn($faculty) => $faculty->faculty->user->first_name,
             ]);
 
-        // If any faculty profile is missing a program, try to infer from their schedules
+        // If any faculty profile is missing a department, try to infer it
         foreach ($faculties as $profile) {
-            if (empty($profile->program)) {
-                $inferred = $this->assignProgramFromSchedules($profile);
-                if ($inferred) {
-                    $profile->setRelation('program', $inferred);
-                } 
+            if (empty($profile->department)) {
+                $this->assignDepartmentFromSchedules($profile);
             }
         }        
 
-        // Group faculties by department. Profiles without a program go under 'Unspecified'
+        // Group faculties by department. Profiles without one go under 'Unspecified'
         $departmentGroups = $faculties->groupBy(function ($profile) {
-            return $profile->program?->program_title ?? 'Unspecified';
+            return $profile->department ?? 'Unspecified';
         })->map(function ($departmentFaculties) {
             return $departmentFaculties->map(function ($profile) {
                 // Skip profiles missing required relationships
@@ -527,14 +531,13 @@ class ExternalController extends Controller
     }
 
     /**
-     * Attempt to infer a faculty's program by inspecting their assigned schedules.
-     * Returns a Program model if one was found, otherwise null. This does not
-     * persist changes to the FacultyProfile; it only sets the relation in-memory.
+     * Attempt to infer a faculty's department by inspecting their schedules.
+     * If found, it permanently updates the department in the database.
      *
      * @param  \App\Models\FacultyProfile  $profile
-     * @return \App\Models\Program|null
+     * @return string|null
      */
-    private function assignProgramFromSchedules(FacultyProfile $profile): ?Program
+    private function assignDepartmentFromSchedules(FacultyProfile $profile): ?string
     {
         $facultyId = $profile->faculty?->id;
 
@@ -544,12 +547,15 @@ class ExternalController extends Controller
 
         // Find the most frequently occurring program for this faculty's schedules
         $programRow = DB::table('schedules')
-            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
-            ->join('programs', 'sections_per_program_year.program_id', '=', 'programs.program_id')
+            ->join('section_courses', 'schedules.section_course_id', '=', 
+                'section_courses.section_course_id')
+            ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 
+                'sections_per_program_year.sections_per_program_year_id')
+            ->join('programs', 'sections_per_program_year.program_id', '=', 
+                'programs.program_id')
             ->where('schedules.faculty_id', $facultyId)
-            ->select('programs.program_id', 'programs.program_title', DB::raw('COUNT(programs.program_id) as cnt'))
-            ->groupBy('programs.program_id', 'programs.program_title')
+            ->select('programs.program_title', DB::raw('COUNT(programs.program_id) as cnt'))
+            ->groupBy('programs.program_title')
             ->orderByDesc('cnt')
             ->first();
 
@@ -557,8 +563,10 @@ class ExternalController extends Controller
             return null;
         }
 
-        // Load Program model (primary key uses program_id)
-        return Program::where('program_id', $programRow->program_id)->first();
+        // Permanently save the department to the profile
+        $profile->update(['department' => $programRow->program_title]);
+
+        return $programRow->program_title;
     }
 
     /**
