@@ -1038,79 +1038,70 @@ class ReportsController extends Controller
             return response()->json([]);
         }
 
-        // First get academic years with published schedules
-        $academicYears = DB::table('academic_years as ay')
+        /**
+         * Query to get all academic years and semesters 
+         * where a faculty had published schedules  
+         */
+        $historyData = DB::table('active_semesters as as')
             ->select([
-                'ay.academic_year_id',
-                DB::raw("CONCAT(ay.year_start, '-', ay.year_end) as academic_year")
+                'as.active_semester_id',
+                'as.semester_id',
+                'as.academic_year_id',
+                'as.start_date',
+                'as.end_date',
+                DB::raw("CONCAT(ay.year_start, '-', ay.year_end) as academic_year"),
+                DB::raw('CASE 
+                    WHEN s.semester = 1 THEN "1st Semester"
+                    WHEN s.semester = 2 THEN "2nd Semester"
+                    WHEN s.semester = 3 THEN "Summer Semester"
+                    ELSE "Unknown Semester"
+                END as semester_number'),
+                's.semester'
             ])
+            ->join('academic_years as ay', 'ay.academic_year_id', '=', 'as.academic_year_id')
+            ->join('semesters as s', 's.semester_id', '=', 'as.semester_id')
             ->whereExists(function ($query) use ($faculty_id) {
                 $query->select(DB::raw(1))
                     ->from('faculty_schedule_publication as fsp')
                     ->where('fsp.faculty_id', $faculty_id)
                     ->where('fsp.is_published', 1)
-                    ->whereRaw('fsp.academic_year_id = ay.academic_year_id');
+                    ->whereColumn('fsp.academic_year_id', 'as.academic_year_id')
+                    ->whereColumn('fsp.semester_id', 'as.semester_id');
             })
             ->where(function($query) use ($activeSemester, $currentSemester) {
-                $query->where('ay.academic_year_id', '<', $activeSemester->academic_year_id)
+                $query->where('as.academic_year_id', '<', $activeSemester->academic_year_id)
                     ->orWhere(function($q) use ($activeSemester, $currentSemester) {
-                        $q->where('ay.academic_year_id', '=', $activeSemester->academic_year_id)
-                            ->whereExists(function($subquery) use ($activeSemester, $currentSemester) {
-                                $subquery->select(DB::raw(1))
-                                    ->from('active_semesters')
-                                    ->join('semesters', 'semesters.semester_id', '=', 'active_semesters.semester_id')
-                                    ->where('active_semesters.academic_year_id', '=', $activeSemester->academic_year_id)
-                                    ->where('semesters.semester', '<', $currentSemester->semester);
-                            });
+                        $q->where('as.academic_year_id', '=', $activeSemester->academic_year_id)
+                            ->where('s.semester', '<', $currentSemester->semester);
                     });
             })
-
             ->orderBy('ay.year_start', 'desc')
+            ->orderBy('s.semester', 'asc')
             ->get();
 
-        // For each academic year, get the semesters with published schedules
-        $result = $academicYears->map(function ($academicYear) use ($faculty_id, $activeSemester, $currentSemester) {
-            $semesters = DB::table('active_semesters')
-                ->select([
-                    'active_semesters.active_semester_id',
-                    'active_semesters.semester_id',
-                    DB::raw('CASE 
-                        WHEN semesters.semester = 1 THEN "1st Semester"
-                        WHEN semesters.semester = 2 THEN "2nd Semester"
-                        WHEN semesters.semester = 3 THEN "Summer Semester"
-                        ELSE "Unknown Semester"
-                    END as semester_number'),
-                    'active_semesters.start_date',
-                    'active_semesters.end_date'
-                ])
-                ->join('semesters', 'semesters.semester_id', '=', 'active_semesters.semester_id')
-                ->where('active_semesters.academic_year_id', $academicYear->academic_year_id)
-                ->where(function($query) use ($activeSemester, $academicYear, $currentSemester) {
-                    if ($academicYear->academic_year_id === $activeSemester->academic_year_id) {
-                        $query->where('semesters.semester', '<', $currentSemester->semester);
-                    }
-                })
+        /**
+         * Transform and group the flat results into the nested structure 
+         * expected by the frontend.
+         */
+        $groupedHistory = $historyData->groupBy('academic_year_id')->map(function ($items) {
+            $first = $items->first();
+            
+            return [
+                'academic_year_id' => $first->academic_year_id,
+                'academic_year' => $first->academic_year,
+                'semesters' => $items->map(function ($item) {
+                    return [
+                        'active_semester_id' => $item->active_semester_id,
+                        'semester_id' => $item->semester_id,
+                        'semester_number' => $item->semester_number,
+                        'start_date' => $item->start_date,
+                        'end_date' => $item->end_date,
+                    ];
+                })->values()
+            ];
+        })->values();
 
-                ->whereExists(function ($query) use ($faculty_id, $academicYear) {
-                    $query->select(DB::raw(1))
-                        ->from('faculty_schedule_publication as fsp')
-                        ->where('fsp.faculty_id', $faculty_id)
-                        ->where('fsp.is_published', 1)
-                        ->where('fsp.academic_year_id', $academicYear->academic_year_id)
-                        ->whereColumn('fsp.semester_id', 'semesters.semester_id');
-                })
-                ->orderBy('semesters.semester')
-                ->get();
-
-            $academicYear->semesters = $semesters;
-            return $academicYear;
-        })
-        ->filter(function ($academicYear) {
-            return !$academicYear->semesters->isEmpty();
-        })
-        ->values();
-
-        return response()->json($result);
+        return response()->json($groupedHistory);
     }
 
     /**
