@@ -1,6 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+  AbstractControl,
+  ValidationErrors
+} from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { Subject, takeUntil } from 'rxjs';
@@ -78,6 +85,13 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Creates a custom validator function that checks if the new password
+   * matches the confirm password.
+   * 
+   * @returns A function that returns ValidationErrors 
+   * if the passwords don't match, or null if they match.
+   */
   private createPasswordMatchValidator() {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null;
@@ -92,6 +106,9 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Setup validation for the form.
+   */
   private setupFormValidation(): void {
     // Update confirm password validation when new password changes
     this.passwordForm
@@ -102,6 +119,9 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Setup server error clearing for the form.
+   */
   private setupServerErrorClearing(): void {
     const controlNames = ['currentPassword', 'newPassword', 'confirmPassword'];
 
@@ -119,8 +139,13 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Handles server errors by displaying a snackbar and setting form errors.
+   * @param error The error object from the server.
+   */
   private handleServerErrors(error: any): void {
-    const errorMessage = error.error?.message || 'An error occurred. Please try again.';
+    const errorMessage = error.error?.message ||
+      'An error occurred. Please try again.';
     
     this.snackBar.open(errorMessage, 'Close', {
       duration: 5000,

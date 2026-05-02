@@ -1,4 +1,10 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
 
@@ -7,13 +13,25 @@ import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-import { TableDialogComponent, DialogConfig, DialogFieldConfig } from '../../../../../shared/table-dialog/table-dialog.component';
-import { DialogAdminPermissionComponent } from '../../../../../shared/dialog-admin-permission/dialog-admin-permission.component';
+import {
+  TableDialogComponent,
+  DialogConfig,
+  DialogFieldConfig,
+} from '../../../../../shared/table-dialog/table-dialog.component';
+import {
+  DialogAdminPermissionComponent,
+} from '../../../../../shared/dialog-admin-permission/dialog-admin-permission.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
-import { InputField, TableHeaderComponent } from '../../../../../shared/table-header/table-header.component';
+import {
+  InputField,
+  TableHeaderComponent,
+} from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 
-import { AdminService, User } from '../../../../services/superadmin/management/admin/admin.service';
+import {
+  AdminService,
+  User,
+} from '../../../../services/superadmin/management/admin/admin.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
 
@@ -71,19 +89,28 @@ export class AdminComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private adminService: AdminService,
+    private adminService: AdminService
   ) {}
 
+  /**
+   * Initializes the component by fetching admins and setting up search.
+   */
   ngOnInit() {
     this.fetchAdmins();
     this.setupSearch();
   }
 
+  /**
+   * Cleans up subscriptions when the component is destroyed.
+   */
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Fetches the list of admin users from the service.
+   */
   fetchAdmins() {
     this.isLoading = true;
     this.adminService
@@ -95,8 +122,9 @@ export class AdminComponent implements OnInit, OnDestroy {
             ...admin,
             fullName: `${admin.last_name}, ${admin.first_name} ${
               admin.middle_name ?? ''
-            } ${admin.suffix_name ?? ''}`,
+            } ${admin.suffix_name ?? ''}`.trim(),
           }));
+
           this.filteredAdmins = [...this.admins];
           this.isLoading = false;
           this.cdr.markForCheck();
@@ -105,16 +133,18 @@ export class AdminComponent implements OnInit, OnDestroy {
           this.snackBar.open(
             'Error fetching admins. Please try again.',
             'Close',
-            {
-              duration: 3000,
-            },
+            { duration: 3000 }
           );
+
           this.isLoading = false;
           this.cdr.markForCheck();
         },
       });
   }
 
+  /**
+   * Sets up the search control with debouncing and distinct filtering.
+   */
   setupSearch() {
     this.searchControl.valueChanges
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
@@ -123,6 +153,10 @@ export class AdminComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Filters the admin list based on the provided search term.
+   * @param searchTerm The term entered by the user.
+   */
   onSearch(searchTerm: string) {
     const lowerSearch = searchTerm.toLowerCase();
 
@@ -134,18 +168,28 @@ export class AdminComponent implements OnInit, OnDestroy {
           admin.code.toLowerCase().includes(lowerSearch) ||
           admin.fullName.toLowerCase().includes(lowerSearch) ||
           admin.role.toLowerCase().includes(lowerSearch) ||
-          admin.status.toLowerCase().includes(lowerSearch),
+          admin.status.toLowerCase().includes(lowerSearch)
       );
     }
+
     this.cdr.markForCheck();
   }
 
+  /**
+   * Handles input changes from the header components.
+   * @param values The key-value pairs of changed inputs.
+   */
   onInputChange(values: { [key: string]: any }) {
     if (values['search'] !== undefined) {
       this.onSearch(values['search']);
     }
   }
 
+  /**
+   * Generates the configuration for the admin add/edit dialog.
+   * @param admin Optional admin user for editing.
+   * @returns The dialog configuration object.
+   */
   private getDialogConfig(admin?: User): DialogConfig {
     const baseFields: DialogFieldConfig[] = [
       {
@@ -233,6 +277,9 @@ export class AdminComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Opens the dialog to add a new admin user.
+   */
   openAddAdminDialog() {
     this.adminService.getNextAdminCode().subscribe({
       next: (code) => {
@@ -254,10 +301,9 @@ export class AdminComponent implements OnInit, OnDestroy {
               next: (newAdmin) => {
                 const adminWithDisplay = {
                   ...newAdmin,
-                  fullName: `${newAdmin.last_name}, ${newAdmin.first_name} ${
-                    newAdmin.middle_name ?? ''
-                  } ${newAdmin.suffix_name ?? ''}`,
+                  fullName: this.formatAdminName(newAdmin),
                 };
+
                 this.admins = [...this.admins, adminWithDisplay];
                 this.filteredAdmins = [...this.admins];
                 this.cdr.markForCheck();
@@ -270,9 +316,7 @@ export class AdminComponent implements OnInit, OnDestroy {
                 this.snackBar.open(
                   'Error adding admin. Please try again.',
                   'Close',
-                  {
-                    duration: 3000,
-                  },
+                  { duration: 3000 }
                 );
                 console.error('Error adding admin:', error);
               },
@@ -284,15 +328,18 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.snackBar.open(
           'Error generating admin code. Please try again.',
           'Close',
-          {
-            duration: 3000,
-          },
+          { duration: 3000 }
         );
         console.error('Error generating admin code:', error);
       },
     });
   }
 
+  /**
+   * Opens the dialog to edit an existing admin user.
+   *
+   * @param admin The admin user to edit.
+   */
   openEditAdminDialog(admin: User) {
     const config = this.getDialogConfig(admin);
 
@@ -309,6 +356,10 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the permission management dialog for an admin user.
+   * @param admin The admin user to manage.
+   */
   openPermissionDialog(admin: User): void {
     const dialogRef = this.dialog.open(DialogAdminPermissionComponent, {
       data: {
@@ -325,18 +376,27 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.snackBar.open('Permissions updated successfully', 'Close', {
           duration: 3000,
         });
-        // Refresh the admin list to get updated permission data
+
         this.fetchAdmins();
       }
     });
   }
 
+  /**
+   * Handles custom actions triggered from the table.
+   * @param event The action event data.
+   */
   onCustomAction(event: any): void {
     if (event.action === 'edit-permissions') {
       this.openPermissionDialog(event.row);
     }
   }
 
+  /**
+   * Updates an existing admin user's information.
+   * @param id The ID of the admin to update.
+   * @param updatedAdmin The new data for the admin.
+   */
   updateAdmin(id: string, updatedAdmin: any) {
     const { confirmPassword, ...adminData } = updatedAdmin;
 
@@ -356,10 +416,11 @@ export class AdminComponent implements OnInit, OnDestroy {
         };
 
         this.admins = this.admins.map((admin) =>
-          admin.id === id ? updatedAdminWithDisplay : admin,
+          admin.id === id ? updatedAdminWithDisplay : admin
         );
 
         const searchTerm = this.searchControl.value;
+
         if (searchTerm) {
           this.onSearch(searchTerm);
         } else {
@@ -381,9 +442,16 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Formats an admin's name into a standard display string.
+   * @param admin The admin user object.
+   * @returns The formatted full name.
+   */
   private formatAdminName(admin: User): string {
-    return `${admin.last_name}, ${admin.first_name}${
+    const name = `${admin.last_name}, ${admin.first_name}${
       admin.middle_name ? ' ' + admin.middle_name : ''
-    }${admin.suffix_name ? ' ' + admin.suffix_name : ''}`.trim();
+    }${admin.suffix_name ? ' ' + admin.suffix_name : ''}`;
+
+    return name.trim();
   }
 }

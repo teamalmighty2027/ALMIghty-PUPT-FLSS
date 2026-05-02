@@ -1,21 +1,51 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, ViewChild, TemplateRef, AfterViewInit } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  ViewChild,
+  TemplateRef,
+  AfterViewInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { catchError, debounceTime, distinctUntilChanged, of, Subject, takeUntil, firstValueFrom } from 'rxjs';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  of,
+  Subject,
+  takeUntil,
+  firstValueFrom,
+} from 'rxjs';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { TableDialogComponent, DialogConfig, DialogFieldConfig } from '../../../../../shared/table-dialog/table-dialog.component';
+import {
+  TableDialogComponent,
+  DialogConfig,
+  DialogFieldConfig,
+} from '../../../../../shared/table-dialog/table-dialog.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
-import { InputField, TableHeaderComponent } from '../../../../../shared/table-header/table-header.component';
+import {
+  InputField,
+  TableHeaderComponent,
+} from '../../../../../shared/table-header/table-header.component';
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 
-import { FacultyService, Faculty } from '../../../../services/superadmin/management/faculty/faculty.service';
-import { FacultyTypeService, FacultyType } from '../../../../services/superadmin/management/faculty/faculty-type.service';
+import {
+  FacultyService,
+  Faculty,
+} from '../../../../services/superadmin/management/faculty/faculty.service';
+import {
+  FacultyTypeService,
+  FacultyType,
+} from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
 
@@ -90,37 +120,52 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     private snackBar: MatSnackBar,
     private facultyService: FacultyService,
     private router: Router,
-    private facultyTypeService: FacultyTypeService,
+    private facultyTypeService: FacultyTypeService
   ) {}
 
+  /**
+   * Initializes the component by loading faculty types and data.
+   */
   ngOnInit() {
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
   }
 
+  /**
+   * Cleans up subscriptions when the component is destroyed.
+   */
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Assigns custom templates to table columns after view initialization.
+   */
   ngAfterViewInit() {
     const facultyTypeColumn = this.columns.find(
-      (col) => col.key === 'faculty_type',
+      (col) => col.key === 'faculty_type'
     );
+
     if (facultyTypeColumn) {
       facultyTypeColumn.template = this.facultyTypeTemplate;
     }
 
     const facultyUnitsColumn = this.columns.find(
-      (col) => col.key === 'faculty_units',
+      (col) => col.key === 'faculty_units'
     );
+
     if (facultyUnitsColumn) {
       facultyUnitsColumn.template = this.facultyUnitsTemplate;
     }
+
     this.cdr.detectChanges();
   }
 
+  /**
+   * Sets up the search control with debouncing and distinct filtering.
+   */
   setupSearch() {
     this.searchControl.valueChanges
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
@@ -130,7 +175,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
-   * Handles the search input and filters the faculty accordingly.
+   * Handles the search input and filters the faculty accordingly
    * @param searchTerm The term entered by the user in the search field.
    */
   onSearch(searchTerm: string) {
@@ -153,12 +198,17 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             (faculty.faculty?.faculty_type?.additional_units ?? 0)
           )
             .toString()
-            .includes(lowerSearch),
+            .includes(lowerSearch)
       );
     }
+
     this.cdr.markForCheck();
   }
 
+  /**
+   * Handles input changes from the table header.
+   * @param values The key-value pairs of input changes.
+   */
   onInputChange(values: { [key: string]: any }) {
     if (values['search'] !== undefined) {
       this.searchControl.setValue(values['search']);
@@ -167,25 +217,27 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /**
    * Fetches the list of faculty members from the service.
-   * Initializes both faculty and filteredFaculty arrays.
    */
   fetchFaculty() {
     this.isLoading = true;
+
     this.facultyService
       .getFaculty()
       .pipe(
         catchError((error) => {
           console.error('Error fetching faculty:', error);
+
           this.snackBar.open(
             'Error fetching faculty. Please try again.',
             'Close',
-            { duration: 3000 },
+            { duration: 3000 }
           );
+
           this.isLoading = false;
           this.cdr.markForCheck();
           return of([]);
         }),
-        takeUntil(this.destroy$),
+        takeUntil(this.destroy$)
       )
       .subscribe((faculty) => {
         this.faculty = faculty;
@@ -197,10 +249,15 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /**
    * Configures the dialog for adding or editing faculty.
+   *
+   * @param faculty Optional Faculty object for editing.
    * @param suggestedCode Optional suggested code for new faculty.
    * @returns DialogConfig object.
    */
-  private getDialogConfig(faculty?: Faculty, suggestedCode?: string): DialogConfig {
+  private getDialogConfig(
+    faculty?: Faculty,
+    suggestedCode?: string
+  ): DialogConfig {
     const baseFields: DialogFieldConfig[] = [
       {
         label: 'Faculty Code',
@@ -313,32 +370,33 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             faculty_type_id: faculty.faculty?.faculty_type_id,
             status: faculty.status,
           }
-        : (suggestedCode ? { code: suggestedCode } : undefined),
+        : suggestedCode
+        ? { code: suggestedCode }
+        : undefined,
     };
   }
 
   /**
    * Handles the faculty type configuration option in the dialog.
+   *
    * @param dialogRef The dialog reference to handle.
    */
   private handleFacultyTypeConfig(dialogRef: any) {
     const dialogAfterOpened$ = dialogRef.afterOpened();
+
     dialogAfterOpened$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       const form = dialogRef.componentInstance.form;
       const facultyTypeControl = form.get('faculty_type_id');
 
       if (facultyTypeControl) {
-        const facultyTypeIdControl = form.get('faculty_type_id');
-        if (facultyTypeIdControl) {
-          facultyTypeIdControl.valueChanges
-            .pipe(takeUntil(this.destroy$))
-            .subscribe((value: string) => {
-              if (value === 'configure') {
-                dialogRef.close();
-                this.router.navigate(['/superadmin/faculty/types']);
-              }
-            });
-        }
+        facultyTypeControl.valueChanges
+          .pipe(takeUntil(this.destroy$))
+          .subscribe((value: string) => {
+            if (value === 'configure') {
+              dialogRef.close();
+              this.router.navigate(['/superadmin/faculty/types']);
+            }
+          });
       }
     });
   }
@@ -348,13 +406,17 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   async openAddFacultyDialog() {
     let suggestedCode = '';
+
     try {
-      suggestedCode = await firstValueFrom(this.facultyService.getSuggestedCode());
+      suggestedCode = await firstValueFrom(
+        this.facultyService.getSuggestedCode()
+      );
     } catch (error) {
       console.warn('Could not fetch suggested code', error);
     }
 
     const config = this.getDialogConfig(undefined, suggestedCode);
+
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
@@ -366,24 +428,28 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
         result.role = 'faculty';
+
         this.facultyService
           .addFaculty(result)
           .pipe(
             catchError((error) => {
               console.error('Error adding faculty:', error);
+
               this.snackBar.open(
                 'Error adding faculty. Please try again.',
                 'Close',
-                { duration: 3000 },
+                { duration: 3000 }
               );
+
               return of(null);
-            }),
+            })
           )
           .subscribe((newFaculty) => {
             if (newFaculty) {
               this.snackBar.open('Faculty added successfully', 'Close', {
                 duration: 3000,
               });
+
               this.fetchFaculty();
             }
           });
@@ -424,6 +490,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       this.selectedFacultyIndex !== undefined
     ) {
       const selectedFaculty = this.faculty[this.selectedFacultyIndex];
+
       if (selectedFaculty && selectedFaculty.id) {
         const facultyId = selectedFaculty.id;
         updatedFaculty.role = 'faculty';
@@ -442,19 +509,22 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
           .pipe(
             catchError((error) => {
               console.error('Error updating faculty:', error);
+
               this.snackBar.open(
                 'Error updating faculty. Please try again.',
                 'Close',
-                { duration: 3000 },
+                { duration: 3000 }
               );
+
               return of(null);
-            }),
+            })
           )
           .subscribe((updatedFacultyResponse) => {
             if (updatedFacultyResponse) {
               this.snackBar.open('Faculty updated successfully', 'Close', {
                 duration: 3000,
               });
+
               this.fetchFaculty();
             }
           });
@@ -462,12 +532,25 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  /**
+   * Sanitizes a file name for safe storage.
+   *
+   * @param fileName The name of the file to sanitize.
+   * @returns The sanitized file name.
+   */
   sanitizeFileName(fileName: string): string {
     return fileName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
   }
 
+  /**
+   * Returns a CSS class mapping based on the faculty type.
+   *
+   * @param facultyType The type of the faculty member.
+   * @returns An object mapping class names to boolean values.
+   */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
     const type = facultyType.toLowerCase();
+
     return {
       'full-time': type.includes('full-time'),
       designee: type.includes('designee'),
@@ -476,10 +559,15 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     };
   }
 
+  /**
+   * Asynchronously loads all available faculty types.
+   *
+   * @returns A promise that resolves when loading is complete.
+   */
   async loadFacultyTypes(): Promise<void> {
     try {
       this.facultyTypes = await firstValueFrom(
-        this.facultyTypeService.getFacultyTypes(),
+        this.facultyTypeService.getFacultyTypes()
       );
     } catch (error) {
       this.snackBar.open('Error loading faculty types', 'Close', {
