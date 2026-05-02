@@ -52,7 +52,7 @@ export interface Faculty {
   };
 }
 
-// NEW: Interface specifically for the Profile Page data
+// Interface specifically for the Profile Page data
 export interface FacultyProfileData {
   first_name: string;
   last_name: string;
@@ -61,9 +61,9 @@ export interface FacultyProfileData {
   email?: string;
   code?: string;
   faculty_profile_id?: number;
-  department?: string; // <-- Changed
+  department?: string;
   profile_picture?: string;
-  profile_picture_url?: string; // <-- Added
+  profile_picture_url?: string;
   birthdate?: string;
   sex?: 'Male' | 'Female' | 'Prefer not to say';
   house_num?: string;
@@ -82,10 +82,6 @@ export class FacultyService {
   private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
-
-  // ==========================================
-  // EXISTING ADMIN MANAGEMENT METHODS
-  // ==========================================
 
   getFaculty(): Observable<Faculty[]> {
     return this.http.get<any[]>(`${this.baseUrl}/faculty`).pipe(
@@ -115,6 +111,12 @@ export class FacultyService {
         return of([]);
       })
     );
+  }
+
+  getSuggestedCode(): Observable<string> {
+    return this.http
+      .get<{ suggested_code: string }>(`${this.baseUrl}/faculty/suggest-code`)
+      .pipe(map((res) => res.suggested_code));
   }
 
   addFaculty(faculty: Faculty): Observable<Faculty> {

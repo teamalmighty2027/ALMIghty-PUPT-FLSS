@@ -197,10 +197,10 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   /**
    * Configures the dialog for adding or editing faculty.
-   * @param faculty Optional Faculty object for editing.
+   * @param suggestedCode Optional suggested code for new faculty.
    * @returns DialogConfig object.
    */
-  private getDialogConfig(faculty?: Faculty): DialogConfig {
+  private getDialogConfig(faculty?: Faculty, suggestedCode?: string): DialogConfig {
     const baseFields: DialogFieldConfig[] = [
       {
         label: 'Faculty Code',
@@ -313,7 +313,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             faculty_type_id: faculty.faculty?.faculty_type_id,
             status: faculty.status,
           }
-        : undefined,
+        : (suggestedCode ? { code: suggestedCode } : undefined),
     };
   }
 
@@ -346,8 +346,15 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * Opens the dialog to add a new faculty member.
    */
-  openAddFacultyDialog() {
-    const config = this.getDialogConfig();
+  async openAddFacultyDialog() {
+    let suggestedCode = '';
+    try {
+      suggestedCode = await firstValueFrom(this.facultyService.getSuggestedCode());
+    } catch (error) {
+      console.warn('Could not fetch suggested code', error);
+    }
+
+    const config = this.getDialogConfig(undefined, suggestedCode);
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
       disableClose: true,
