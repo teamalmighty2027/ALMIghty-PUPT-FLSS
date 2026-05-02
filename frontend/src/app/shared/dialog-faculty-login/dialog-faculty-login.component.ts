@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
+import { A11yModule } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { MatRippleModule } from '@angular/material/core';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialog } from '@angular/material/dialog';
@@ -23,6 +24,7 @@ import { DialogRedirectComponent } from '../dialog-redirect/dialog-redirect.comp
   styleUrls: ['./dialog-faculty-login.component.scss'],
   imports: [
     ReactiveFormsModule,
+    A11yModule,
     MatButtonModule,
     MatIconModule,
     MatRippleModule,

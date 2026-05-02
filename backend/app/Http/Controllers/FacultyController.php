@@ -23,6 +23,39 @@ class FacultyController extends Controller
     }
 
     /**
+     * GET a suggested faculty code
+     */
+    public function suggestCode()
+    {
+        $year = date('Y');
+        $prefix = 'FA';
+        $suffix = "TG{$year}";
+
+        // Find the highest numeric sequence for codes following the pattern FA{seq}TG{year}
+        $lastCode = User::where('role', 'faculty')
+            ->where('code', 'LIKE', "{$prefix}%{$suffix}")
+            ->orderBy('code', 'desc')
+            ->first();
+
+        $nextNumber = 1;
+
+        if ($lastCode) {
+            // Extract the number between prefix and suffix
+            // e.g., from FA001TG2024 extract 001
+            $pattern = "/^" . preg_quote($prefix) . "(\d+)" . preg_quote($suffix) . "$/";
+            if (preg_match($pattern, $lastCode->code, $matches)) {
+                $nextNumber = (int)$matches[1] + 1;
+            }
+        }
+
+        // Pad with at least 3 zeroes (or more if the number is large)
+        $paddedNumber = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        $suggestedCode = "{$prefix}{$paddedNumber}{$suffix}";
+
+        return response()->json(['suggested_code' => $suggestedCode]);
+    }
+
+    /**
      * CREATE new faculty account with optional faculty details
      */
     public function store(Request $request)

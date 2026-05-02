@@ -178,6 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * Faculty
      */
     Route::get('/faculty', [FacultyController::class, 'index']);
+    Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
