@@ -1,7 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, Subject, finalize, takeUntil, combineLatest } from 'rxjs';
+import { 
+  BehaviorSubject, 
+  Subject, 
+  finalize, 
+  takeUntil, 
+  combineLatest 
+} from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -10,10 +16,14 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
-import { FacultyScheduleTimetableComponent } from '../faculty-schedule-timetable/faculty-schedule-timetable.component';
+import { 
+  FacultyScheduleTimetableComponent 
+} from '../faculty-schedule-timetable/faculty-schedule-timetable.component';
 import { LoadingComponent } from '../loading/loading.component';
 
-import { ReportsService } from '../../core/services/admin/reports/reports.service';
+import { 
+  ReportsService 
+} from '../../core/services/admin/reports/reports.service';
 import { AuthService } from '../../core/services/auth/auth.service';
 
 import { fadeAnimation } from '../../core/animations/animations';
@@ -30,6 +40,9 @@ interface Semester {
   semester_number: string;
 }
 
+/**
+ * Dialog component that displays the historical load and schedule of a faculty.
+ */
 @Component({
   selector: 'app-dialog-schedule-history',
   imports: [
@@ -78,15 +91,24 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
     private dialogRef: MatDialogRef<DialogScheduleHistoryComponent>
   ) {}
 
+  /**
+   * Initializes the component by loading academic year history.
+   */
   ngOnInit(): void {
     this.loadAcademicYears();
   }
 
+  /**
+   * Cleans up subscriptions on component destruction.
+   */
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Fetches academic years where the faculty member had published schedules.
+   */
   private loadAcademicYears(): void {
     const facultyId = Number(this.authService.getUserFacultyId());
 
@@ -118,12 +140,20 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Returns the academic year with the highest ID from the list.
+   * @param years List of available academic years
+   * @returns The latest academic year record
+   */
   private getLatestAcademicYear(years: AcademicYear[]): AcademicYear {
     return years.reduce((prev, current) =>
       prev.academic_year_id > current.academic_year_id ? prev : current
     );
   }
 
+  /**
+   * Handles selection changes for the academic year dropdown.
+   */
   onYearChange(): void {
     if (!this.selectedYear) {
       this.resetSelections();
@@ -143,6 +173,9 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Handles selection changes for the semester dropdown.
+   */
   onSemesterChange(): void {
     if (this.selectedYear && this.selectedSemester) {
       this.fetchScheduleHistory();
@@ -151,6 +184,9 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Fetches the detailed faculty schedule for the selected semester.
+   */
   private fetchScheduleHistory(): void {
     const facultyId = Number(this.authService.getUserFacultyId());
 
@@ -175,16 +211,25 @@ export class DialogScheduleHistoryComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Resets the semester and schedule state.
+   */
   private resetSelections(): void {
     this.semesters = [];
     this.selectedSemester = null;
     this.facultySchedule = null;
   }
 
+  /**
+   * Returns true if data has been loaded but no history was found.
+   */
   get hasNoScheduleHistory(): boolean {
     return this.hasLoadedDataSubject.value && this.academicYears.length === 0;
   }
 
+  /**
+   * Closes the dialog instance.
+   */
   closeDialog(): void {
     this.dialogRef.close();
   }
