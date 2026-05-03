@@ -96,15 +96,59 @@ class ExportMlDataset extends Command
         $avgScore = $totalScore / $count;
 
         $this->info('💾 Writing dataset files...');
-        $outputPath = $this->option('output') ?? storage_path('app/ml/scheduling_dataset.csv');
+        $outputPath = $this->option('output') ?? public_path('storage/ml/scheduling_dataset.csv');
         $this->writeCsv($processedRows, $outputPath);
         
         $encoderPath = str_replace('.csv', '.json', str_replace('scheduling_dataset', 'encoders', $outputPath));
-        $this->writeEncoders($processedRows, $avgScore, $encoderPath);
+        $this->writeEncoders($processedRows, $avgScore, $encoderPath, $rows);
+
+        $this->displaySummary($count, $avgScore, $buckets, $processedRows, $outputPath, $encoderPath, $rows);
 
         $this->info('✅ Export completed successfully.');
         
         return 0;
+    }
+
+    /**
+     * Display a summary of the exported dataset to the console.
+     * 
+     * @param int $count
+     * @param float $avgScore
+     * @param array $buckets
+     * @param array $processedRows
+     * @param string $outputPath
+     * @param string $encoderPath
+     * @return void
+     */
+    private function displaySummary($count, $avgScore, $buckets, $processedRows, $outputPath, $encoderPath, $rawRows)
+    {
+        $yearLabels = collect($rawRows)
+            ->map(fn($r) => "{$r->year_start}-{$r->year_end}")
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $semesters = collect($processedRows)->pluck('semester_id')->unique()->sort()->values()->all();
+
+        $this->newLine();
+        $this->line("📅 Academic Years covered : " . implode(', ', $yearLabels));
+        $this->line("📆 Semesters covered      : " . implode(', ', $semesters));
+        $this->newLine();
+
+        $this->line('📊 Match Score Distribution:');
+        $this->line(sprintf('   Score 0.0  (No Match)    : %4d rows  (%5.1f%%)', $buckets['0.0'], ($buckets['0.0'] / $count) * 100));
+        $this->line(sprintf('   Score 0.4  (Course Match): %4d rows  (%5.1f%%)', $buckets['0.4'], ($buckets['0.4'] / $count) * 100));
+        $this->line(sprintf('   Score 0.7+ (Good Match)  : %4d rows  (%5.1f%%)', $buckets['0.7+'], ($buckets['0.7+'] / $count) * 100));
+        $this->line(sprintf('   Score 1.0  (Perfect)     : %4d rows  (%5.1f%%)', $buckets['1.0'], ($buckets['1.0'] / $count) * 100));
+        $this->newLine();
+
+        $this->line(sprintf('📈 Average Match Score : %.4f', $avgScore));
+        $this->newLine();
+        
+        $this->line("💾 CSV file saved on: " . str_replace('/', DIRECTORY_SEPARATOR, $outputPath));
+        $this->line("📋 Encoders saved on: " . str_replace('/', DIRECTORY_SEPARATOR, $encoderPath));
+        $this->newLine();
     }
 
     /**
@@ -217,9 +261,15 @@ class ExportMlDataset extends Command
      * @param string $path
      * @return void
      */
-    private function writeEncoders($rows, $avgScore, $path)
+    private function writeEncoders($rows, $avgScore, $path, $rawRows)
     {
-        $years = collect($rows)->pluck('academic_year_id')->unique()->sort()->values()->all();
+        $yearLabels = collect($rawRows)
+            ->map(fn($r) => "{$r->year_start}-{$r->year_end}")
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
         $semesters = collect($rows)->pluck('semester_id')->unique()->sort()->values()->all();
 
         $metadata = [
@@ -227,7 +277,7 @@ class ExportMlDataset extends Command
             'exported_at' => now()->toIso8601String(),
             'total_rows' => count($rows),
             'average_match_score' => round($avgScore, 4),
-            'training_years' => $years,
+            'training_years' => $yearLabels,
             'training_semesters' => $semesters,
             'day_encoding' => $this->dayEncoding,
             'schema' => array_keys($rows[0])
@@ -281,6 +331,6 @@ class ExportMlDataset extends Command
                   ->where('asem.semester_id', $semester);
         }
 
-        return $query->get()->toArray();
+        return $query->get();
     }
 }
