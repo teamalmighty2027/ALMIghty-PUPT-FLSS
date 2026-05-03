@@ -379,9 +379,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
             Route::get('/temporary', [ExternalController::class, 'temporaryFacultySchedules']);
         });
-
-        Route::get('/rooms', [ExternalController::class, 'roomsList']);
     });
+
+    /**
+     * Rooms endpoint, shared by multiple systems
+     */
+      Route::middleware(['check.hmac:fas,frrs'])->group(function () {
+          Route::get('/rooms', [ExternalController::class, 'roomsList']);
+      });
 
     /**
      * Faculty Reportorial Requirements System (FRRS)
