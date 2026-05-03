@@ -28,8 +28,22 @@ class ExportMlDataset extends Command
     protected $description = 'Extract, label, and export the scheduling preference dataset as a CSV file for ML training';
 
     /**
+     * Day encoding map for consistent ML feature representation.
+     * 
+     * @var array
+     */
+    private $dayEncoding = [
+        'Monday' => 0,
+        'Tuesday' => 1,
+        'Wednesday' => 2,
+        'Thursday' => 3,
+        'Friday' => 4,
+        'Saturday' => 5,
+    ];
+
+    /**
      * Execute the console command.
-     *
+     * 
      * @return int
      */
     public function handle()
@@ -61,11 +75,165 @@ class ExportMlDataset extends Command
 
         $this->info("✅ {$count} rows fetched.");
 
-        // Placeholder for Steps 3-7
-        // For now, just confirming Step 2 works
-        $this->info('Data extraction completed (Step 1 & 2).');
+        $processedRows = [];
+        $totalScore = 0;
+        $buckets = ['0.0' => 0, '0.4' => 0, '0.7+' => 0, '1.0' => 0];
+
+        $this->info('🧪 Processing and encoding features...');
+        foreach ($rows as $row) {
+            $score = $this->computeMatchScore($row);
+            $totalScore += $score;
+
+            // Track distribution for summary
+            if ($score >= 1.0) $buckets['1.0']++;
+            elseif ($score >= 0.7) $buckets['0.7+']++;
+            elseif ($score >= 0.4) $buckets['0.4']++;
+            else $buckets['0.0']++;
+
+            $processedRows[] = $this->encodeRow($row, $score);
+        }
+
+        $avgScore = $totalScore / $count;
+
+        $this->info('💾 Writing dataset files...');
+        $outputPath = $this->option('output') ?? storage_path('app/ml/scheduling_dataset.csv');
+        $this->writeCsv($processedRows, $outputPath);
+        
+        $encoderPath = str_replace('.csv', '.json', str_replace('scheduling_dataset', 'encoders', $outputPath));
+        $this->writeEncoders($processedRows, $avgScore, $encoderPath);
+
+        $this->info('✅ Export completed successfully.');
         
         return 0;
+    }
+
+    /**
+     * Compute the continuous match score (0.0 - 1.0) for a row.
+     * 
+     * @param object $row
+     * @return float
+     */
+    private function computeMatchScore($row)
+    {
+        if (!$row->schedule_id) {
+            return 0.0;
+        }
+
+        $score = 0.40; // Base: assigned the course/section
+
+        // Day match bonus (30%)
+        if ($row->actual_day === $row->preferred_day) {
+            $score += 0.30;
+
+            // Time match bonus (30%) - only if day matches
+            if ($row->actual_start_time && $row->preferred_start_time) {
+                $actualSec = strtotime($row->actual_start_time);
+                $prefSec = strtotime($row->preferred_start_time);
+                $diff = abs($actualSec - $prefSec);
+
+                // Within 2 hours
+                if ($diff <= 7200) { 
+                    $score += 0.30 * (1 - ($diff / 7200));
+                }
+            }
+        }
+
+        return round($score, 2);
+    }
+
+    /**
+     * Encode a raw database row into an ML-ready numeric array.
+     * 
+     * @param object $row
+     * @param float $score
+     * @return array
+     */
+    private function encodeRow($row, $score)
+    {
+        $startMin = $this->timeToMinutes($row->preferred_start_time);
+        $endMin = $this->timeToMinutes($row->preferred_end_time);
+
+        return [
+            'faculty_id' => $row->faculty_id,
+            'academic_year_id' => $row->academic_year_id,
+            'semester_id' => $row->semester_id,
+            'active_semester_id' => $row->active_semester_id,
+            'course_assignment_id' => $row->course_assignment_id,
+            'sections_per_program_year_id' => $row->sections_per_program_year_id,
+            'is_ignored' => (int) $row->is_ignored,
+            'preferred_day_encoded' => $this->dayEncoding[$row->preferred_day] ?? -1,
+            'preferred_start_min' => $startMin,
+            'preferred_end_min' => $endMin,
+            'duration_min' => max(0, $endMin - $startMin),
+            'match_score' => $score
+        ];
+    }
+
+    /**
+     * Convert HH:MM:SS time string to minutes since midnight.
+     * 
+     * @param string|null $time
+     * @return int
+     */
+    private function timeToMinutes($time)
+    {
+        if (!$time) return 0;
+        $parts = explode(':', $time);
+        return ((int)$parts[0] * 60) + (int)$parts[1];
+    }
+
+    /**
+     * Write the processed rows to a CSV file.
+     * 
+     * @param array $rows
+     * @param string $path
+     * @return void
+     */
+    private function writeCsv($rows, $path)
+    {
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $handle = fopen($path, 'w');
+        
+        // Write header
+        fputcsv($handle, array_keys($rows[0]));
+
+        // Write data
+        foreach ($rows as $row) {
+            fputcsv($handle, $row);
+        }
+
+        fclose($handle);
+    }
+
+    /**
+     * Write the encoder metadata and day mapping to a JSON file.
+     * 
+     * @param array $rows
+     * @param float $avgScore
+     * @param string $path
+     * @return void
+     */
+    private function writeEncoders($rows, $avgScore, $path)
+    {
+        $years = collect($rows)->pluck('academic_year_id')->unique()->sort()->values()->all();
+        $semesters = collect($rows)->pluck('semester_id')->unique()->sort()->values()->all();
+
+        $metadata = [
+            'model_version' => '2026-S1',
+            'exported_at' => now()->toIso8601String(),
+            'total_rows' => count($rows),
+            'average_match_score' => round($avgScore, 4),
+            'training_years' => $years,
+            'training_semesters' => $semesters,
+            'day_encoding' => $this->dayEncoding,
+            'schema' => array_keys($rows[0])
+        ];
+
+        file_put_contents($path, json_encode($metadata, JSON_PRETTY_PRINT));
     }
 
     /**
