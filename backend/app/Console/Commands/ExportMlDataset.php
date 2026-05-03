@@ -12,6 +12,7 @@ class ExportMlDataset extends Command
      * The name and signature of the console command.
      * Example:
      *  php artisan ml:export-dataset --year=2024 --semester=1
+     * 
      * @var string
      */
     protected $signature = 'ml:export-dataset 
@@ -25,7 +26,8 @@ class ExportMlDataset extends Command
      *
      * @var string
      */
-    protected $description = 'Extract, label, and export the scheduling preference dataset as a CSV file for ML training';
+    protected $description = 'Extract, label, and export the scheduling ' . 
+        'preference dataset as a CSV file for ML training';
 
     /**
      * Day encoding map for consistent ML feature representation.
@@ -53,14 +55,17 @@ class ExportMlDataset extends Command
         $all = $this->option('all');
 
         if (!$all && (($year && !$semester) || (!$year && $semester))) {
-            $this->error('The --year and --semester options must be used together to avoid ambiguity, or use --all.');
+            $this->error('The --year and --semester options must be ' . 
+                'used together to avoid ambiguity, or use --all.');
+
             return 1;
         }
 
         if ($all) {
             $this->info('🔄 Querying ALL preference-schedule data...');
         } elseif ($year && $semester) {
-            $this->info("🔄 Querying preference-schedule data for Year: {$year}, Semester: {$semester}...");
+            $this->info("🔄 Querying preference-schedule data for " . 
+                "Year: {$year}, Semester: {$semester}...");
         } else {
             $this->info('🔄 Querying ALL preference-schedule data (default)...');
         }
@@ -70,6 +75,7 @@ class ExportMlDataset extends Command
 
         if ($count === 0) {
             $this->warn('⚠️ No rows found for the specified criteria.');
+
             return 0;
         }
 
@@ -80,6 +86,7 @@ class ExportMlDataset extends Command
         $buckets = ['0.0' => 0, '0.4' => 0, '0.7+' => 0, '1.0' => 0];
 
         $this->info('🧪 Processing and encoding features...');
+
         foreach ($rows as $row) {
             $score = $this->computeMatchScore($row);
             $totalScore += $score;
@@ -96,13 +103,29 @@ class ExportMlDataset extends Command
         $avgScore = $totalScore / $count;
 
         $this->info('💾 Writing dataset files...');
-        $outputPath = $this->option('output') ?? public_path('storage/ml/scheduling_dataset.csv');
+
+        $outputPath = $this->option('output') ?? 
+            public_path('storage/ml/scheduling_dataset.csv');
+        
         $this->writeCsv($processedRows, $outputPath);
         
-        $encoderPath = str_replace('.csv', '.json', str_replace('scheduling_dataset', 'encoders', $outputPath));
+        $encoderPath = str_replace(
+            '.csv', 
+            '.json', 
+            str_replace('scheduling_dataset', 'encoders', $outputPath)
+        );
+
         $this->writeEncoders($processedRows, $avgScore, $encoderPath, $rows);
 
-        $this->displaySummary($count, $avgScore, $buckets, $processedRows, $outputPath, $encoderPath, $rows);
+        $this->displaySummary(
+            $count, 
+            $avgScore, 
+            $buckets, 
+            $processedRows, 
+            $outputPath, 
+            $encoderPath, 
+            $rows
+        );
 
         $this->info('✅ Export completed successfully.');
         
@@ -118,10 +141,18 @@ class ExportMlDataset extends Command
      * @param array $processedRows
      * @param string $outputPath
      * @param string $encoderPath
+     * @param mixed $rawRows
      * @return void
      */
-    private function displaySummary($count, $avgScore, $buckets, $processedRows, $outputPath, $encoderPath, $rawRows)
-    {
+    private function displaySummary(
+        $count, 
+        $avgScore, 
+        $buckets, 
+        $processedRows, 
+        $outputPath, 
+        $encoderPath, 
+        $rawRows
+    ) {
         $yearLabels = collect($rawRows)
             ->map(fn($r) => "{$r->year_start}-{$r->year_end}")
             ->unique()
@@ -129,7 +160,12 @@ class ExportMlDataset extends Command
             ->values()
             ->all();
 
-        $semesters = collect($processedRows)->pluck('semester_id')->unique()->sort()->values()->all();
+        $semesters = collect($processedRows)
+            ->pluck('semester_id')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         $this->newLine();
         $this->line("📅 Academic Years covered : " . implode(', ', $yearLabels));
@@ -137,17 +173,41 @@ class ExportMlDataset extends Command
         $this->newLine();
 
         $this->line('📊 Match Score Distribution:');
-        $this->line(sprintf('   Score 0.0  (No Match)    : %4d rows  (%5.1f%%)', $buckets['0.0'], ($buckets['0.0'] / $count) * 100));
-        $this->line(sprintf('   Score 0.4  (Course Match): %4d rows  (%5.1f%%)', $buckets['0.4'], ($buckets['0.4'] / $count) * 100));
-        $this->line(sprintf('   Score 0.7+ (Good Match)  : %4d rows  (%5.1f%%)', $buckets['0.7+'], ($buckets['0.7+'] / $count) * 100));
-        $this->line(sprintf('   Score 1.0  (Perfect)     : %4d rows  (%5.1f%%)', $buckets['1.0'], ($buckets['1.0'] / $count) * 100));
-        $this->newLine();
 
+        $this->line(sprintf(
+            '   Score 0.0  (No Match)    : %4d rows  (%5.1f%%)', 
+            $buckets['0.0'], 
+            ($buckets['0.0'] / $count) * 100
+        ));
+
+        $this->line(sprintf(
+            '   Score 0.4  (Course Match): %4d rows  (%5.1f%%)', 
+            $buckets['0.4'], 
+            ($buckets['0.4'] / $count) * 100
+        ));
+
+        $this->line(sprintf(
+            '   Score 0.7+ (Good Match)  : %4d rows  (%5.1f%%)', 
+            $buckets['0.7+'], 
+            ($buckets['0.7+'] / $count) * 100
+        ));
+
+        $this->line(sprintf(
+            '   Score 1.0  (Perfect)     : %4d rows  (%5.1f%%)', 
+            $buckets['1.0'], 
+            ($buckets['1.0'] / $count) * 100
+        ));
+        
+        $this->newLine();
         $this->line(sprintf('📈 Average Match Score : %.4f', $avgScore));
         $this->newLine();
         
-        $this->line("💾 CSV file saved on: " . str_replace('/', DIRECTORY_SEPARATOR, $outputPath));
-        $this->line("📋 Encoders saved on: " . str_replace('/', DIRECTORY_SEPARATOR, $encoderPath));
+        $this->line("💾 CSV file saved on: " . 
+            str_replace('/', DIRECTORY_SEPARATOR, $outputPath));
+        
+        $this->line("📋 Encoders saved on: " . 
+            str_replace('/', DIRECTORY_SEPARATOR, $encoderPath));
+
         $this->newLine();
     }
 
@@ -223,6 +283,7 @@ class ExportMlDataset extends Command
     {
         if (!$time) return 0;
         $parts = explode(':', $time);
+
         return ((int)$parts[0] * 60) + (int)$parts[1];
     }
 
@@ -236,6 +297,7 @@ class ExportMlDataset extends Command
     private function writeCsv($rows, $path)
     {
         $dir = dirname($path);
+
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
@@ -259,6 +321,7 @@ class ExportMlDataset extends Command
      * @param array $rows
      * @param float $avgScore
      * @param string $path
+     * @param mixed $rawRows
      * @return void
      */
     private function writeEncoders($rows, $avgScore, $path, $rawRows)
@@ -270,7 +333,12 @@ class ExportMlDataset extends Command
             ->values()
             ->all();
 
-        $semesters = collect($rows)->pluck('semester_id')->unique()->sort()->values()->all();
+        $semesters = collect($rows)
+            ->pluck('semester_id')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         $metadata = [
             'model_version' => '2026-S1',
@@ -291,7 +359,7 @@ class ExportMlDataset extends Command
      * 
      * @param string|null $year
      * @param string|null $semester
-     * @return array
+     * @return mixed
      */
     private function buildQuery($year = null, $semester = null)
     {
@@ -314,12 +382,31 @@ class ExportMlDataset extends Command
                 'ay.year_start',
                 'ay.year_end'
             ])
-            ->join('active_semesters as asem', 'p.active_semester_id', '=', 'asem.active_semester_id')
-            ->join('academic_years as ay', 'asem.academic_year_id', '=', 'ay.academic_year_id')
-            ->join('preference_days as pd', 'p.preferences_id', '=', 'pd.preference_id')
+            ->join(
+                'active_semesters as asem', 
+                'p.active_semester_id', 
+                '=', 
+                'asem.active_semester_id'
+            )
+            ->join(
+                'academic_years as ay', 
+                'asem.academic_year_id', 
+                '=', 
+                'ay.academic_year_id'
+            )
+            ->join(
+                'preference_days as pd', 
+                'p.preferences_id', 
+                '=', 
+                'pd.preference_id'
+            )
             ->leftJoin('section_courses as sc', function($join) {
                 $join->on('p.course_assignment_id', '=', 'sc.course_assignment_id')
-                     ->on('p.sections_per_program_year_id', '=', 'sc.sections_per_program_year_id');
+                     ->on(
+                        'p.sections_per_program_year_id', 
+                        '=', 
+                        'sc.sections_per_program_year_id'
+                    );
             })
             ->leftJoin('schedules as s', function($join) {
                 $join->on('sc.section_course_id', '=', 's.section_course_id')
