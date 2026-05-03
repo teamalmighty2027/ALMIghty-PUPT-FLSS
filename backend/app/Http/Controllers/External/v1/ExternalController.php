@@ -384,7 +384,7 @@ class ExternalController extends Controller
             $facultyAssignedUnits = (int) ($assignedUnits[$faculty->faculty_id] ?? 0);
 
             $data = [
-                'faculty_id'    => $faculty->user_id,
+                'faculty_id'    => $faculty->faculty_id,
                 'idp_user_id'   => $faculty->idp_user_id,
                 'first_name'    => $faculty->first_name,
                 'middle_name'   => $faculty->middle_name,
