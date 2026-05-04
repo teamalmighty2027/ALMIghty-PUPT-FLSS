@@ -36,6 +36,7 @@
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
+              "onnxruntime-web",
               "jspdf",
               "jspdf-autotable",
               "canvg",
