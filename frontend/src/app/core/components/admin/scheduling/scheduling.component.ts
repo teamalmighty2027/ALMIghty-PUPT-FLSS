@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, Subject, forkJoin, of, from } from 'rxjs';
-import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
+import { Observable, Subject, forkJoin, of, from, firstValueFrom } from 'rxjs';
+import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap, toArray } from 'rxjs/operators';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -41,6 +41,8 @@ import {
 } from '../../../models/scheduling.model';
 
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
+import { ScheduleSuggestionService } from '../../../services/admin/scheduling/schedule-suggestion.service';
+import { MlSuggestion } from '../../../models/ml-suggestion.model';
 
 @Component({
   selector: 'app-scheduling',
@@ -111,6 +113,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   hasBridgingCourses: boolean = false;
 
+  isMlPredicting: boolean = false;
+  
   private destroy$ = new Subject<void>();
   private readonly DIALOG_INFO_PREF_KEY = 'doNotShowDialogInfo';
 
@@ -121,7 +125,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private draftStateService: DraftStateService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private mlService: ScheduleSuggestionService
   ) {}
 
   ngOnInit(): void {
@@ -452,35 +457,26 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     from(emptySlots).pipe(
       concatMap(slot => {
-        return this.schedulingService.getAISuggestion(
-          programId,
-          this.selectedYear,
-          sectionId,
-          slot.course_id
-        ).pipe(
+        return this.getSuggestionWithFallback(slot).pipe(
           switchMap(suggestion => {
-            if (suggestion && suggestion.preferences && suggestion.preferences.length > 0) {
-              const pref = suggestion.preferences[0];
-              const [startTime, endTime] = pref.time.split(' - ').map((t: string) => t.trim());
-              
+            if (suggestion && suggestion.faculty_id) {
               const entry: DraftEntry = {
                 schedule_id: slot.schedule_id!,
                 faculty_id: suggestion.faculty_id,
-                faculty_name: suggestion.name,
+                faculty_name: suggestion.faculty_name,
                 room_id: null,
                 room_code: 'Not set',
-                day: pref.day,
-                start_time: this.convertTimeToBackendFormat(startTime),
-                end_time: this.convertTimeToBackendFormat(endTime),
+                day: suggestion.day,
+                start_time: suggestion.start_time,
+                end_time: suggestion.end_time,
                 hasConflict: false
               };
               this.draftStateService.set(slot.schedule_id!, entry);
               return this.runConflictCheck(entry);
             } else {
-              console.warn(`[AI Fill] No suitable preferences found for ${slot.course_code}.`);
               unassignedCount++;
+              return of(void 0);
             }
-            return of(void 0);
           }),
           tap(() => {
             this.aiFillProgress.current++;
@@ -500,12 +496,198 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         
         const assignedCount = emptySlots.length - unassignedCount;
         const msg = assignedCount === emptySlots.length 
-          ? `AI fill completed. All ${emptySlots.length} slots filled successfully.`
-          : `AI fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned due to lacking preferences.`;
+          ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
+          : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
         
         this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
+  }
+
+  /**
+   * Orchestrates the suggestion process: ML first, then backend fallback.
+   * @param slot The schedule slot to find a suggestion for.
+   */
+  private getSuggestionWithFallback(slot: Schedule): Observable<any> {
+    return this.schedulingService.getSubmittedPreferencesForActiveSemester().pipe(
+      switchMap(response => {
+        const preferences = response.preferences || [];
+        
+        // Find all faculty who have a preference for this course
+        const candidates: any[] = [];
+        preferences.forEach(pref => {
+          const activeSem = pref.active_semesters.find(s => 
+            s.academic_year_id === this.activeAcademicYearId && 
+            s.semester_id === this.activeSemesterId
+          );
+
+          if (activeSem) {
+            const coursePref = activeSem.courses.find(c => 
+              c.course_details.course_id === slot.course_id
+            );
+
+            if (coursePref) {
+              coursePref.preferred_days.forEach(dayPref => {
+                candidates.push({
+                  faculty_id: pref.faculty_id,
+                  faculty_name: pref.faculty_name,
+                  course_assignment_id: coursePref.course_assignment_id,
+                  is_ignored: !!coursePref.is_ignored,
+                  day: dayPref.day,
+                  start_time: dayPref.start_time,
+                  end_time: dayPref.end_time
+                });
+              });
+            }
+          }
+        });
+
+        if (candidates.length === 0) {
+          return this.runBackendFallback(slot);
+        }
+
+        // Run ML predictions for all candidates
+        return from(candidates).pipe(
+          concatMap(c => {
+            const startMin = this.timeToMinutes(c.start_time);
+            const endMin = this.timeToMinutes(c.end_time);
+
+            return this.mlService.predict(
+              c.faculty_id,
+              this.activeAcademicYearId || 0,
+              this.activeSemesterId || 0,
+              this.activeSemesterId || 0,
+              c.course_assignment_id,
+              0,
+              c.is_ignored,
+              c.day,
+              startMin,
+              endMin
+            ).pipe(
+              map(ml => ({ ...c, ml }))
+            );
+          }),
+          toArray(),
+          map(results => {
+            // Sort by confidence score
+            const bestMatch = results
+              .filter(r => r.ml !== null)
+              .sort((a, b) => b.ml!.confidence - a.ml!.confidence)[0];
+
+            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+              console.log(`[ML] Best match found: ${bestMatch.faculty_name} (${bestMatch.ml!.confidence.toFixed(2)})`);
+              return {
+                faculty_id: bestMatch.faculty_id,
+                faculty_name: bestMatch.faculty_name,
+                day: bestMatch.day,
+                start_time: this.convertTimeToBackendFormat(bestMatch.start_time),
+                end_time: this.convertTimeToBackendFormat(bestMatch.end_time),
+                isMl: true
+              };
+            }
+
+            return null;
+          }),
+          switchMap(mlSuggestion => {
+            if (mlSuggestion) return of(mlSuggestion);
+            return this.runBackendFallback(slot);
+          })
+        );
+      }),
+      catchError(() => this.runBackendFallback(slot))
+    );
+  }
+
+  /**
+   * Executes the legacy backend AI suggestion logic.
+   */
+  private runBackendFallback(slot: Schedule): Observable<any> {
+    const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+    const programId = selectedOption?.id || 0;
+    const selectedYearLevelObj = selectedOption?.year_levels.find((y: any) => y.year_level === this.selectedYear);
+    const selectedSectionObj = selectedYearLevelObj?.sections.find((s: any) => s.section_name === this.selectedSection);
+    const sectionId = selectedSectionObj?.section_id || 0;
+
+    console.warn(`[ML] Fallback to backend for course ${slot.course_code}`);
+    
+    return this.schedulingService.getAISuggestion(
+      programId,
+      this.selectedYear,
+      sectionId,
+      slot.course_id
+    ).pipe(
+      map(res => {
+        if (!res || !res.success || !res.faculty_id) return null;
+        
+        const pref = res.preferences?.[0];
+        if (!pref) return null;
+
+        const [start, end] = pref.time.split(' - ').map((t: string) => t.trim());
+
+        return {
+          faculty_id: res.faculty_id,
+          faculty_name: res.faculty_name || res.name,
+          day: pref.day,
+          start_time: this.convertTimeToBackendFormat(start),
+          end_time: this.convertTimeToBackendFormat(end),
+          isMl: false
+        };
+      })
+    );
+  }
+
+  /**
+   * Triggers a suggestion for a single row.
+   */
+  protected onMlSuggest(slot: Schedule): void {
+    if (this.isAiFilling || this.isMlPredicting) return;
+
+    this.isMlPredicting = true;
+    this.snackBar.open(`Analyzing suggestions for ${slot.course_code}...`, 'Close', { duration: 2000 });
+
+    this.getSuggestionWithFallback(slot).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isMlPredicting = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe(suggestion => {
+      if (suggestion && suggestion.faculty_id) {
+        const entry: DraftEntry = {
+          schedule_id: slot.schedule_id!,
+          faculty_id: suggestion.faculty_id,
+          faculty_name: suggestion.faculty_name,
+          room_id: null,
+          room_code: 'Not set',
+          day: suggestion.day,
+          start_time: suggestion.start_time,
+          end_time: suggestion.end_time,
+          hasConflict: false
+        };
+        
+        this.draftStateService.set(slot.schedule_id!, entry);
+        this.runConflictCheck(entry).subscribe(() => {
+          this.rebuildDraftSchedules();
+          this.cdr.markForCheck();
+          
+          const source = suggestion.isMl ? 'ML Model' : 'Backend Rules';
+          this.snackBar.open(`Suggested ${suggestion.faculty_name} (${source})`, 'Close', { duration: 3000 });
+        });
+      } else {
+        this.snackBar.open(`No suggestions found for ${slot.course_code}`, 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  private timeToMinutes(time: string): number {
+    if (!time) return 0;
+    const [timeStr, modifier] = time.split(' ');
+    let [hours, minutes] = timeStr.split(':').map(Number);
+
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+
+    return (hours * 60) + minutes;
   }
 
   /**
