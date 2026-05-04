@@ -519,12 +519,23 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     if (this.isAiFilling || this.isMlPredicting) return;
 
     this.isMlPredicting = true;
-    this.snackBar.open(`Analyzing suggestions for ${slot.course_code}...`, 'Close', { duration: 2000 });
+    this.snackBar.open(
+      `Analyzing suggestions for ${slot.course_code}...`, 
+      'Close', 
+      { duration: 2000 }
+    );
 
-    const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+    const selectedOption = this.programOptions.find(
+      (o) => o.display === this.selectedProgram
+    );
     const programId = selectedOption?.id || 0;
-    const selectedYearLevelObj = selectedOption?.year_levels.find((y: any) => y.year_level === this.selectedYear);
-    const selectedSectionObj = selectedYearLevelObj?.sections.find((s: any) => s.section_name === this.selectedSection);
+    
+    const selectedYearLevelObj = selectedOption?.year_levels.find(
+      (y: any) => y.year_level === this.selectedYear
+    );
+    const selectedSectionObj = selectedYearLevelObj?.sections.find(
+      (s: any) => s.section_name === this.selectedSection
+    );
     const sectionId = selectedSectionObj?.section_id || 0;
 
     this.schedulingService.getSmartSuggestion(
@@ -550,8 +561,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           room_id: null,
           room_code: 'Not set',
           day: suggestion.day,
-          start_time: this.convertTimeToBackendFormat(suggestion.start_time),
-          end_time: this.convertTimeToBackendFormat(suggestion.end_time),
+          start_time: this.convertTimeToBackendFormat(
+            suggestion.start_time
+          ),
+          end_time: this.convertTimeToBackendFormat(
+            suggestion.end_time
+          ),
           hasConflict: false
         };
         
@@ -561,10 +576,18 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           this.cdr.markForCheck();
           
           const source = suggestion.isMl ? 'ML Model' : 'Backend Rules';
-          this.snackBar.open(`Suggested ${suggestion.faculty_name} (${source})`, 'Close', { duration: 3000 });
+          this.snackBar.open(
+            `Suggested ${suggestion.faculty_name} (${source})`, 
+            'Close', 
+            { duration: 3000 }
+          );
         });
       } else {
-        this.snackBar.open(`No suggestions found for ${slot.course_code}`, 'Close', { duration: 3000 });
+        this.snackBar.open(
+          `No suggestions found for ${slot.course_code}`, 
+          'Close', 
+          { duration: 3000 }
+        );
       }
     });
   }
@@ -607,10 +630,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         concatMap(entry => {
           saveStream$.next({ schedule_id: entry.schedule_id, status: 'saving' });
 
-          const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+          const selectedOption = this.programOptions.find(
+            (o) => o.display === this.selectedProgram
+          );
           const programId = selectedOption?.id || 0;
-          const selectedYearLevelObj = selectedOption?.year_levels.find((y: any) => y.year_level === this.selectedYear);
-          const selectedSectionObj = selectedYearLevelObj?.sections.find((s: any) => s.section_name === this.selectedSection);
+          const selectedYearLevelObj = selectedOption?.year_levels.find(
+            (y: any) => y.year_level === this.selectedYear
+          );
+          const selectedSectionObj = selectedYearLevelObj?.sections.find(
+            (s: any) => s.section_name === this.selectedSection
+          );
           const sectionId = selectedSectionObj?.section_id || 0;
           
           return this.schedulingService.assignSchedule(

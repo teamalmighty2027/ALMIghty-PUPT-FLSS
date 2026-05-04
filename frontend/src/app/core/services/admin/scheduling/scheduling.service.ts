@@ -1,8 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
-import { Observable, throwError, forkJoin, from, of } from 'rxjs';
-import { catchError, map, shareReplay, tap, switchMap, concatMap, toArray } from 'rxjs/operators';
+import { 
+  Observable, throwError, forkJoin, from, of 
+} from 'rxjs';
+
+import { 
+  catchError, map, shareReplay, tap, switchMap, concatMap, toArray 
+} from 'rxjs/operators';
+
 import { ScheduleSuggestionService } from './schedule-suggestion.service';
 
 import { ScheduleValidationService } from './schedule-validation.service';
@@ -509,7 +515,12 @@ export class SchedulingService {
         });
 
         if (candidates.length === 0) {
-          return this.runBackendFallback(programId, yearLevel, sectionId, slot);
+          return this.runBackendFallback(
+            programId, 
+            yearLevel, 
+            sectionId, 
+            slot
+          );
         }
 
         return from(candidates).pipe(
@@ -550,31 +561,58 @@ export class SchedulingService {
                 success: true
               };
             }
+
             return null;
           }),
           switchMap(mlSuggestion => {
             if (mlSuggestion) return of(mlSuggestion);
-            return this.runBackendFallback(programId, yearLevel, sectionId, slot);
+            return this.runBackendFallback(
+              programId, 
+              yearLevel, 
+              sectionId, 
+              slot
+            );
           })
         );
       }),
-      catchError(() => this.runBackendFallback(programId, yearLevel, sectionId, slot))
+      catchError(() => this.runBackendFallback(
+        programId, 
+        yearLevel, 
+        sectionId, 
+        slot
+      ))
     );
   }
 
+  /**
+   * Executes the legacy backend AI suggestion logic as a fallback.
+   * @param programId The ID of the program.
+   * @param yearLevel The year level.
+   * @param sectionId The ID of the section.
+   * @param slot The schedule object to find a suggestion for.
+   * @returns An Observable emitting the suggestion result.
+   */
   private runBackendFallback(
     programId: number, 
     yearLevel: number, 
     sectionId: number, 
     slot: Schedule
   ): Observable<any> {
-    return this.getAISuggestion(programId, yearLevel, sectionId, slot.course_id).pipe(
+    return this.getAISuggestion(
+      programId, 
+      yearLevel, 
+      sectionId, 
+      slot.course_id
+    ).pipe(
       map(res => {
         if (!res || !res.success || !res.faculty_id) return { success: false };
+        
         const pref = res.preferences?.[0];
         if (!pref) return { success: false };
 
-        const [start, end] = pref.time.split(' - ').map((t: string) => t.trim());
+        const [start, end] = pref.time.split(' - ')
+          .map((t: string) => t.trim());
+
         return {
           faculty_id: res.faculty_id,
           faculty_name: res.faculty_name || res.name,
@@ -588,12 +626,20 @@ export class SchedulingService {
     );
   }
 
+  /**
+   * Converts a 12-hour format time string to total minutes from midnight.
+   * @param time The time string (e.g., "08:00 AM").
+   * @returns The total minutes as a number.
+   */
   private timeToMinutes(time: string): number {
     if (!time) return 0;
+    
     const [timeStr, modifier] = time.split(' ');
     let [hours, minutes] = timeStr.split(':').map(Number);
+    
     if (modifier === 'PM' && hours < 12) hours += 12;
     if (modifier === 'AM' && hours === 12) hours = 0;
+    
     return (hours * 60) + minutes;
   }
 }
