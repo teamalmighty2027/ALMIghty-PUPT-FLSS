@@ -163,6 +163,7 @@ class ExternalController extends Controller
 
         // Get faculty schedules - starting with faculty table
         $schedules = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('schedules', 'faculty.id', '=', 'schedules.faculty_id')
             ->join('section_courses', 'schedules.section_course_id', '=', 
                 'section_courses.section_course_id')
@@ -192,8 +193,9 @@ class ExternalController extends Controller
             ->whereNotNull('schedules.end_time')
             ->select(
                 'schedules.schedule_id as course_schedule_id',
-                'faculty.id as user_login_id',
+                'faculty.id as faculty_id',
                 'faculty.idp_user_id',
+                'users.code as faculty_code',
                 'programs.program_title as program',
                 'courses.course_code',
                 'courses.course_title as course_subjects',
@@ -213,7 +215,7 @@ class ExternalController extends Controller
         // Group schedules by faculty and course
         $groupedSchedules = $schedules->groupBy(function ($schedule) {
             // Create a unique key combining faculty, course, and section
-            return $schedule->user_login_id . '_' .
+            return $schedule->faculty_id . '_' .
             $schedule->course_code . '_' .
             $schedule->year_level . '-' . $schedule->section_name;
         })->map(function ($courseSchedules) {
@@ -230,7 +232,8 @@ class ExternalController extends Controller
 
             return [
                 'course_schedule_id' => $firstSchedule->course_schedule_id,
-                'user_login_id'      => $firstSchedule->user_login_id,
+                'faculty_id'         => $firstSchedule->faculty_id,
+                'faculty_code'       => $firstSchedule->faculty_code,
                 'idp_user_id'        => $firstSchedule->idp_user_id,
                 'program'            => $firstSchedule->program,
                 'course_code'        => $firstSchedule->course_code,
@@ -239,7 +242,7 @@ class ExternalController extends Controller
                 'schedule'           => $combinedSchedule,
             ];
         })
-            ->sortBy('user_login_id')
+            ->sortBy('faculty_id')
             ->values();
 
         return response()->json([
@@ -318,8 +321,9 @@ class ExternalController extends Controller
             })
             ->where('faculty_schedule_publication.is_published', '=', 1)
             ->select(
-                'faculty.id as user_login_id',
+                'faculty.id as faculty_id',
                 'faculty.idp_user_id',
+                'users.code as faculty_code',
                 'current_schedules.schedule_id as course_schedule_id',
                 'courses.course_title as subject',
                 DB::raw("'" . $this->formatSemesterLabel($activeSemester->semester) . 
