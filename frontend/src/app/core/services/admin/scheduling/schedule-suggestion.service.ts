@@ -87,12 +87,14 @@ export class ScheduleSuggestionService {
         );
 
         // Convert features to Float32Array
-        const inputTensor = new ort.Tensor('float32', features, [1, features.length]);
+        const inputTensor = new ort.Tensor(
+          'float32',
+          features,
+          [1, features.length]
+        );
         
         return from(this.session.run({ float_input: inputTensor })).pipe(
           map(output => {
-            // XGBoost Regressor output is usually in a tensor named 'variable' or similar
-            // We'll need to check the exact output name from your model export
             const result = output[Object.keys(output)[0]];
             const score = Array.from(result.data as Float32Array)[0];
 
@@ -130,11 +132,15 @@ export class ScheduleSuggestionService {
   ): Float32Array {
     if (!this.encoders) return new Float32Array(0);
 
+    // Pull encoding directly from encoders.json
     const dayEncoded = this.encoders.day_encoding[day] ?? -1;
     const duration = Math.max(0, end_time_min - start_time_min);
 
-    // This map must match the 'schema' in encoders.json EXACTLY
-    const featureMap: Record<string, number> = {
+    /**
+     * The keys here must match the column names exported by PHP.
+     * The order doesn't matter here; it's handled in the next step.
+     */
+    const featureValues: Record<string, number> = {
       'faculty_id': faculty_id,
       'academic_year_id': academic_year_id,
       'semester_id': semester_id,
@@ -148,10 +154,20 @@ export class ScheduleSuggestionService {
       'duration_min': duration
     };
 
-    // Construct array in the exact order specified in schema
+    /**
+     * ! CRITICAL: Build the array based on the ORDER defined in the JSON schema.
+     * This ensures parity between Python training and Angular inference.
+     */
     const data = this.encoders.schema
       .filter(key => key !== 'match_score')
-      .map(key => featureMap[key] ?? 0);
+      .map(key => {
+        if (!(key in featureValues)) {
+          console.warn(
+            `Feature key "${key}" found in schema but not in UI map.`
+          );
+        }
+        return featureValues[key] ?? 0;
+      });
 
     return new Float32Array(data);
   }
