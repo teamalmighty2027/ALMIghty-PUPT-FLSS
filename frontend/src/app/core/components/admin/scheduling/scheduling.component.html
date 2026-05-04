@@ -169,6 +169,16 @@
                     ></span>
                   }
                 }
+
+                <!-- ML Suggestion Icon -->
+                @if (isDraftMode && element.day === 'Not set') {
+                  <span
+                    mat-symbol="auto_awesome"
+                    class="ml-suggest-icon"
+                    (click)="onMlSuggest(element)"
+                    matTooltip="Get AI Schedule Suggestion"
+                  ></span>
+                }
               </div>
             </td>
           </ng-container>
