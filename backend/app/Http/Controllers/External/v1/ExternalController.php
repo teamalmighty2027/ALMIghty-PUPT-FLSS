@@ -321,7 +321,7 @@ class ExternalController extends Controller
             })
             ->where('faculty_schedule_publication.is_published', '=', 1)
             ->select(
-                'faculty.id',
+                'faculty.id as faculty_id',
                 'faculty.idp_user_id',
                 'users.code as faculty_code',
                 'current_schedules.schedule_id as course_schedule_id',
