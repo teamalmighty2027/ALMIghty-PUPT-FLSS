@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
-import { Observable, throwError, forkJoin } from 'rxjs';
-import { catchError, map, shareReplay, tap } from 'rxjs/operators';
+import { Observable, throwError, forkJoin, from, of } from 'rxjs';
+import { catchError, map, shareReplay, tap, switchMap, concatMap, toArray } from 'rxjs/operators';
+import { ScheduleSuggestionService } from './schedule-suggestion.service';
 
 import { ScheduleValidationService } from './schedule-validation.service';
 import {
@@ -39,7 +40,8 @@ export class SchedulingService {
 
   constructor(
     private http: HttpClient,
-    private scheduleValidationService: ScheduleValidationService
+    private scheduleValidationService: ScheduleValidationService,
+    private mlService: ScheduleSuggestionService
   ) {}
 
   /**
@@ -457,5 +459,141 @@ export class SchedulingService {
         }),
         catchError(this.handleError)
       );
+  }
+  /**
+   * Orchestrates the suggestion process: ML first, then backend fallback.
+   * @param slot The schedule slot to find a suggestion for.
+   * @param academicYearId The academic year ID.
+   * @param semesterId The semester ID.
+   * @param activeSemesterId The active semester record ID.
+   */
+  public getSmartSuggestion(
+    slot: Schedule,
+    academicYearId: number,
+    semesterId: number,
+    activeSemesterId: number,
+    programId: number,
+    yearLevel: number,
+    sectionId: number
+  ): Observable<any> {
+    return this.getSubmittedPreferencesForActiveSemester().pipe(
+      switchMap(response => {
+        const preferences = response.preferences || [];
+        const candidates: any[] = [];
+        
+        preferences.forEach(pref => {
+          const activeSem = pref.active_semesters.find(s => 
+            s.academic_year_id === academicYearId && 
+            s.semester_id === semesterId
+          );
+
+          if (activeSem) {
+            const coursePref = activeSem.courses.find(c => 
+              c.course_details.course_id === slot.course_id
+            );
+
+            if (coursePref) {
+              coursePref.preferred_days.forEach(dayPref => {
+                candidates.push({
+                  faculty_id: pref.faculty_id,
+                  faculty_name: pref.faculty_name,
+                  course_assignment_id: coursePref.course_assignment_id,
+                  is_ignored: !!coursePref.is_ignored,
+                  day: dayPref.day,
+                  start_time: dayPref.start_time,
+                  end_time: dayPref.end_time
+                });
+              });
+            }
+          }
+        });
+
+        if (candidates.length === 0) {
+          return this.runBackendFallback(programId, yearLevel, sectionId, slot);
+        }
+
+        return from(candidates).pipe(
+          concatMap(c => {
+            const startMin = this.timeToMinutes(c.start_time);
+            const endMin = this.timeToMinutes(c.end_time);
+
+            return this.mlService.predict(
+              c.faculty_id,
+              academicYearId,
+              semesterId,
+              activeSemesterId,
+              c.course_assignment_id,
+              0,
+              c.is_ignored,
+              c.day,
+              startMin,
+              endMin
+            ).pipe(
+              map(ml => ({ ...c, ml }))
+            );
+          }),
+          toArray(),
+          map(results => {
+            const bestMatch = results
+              .filter(r => r.ml !== null)
+              .sort((a, b) => b.ml!.confidence - a.ml!.confidence)[0];
+
+            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+              return {
+                faculty_id: bestMatch.faculty_id,
+                faculty_name: bestMatch.faculty_name,
+                day: bestMatch.day,
+                start_time: bestMatch.start_time,
+                end_time: bestMatch.end_time,
+                confidence: bestMatch.ml!.confidence,
+                isMl: true,
+                success: true
+              };
+            }
+            return null;
+          }),
+          switchMap(mlSuggestion => {
+            if (mlSuggestion) return of(mlSuggestion);
+            return this.runBackendFallback(programId, yearLevel, sectionId, slot);
+          })
+        );
+      }),
+      catchError(() => this.runBackendFallback(programId, yearLevel, sectionId, slot))
+    );
+  }
+
+  private runBackendFallback(
+    programId: number, 
+    yearLevel: number, 
+    sectionId: number, 
+    slot: Schedule
+  ): Observable<any> {
+    return this.getAISuggestion(programId, yearLevel, sectionId, slot.course_id).pipe(
+      map(res => {
+        if (!res || !res.success || !res.faculty_id) return { success: false };
+        const pref = res.preferences?.[0];
+        if (!pref) return { success: false };
+
+        const [start, end] = pref.time.split(' - ').map((t: string) => t.trim());
+        return {
+          faculty_id: res.faculty_id,
+          faculty_name: res.faculty_name || res.name,
+          day: pref.day,
+          start_time: start,
+          end_time: end,
+          isMl: false,
+          success: true
+        };
+      })
+    );
+  }
+
+  private timeToMinutes(time: string): number {
+    if (!time) return 0;
+    const [timeStr, modifier] = time.split(' ');
+    let [hours, minutes] = timeStr.split(':').map(Number);
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return (hours * 60) + minutes;
   }
 }

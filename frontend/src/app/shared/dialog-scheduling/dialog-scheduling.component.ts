@@ -167,24 +167,53 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     });
 
     queueMicrotask(() => {
-      this.schedulingService.getAISuggestion(
-        this.data.program.id,
-        this.data.academic.year_level,
-        this.data.academic.section_id,
-        this.data.course_id
-      ).pipe(
-        takeUntil(this.destroy$)
-      ).subscribe((suggestions) => {
-        if (suggestions.success === false) {
-            this.snackBar.open(
-                suggestions.message || 'No AI suggestions available.',
-                'Close',
-                { duration: 3000 }
-            );
-            return;
+      this.schedulingService.populateSchedules().pipe(
+        takeUntil(this.destroy$),
+        switchMap(activeInfo => {
+          return this.schedulingService.getSmartSuggestion(
+            { course_id: this.data.course_id } as any,
+            activeInfo.academic_year_id,
+            activeInfo.semester_id,
+            activeInfo.active_semester_id,
+            this.data.program.id,
+            this.data.academic.year_level,
+            this.data.academic.section_id
+          );
+        })
+      ).subscribe((suggestion) => {
+        if (!suggestion || suggestion.success === false) {
+          this.snackBar.open(
+            'No suggestions available.',
+            'Close',
+            { duration: 3000 }
+          );
+          return;
+        }
+
+        const facultyId = suggestion.faculty_id;
+        const name = suggestion.faculty_name;
+        
+        const prefs: Preference[] = [];
+        if (suggestion.day && suggestion.start_time && suggestion.end_time) {
+          const displayStart = this.scheduleValidationService.formatTimeForDisplay(suggestion.start_time);
+          const displayEnd = this.scheduleValidationService.formatTimeForDisplay(suggestion.end_time);
+          prefs.push({ 
+            day: suggestion.day, 
+            time: `${displayStart} - ${displayEnd}`,
+            program_code: '' 
+          });
+        }
+
+        const mappedSuggestion: SuggestedFaculty = {
+          faculty_id: facultyId,
+          name: name,
+          type: suggestion.isMl ? 'ML Suggestion' : 'Rule-based',
+          preferences: prefs,
+          prefIndex: 0,
+          animating: false
         };
 
-        this.data.aiSuggestion = suggestions;
+        this.data.aiSuggestion = mappedSuggestion;
         this.cdr.markForCheck();
       });
     });
