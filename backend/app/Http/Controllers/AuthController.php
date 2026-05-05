@@ -12,12 +12,11 @@ use Illuminate\Support\Facades\Hash;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
     /**
-     * Handle login and issue a role-based session token.
+     * Handle user login and issue a Sanctum token.
      */
     public function login(Request $request)
     {
@@ -55,10 +54,9 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $expiration = $this->getRoleExpiration($user->role);
-        $cookieMinutes = $this->getCookieMinutes($expiration);
-        $tokenResult = $user->createToken('user-token', ['*'], $expiration);
-        $token = $tokenResult->plainTextToken;
+        $tokenResult = $user->createToken('user-token');
+        $token       = $tokenResult->plainTextToken;
+        $expiration  = Carbon::now()->addHours(24);
 
         $faculty = $user->faculty;
 
@@ -86,10 +84,8 @@ class AuthController extends Controller
         ]);
 
         // Store the token and user info in cookies
-        Cookie::queue(
-            Cookie::make('user_token', $token, $cookieMinutes, null, null, true, true)
-        );
-        Cookie::queue(Cookie::make('user_info', $userData, $cookieMinutes));
+        Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
+        Cookie::queue(Cookie::make('user_info', $userData, 1440));
 
         // AuditLogger automatically grabs their Name, Role, and ID
         Auth::setUser($user);
@@ -101,15 +97,15 @@ class AuthController extends Controller
 
         return response()->json([
             'message'    => 'Login successful.',
-            'expires_at' => $expiration->toIso8601String(),
+            'expires_at' => $expiration,
             'token'      => $token,
             'user'       => json_decode($userData, true),
         ])
-        ->cookie('token', $token, $cookieMinutes, null, null, true, true);
+        ->cookie('token', $token, 1440, null, null, true, true);
     }
 
     /**
-     * Handle logout by revoking the current token and clearing cookies.
+     * Log out the current user and revoke the active token.
      */
     public function logout(Request $request)
     {
@@ -138,6 +134,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Unauthenticated.'], 401);
     }
 
+    /**
+     * Reissue a Sanctum token for the authenticated user.
+     */
+    public function refreshToken(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $currentToken = $user->currentAccessToken();
+
+        if ($currentToken && method_exists($currentToken, 'delete')) {
+            $currentToken->delete();
+        }
+
+        $tokenResult = $user->createToken('user-token');
+        $token = $tokenResult->plainTextToken;
+        $expiration = Carbon::now()->addHours(24);
+
+        return response()->json([
+            'message' => 'Token refreshed.',
+            'expires_at' => $expiration,
+            'token' => $token,
+        ])
+        ->cookie('token', $token, 1440, null, null, true, true);
+    }
+
+    /**
+     * Update the current user's password after validation.
+     */
     public function changePassword(Request $request)
     {
         $request->validate([
@@ -175,59 +203,6 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Your password has been changed successfully.',
         ]);
-    }
-
-    /**
-     * Refreshes the user's token by validating the existing token 
-     * and issuing a new one with extended expiration.
-     */
-    public function refreshToken(Request $request)
-    {
-        $plainTextToken = $this->getPlainTextToken($request);
-
-        if (! $plainTextToken) {
-            return response()->json([
-                'message' => 'Missing token.',
-            ], 401);
-        }
-
-        $accessToken = PersonalAccessToken::findToken($plainTextToken);
-
-        if (! $accessToken) {
-            return response()->json([
-                'message' => 'Invalid token.',
-            ], 401);
-        }
-
-        if ($accessToken->expires_at && Carbon::now()->greaterThan($accessToken->expires_at)) {
-            $accessToken->delete();
-
-            return response()->json([
-                'message' => 'Token expired.',
-            ], 401);
-        }
-
-        $user = $accessToken->tokenable;
-
-        if (! $user) {
-            return response()->json([
-                'message' => 'Unauthenticated.',
-            ], 401);
-        }
-
-        $expiration = $this->getRoleExpiration($user->role);
-        $cookieMinutes = $this->getCookieMinutes($expiration);
-        $tokenResult = $user->createToken('user-token', ['*'], $expiration);
-        $newToken = $tokenResult->plainTextToken;
-
-        $accessToken->delete();
-
-        return response()->json([
-            'message' => 'Token refreshed.',
-            'token' => $newToken,
-            'expires_at' => $expiration->toIso8601String(),
-        ])
-        ->cookie('token', $newToken, $cookieMinutes, null, null, true, true);
     }
 
     //
@@ -351,17 +326,12 @@ class AuthController extends Controller
                 ], 403);
             }
 
-            // Use the earlier of IDP expiry and role-based expiry.
-            $expiresIn = $token['expires_in'] ?? 3600;
-            $idpExpiresAt = Carbon::now()->addSeconds($expiresIn);
-            $roleExpiresAt = $this->getRoleExpiration($user->role);
-            $expiresAt = $idpExpiresAt->lessThan($roleExpiresAt)
-                ? $idpExpiresAt
-                : $roleExpiresAt;
-            $expiration = $this->getCookieMinutes($expiresAt);
-
-            $tokenResult = $user->createToken('iDP-user-token', ['*'], $expiresAt);
+            $tokenResult = $user->createToken('iDP-user-token');
             $sanctumToken = $tokenResult->plainTextToken;
+
+            // Use IDP token expiry for Sanctum token expiry
+            $expiresIn = $token['expires_in'] ?? 3600;
+            $expiration = (int) ceil($expiresIn / 60);
 
             // Get permissions and allowed programs for response
             $permissions = $user->permissions->pluck('permission_key')->toArray();
@@ -402,14 +372,13 @@ class AuthController extends Controller
 
             return response()->json([
                 'message' => 'IDP authentication successful.',
-                'token' => $sanctumToken,
-                'expires_at' => $expiresAt->toIso8601String(),
-                'user' => $userDataArray,
-                'idp' => [
+                'token'      => [
+                    'token' => $sanctumToken,
                     'access_token' => $accessToken,
                     'refresh_token' => $token['refresh_token'] ?? null,
-                    'expires_in' => $expiresIn,
+                    'expires_in'   => $expiresIn, 
                 ],
+                'data'       => $userDataArray,
             ])
             ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
             ->cookie('user_info', $userDataJson, $expiration);
@@ -483,44 +452,5 @@ class AuthController extends Controller
                 'message' => 'IDP logout proxy failed.',
             ], 502);
         }
-    }
-
-    /**
-     * Helper function to extract the plain text token from 
-     * either the Authorization header or cookies.
-     */
-    private function getPlainTextToken(Request $request): ?string
-    {
-        $bearerToken = $request->bearerToken();
-
-        if ($bearerToken) {
-            return $bearerToken;
-        }
-
-        $cookieToken = $request->cookie('token') ?? $request->cookie('user_token');
-
-        return $cookieToken ?: null;
-    }
-
-    /**
-     * Resolve the role-based session expiration.
-     */
-    private function getRoleExpiration(string $role): Carbon
-    {
-        if ($role === 'admin' || $role === 'superadmin') {
-            return Carbon::now()->addDays(5);
-        }
-
-        return Carbon::now()->addHours(24);
-    }
-
-    /**
-     * Convert an expiration into cookie minutes.
-     */
-    private function getCookieMinutes(Carbon $expiresAt): int
-    {
-        $seconds = Carbon::now()->diffInSeconds($expiresAt);
-
-        return (int) ceil($seconds / 60);
     }
 }
