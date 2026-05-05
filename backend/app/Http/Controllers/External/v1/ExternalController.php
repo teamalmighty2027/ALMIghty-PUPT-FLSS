@@ -4,6 +4,7 @@ namespace App\Http\Controllers\External\v1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Faculty;
 use App\Models\FacultyProfile;
 use App\Models\Program;
 use App\Models\Room;
@@ -142,18 +143,21 @@ class ExternalController extends Controller
     }
 
     /**
-     * For: Faculty Reportorial Requirements System
-     * Retrieves course schedules for FRRS integration.
+     * For: Faculty Reportorial Requirements System (FRRS)
+     * Retrieves course schedules with room codes.
      */
     public function courseSchedules(Request $request)
     {
-        $this->logExternalAccess($request, 'Course schedules');
+        $this->logExternalAccess($request, 'Course schedules with rooms');
 
         // Step 1: Get active semester
         $activeSemester = $this->getActiveSemester();
 
         if (! $activeSemester) {
-            return response()->json(['message' => 'No active semester found.'], 404);
+            return response()->json(
+                ['message' => 'No active semester found.'],
+                404
+            );
         }
 
         // Step 2: Check if there are any published schedules
@@ -161,14 +165,17 @@ class ExternalController extends Controller
             return $this->buildUnpublishedResponse($activeSemester);
         }
 
-        // Get faculty schedules - starting with faculty table
-        $schedules = DB::table('faculty')
+        // Get faculty schedules with room information
+        $schedules = Faculty::query()
             ->join('users', 'faculty.user_id', '=', 'users.id')
-            ->join('schedules', 'faculty.id', '=', 'schedules.faculty_id')
-            ->join('section_courses', 'schedules.section_course_id', '=', 
+            ->join('schedules', 'faculty.id', '=', 
+                'schedules.faculty_id')
+            ->join('section_courses', 
+                'schedules.section_course_id', '=', 
                 'section_courses.section_course_id')
-            ->join('course_assignments', 'course_assignments.course_assignment_id', 
-                '=', 'section_courses.course_assignment_id')
+            ->join('course_assignments', 
+                'course_assignments.course_assignment_id', '=', 
+                'section_courses.course_assignment_id')
             ->join('courses', 'courses.course_id', '=', 
                 'course_assignments.course_id')
             ->join('sections_per_program_year', 
@@ -176,27 +183,51 @@ class ExternalController extends Controller
                 'section_courses.sections_per_program_year_id')
             ->join('programs', 'programs.program_id', '=', 
                 'sections_per_program_year.program_id')
-            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 
+            ->join('semesters as ca_semesters', 
+                'ca_semesters.semester_id', '=', 
                 'course_assignments.semester_id')
-            ->join('faculty_schedule_publication', function ($join) use ($activeSemester) {
-                $join->on('faculty_schedule_publication.faculty_id', '=', 'faculty.id')
-                    ->where('faculty_schedule_publication.academic_year_id', '=', 
-                        $activeSemester->academic_year_id)
-                    ->where('faculty_schedule_publication.semester_id', '=', 
-                        $activeSemester->semester_id)
-                    ->where('faculty_schedule_publication.is_published', '=', 1);
-            })
-            ->where('ca_semesters.semester', '=', $activeSemester->semester)
-            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->leftJoin('rooms', 'schedules.room_id', '=', 
+                'rooms.room_id')
+            ->join('faculty_schedule_publication', 
+                function ($join) use ($activeSemester) {
+                    $join->on(
+                        'faculty_schedule_publication.faculty_id', 
+                        '=', 
+                        'faculty.id'
+                    )
+                        ->where(
+                            'faculty_schedule_publication.academic_year_id',
+                            '=',
+                            $activeSemester->academic_year_id
+                        )
+                        ->where(
+                            'faculty_schedule_publication.semester_id',
+                            '=',
+                            $activeSemester->semester_id
+                        )
+                        ->where(
+                            'faculty_schedule_publication.is_published',
+                            '=',
+                            1
+                        );
+                })
+            ->where('ca_semesters.semester', '=', 
+                $activeSemester->semester)
+            ->where(
+                'sections_per_program_year.academic_year_id', 
+                '=', 
+                $activeSemester->academic_year_id
+            )
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.start_time')
             ->whereNotNull('schedules.end_time')
             ->select(
                 'schedules.schedule_id as course_schedule_id',
                 'faculty.id as faculty_id',
-                'faculty.idp_user_id',
                 'users.code as faculty_code',
+                'faculty.idp_user_id',
                 'programs.program_title as program',
+                'programs.program_code',
                 'courses.course_code',
                 'courses.course_title as course_subjects',
                 'sections_per_program_year.year_level',
@@ -204,7 +235,9 @@ class ExternalController extends Controller
                 'section_courses.section_course_id',
                 'schedules.day',
                 'schedules.start_time',
-                'schedules.end_time'
+                'schedules.end_time',
+                'rooms.room_code',
+                'rooms.room_id'
             )
             ->orderBy('faculty.id')
             ->orderBy('section_courses.section_course_id')
@@ -214,11 +247,11 @@ class ExternalController extends Controller
 
         // Group schedules by faculty and course
         $groupedSchedules = $schedules->groupBy(function ($schedule) {
-            // Create a unique key combining faculty, course, and section
             return $schedule->faculty_id . '_' .
-            $schedule->course_code . '_' .
-            $schedule->year_level . '-' . $schedule->section_name;
-        })->map(function ($courseSchedules) {
+                $schedule->course_code . '_' .
+                $schedule->year_level . '-' . 
+                $schedule->section_name;
+        })->map(function ($courseSchedules) use ($activeSemester) {
             $firstSchedule = $courseSchedules->first();
 
             // Combine all schedules for this course
@@ -226,8 +259,11 @@ class ExternalController extends Controller
                 ->sortBy(['day', 'start_time'])
                 ->map(function ($schedule) {
                     return $schedule->day . ' ' .
-                    date("H:i", strtotime($schedule->start_time)) . ' - ' .
-                    date("H:i", strtotime($schedule->end_time));
+                        date("H:i", 
+                            strtotime($schedule->start_time)) . 
+                        ' - ' .
+                        date("H:i", 
+                            strtotime($schedule->end_time));
                 })->implode(', ');
 
             return [
@@ -235,11 +271,20 @@ class ExternalController extends Controller
                 'faculty_id'         => $firstSchedule->faculty_id,
                 'faculty_code'       => $firstSchedule->faculty_code,
                 'idp_user_id'        => $firstSchedule->idp_user_id,
+                'program_code'       => $firstSchedule->program_code,
                 'program'            => $firstSchedule->program,
                 'course_code'        => $firstSchedule->course_code,
                 'course_subjects'    => $firstSchedule->course_subjects,
-                'year_section'       => $firstSchedule->year_level . '-' . $firstSchedule->section_name,
+                'year_section'       => $firstSchedule->year_level . 
+                    '-' . $firstSchedule->section_name,
+                'room_id'            => $firstSchedule->room_id,
+                'room_code'          => $firstSchedule->room_code,
                 'schedule'           => $combinedSchedule,
+                'semester'           => $this->formatSemesterLabel(
+                    $activeSemester->semester
+                ),
+                'school_year'        => $activeSemester->year_start . 
+                    '-' . $activeSemester->year_end,
             ];
         })
             ->sortBy('faculty_id')
