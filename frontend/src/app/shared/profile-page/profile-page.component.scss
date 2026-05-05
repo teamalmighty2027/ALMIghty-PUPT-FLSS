@@ -115,11 +115,20 @@
 
 .pill-input {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 0 var(--spacing-md); /* Changed vertical padding to 0 since we are using a fixed height */
   border-radius: var(--border-radius-xl);
   border: 1.5px solid #e0e0e0;
   background-color: #fafafa; 
   font-family: var(--font-base);
+  
+  /* --- ADD THESE 3 LINES TO FIX SIZING --- */
+  box-sizing: border-box; 
+  height: 48px; /* Forces both inputs and selects to be exactly 48px tall */
+  line-height: 48px; /* Centers the text vertically */
+  /* --------------------------------------- */
+
+  text-overflow: ellipsis;
+
   @include mixins.default-transition;
 
   &:focus {
@@ -165,7 +174,10 @@
 }
 
 .faculty-code { flex: 0 0 210px; }
-.department   { flex: 0 0 180px; }
+.department { 
+  flex: 1; /* This tells it to stretch and fill the remaining space */
+  min-width: 200px; /* Prevents it from getting too squished on smaller screens */
+}
 .birthdate    { flex: 0 0 210px; }
 .sex          { flex: 0 0 180px; }
 
