@@ -125,8 +125,11 @@ export class ProfilePageComponent implements OnInit {
   loadProvinces(): void {
     this.addressService.getProvinces().subscribe(data => {
       
-      // Manually add Metro Manila to the list since it's technically a Region
-      data.push({ code: '130000000', name: 'Metro Manila' });
+      // Only manually add Metro Manila if it's NOT already in the data
+      const hasNCR = data.some(p => p.code === '130000000');
+      if (!hasNCR) {
+        data.push({ code: '130000000', name: 'Metro Manila' });
+      }
       
       // Sort alphabetically
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
