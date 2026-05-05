@@ -32,15 +32,13 @@ class FacultyProfile extends Model
     {
         return $this->belongsTo(Faculty::class, 'faculty_id', 'id');
     }
-
-    // You can delete the program() relationship since program_id is gone
-
     public function getBirthdayAttribute(): ?string
     {
         return $this->formatBirthdate($this->attributes['birthdate'] ?? null);
     }
-
-    // Accessor for the Profile Picture URL
+    /**
+     * Get the profile picture URL when available.
+     */
     public function getProfilePictureUrlAttribute(): ?string
     {
         if (!empty($this->attributes['profile_picture'])) {
@@ -49,6 +47,9 @@ class FacultyProfile extends Model
         return null;
     }
 
+    /**
+     * Format a birthdate into Y-m-d or return null for invalid values.
+     */
     private function formatBirthdate($birthdate): ?string
     {
         if (empty($birthdate)) return null;

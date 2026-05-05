@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service'; 
-import { PhAddressService } from '../../core/services/address/ph-address.service'; // <-- Correct Address Service Path
+import { PhAddressService } from '../../core/services/address/ph-address.service';
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'; 
@@ -30,14 +30,14 @@ export class ProfilePageComponent implements OnInit {
     private fb: FormBuilder,
     private facultyService: FacultyService,
     private snackBar: MatSnackBar,
-    private addressService: PhAddressService // <-- Inject Address Service
+    private addressService: PhAddressService
   ) {}
 
   ngOnInit(): void {
     this.initForm();
-    this.loadProvinces();         // 1. Fetch initial province list
-    this.setupAddressListeners(); // 2. Listen for dropdown changes
-    this.loadProfileData();       // 3. Load user data
+    this.loadProvinces();
+    this.setupAddressListeners();
+    this.loadProfileData();
   }
 
   initForm(): void {
@@ -62,6 +62,9 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  /**
+   * Wire form controls to address API calls and derived values.
+   */
   setupAddressListeners(): void {
     // When Province changes, load Cities
     this.profileForm.get('province')?.valueChanges.subscribe(provinceName => {
@@ -87,41 +90,39 @@ export class ProfilePageComponent implements OnInit {
           this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
           this.profileForm.get('barangay')?.setValue('');
         });
-
-        // EXACT MATCH Dictionary for Metro Manila & nearby areas
-        const zipCodeMap: { [key: string]: string } = {
-          'City of Taguig': '1630',
-          'City of Manila': '1000',
-          'Quezon City': '1100',
-          'City of Makati': '1200',
-          'City of Pasig': '1600',
-          'City of Mandaluyong': '1550',
-          'City of Marikina': '1800',
-          'City of Muntinlupa': '1770',
-          'City of Parañaque': '1700',
-          'City of Las Piñas': '1740',
-          'City of Valenzuela': '1440',
-          'City of Malabon': '1470',
-          'City of Navotas': '1490',
-          'City of San Juan': '1500',
-          'Pasay City': '1300',
-          'Pateros': '1620',
-          'City of Caloocan': '1400',
-          'Bacoor City': '4102',
-          'Dasmariñas City': '4114',
-          'Imus City': '4103'
-        };
-
-        const foundZip = zipCodeMap[cityName];
-        if (foundZip) {
-          this.profileForm.get('zipcode')?.setValue(foundZip);
-        } else {
-          this.profileForm.get('zipcode')?.setValue('');
-        }
       }
+
+      const zipCodeMap: { [key: string]: string } = {
+        'City of Taguig': '1630',
+        'City of Manila': '1000',
+        'Quezon City': '1100',
+        'City of Makati': '1200',
+        'City of Pasig': '1600',
+        'City of Mandaluyong': '1550',
+        'City of Marikina': '1800',
+        'City of Muntinlupa': '1770',
+        'City of Parañaque': '1700',
+        'City of Las Piñas': '1740',
+        'City of Valenzuela': '1440',
+        'City of Malabon': '1470',
+        'City of Navotas': '1490',
+        'City of San Juan': '1500',
+        'Pasay City': '1300',
+        'Pateros': '1620',
+        'City of Caloocan': '1400',
+        'Bacoor City': '4102',
+        'Dasmariñas City': '4114',
+        'Imus City': '4103'
+      };
+
+      const foundZip = zipCodeMap[cityName];
+      this.profileForm.get('zipcode')?.setValue(foundZip ?? '');
     });
   }
 
+  /**
+   * Load provinces from PSGC and include Metro Manila as an option.
+   */
   loadProvinces(): void {
     this.addressService.getProvinces().subscribe(data => {
       
@@ -136,6 +137,9 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  /**
+   * Load the user's profile and initialize dependent address lists.
+   */
   loadProfileData(): void {
     this.isLoading = true;
     this.profileForm.disable(); 
@@ -150,7 +154,7 @@ export class ProfilePageComponent implements OnInit {
           barangay: data.barangay || ''
         };
         
-        this.profilePictureUrl = data.profile_picture_url || null; 
+        this.profilePictureUrl = data.profile_picture_url || null;
         this.profileForm.patchValue(formData, { emitEvent: true });
         
         if (data.province) {
@@ -187,6 +191,9 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  /**
+   * Handle file input selection for profile picture preview.
+   */
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -200,6 +207,9 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+  /**
+   * Submit the profile form to update the user's profile.
+   */
   onSubmit(): void {
     if (this.profileForm.valid) {
       this.isLoading = true;
