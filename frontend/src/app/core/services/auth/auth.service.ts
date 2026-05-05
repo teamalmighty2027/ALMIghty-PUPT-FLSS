@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 
 import { Observable, of } from 'rxjs';
-import { map, tap, switchMap, finalize, catchError } from 'rxjs/operators';
+import { map, tap, switchMap, finalize, catchError, shareReplay } from 'rxjs/operators';
 
 import { CookieService } from 'ngx-cookie-service';
 
@@ -43,6 +43,8 @@ export class AuthService {
   private requestedRole: string[] = [];
   private userDataCache: any = null;
   private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshLeewayMs = 30 * 60 * 1000;
+  private refreshInFlight: Observable<RefreshResponse> | null = null;
 
   // Initialize AuthService dependencies.
   constructor(
@@ -438,10 +440,21 @@ export class AuthService {
   isTokenExpired(): boolean {
     const expiresAtMs = this.getExpiresAtMs();
     if (!expiresAtMs) {
-      return !!this.getToken();
+      return false;
     }
 
     return Date.now() >= expiresAtMs;
+  }
+
+  // Check if the session is close to expiring.
+  isTokenExpiringSoon(): boolean {
+    const expiresAtMs = this.getExpiresAtMs();
+    if (!expiresAtMs) {
+      return false;
+    }
+
+    const remainingMs = expiresAtMs - Date.now();
+    return remainingMs > 0 && remainingMs <= this.refreshLeewayMs;
   }
 
   // Update only the stored expiration timestamp.
@@ -481,6 +494,20 @@ export class AuthService {
           this.updateSessionExpiration(response.expires_at);
         }),
       );
+  }
+
+  // Share a single refresh request across callers.
+  refreshFlssTokenOnce(): Observable<RefreshResponse> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.refreshFlssToken().pipe(
+        finalize(() => {
+          this.refreshInFlight = null;
+        }),
+        shareReplay(1),
+      );
+    }
+
+    return this.refreshInFlight;
   }
 
   // Clear auth state and redirect to the login screen.

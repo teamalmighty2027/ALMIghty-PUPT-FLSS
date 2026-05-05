@@ -47,15 +47,19 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
   const authReq = buildAuthRequest(req, token);
 
   if (shouldCheckExpiry && authService.isTokenExpired()) {
-    if (!authService.isFlssSession()) {
-      authService.expireSession();
-      return throwError(() => new HttpErrorResponse({
-        status: 401,
-        statusText: 'Session expired',
-      }));
-    }
+    authService.expireSession();
+    return throwError(() => new HttpErrorResponse({
+      status: 401,
+      statusText: 'Session expired',
+    }));
+  }
 
-    return authService.refreshFlssToken().pipe(
+  if (
+    shouldCheckExpiry
+    && authService.isFlssSession()
+    && authService.isTokenExpiringSoon()
+  ) {
+    return authService.refreshFlssTokenOnce().pipe(
       switchMap(() => {
         const updatedToken = authService.getToken();
         const retryReq = buildAuthRequest(
@@ -88,7 +92,7 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
         && !hasRetry
         && authService.isFlssSession()
       ) {
-        return authService.refreshFlssToken().pipe(
+        return authService.refreshFlssTokenOnce().pipe(
           switchMap(() => {
             const updatedToken = authService.getToken();
             const retryReq = buildAuthRequest(
