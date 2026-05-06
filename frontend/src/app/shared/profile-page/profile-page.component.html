@@ -1,30 +1,33 @@
 <div class="profile-page-container" @pageFloatUpAnimation>
-  <div class="page-header">
-    <h1>My Profile</h1>
-    <p>View and update your personal and account information</p>
+
+  <!-- Profile Hero Banner -->
+  <div class="profile-hero">
+    <div class="hero-content">
+      <div class="hero-avatar">
+        <img *ngIf="profilePictureUrl" [src]="profilePictureUrl" alt="Profile Picture" class="hero-avatar-img">
+        <span *ngIf="!profilePictureUrl" mat-symbol class="hero-avatar-icon">person</span>
+      </div>
+      <div class="hero-info">
+        <h1 class="hero-name">{{ profileForm.get('first_name')?.value }} {{ profileForm.get('last_name')?.value }}</h1>
+        <p class="hero-role">{{ isAdmin ? 'Administrator' : 'Faculty Member' }}</p>
+        <p class="hero-email">{{ profileForm.get('email')?.value }}</p>
+      </div>
+    </div>
   </div>
 
   <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form-card">
     <div class="split-layout">
       
       <div class="left-section">
-        <div class="avatar-container">
-          <div class="profile-avatar">
-            <!-- Show Image if it exists, else show the default icon -->
-            <img *ngIf="profilePictureUrl" [src]="profilePictureUrl" alt="Profile Picture" class="avatar-img">
-            <span *ngIf="!profilePictureUrl" mat-symbol>person</span>
-          </div>
-
+        <div class="avatar-upload-row">
           <!-- Hidden file input -->
           <input type="file" #fileInput hidden (change)="onFileSelected($event)" accept="image/*">
-          
-          <!-- Trigger button -->
           <button 
             type="button"
-            class="maroon-btn"
-            style="margin-top: 10px;"
+            class="maroon-btn upload-btn"
             (click)="fileInput.click()">
-            Change Profile Picture
+            <span mat-symbol>photo_camera</span>
+            Change Photo
           </button>
         </div>
 
@@ -37,11 +40,19 @@
             </span>
           </div>
           <div class="form-control-group">
+            <label>Middle Name</label>
+            <input formControlName="middle_name" class="pill-input" placeholder="Enter middle name">
+          </div>
+          <div class="form-control-group">
             <label>Last Name</label>
             <input formControlName="last_name" class="pill-input" placeholder="Enter last name">
             <span class="error-text" *ngIf="profileForm.get('last_name')?.invalid && profileForm.get('last_name')?.touched">
               Last name is required.
             </span>
+          </div>
+          <div class="form-control-group">
+            <label>Suffix</label>
+            <input formControlName="suffix_name" class="pill-input" placeholder="e.g., Jr., III">
           </div>
         </div>
       </div>
@@ -109,12 +120,12 @@
     </div>
 
     <div class="action-row">
-        <button type="button" class="outline-btn">Change Password</button>
         <button type="submit" 
                class="maroon-btn" 
                [disabled]="profileForm.invalid || isLoading"
                [class.force-disabled]="profileForm.invalid || isLoading">
-        {{ isLoading ? 'Saving...' : 'Save Changes' }}
+          <span mat-symbol>save</span>
+          {{ isLoading ? 'Saving...' : 'Save Changes' }}
         </button>
     </div>
   </form>

@@ -60,25 +60,33 @@
     </div>
   </header>
 
-  <!-- Desktop Account Bottom Sheet -->
-    <mat-menu #desktopProfileMenu="matMenu" xPosition="before">
+  <!-- Desktop Account Popup Menu -->
+  <mat-menu #desktopProfileMenu="matMenu" yPosition="below" class="admin-profile-menu">
+    <div class="menu-email-header" (click)="$event.stopPropagation()">
+      <span mat-symbol="mail" class="menu-email-icon"></span>
+      <span class="menu-email-text">{{ facultyEmail }}</span>
+    </div>
+    <div class="menu-divider"></div>
+
     <button mat-menu-item (click)="onMenuAction('profile')">
-      <span mat-symbol="account_circle" style="margin-right: 8px;"></span>
+      <span mat-symbol="account_circle"></span>
       My Profile
     </button>
-    
-    <button mat-menu-item (click)="onMenuAction('theme')">
-      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" style="margin-right: 8px;"></span>
-      Switch Theme
-    </button>
-    
+
     <button mat-menu-item (click)="onMenuAction('change-password')">
-      <span mat-symbol="lock" style="margin-right: 8px;"></span>
+      <span mat-symbol="lock"></span>
       Change Password
     </button>
-    
-    <button mat-menu-item (click)="onMenuAction('logout')" style="color: var(--primary-text);">
-      <span mat-symbol="door_open" style="margin-right: 8px; color: var(--primary-text);"></span>
+
+    <button mat-menu-item (click)="onMenuAction('theme')">
+      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
+      Switch Theme
+    </button>
+
+    <div class="menu-divider"></div>
+
+    <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
+      <span mat-symbol="door_open"></span>
       Logout
     </button>
   </mat-menu>
@@ -140,19 +148,16 @@
         <span mat-symbol="account_circle"></span>
         My Profile
       </button>
-      <button matRipple class="mobile-dropdown-item" (click)="toggleTheme()">
-        <span
-          [mat-symbol]="
-            (themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'
-          "></span>
-        Switch Theme
-      </button>
       <button
         matRipple
         class="mobile-dropdown-item"
         (click)="openChangePasswordDialog()">
         <span mat-symbol="lock"></span>
         Change Password
+      </button>
+      <button matRipple class="mobile-dropdown-item" (click)="toggleTheme()">
+        <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
+        Switch Theme
       </button>
       <button
         matRipple

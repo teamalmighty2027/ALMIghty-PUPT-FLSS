@@ -1,113 +1,229 @@
 @use '../../../styles/mixins' as mixins;
 
+// ============================================================
+// PROFILE PAGE CONTAINER
+// ============================================================
+
 .profile-page-container {
-  padding: var(--spacing-xl);
   max-width: 1100px;
   margin: 0 auto;
+  padding-bottom: var(--spacing-2xl);
   @include mixins.custom-scrollbar;
+}
 
-  .page-header {
-    margin-bottom: var(--spacing-2xl);
-    
-    h1 {
-      font-family: var(--font-base) !important; 
-      font-weight: 800; 
-      font-size: var(--font-size-2xxl);
-      color: var(--sienna-primary-color);
-      letter-spacing: -0.02em;
-      margin: 0;
+// ============================================================
+// HERO BANNER
+// ============================================================
+
+.profile-hero {
+  background: linear-gradient(135deg, #800000 0%, #a83232 60%, #c0392b 100%);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-2xl) var(--spacing-2xl);
+  margin-bottom: var(--spacing-xl);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(128, 0, 0, 0.25);
+
+  // Decorative background circles
+  &::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -40px;
+    left: 30%;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    pointer-events: none;
+  }
+
+  .hero-content {
+    @include mixins.flex-layout($direction: row, $align: center, $gap: var(--spacing-xl));
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.15);
+    @include mixins.flex-layout;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+
+    .hero-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
-    p {
-      color: var(--m3-neutral-40);
+    .hero-avatar-icon {
+      font-size: 52px;
+      color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
+  .hero-info {
+    .hero-name {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .hero-role {
       font-size: var(--font-size-md);
-      margin-top: var(--spacing-xs);
+      color: rgba(255, 255, 255, 0.75);
+      margin: 0 0 2px;
+      font-weight: 500;
+    }
+
+    .hero-email {
+      font-size: var(--font-size-sm);
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0;
     }
   }
 }
+
+// ============================================================
+// FORM CARD
+// ============================================================
 
 .profile-form-card {
   padding: var(--spacing-2xl);
   border-radius: var(--border-radius-lg);
   background-color: #ffffff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); 
-  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* --- Layout Structures --- */
+// ============================================================
+// SECTION LABELS
+// ============================================================
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-smx);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #800000;
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 2px solid rgba(128, 0, 0, 0.12);
+
+  span[mat-symbol] {
+    font-size: 18px;
+    color: #800000;
+  }
+}
+
+// ============================================================
+// LAYOUT STRUCTURES
+// ============================================================
 
 .split-layout {
   display: grid;
-  grid-template-columns: min-content 1px min-content; 
-  gap: 5rem; 
-  justify-content: center;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 3rem;
   align-items: start;
+  margin-bottom: var(--spacing-2xl);
 }
 
 .v-divider {
-  background-color: var(--m3-neutral-90);
+  background-color: rgba(128, 0, 0, 0.1);
   height: 100%;
-  min-height: 350px;
+  min-height: 300px;
 }
 
 .left-section {
   display: flex;
   flex-direction: column;
-  align-items: center; 
-  gap: var(--spacing-xl);
-  width: 100%;
+  gap: var(--spacing-md);
 
-  .avatar-container {
+  .avatar-upload-row {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-md); 
+    justify-content: flex-start;
+    margin-bottom: var(--spacing-sm);
+
+    .upload-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+      font-size: var(--font-size-sm);
+      padding: 8px 20px;
+
+      span[mat-symbol] {
+        font-size: 18px;
+      }
+    }
   }
 }
 
 .right-section {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem; 
-  align-items: flex-start; 
-  margin-left: -1.8rem; 
-  padding-top: 7.5rem; 
-  width: 100%;
+  gap: var(--spacing-lg);
 }
 
-/* --- Address Section Styles --- */
+// ============================================================
+// ADDRESS SECTION
+// ============================================================
 
 .address-section-header {
-  text-align: center;
-  max-width: 900px; 
-  margin: var(--spacing-2xl) auto var(--spacing-md); 
-  color: var(--sienna-primary-color);
-  font-family: var(--font-base);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-smx);
   font-weight: 700;
-  width: 100%;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #800000;
+  margin: 0 0 var(--spacing-lg);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 2px solid rgba(128, 0, 0, 0.12);
 }
 
 .address-grid {
   display: grid;
-  grid-template-columns: repeat(3, 250px); 
-  justify-content: center; 
-  column-gap: 4rem; 
-  row-gap: 1.5rem; 
-  margin: 0 auto; 
-  width: 100%;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: var(--spacing-xl);
+  row-gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
 }
 
-/* --- Form Components --- */
+// ============================================================
+// FORM COMPONENTS
+// ============================================================
 
 .form-control-group {
-  margin-bottom: var(--spacing-md); 
-  width: 320px; 
+  margin-bottom: var(--spacing-md);
 
   label {
     display: block;
     font-weight: 600;
     font-size: var(--font-size-smx);
-    margin-bottom: var(--spacing-xxs); 
+    margin-bottom: var(--spacing-xxs);
     color: var(--m3-neutral-20);
     text-align: left;
   }
@@ -118,15 +234,23 @@
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--border-radius-xl);
   border: 1.5px solid #e0e0e0;
-  background-color: #fafafa; 
+  background-color: #fafafa;
   font-family: var(--font-base);
+  box-sizing: border-box;
   @include mixins.default-transition;
 
   &:focus {
     outline: none;
-    border-color: var(--sienna-primary-color);
+    border-color: #800000;
     background-color: #ffffff;
     box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.1);
+  }
+
+  &[readonly] {
+    background-color: #f5f5f5;
+    border-style: dashed;
+    color: var(--m3-neutral-40);
+    cursor: not-allowed;
   }
 
   &.ng-invalid.ng-touched {
@@ -135,7 +259,6 @@
   }
 }
 
-/* Error Text Styling */
 .error-text {
   display: block;
   color: #d32f2f;
@@ -147,198 +270,130 @@
 
 .compact-row {
   display: flex;
-  gap: 3rem; 
+  gap: var(--spacing-lg);
   width: 100%;
-  max-width: 600px; 
-  justify-content: center;
 }
 
 .field-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  
+  flex: 1;
+
   label {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: var(--font-size-smx);
+    color: var(--m3-neutral-20);
   }
 }
 
-.faculty-code { flex: 0 0 210px; }
-.department   { flex: 0 0 180px; }
-.birthdate    { flex: 0 0 210px; }
-.sex          { flex: 0 0 180px; }
+.faculty-code { flex: 0 0 160px; }
+.department   { flex: 1; }
+.birthdate    { flex: 1; }
+.sex          { flex: 0 0 160px; }
 
-/* --- Read Only Fields --- */
-.read-only-field {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-weight: 600;
-  color: var(--m3-neutral-30);
-  background-color: transparent;
-  border: 1px dashed var(--m3-neutral-80);
-  border-radius: var(--border-radius-md);
-  font-size: var(--font-size-md);
-}
-
-/* --- Elements & Buttons --- */
-
-.profile-avatar {
-  width: 130px;
-  height: 130px;
-  background: var(--m3-neutral-95);
-  border-radius: 50%;
-  @include mixins.flex-layout();
-  border: 1px solid var(--m3-neutral-90);
-  overflow: hidden; /* Added to keep image perfectly round */
-  
-  span[mat-symbol] {
-    font-size: 60px;
-    color: var(--sienna-primary-color);
-  }
-
-  .avatar-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Ensures the image fills the circle without stretching */
-  }
-}
-
-.preferences-btn {
-  background-color: var(--sienna-primary-color) !important;
-  color: white !important;
-  border-radius: 50px !important; 
-  font-weight: 500;
-  border: none !important;
-  padding: 0.6rem 2.5rem !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
-
-  &:hover {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-}
-
-.maroon-btn {
-    background-color: #800000;
-    color: #ffffff; 
-    border-radius: 9999px; 
-    border: none;
-    padding: 8px 16px; 
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-
-    &:hover {
-        background-color: #660000; 
-    }
-
-    &:disabled {
-        background-color: #cccccc;
-        color: #666666;
-        cursor: not-allowed;
-    }
-}
+// ============================================================
+// ACTION ROW
+// ============================================================
 
 .action-row {
   @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
-  margin-top: var(--spacing-2xl);
+  margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--m3-neutral-95);
+  border-top: 2px solid rgba(128, 0, 0, 0.08);
+}
 
-  /* Base button styles applied to children */
-  button {
-    border-radius: 50px !important; 
-    padding: 0.6rem 2.5rem !important;
-    font-family: inherit;
-    font-weight: 500;
-    cursor: pointer;
-    transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
-    border: none; 
+// ============================================================
+// BUTTONS
+// ============================================================
 
-    &:hover:not(:disabled) {
-      opacity: 0.9;
-      transform: translateY(-1px);
-    }
+.maroon-btn {
+  background-color: #800000;
+  color: #ffffff;
+  border-radius: 9999px;
+  border: none;
+  padding: 10px 28px;
+  cursor: pointer;
+  font-family: var(--font-base);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(128, 0, 0, 0.3);
 
-    &:active:not(:disabled) {
-      transform: scale(0.98);
-    }
+  span[mat-symbol] {
+    font-size: 18px;
   }
 
+  &:hover:not(:disabled) {
+    background-color: #660000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(128, 0, 0, 0.35);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled,
+  &.force-disabled {
+    background-color: #cccccc;
+    color: #888888;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
 }
 
-/* ==========================================================================
-   GHOST BUTTON OVERRIDE (Bypassing Encapsulation)
-   ========================================================================== */
+// ============================================================
+// RESPONSIVE
+// ============================================================
 
-/* Light Mode Base & Hover */
-::ng-deep .outline-btn {
-    background-color: transparent !important;
-    color: #800000 !important;
-    border: 2px solid #800000 !important;
-    padding: 8px 24px !important;
-    border-radius: 9999px !important;
-    
-    &:hover {
-        background-color: #800000 !important;
-        color: #ffffff !important;
-    }
-}
-
-/* Dark Mode Base & Hover */
-:host-context(.dark-theme) {
-    ::ng-deep .outline-btn {
-        color: #ffffff !important;
-        border-color: #ffffff !important;
-
-        &:hover {
-            background-color: #ffffff !important;
-            color: #1e1e1e !important; /* Dark text on white background */
-        }
-    }
-}
-
-/* --- TABLETS & SMALL DESKTOPS (Screens 1024px and below) --- */
 @media (max-width: 1024px) {
   .split-layout {
     grid-template-columns: 1fr;
-    gap: 3rem;
+    gap: var(--spacing-xl);
   }
 
   .v-divider {
-    display: none; 
-  }
-
-  .right-section {
-    padding-top: 0; 
-    margin-left: 0;
-    align-items: center;
+    display: none;
   }
 
   .address-grid {
     grid-template-columns: repeat(2, 1fr);
-    column-gap: 2rem;
+    column-gap: var(--spacing-lg);
   }
 }
 
-/* --- MOBILE PHONES (Screens 768px and below) --- */
 @media (max-width: 768px) {
+  .profile-hero {
+    padding: var(--spacing-xl) var(--spacing-lg);
+
+    .hero-content {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .hero-info .hero-name {
+      font-size: var(--font-size-xl);
+    }
+  }
+
+  .profile-form-card {
+    padding: var(--spacing-lg);
+  }
+
   .compact-row {
-    flex-direction: column; 
+    flex-direction: column;
     gap: var(--spacing-md);
   }
 
-  .faculty-code, 
-  .department, 
-  .birthdate, 
-  .sex, 
-  .form-control-group {
+  .faculty-code,
+  .department,
+  .birthdate,
+  .sex {
     flex: 1 1 100%;
-    width: 100%;
-    max-width: 100%;
   }
 
   .address-grid {
@@ -346,27 +401,42 @@
   }
 
   .action-row {
-    flex-direction: column; 
-    gap: 1rem;
-    
+    flex-direction: column;
+
     button {
-      width: 100%; 
+      width: 100%;
+      justify-content: center;
     }
   }
 }
 
-/* ==========================================================================
-   DARK THEME OVERRIDES
-   ========================================================================== */
+// ============================================================
+// DARK THEME OVERRIDES
+// ============================================================
+
 :host-context(.dark-theme) {
+
+  .profile-hero {
+    background: linear-gradient(135deg, #5a0000 0%, #800000 60%, #9b2335 100%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
 
   .profile-form-card {
     background-color: #1e1e1e;
-    border-color: #333333;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border-color: #2e2e2e;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
   }
 
-  .page-header p,
+  .section-label,
+  .address-section-header {
+    color: #e57373;
+    border-bottom-color: rgba(229, 115, 115, 0.2);
+
+    span[mat-symbol] {
+      color: #e57373;
+    }
+  }
+
   .form-control-group label,
   .field-group label {
     color: #cccccc;
@@ -379,26 +449,35 @@
 
     &:focus {
       background-color: #1e1e1e;
-      border-color: var(--sienna-primary-color);
-      box-shadow: 0 0 0 3px rgba(128, 0, 0, 0.3); 
+      border-color: #e57373;
+      box-shadow: 0 0 0 3px rgba(229, 115, 115, 0.15);
+    }
+
+    &[readonly] {
+      background-color: #252525;
+      border-color: #3a3a3a;
+      color: #888888;
     }
 
     &::placeholder {
-      color: #888888;
+      color: #666666;
     }
   }
 
-  .address-section-header {
-      color: var(--sienna-primary-color); 
-  }
-
   .v-divider {
-    background-color: #333333;
+    background-color: rgba(229, 115, 115, 0.15);
   }
 
-  .profile-avatar {
-      background-color: #2c2c2c;
-      border-color: #444444;
+  .action-row {
+    border-top-color: rgba(229, 115, 115, 0.12);
   }
 
+  .maroon-btn {
+    background-color: #9b2335;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+    &:hover:not(:disabled) {
+      background-color: #800000;
+    }
+  }
 }

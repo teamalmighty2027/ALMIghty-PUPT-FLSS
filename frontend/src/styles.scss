@@ -561,3 +561,96 @@ html body div.asw-container input[type="checkbox"]:checked + div {
 html body div.asw-container .asw-menu * {
     --asw-primary: #800000 !important;
 }
+
+
+/* ============================================================
+   Admin Profile Dropdown Menu
+   ============================================================ */
+
+.admin-profile-menu.mat-mdc-menu-panel {
+  width: 240px !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+  border-radius: var(--border-radius-lg) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18) !important;
+  margin-top: 8px !important;
+  overflow: hidden !important;
+}
+
+.admin-profile-menu .mat-mdc-menu-content {
+  padding: var(--spacing-xs) 0 !important;
+}
+
+/* Email strip at the top */
+.admin-profile-menu .menu-email-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px var(--spacing-lg) 10px;
+  cursor: default;
+  user-select: none;
+  border-bottom: 1px solid var(--neutral-option);
+  margin-bottom: var(--spacing-xs);
+
+  .menu-email-icon {
+    font-size: 15px;
+    color: var(--primary-one);
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
+  .menu-email-text {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--neutral-base);
+  }
+}
+
+/* Thin divider between sections */
+.admin-profile-menu .menu-divider {
+  height: 1px;
+  background-color: var(--neutral-option);
+  margin: var(--spacing-xs) var(--spacing-md);
+}
+
+/* Menu action items — centered icon + label */
+.admin-profile-menu .mat-mdc-menu-item {
+  min-height: 46px !important;
+  padding: 0 var(--spacing-lg) !important;
+  font-size: var(--font-size-smx) !important;
+  font-weight: 500 !important;
+
+  /* Angular Material renders text inside this wrapper */
+  .mdc-list-item__primary-text {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--spacing-sm) !important;
+    width: 100% !important;
+    font-family: var(--font-base) !important;
+  }
+
+  span[mat-symbol] {
+    font-size: 20px !important;
+    flex-shrink: 0;
+    color: inherit;
+  }
+
+  &.menu-logout-item {
+    color: var(--primary-text) !important;
+
+    .mdc-list-item__primary-text {
+      color: var(--primary-text) !important;
+    }
+
+    span[mat-symbol] {
+      color: var(--primary-text) !important;
+    }
+  }
+}

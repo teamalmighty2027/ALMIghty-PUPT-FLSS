@@ -9,11 +9,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DialogBirthdateWarningComponent } from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
+import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatSnackBarModule, MatDialogModule],
+  imports: [CommonModule, ReactiveFormsModule, MatSnackBarModule, MatDialogModule, MatSymbolDirective],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss'],
   animations: [pageFloatUpAnimation]
@@ -103,9 +104,19 @@ export class ProfilePageComponent implements OnInit {
 
         this.profilePictureUrl = data.profile_picture_url || null; // Load existing image
 
-        this.profileForm.patchValue(formData);
-
+        // Enable the form first before patching to ensure disabled fields get updated
         this.enableProfileForm();
+        
+        // Now patch the values
+        this.profileForm.patchValue(formData);
+        
+        // Re-disable the fields that should be disabled
+        this.profileForm.get('email')?.disable();
+        this.profileForm.get('code')?.disable();
+        if (!this.isAdmin) {
+          this.profileForm.get('faculty_profile_id')?.disable();
+        }
+
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
