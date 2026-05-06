@@ -5,6 +5,7 @@ node_modules/
 
 # Compiled output
 dist/
+frontend/src/assets/ml/
 tmp/
 out-tsc/
 bazel-out/

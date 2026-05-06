@@ -338,7 +338,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
     Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
 
     /**

@@ -29,13 +29,19 @@
               "src/favicon.ico",
               "src/assets",
               "src/manifest.webmanifest",
-              "src/icons"
+              "src/icons",
+              {
+                "glob": "*.wasm",
+                "input": "node_modules/onnxruntime-web/dist/",
+                "output": "assets/onnxruntime-wasm/"
+              }
             ],
             "styles": [
               "src/styles.scss"
             ],
             "scripts": [],
             "allowedCommonJsDependencies": [
+              "onnxruntime-web",
               "jspdf",
               "jspdf-autotable",
               "canvg",
