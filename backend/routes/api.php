@@ -45,6 +45,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 });
 
 /**
