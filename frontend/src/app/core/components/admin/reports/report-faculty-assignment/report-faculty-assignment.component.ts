@@ -495,7 +495,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('REGULAR LOAD', 14, currentY);
 
     let regularBody = splitSchedules.regular.map((s: any) => mapRowAndTrackHours(s, regDailyHours));
-    while (regularBody.length < 6) regularBody.push(Array(10).fill('')); 
+    
+    while (regularBody.length < 5) {
+      regularBody.push(Array(10).fill('')); 
+    }
 
     autoTable(doc, {
       startY: currentY + 1.5, head: headers, body: regularBody, theme: 'grid',
@@ -513,7 +516,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('PART-TIME', 14, currentY);
 
     let partTimeBody = splitSchedules.partTime.map((s: any) => mapRowAndTrackHours(s, ptDailyHours));
-    while (partTimeBody.length < 6) partTimeBody.push(Array(10).fill(''));
+
+    while (partTimeBody.length < 5) {
+      partTimeBody.push(Array(10).fill(''));
+    }
 
     autoTable(doc, {
       startY: currentY + 1.5, head: headers, body: partTimeBody, theme: 'grid',
@@ -563,6 +569,14 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     // 6. FOOTER
     currentY = (doc as any).lastAutoTable.finalY + 8;
+    
+    // CRITICAL FIX: Check if we have enough space (approx 25mm) for the signature block.
+    // If we exceed the page height, create a new page and reset the Y coordinate.
+    const pageHeight = doc.internal.pageSize.getHeight();
+    if (currentY + 25 > pageHeight) {
+      doc.addPage();
+      currentY = 20; // Start near the top of the new page
+    }
     
     doc.setFontSize(9.5); doc.setFont('helvetica', 'bold');
     doc.text('SUBJECT REFERENCE LEGEND:', 14, currentY);
