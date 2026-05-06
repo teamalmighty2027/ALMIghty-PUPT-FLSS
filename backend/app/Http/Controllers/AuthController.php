@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
+    /**
+     * Handle user login and issue a Sanctum token.
+     */
     public function login(Request $request)
     {
         Log::info("Login initiated");
@@ -105,6 +108,9 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Log out the current user and revoke the active token.
+     */
     public function logout(Request $request)
     {
         if ($request->user()) {
@@ -132,6 +138,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Unauthenticated.'], 401);
     }
 
+    /**
+     * Reissue a Sanctum token for the authenticated user.
+     */
+    public function refreshToken(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $currentToken = $user->currentAccessToken();
+
+        if ($currentToken && method_exists($currentToken, 'delete')) {
+            $currentToken->delete();
+        }
+
+        $tokenResult = $user->createToken('user-token');
+        $token = $tokenResult->plainTextToken;
+        $expiration = Carbon::now()->addHours(24);
+
+        return response()->json([
+            'message' => 'Token refreshed.',
+            'expires_at' => $expiration,
+            'token' => $token,
+        ])
+        ->cookie('token', $token, 1440, null, null, true, true);
+    }
+
+    /**
+     * Update the current user's password after validation.
+     */
     public function changePassword(Request $request)
     {
         $request->validate([

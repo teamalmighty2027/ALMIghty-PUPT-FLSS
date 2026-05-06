@@ -304,3 +304,14 @@ export interface SectionOption {
   section_id: number;
   section_name: string;
 }
+
+export interface SmartSuggestion {
+  faculty_id: number;
+  faculty_name: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+  confidence?: number;
+  isMl: boolean;
+  success: boolean;
+}

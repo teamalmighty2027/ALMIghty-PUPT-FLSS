@@ -1,0 +1,116 @@
+@use "../../../styles/mixins";
+
+:host ::ng-deep {
+  .mat-mdc-checkbox .mat-internal-form-field {
+    display: flex;
+    flex-direction: row-reverse;
+  }
+
+  .mat-mdc-form-field:not(.has-hint) {
+    .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+}
+
+.dialog-action-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-lg)
+  );
+  padding: var(--spacing-lg);
+  max-width: var(--dialog-base);
+}
+
+/* Dialog Title */
+.dialog-title {
+  margin: 0;
+  color: var(--primary-text);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-sm));
+
+  span[mat-symbol] {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* Dialog Content */
+.dialog-content {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
+
+  .date-fields-container {
+    @include mixins.flex-layout(
+      $direction: column,
+      $gap: var(--spacing-md)
+    );
+    width: 100%;
+  }
+
+  .info-banner {
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--primary-fade);
+    color: var(--primary-text);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-sm);
+    @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-xs));
+
+    span[mat-symbol] {
+      font-size: var(--font-size-lg);
+    }
+  }
+
+  .checkbox-container {
+    margin: var(--spacing-sm) 0;
+
+    .email-checkbox {
+      width: 100%;
+      background-color: var(--neutral-light);
+      border-radius: var(--spacing-xs);
+      padding: var(--spacing-xxxs);
+
+      .checkbox-content {
+        @include mixins.flex-layout($gap: var(--spacing-xs));
+        font-size: var(--font-size-md);
+
+        span[mat-symbol] {
+          @include mixins.flex-layout;
+          font-size: var(--font-size-lg);
+          padding-left: var(--spacing-xxs);
+        }
+      }
+    }
+  }
+}
+
+/* Dialog Buttons */
+.dialog-buttons {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: flex-end,
+    $gap: var(--spacing-sm)
+  );
+  margin-top: var(--spacing-md);
+
+  .action-button {
+    @include mixins.gradient-primary(315deg);
+    color: white !important;
+  }
+
+  .close-button {
+    color: var(--neutral-button);
+  }
+}
+
+.mat-mdc-form-field {
+  width: 100%;
+}

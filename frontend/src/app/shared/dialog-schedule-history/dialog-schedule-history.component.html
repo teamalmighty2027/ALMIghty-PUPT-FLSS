@@ -15,11 +15,12 @@
         <mat-select
           [(ngModel)]="selectedYear"
           (selectionChange)="onYearChange()"
-          [disabled]="!academicYears.length">
+          [disabled]="!academicYears.length"
+        >
           @for (year of academicYears; track year.academic_year_id) {
-          <mat-option [value]="year.academic_year_id">
-            {{ year.academic_year }}
-          </mat-option>
+            <mat-option [value]="year.academic_year_id">
+              {{ year.academic_year }}
+            </mat-option>
           }
         </mat-select>
       </mat-form-field>
@@ -29,11 +30,12 @@
         <mat-select
           [(ngModel)]="selectedSemester"
           (selectionChange)="onSemesterChange()"
-          [disabled]="!semesters.length">
+          [disabled]="!semesters.length"
+        >
           @for (semester of semesters; track semester.active_semester_id) {
-          <mat-option [value]="semester.active_semester_id">
-            {{ semester.semester_number }}
-          </mat-option>
+            <mat-option [value]="semester.active_semester_id">
+              {{ semester.semester_number }}
+            </mat-option>
           }
         </mat-select>
       </mat-form-field>
@@ -41,26 +43,44 @@
   </div>
 
   @if (isLoading$ | async) {
-  <div class="loading-wrapper">
-    <app-loading></app-loading>
-  </div>
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
   } @else {
-  <!-- Empty Past Schedules -->
-  @if (hasNoScheduleHistory) {
-  <div class="no-schedule-message" [@fadeAnimation]>
-    <span mat-symbol="info"></span>
-    <p class="empty-state-message">No recorded schedule history available.</p>
-  </div>
-  } @else {
-  <!-- Dialog Content -->
-  <div class="dialog-content">
-    @if (facultySchedule) {
-    <app-faculty-schedule-timetable
-      [facultySchedule]="facultySchedule"
-      [showPreview]="false"></app-faculty-schedule-timetable>
+    <!-- Empty Past Schedules -->
+    @if (hasNoScheduleHistory) {
+      <div class="no-schedule-message" [@fadeAnimation]>
+        <span mat-symbol="info"></span>
+        <p class="empty-state-message">
+          No recorded schedule history available.
+        </p>
+      </div>
+    } @else {
+      <!-- Dialog Content -->
+      <div class="dialog-content">
+        @if (facultySchedule) {
+          <!-- Schedule Summary -->
+          <div class="schedule-summary-bar" [@fadeAnimation]>
+            <div class="summary-item">
+              <span class="label">Total Units:</span>
+              <span class="value"
+                >{{ facultySchedule.assigned_units }} units</span
+              >
+            </div>
+            <div class="summary-item">
+              <span class="label">Total Hours:</span>
+              <span class="value">{{ facultySchedule.total_hours }} hours</span>
+            </div>
+          </div>
+
+          <app-faculty-schedule-timetable
+            [facultySchedule]="facultySchedule"
+            [showPreview]="false"
+          ></app-faculty-schedule-timetable>
+        }
+      </div>
     }
-  </div>
-  } }
+  }
 
   <!-- Dialog Footer -->
   <div class="dialog-footer">

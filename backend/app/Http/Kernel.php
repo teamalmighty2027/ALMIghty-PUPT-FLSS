@@ -74,5 +74,6 @@ class Kernel extends HttpKernel
         'check.api.key' => \App\Http\Middleware\CheckApiKey::class,
         'check.hmac' => \App\Http\Middleware\CheckHmac::class,
         'custom.ratelimit' => \App\Http\Middleware\CustomRateLimiter::class,
+        'token.expiration' => \App\Http\Middleware\TokenExpirationMiddleware::class,
     ];
 }

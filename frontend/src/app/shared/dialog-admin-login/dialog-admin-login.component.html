@@ -5,7 +5,8 @@
       <span
         mat-symbol="admin_panel_settings"
         class="admin-icon"
-        aria-hidden="true">
+        aria-hidden="true"
+      >
       </span>
       <span>Admin Login</span>
     </div>
@@ -17,7 +18,8 @@
     class="dialog-login-form"
     [formGroup]="loginForm"
     (ngSubmit)="onSubmit()"
-    aria-describedby="formInstructions">
+    aria-describedby="formInstructions"
+  >
     <div class="form-content">
       <!--Email-->
       <mat-form-field appearance="fill">
@@ -33,13 +35,15 @@
           maxlength="254"
           id="emailInput"
           aria-required="true"
-          aria-describedby="emailErrors" />
-        @if (email?.errors?.['required']) {
-        <mat-error id="emailErrors">Email is required.</mat-error>
-        } @if (email?.errors?.['email']) {
-        <mat-error id="emailErrors">
-          Please enter a valid email address.
-        </mat-error>
+          aria-describedby="emailErrors"
+        />
+        @if (email?.errors?.["required"]) {
+          <mat-error id="emailErrors">Email is required.</mat-error>
+        }
+        @if (email?.errors?.["email"]) {
+          <mat-error id="emailErrors">
+            Please enter a valid email address.
+          </mat-error>
         }
       </mat-form-field>
 
@@ -58,37 +62,34 @@
           maxlength="128"
           id="passwordInput"
           aria-required="true"
-          aria-describedby="passwordErrors" />
+          aria-describedby="passwordErrors"
+        />
         @if (passwordHasValue) {
-        <button
-          mat-icon-button
-          matSuffix
-          (click)="togglePasswordVisibility()"
-          type="button"
-          [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-          <mat-icon aria-hidden="true">{{
-            showPassword ? 'visibility_off' : 'visibility'
-          }}</mat-icon>
-        </button>
-        } @if (password?.errors?.['required']) {
-        <mat-error id="passwordErrors">Password is required.</mat-error>
-        } @if (password?.errors?.['minlength'] ||
-        password?.errors?.['maxlength']) {
-        <mat-error id="passwordErrors">Invalid password.</mat-error>
+          <button
+            mat-icon-button
+            matSuffix
+            (click)="togglePasswordVisibility()"
+            type="button"
+            [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+          >
+            <mat-icon aria-hidden="true">{{
+              showPassword ? "visibility_off" : "visibility"
+            }}</mat-icon>
+          </button>
+        }
+        @if (password?.errors?.["required"]) {
+          <mat-error id="passwordErrors">Password is required.</mat-error>
+        }
+        @if (
+          password?.errors?.["minlength"] || password?.errors?.["maxlength"]
+        ) {
+          <mat-error id="passwordErrors">Invalid password.</mat-error>
         }
       </mat-form-field>
 
-      <button
-        mat-flat-button
-        class="login-button ter-ripple global"
-        (click)="onIdpLogin()">
-        <span class="button-text">
-          Login through IDP
-        </span>
-      </button>
-
-      <!-- Forgot Password Link -->
-      <div class="forgot-password-container">
+      <!-- Login Links -->
+      <div class="login-links-container">
+        <a class="idp-login-link" (click)="onIdpLogin()"> Login through IDP </a>
         <a class="forgot-password-link" (click)="onForgotPassword()">
           Forgot Password?
         </a>
@@ -101,7 +102,8 @@
           class="close-button"
           type="button"
           (click)="onCloseClick()"
-          aria-label="Close dialog">
+          aria-label="Close dialog"
+        >
           Close
         </button>
         <button
@@ -111,13 +113,19 @@
           [class.button-disabled]="loginForm.invalid || isLoading"
           [disabled]="loginForm.invalid || isLoading"
           type="submit"
-          aria-label="Log in">
-          @if (!isLoading) { Log In } @if (isLoading) {
-          <mat-spinner
-            class="custom-spinner"
-            diameter="25"
-            strokeWidth="2.5"
-            aria-label="Loading"></mat-spinner>
+          aria-label="Log in"
+          cdkFocusInitial
+        >
+          @if (!isLoading) {
+            Log In
+          }
+          @if (isLoading) {
+            <mat-spinner
+              class="custom-spinner"
+              diameter="25"
+              strokeWidth="2.5"
+              aria-label="Loading"
+            ></mat-spinner>
           }
         </button>
       </div>

@@ -31,6 +31,7 @@ use App\Http\Controllers\TemporaryCourseOfferingController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |----------------------------
@@ -44,6 +45,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 });
 
 /**
@@ -58,6 +60,15 @@ Route::prefix('auth')->group(function () {
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Fallback route for Philippine Addresses (Publicly accessible)
+Route::get('/addresses/fallback/{file}', function ($file) {
+    if (!Storage::disk('public')->exists('addresses/' . $file)) {
+        return response()->json([], 404);
+    }
+    $content = Storage::disk('public')->get('addresses/' . $file);
+    return response()->json(json_decode($content));
+});
 
 /*
 |-----------------------------
@@ -178,6 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * Faculty
      */
     Route::get('/faculty', [FacultyController::class, 'index']);
+    Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
@@ -327,7 +339,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
     Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
 
     /**
@@ -378,9 +390,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
             Route::get('/temporary', [ExternalController::class, 'temporaryFacultySchedules']);
         });
-
-        Route::get('/rooms', [ExternalController::class, 'roomsList']);
     });
+
+    /**
+     * Rooms endpoint, shared by multiple systems
+     */
+      Route::middleware(['check.hmac:fas,frrs'])->group(function () {
+          Route::get('/rooms', [ExternalController::class, 'roomsList']);
+      });
 
     /**
      * Faculty Reportorial Requirements System (FRRS)

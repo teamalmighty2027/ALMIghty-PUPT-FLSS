@@ -52,7 +52,7 @@ export interface Faculty {
   };
 }
 
-// NEW: Interface specifically for the Profile Page data
+// Interface specifically for the Profile Page data
 export interface FacultyProfileData {
   first_name: string;
   last_name: string;
@@ -61,9 +61,11 @@ export interface FacultyProfileData {
   email?: string;
   code?: string;
   faculty_profile_id?: number;
-  program_id?: number;
+  department?: string;
+  profile_picture?: string;
+  profile_picture_url?: string;
   birthdate?: string;
-  sex?: 'Male' | 'Female';
+  sex?: 'Male' | 'Female' | 'Prefer not to say';
   house_num?: string;
   street?: string;
   barangay?: string;
@@ -80,10 +82,6 @@ export class FacultyService {
   private baseUrl = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
-
-  // ==========================================
-  // EXISTING ADMIN MANAGEMENT METHODS
-  // ==========================================
 
   getFaculty(): Observable<Faculty[]> {
     return this.http.get<any[]>(`${this.baseUrl}/faculty`).pipe(
@@ -115,6 +113,12 @@ export class FacultyService {
     );
   }
 
+  getSuggestedCode(): Observable<string> {
+    return this.http
+      .get<{ suggested_code: string }>(`${this.baseUrl}/faculty/suggest-code`)
+      .pipe(map((res) => res.suggested_code));
+  }
+
   addFaculty(faculty: Faculty): Observable<Faculty> {
     return this.http.post<Faculty>(`${this.baseUrl}/faculty`, faculty);
   }
@@ -140,8 +144,12 @@ export class FacultyService {
 
   /**
    * Updates the currently authenticated faculty's own profile.
+   * Changed payload to FormData to support file uploads.
    */
-  updateProfile(payload: FacultyProfileData): Observable<any> {
-    return this.http.put<any>(`${this.baseUrl}/faculty/profile`, payload);
+  updateProfile(payload: FormData): Observable<any> {
+    // IMPORTANT: Laravel cannot read multipart/form-data via PUT request natively.
+    // We send a POST request but tell Laravel to treat it as a PUT request.
+    payload.append('_method', 'PUT');
+    return this.http.post<any>(`${this.baseUrl}/faculty/profile`, payload);
   }
 }

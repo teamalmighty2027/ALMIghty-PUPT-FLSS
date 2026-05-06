@@ -1,6 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+  AbstractControl,
+  ValidationErrors
+} from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { Subject, takeUntil } from 'rxjs';
@@ -11,6 +18,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService } from '../../core/services/auth/auth.service';
@@ -27,6 +35,7 @@ import { AuthService } from '../../core/services/auth/auth.service';
     MatIconModule,
     MatSymbolDirective,
     MatProgressSpinnerModule,
+    MatSnackBarModule,
   ],
   templateUrl: './dialog-change-password.component.html',
   styleUrls: ['./dialog-change-password.component.scss'],
@@ -44,6 +53,7 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     private dialogRef: MatDialogRef<DialogChangePasswordComponent>,
     private authService: AuthService,
     private router: Router,
+    private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
@@ -75,6 +85,13 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Creates a custom validator function that checks if the new password
+   * matches the confirm password.
+   * 
+   * @returns A function that returns ValidationErrors 
+   * if the passwords don't match, or null if they match.
+   */
   private createPasswordMatchValidator() {
     return (control: AbstractControl): ValidationErrors | null => {
       if (!control.value) return null;
@@ -89,6 +106,9 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Setup validation for the form.
+   */
   private setupFormValidation(): void {
     // Update confirm password validation when new password changes
     this.passwordForm
@@ -99,6 +119,9 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Setup server error clearing for the form.
+   */
   private setupServerErrorClearing(): void {
     const controlNames = ['currentPassword', 'newPassword', 'confirmPassword'];
 
@@ -116,23 +139,32 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Handles server errors by displaying a snackbar and setting form errors.
+   * @param error The error object from the server.
+   */
   private handleServerErrors(error: any): void {
-    if (
-      error.error?.errors?.current_password ||
-      error.error?.errors?.currentPassword
-    ) {
-      this.passwordForm.get('currentPassword')?.setErrors({
-        serverError: 'Current password is incorrect',
-      });
-    }
+    const errorMessage = error.error?.message ||
+      'An error occurred. Please try again.';
+    
+    this.snackBar.open(errorMessage, 'Close', {
+      duration: 5000,
+      panelClass: ['error-snackbar'],
+    });
 
     if (error.error?.errors) {
+      const errorMapping: { [key: string]: string } = {
+        current_password: 'currentPassword',
+        password: 'newPassword',
+        password_confirmation: 'confirmPassword',
+      };
+
       Object.entries(error.error.errors).forEach(([key, value]) => {
-        if (key !== 'current_password' && key !== 'currentPassword') {
-          const control = this.passwordForm.get(key);
-          if (control && Array.isArray(value)) {
-            control.setErrors({ serverError: value[0] });
-          }
+        const controlName = errorMapping[key] || key;
+        const control = this.passwordForm.get(controlName);
+        
+        if (control && Array.isArray(value)) {
+          control.setErrors({ serverError: value[0] });
         }
       });
     }

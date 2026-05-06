@@ -10,13 +10,21 @@
       <div class="left-section">
         <div class="avatar-container">
           <div class="profile-avatar">
-            <span mat-symbol>person</span>
+            <!-- Show Image if it exists, else show the default icon -->
+            <img *ngIf="profilePictureUrl" [src]="profilePictureUrl" alt="Profile Picture" class="avatar-img">
+            <span *ngIf="!profilePictureUrl" mat-symbol>person</span>
           </div>
+
+          <!-- Hidden file input -->
+          <input type="file" #fileInput hidden (change)="onFileSelected($event)" accept="image/*">
+          
+          <!-- Trigger button -->
           <button 
             type="button"
-            mat-flat-button 
-            class="preferences-btn">
-            Update Photo
+            class="maroon-btn"
+            style="margin-top: 10px;"
+            (click)="fileInput.click()">
+            Change Profile Picture
           </button>
         </div>
 
@@ -44,11 +52,13 @@
         <div class="compact-row">
           <div class="field-group faculty-code">
             <label>Faculty Code</label>
-            <input formControlName="code" class="pill-input" placeholder="e.g., 1234">
+            <!-- Add readonly attribute -->
+            <input formControlName="code" class="pill-input" placeholder="e.g., 1234" readonly>
           </div>
-          <div class="field-group program-id">
-            <label>Program ID</label>
-            <input formControlName="program_id" class="pill-input" placeholder="e.g., BSIT">
+          <div class="field-group department">
+            <label>Department</label>
+            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept" 
+                  [title]="profileForm.get('department')?.value || ''">
           </div>
         </div>
 
@@ -74,20 +84,45 @@
     
     <div class="address-grid">
       <div class="field-group">
-        <input formControlName="house_num" placeholder="House #" class="pill-input">
+        <input formControlName="house_num" placeholder="House / Unit #" class="pill-input"
+              [title]="profileForm.get('house_num')?.value || ''">
       </div>
       <div class="field-group">
-        <input formControlName="street" placeholder="Street" class="pill-input">
+        <input formControlName="street" placeholder="Street / Subdivision" class="pill-input"
+              [title]="profileForm.get('street')?.value || ''">
       </div>
+
+      <!-- Province Dropdown -->
       <div class="field-group">
-        <input formControlName="barangay" placeholder="Barangay" class="pill-input">
+        <select formControlName="province" class="pill-input">
+          <!-- Note the brackets around [value]="''" -->
+          <option [value]="''" disabled selected>Select Province...</option>
+          <option *ngFor="let prov of provinces" [value]="prov.name">
+            {{ prov.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- City Dropdown -->
       <div class="field-group">
-        <input formControlName="city" placeholder="City" class="pill-input">
+        <select formControlName="city" class="pill-input">
+          <option [value]="''" disabled selected>Select City/Municipality...</option>
+          <option *ngFor="let city of cities" [value]="city.name">
+            {{ city.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- Barangay Dropdown -->
       <div class="field-group">
-        <input formControlName="province" placeholder="Province" class="pill-input">
+        <select formControlName="barangay" class="pill-input">
+          <option [value]="''" disabled selected>Select Barangay...</option>
+          <option *ngFor="let brgy of barangays" [value]="brgy.name">
+            {{ brgy.name }}
+          </option>
+        </select>
       </div>
+
       <div class="field-group">
         <input formControlName="zipcode" placeholder="Zipcode" class="pill-input" maxlength="4">
         <span class="error-text" *ngIf="profileForm.get('zipcode')?.invalid && profileForm.get('zipcode')?.touched">

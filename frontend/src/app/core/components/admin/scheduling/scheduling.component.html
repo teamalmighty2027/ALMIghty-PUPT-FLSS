@@ -31,14 +31,20 @@
         [activeYear]="activeYear"
         [activeSemester]="activeSemesterLabel"
         [readOnlyBadge]="true"
-        [activeYearTooltip]="'Manage scheduling semester in Academic Year settings'"
+        [activeYearTooltip]="
+          'Manage scheduling semester in Academic Year settings'
+        "
       ></app-table-header>
 
       <!-- Draft Mode Toggle (Only when NOT in draft mode) -->
       @if (!isDraftMode) {
         <div class="draft-toggle-container">
-          <button mat-flat-button color="accent" (click)="toggleDraftMode()" 
-                  [disabled]="!selectedSection || isCreatingTemporaryCourse">
+          <button
+            mat-flat-button
+            color="accent"
+            (click)="toggleDraftMode()"
+            [disabled]="!selectedSection || isCreatingTemporaryCourse"
+          >
             <mat-icon>edit_note</mat-icon>
             Enter Draft Mode
           </button>
@@ -53,24 +59,42 @@
           <mat-icon class="amber-icon">history_edu</mat-icon>
           <div class="texts">
             <span class="title">Draft Mode Active</span>
-            <span class="desc"><strong>Changes are local until you save.</strong> {{ draftSchedules.length }} courses in draft.</span>
+            <span class="desc"
+              ><strong>Changes are local until you save.</strong>
+              {{ draftSchedules.length }} courses in draft.</span
+            >
           </div>
         </div>
 
         <div class="draft-actions">
-          <button mat-stroked-button (click)="openHistoricalDialog()" [disabled]="isAiFilling || isHistoricalLoading">
-            @if (isHistoricalLoading) { <mat-spinner diameter="18"></mat-spinner> }
-            @else { <mat-icon>history</mat-icon> }
+          <button
+            mat-stroked-button
+            (click)="openHistoricalDialog()"
+            [disabled]="isAiFilling || isHistoricalLoading"
+          >
+            @if (isHistoricalLoading) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>history</mat-icon>
+            }
             History Fill
           </button>
 
-          <button mat-stroked-button (click)="fillWithAI()" [disabled]="isAiFilling || isHistoricalLoading">
+          <button
+            mat-stroked-button
+            (click)="fillWithAI()"
+            [disabled]="isAiFilling || isHistoricalLoading"
+          >
             @if (isAiFilling) {
               <div class="progress-info">
                 <mat-spinner diameter="18"></mat-spinner>
-                <span>{{ aiFillProgress.current }}/{{ aiFillProgress.total }}</span>
+                <span
+                  >{{ aiFillProgress.current }}/{{ aiFillProgress.total }}</span
+                >
               </div>
-            } @else { <mat-icon>auto_awesome</mat-icon> }
+            } @else {
+              <mat-icon>auto_awesome</mat-icon>
+            }
             AI Auto-fill
           </button>
 
@@ -81,14 +105,25 @@
             Discard
           </button>
 
-          <button mat-flat-button color="primary" class="save-btn" (click)="saveDraft()" 
-                  [disabled]="isAiFilling || isHistoricalLoading">
+          <button
+            mat-flat-button
+            color="primary"
+            class="save-btn"
+            (click)="saveDraft()"
+            [disabled]="isAiFilling || isHistoricalLoading"
+          >
             <mat-icon>save</mat-icon>
             Save Draft
           </button>
 
-          <button mat-flat-button color="warn" (click)="toggleDraftMode()" 
-                  [disabled]="!selectedSection || isCreatingTemporaryCourse || isAiFilling">
+          <button
+            mat-flat-button
+            color="warn"
+            (click)="toggleDraftMode()"
+            [disabled]="
+              !selectedSection || isCreatingTemporaryCourse || isAiFilling
+            "
+          >
             <mat-icon>close</mat-icon>
             Exit Draft Mode
           </button>
@@ -97,7 +132,11 @@
     }
 
     <!--Scheduling Table-->
-    <div class="scheduling-table-container" [@fadeAnimation] [class.draft-active]="isDraftMode">
+    <div
+      class="scheduling-table-container"
+      [@fadeAnimation]
+      [class.draft-active]="isDraftMode"
+    >
       <div class="table-container">
         <table mat-table [dataSource]="tableData" class="custom-table">
           <!-- Index Column -->
@@ -168,6 +207,18 @@
                       }} schedule for {{ element.course_code }}"
                     ></span>
                   }
+                }
+
+                <!-- ML Suggestion Icon -->
+                @if (isDraftMode && element.day === "Not set") {
+                  <button
+                    type="button"
+                    mat-symbol="auto_awesome"
+                    class="ml-suggest-icon"
+                    (click)="onMlSuggest(element)"
+                    matTooltip="Get AI Schedule Suggestion"
+                    aria-label="Get AI Schedule Suggestion"
+                  ></button>
                 }
               </div>
             </td>

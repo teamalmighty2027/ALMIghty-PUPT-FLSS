@@ -115,11 +115,20 @@
 
 .pill-input {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: 0 var(--spacing-md); /* Changed vertical padding to 0 since we are using a fixed height */
   border-radius: var(--border-radius-xl);
   border: 1.5px solid #e0e0e0;
   background-color: #fafafa; 
   font-family: var(--font-base);
+  
+  /* --- ADD THESE 3 LINES TO FIX SIZING --- */
+  box-sizing: border-box; 
+  height: 48px; /* Forces both inputs and selects to be exactly 48px tall */
+  line-height: 48px; /* Centers the text vertically */
+  /* --------------------------------------- */
+
+  text-overflow: ellipsis;
+
   @include mixins.default-transition;
 
   &:focus {
@@ -165,7 +174,10 @@
 }
 
 .faculty-code { flex: 0 0 210px; }
-.program-id   { flex: 0 0 180px; }
+.department { 
+  flex: 1; /* This tells it to stretch and fill the remaining space */
+  min-width: 200px; /* Prevents it from getting too squished on smaller screens */
+}
 .birthdate    { flex: 0 0 210px; }
 .sex          { flex: 0 0 180px; }
 
@@ -189,10 +201,17 @@
   border-radius: 50%;
   @include mixins.flex-layout();
   border: 1px solid var(--m3-neutral-90);
+  overflow: hidden; /* Added to keep image perfectly round */
   
   span[mat-symbol] {
     font-size: 60px;
     color: var(--sienna-primary-color);
+  }
+
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image fills the circle without stretching */
   }
 }
 
@@ -325,7 +344,7 @@
   }
 
   .faculty-code, 
-  .program-id, 
+  .department, 
   .birthdate, 
   .sex, 
   .form-control-group {
@@ -359,10 +378,6 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
   }
 
-  .page-header h1 {
-    /* Keeping as var(--sienna-primary-color) */
-  }
-  
   .page-header p,
   .form-control-group label,
   .field-group label {
