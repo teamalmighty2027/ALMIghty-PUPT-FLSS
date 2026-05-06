@@ -21,6 +21,7 @@ import {
   CourseCatalogItem,
   BridgingCourseOption,
   TemporaryCourseOfferingPayload,
+  SmartSuggestion,
 } from '../../../models/scheduling.model';
 
 import { environment } from '../../../../../environments/environment.dev';
@@ -468,20 +469,20 @@ export class SchedulingService {
   }
   /**
    * Orchestrates the suggestion process: ML first, then backend fallback.
-   * @param slot The schedule slot to find a suggestion for.
+   * @param courseId The ID of the course to find a suggestion for.
    * @param academicYearId The academic year ID.
    * @param semesterId The semester ID.
    * @param activeSemesterId The active semester record ID.
    */
   public getSmartSuggestion(
-    slot: Schedule,
+    courseId: number,
     academicYearId: number,
     semesterId: number,
     activeSemesterId: number,
     programId: number,
     yearLevel: number,
     sectionId: number
-  ): Observable<any> {
+  ): Observable<SmartSuggestion> {
     return this.getSubmittedPreferencesForActiveSemester().pipe(
       switchMap(response => {
         const preferences = response.preferences || [];
@@ -495,7 +496,7 @@ export class SchedulingService {
 
           if (activeSem) {
             const coursePref = activeSem.courses.find(c => 
-              c.course_details.course_id === slot.course_id
+              c.course_details.course_id === courseId
             );
 
             if (coursePref) {
@@ -519,7 +520,7 @@ export class SchedulingService {
             programId, 
             yearLevel, 
             sectionId, 
-            slot
+            courseId
           );
         }
 
@@ -559,7 +560,7 @@ export class SchedulingService {
                 confidence: bestMatch.ml!.confidence,
                 isMl: true,
                 success: true
-              };
+              } as SmartSuggestion;
             }
 
             return null;
@@ -570,7 +571,7 @@ export class SchedulingService {
               programId, 
               yearLevel, 
               sectionId, 
-              slot
+              courseId
             );
           })
         );
@@ -579,36 +580,30 @@ export class SchedulingService {
         programId, 
         yearLevel, 
         sectionId, 
-        slot
+        courseId
       ))
     );
   }
 
-  /**
-   * Executes the legacy backend AI suggestion logic as a fallback.
-   * @param programId The ID of the program.
-   * @param yearLevel The year level.
-   * @param sectionId The ID of the section.
-   * @param slot The schedule object to find a suggestion for.
-   * @returns An Observable emitting the suggestion result.
-   */
   private runBackendFallback(
     programId: number, 
     yearLevel: number, 
     sectionId: number, 
-    slot: Schedule
-  ): Observable<any> {
+    courseId: number
+  ): Observable<SmartSuggestion> {
     return this.getAISuggestion(
       programId, 
       yearLevel, 
       sectionId, 
-      slot.course_id
+      courseId
     ).pipe(
       map(res => {
-        if (!res || !res.success || !res.faculty_id) return { success: false };
+        if (!res || !res.success || !res.faculty_id) {
+          return { success: false } as SmartSuggestion;
+        }
         
         const pref = res.preferences?.[0];
-        if (!pref) return { success: false };
+        if (!pref) return { success: false } as SmartSuggestion;
 
         const [start, end] = pref.time.split(' - ')
           .map((t: string) => t.trim());
@@ -621,7 +616,7 @@ export class SchedulingService {
           end_time: end,
           isMl: false,
           success: true
-        };
+        } as SmartSuggestion;
       })
     );
   }

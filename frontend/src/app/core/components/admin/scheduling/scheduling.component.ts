@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Observable, Subject, forkJoin, of, from, firstValueFrom } from 'rxjs';
-import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap, toArray } from 'rxjs/operators';
+import { Observable, Subject, forkJoin, of, from } from 'rxjs';
+import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
+import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -39,10 +40,6 @@ import {
   TemporaryCourseOfferingPayload,
   DraftEntry
 } from '../../../models/scheduling.model';
-
-import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
-import { ScheduleSuggestionService } from '../../../services/admin/scheduling/schedule-suggestion.service';
-import { MlSuggestion } from '../../../models/ml-suggestion.model';
 
 @Component({
   selector: 'app-scheduling',
@@ -91,8 +88,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   activeYear: string = '';
   activeSemester: number = 0;
+  activeSemesterId: number = 0;
+  activeSemesterRecordId: number | null = null;
   activeAcademicYearId: number | null = null;
-  activeSemesterId: number | null = null;
   startDate: string = '';
   endDate: string = '';
 
@@ -126,7 +124,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
-    private mlService: ScheduleSuggestionService
   ) {}
 
   ngOnInit(): void {
@@ -458,10 +455,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     from(emptySlots).pipe(
       concatMap(slot => {
         return this.schedulingService.getSmartSuggestion(
-          slot,
+          slot.course_id,
           this.activeAcademicYearId || 0,
           this.activeSemesterId || 0,
-          this.activeSemesterId || 0,
+          this.activeSemesterRecordId || 0,
           programId,
           this.selectedYear,
           sectionId
@@ -539,10 +536,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     const sectionId = selectedSectionObj?.section_id || 0;
 
     this.schedulingService.getSmartSuggestion(
-      slot,
+      slot.course_id,
       this.activeAcademicYearId || 0,
       this.activeSemesterId || 0,
-      this.activeSemesterId || 0,
+      this.activeSemesterRecordId || 0,
       programId,
       this.selectedYear,
       sectionId
@@ -1124,6 +1121,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.isSubmissionEnabled = response.is_submission_enabled;
         this.activeAcademicYearId = response.academic_year_id;
         this.activeSemesterId = response.semester_id;
+        this.activeSemesterRecordId = response.active_semester_id;
 
         this.schedules = sectionData.courses.map(
           (course: CourseResponse, index, array) => {

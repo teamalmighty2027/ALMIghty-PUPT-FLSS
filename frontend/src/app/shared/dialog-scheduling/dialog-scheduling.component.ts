@@ -171,7 +171,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         switchMap(activeInfo => {
           return this.schedulingService.getSmartSuggestion(
-            { course_id: this.data.course_id } as any,
+            this.data.course_id,
             activeInfo.academic_year_id,
             activeInfo.semester_id,
             activeInfo.active_semester_id,
