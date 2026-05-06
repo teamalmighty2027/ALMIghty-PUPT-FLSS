@@ -1257,7 +1257,9 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Get AI Scheduling Suggestions using a Multi-Tier Fallback Strategy
+     * Get scheduling suggestions using a Multi-Tier Heuristic Fallback Strategy.
+     * @param Request $request [program_id, year_level, section_id, course_id]
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getHeuristicSchedulingSuggestion(Request $request)
     {
@@ -1310,6 +1312,9 @@ class ScheduleController extends Controller
         ], 200);
     }
 
+    /**
+     * Tier 1: Attempts to find candidates from current semester faculty preferences.
+     */
     private function tryCurrentPreferences($courseId, $programId, $yearLevel, $sectionId, $activeSemester)
     {
         $prefs = DB::table('preferences as p')
@@ -1340,6 +1345,9 @@ class ScheduleController extends Controller
         return null;
     }
 
+    /**
+     * Tier 2: Attempts to find candidates who taught this course in previous semesters.
+     */
     private function tryHistoricalExperts($courseId, $activeSemester)
     {
         // Find faculty who have taught this course in previous semesters
@@ -1369,6 +1377,9 @@ class ScheduleController extends Controller
         return null;
     }
 
+    /**
+     * Tier 3: Attempts to find available faculty with the lowest current workload.
+     */
     private function tryLoadBalancing($activeSemester)
     {
         // Default working hours for generic assignment (7:30 AM - 10:30 AM)
@@ -1408,6 +1419,10 @@ class ScheduleController extends Controller
         return null;
     }
 
+    /**
+     * Checks if a faculty member is available at a specific time in the current semester.
+     * @return bool True if available, false if there is a conflict.
+     */
     private function isFacultyAvailable($facultyId, $day, $start, $end, $activeSemesterId)
     {
         if (!$day || !$start || !$end) return false;
@@ -1429,6 +1444,9 @@ class ScheduleController extends Controller
             ->exists();
     }
 
+    /**
+     * Standardizes the JSON response for a scheduling suggestion.
+     */
     private function formatSuggestionResponse($data, $source, $isHistorical = false)
     {
         $name = trim(($data->last_name ?? '') . ', ' . ($data->first_name ?? ''));
@@ -1444,6 +1462,9 @@ class ScheduleController extends Controller
         ]);
     }
 
+    /**
+     * Formats a 24-hour time string to 12-hour format (e.g., "13:00" -> "1:00 PM").
+     */
     private function formatTo12h($time)
     {
         if (!$time) return null;
