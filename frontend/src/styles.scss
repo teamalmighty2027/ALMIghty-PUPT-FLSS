@@ -562,40 +562,39 @@ html body div.asw-container .asw-menu * {
     --asw-primary: #800000 !important;
 }
 
-/* --- Nuclear Global Fix for Dialog PDF Viewers --- */
-.pdf-fullscreen-dialog .mat-mdc-dialog-container .mat-mdc-dialog-surface {
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
+/* --- Clean Global Fix for Dialog Sizing --- */
+.pdf-fullscreen-dialog {
+  max-width: 95vw !important;
+  width: 95vw !important;
+  height: auto !important; /* Lets the dialog shrink vertically */
+  max-height: 95vh !important;
 }
 
-/* Force the component itself to stretch */
-.pdf-fullscreen-dialog app-dialog-view-schedule {
+.pdf-fullscreen-dialog .mdc-dialog__surface,
+.pdf-fullscreen-dialog .mat-mdc-dialog-surface {
+  height: auto !important; 
   display: flex !important;
   flex-direction: column !important;
-  height: 100% !important;
-  width: 100% !important;
-  flex-grow: 1 !important;
+  padding: 0 !important;
 }
 
-/* Force the content body to stretch */
+/* Let the component size normally */
+.pdf-fullscreen-dialog app-dialog-view-schedule,
 .pdf-fullscreen-dialog mat-dialog-content,
 .pdf-fullscreen-dialog .mat-mdc-dialog-content {
-  max-height: none !important;
-  height: 100% !important;
-  flex-grow: 1 !important;
+  height: auto !important;
   display: flex !important;
   flex-direction: column !important;
-  padding: 0 !important; /* Optional: removes white border padding around PDF */
+  padding: 0 !important; 
 }
 
-/* Force the actual viewer to fill the space */
+/* Because the dialog is now 'auto' height, we MUST give the PDF a fixed height so it doesn't disappear */
 .pdf-fullscreen-dialog iframe,
 .pdf-fullscreen-dialog pdf-viewer,
-.pdf-fullscreen-dialog .pdf-viewer-container {
-  height: 100% !important;
-  min-height: 70vh !important; /* Hard fallback so it NEVER shrinks */
-  flex-grow: 1 !important;
-  display: block !important;
+.pdf-fullscreen-dialog object,
+.pdf-fullscreen-dialog embed {
+  height: 75vh !important; /* Adjust this number to make the PDF taller/shorter */
   width: 100% !important;
+  border: none !important;
+  display: block !important;
 }

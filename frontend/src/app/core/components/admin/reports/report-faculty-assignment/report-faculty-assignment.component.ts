@@ -224,7 +224,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '95vw',
       width: '95vw',
-      height: '95vh',
+      height: 'auto',
       maxHeight: '95vh',
       panelClass: 'pdf-fullscreen-dialog', // Ensure this class is here!
       autoFocus: true, 
@@ -432,19 +432,30 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     const splitSchedules = this.getSplitSchedules(faculty);
 
-    const daysArr = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN'];
-    let regDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0 };
-    let ptDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0 };
+    // Trackers: Added 'TBA' for missing days and 'TOTAL' for row sum calculation
+    let regDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
+    let ptDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
 
     const headers = [['SUBJECT\nCODE', 'SUBJECT DESCRIPTION', 'UNITS', 'YEAR &\nSECTION', 'SUBJ\nREF', 'TIME', 'TIME\nCODE', 'DAY/S', 'ROOM', 'EFFTVTY.']];
 
     const mapRowAndTrackHours = (row: any, tracker: any) => {
-      const col = this.mapDayToCol(row.day);
-      if (col && tracker[col] !== undefined) {
-        const diff = this.getHoursDiff(row.start_time, row.end_time);
-        if (!isNaN(diff)) {
-          tracker[col] += diff;
-        }
+      let col = this.mapDayToCol(row.day);
+      if (!col) col = 'TBA'; // Fallback for empty/invalid days
+
+      let diff = this.getHoursDiff(row.start_time, row.end_time);
+      
+      // Fallback hours if time is missing or invalid
+      if (isNaN(diff) || diff <= 0) {
+        const tuition = Number(row.course_details?.tuition_hours);
+        const lecLab = Number(row.course_details?.lec || 0) + Number(row.course_details?.lab || 0);
+        const units = Number(row.course_details?.units || 0);
+        diff = tuition > 0 ? tuition : (lecLab > 0 ? lecLab : units);
+      }
+
+      // Add to tracking objects
+      if (tracker[col] !== undefined) {
+        tracker[col] += diff;
+        tracker['TOTAL'] += diff;
       }
       
       const cleanProgram = (row.program_code || '').replace('-TG', '');
@@ -457,33 +468,33 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         row.course_details?.units || 0,
         `${cleanProgram} ${row.year_level}-${row.section_name}`,
         subjRef,
-        `${this.formatTime(row.start_time)}-${this.formatTime(row.end_time)}`,
+        (row.start_time && row.end_time) ? `${this.formatTime(row.start_time)}-${this.formatTime(row.end_time)}` : 'TBA',
         '', 
-        this.mapDayCode(row.day),
+        this.mapDayCode(row.day) || 'TBA',
         cleanRoom || 'TBA',
         this.effectivityDate
       ];
     };
 
     const fixedColumnStyles: any = {
-      0: { cellWidth: 20 },                     
-      1: { cellWidth: 46, halign: 'left' },     
-      2: { cellWidth: 11 },                     
-      3: { cellWidth: 22 },                     
-      4: { cellWidth: 10 },                     
-      5: { cellWidth: 27 },                     
-      6: { cellWidth: 11 },                     
-      7: { cellWidth: 11 },                     
-      8: { cellWidth: 13 },                     
-      9: { cellWidth: 17 }                      
+      0: { cellWidth: 20 },                      
+      1: { cellWidth: 46, halign: 'left' },      
+      2: { cellWidth: 11 },                      
+      3: { cellWidth: 22 },                      
+      4: { cellWidth: 10 },                      
+      5: { cellWidth: 27 },                      
+      6: { cellWidth: 11 },                      
+      7: { cellWidth: 11 },                      
+      8: { cellWidth: 13 },                      
+      9: { cellWidth: 17 }                       
     };
 
-    // 3. REGULAR LOAD TABLE (ALWAYS 6 ROWS FOR UNIFORMITY)
+    // 3. REGULAR LOAD TABLE
     let currentY = (doc as any).lastAutoTable.finalY + 4;
     doc.setFontSize(9); doc.setFont('helvetica', 'bold');
     doc.text('REGULAR LOAD', 14, currentY);
 
-    let regularBody = splitSchedules.regular.map(s => mapRowAndTrackHours(s, regDailyHours));
+    let regularBody = splitSchedules.regular.map((s: any) => mapRowAndTrackHours(s, regDailyHours));
     while (regularBody.length < 6) regularBody.push(Array(10).fill('')); 
 
     autoTable(doc, {
@@ -496,12 +507,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     currentY = (doc as any).lastAutoTable.finalY + 4;
     doc.setFontSize(8); doc.text(`Total REGULAR LOAD: ${this.getTotalUnits(splitSchedules.regular)}`, 14, currentY);
 
-    // 4. PART-TIME TABLE (ALWAYS 6 ROWS FOR UNIFORMITY)
+    // 4. PART-TIME TABLE
     currentY += 6;
     doc.setFontSize(9); doc.setFont('helvetica', 'bold');
     doc.text('PART-TIME', 14, currentY);
 
-    let partTimeBody = splitSchedules.partTime.map(s => mapRowAndTrackHours(s, ptDailyHours));
+    let partTimeBody = splitSchedules.partTime.map((s: any) => mapRowAndTrackHours(s, ptDailyHours));
     while (partTimeBody.length < 6) partTimeBody.push(Array(10).fill(''));
 
     autoTable(doc, {
@@ -520,18 +531,19 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('TEACHING LOAD PER DAY (HOURS)', 105, currentY, { align: 'center' });
 
     const formatHour = (val: number) => val > 0 ? parseFloat(val.toFixed(2)).toString() : '';
+    const daysWithTBA = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA'];
 
-    const regRow = ['REGULAR', ...daysArr.map(d => formatHour(regDailyHours[d]))];
-    const ptRow = ['PART-TIME', ...daysArr.map(d => formatHour(ptDailyHours[d]))];
-    const totalRow = ['TOTAL', ...daysArr.map(d => formatHour(regDailyHours[d] + ptDailyHours[d]))];
+    const regRow = ['REGULAR', ...daysWithTBA.map(d => formatHour(regDailyHours[d])), formatHour(regDailyHours.TOTAL)];
+    const ptRow = ['PART-TIME', ...daysWithTBA.map(d => formatHour(ptDailyHours[d])), formatHour(ptDailyHours.TOTAL)];
+    const totalRow = ['TOTAL', ...daysWithTBA.map(d => formatHour(regDailyHours[d] + ptDailyHours[d])), formatHour(regDailyHours.TOTAL + ptDailyHours.TOTAL)];
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA', 'TOTAL']],
       body: [regRow, ptRow, totalRow],
-      styles: { fontSize: 8.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 8 },
-      columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 35 } }
+      styles: { fontSize: 8, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
+      columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 6;
@@ -539,14 +551,14 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA', 'TOTAL']],
       body: [
-        ['OFFICIAL TIME', '', '', '', '', '', '', ''],
-        ['ADVISING TIME', '', '', '', '', '', '', '']
+        ['OFFICIAL TIME', '', '', '', '', '', '', '', '', ''],
+        ['ADVISING TIME', '', '', '', '', '', '', '', '', '']
       ],
-      styles: { fontSize: 8.5, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 8 },
-      columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 35 } }
+      styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
+      columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
     });
 
     // 6. FOOTER

@@ -10,12 +10,11 @@
   flex-direction: column;
 }
 
-/* Update the container holding your PDF/Table to grow */
-.view-container {  /* Replace .view-container with whatever class wraps your PDF/Table */
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Important for flex children to scroll properly */
+.pdf-viewer-container {
+   height: 100% !important;
+   flex-grow: 1;
+   display: flex;
+   flex-direction: column;
 }
 
 /* Ensure the actual PDF object/iframe fills its parent */
