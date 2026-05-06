@@ -117,3 +117,54 @@ iframe {
   color: white !important;
   margin-right: 8px;
 }
+
+/* 1. Force the main content area of the dialog to be a flex container that grows */
+mat-dialog-content,
+.mat-mdc-dialog-content {
+  display: flex !important;
+  flex-direction: column !important;
+  flex-grow: 1 !important;
+  min-height: 0 !important; /* Critical: allows children to scroll if they overflow */
+  padding-bottom: 0 !important; 
+}
+
+/* 2. Target the wrappers holding your views to take up all available space */
+.view-container,
+.table-responsive-container,
+.pdf-viewer-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  height: 100%;
+  min-height: 0; 
+  width: 100%;
+}
+
+/* 3. Ensure the FullCalendar wrapper stretches vertically */
+full-calendar,
+.fc,
+.fc-view-harness {
+  flex-grow: 1 !important;
+  height: 100% !important;
+  min-height: 50vh; /* Fallback */
+}
+
+/* 4. Force the PDF viewer/iframe to fill its growing parent container completely */
+pdf-viewer,
+iframe,
+object,
+embed {
+  flex-grow: 1 !important;
+  height: 100% !important;
+  width: 100% !important;
+  min-height: 60vh !important; /* Prevents it from collapsing to 150px */
+  border: none !important;
+  display: block;
+}
+
+/* Optional: Keep the actions/footer anchored to the bottom */
+mat-dialog-actions,
+.mat-mdc-dialog-actions {
+  margin-top: auto !important; /* Pushes the footer to the bottom */
+  padding: 16px 24px !important;
+}

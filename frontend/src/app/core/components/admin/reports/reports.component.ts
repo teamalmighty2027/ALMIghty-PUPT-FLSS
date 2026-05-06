@@ -22,6 +22,7 @@ export class ReportsComponent implements OnInit {
     { label: 'Faculty', route: 'faculty', icon: 'person' },
     { label: 'Programs', route: 'programs', icon: 'school' },
     { label: 'Rooms', route: 'rooms', icon: 'meeting_room' },
+    { label: 'Faculty Assignment', route: 'faculty-assignment', icon: 'assignment_ind' },
   ];
   selectedTabIndex = 0;
 
