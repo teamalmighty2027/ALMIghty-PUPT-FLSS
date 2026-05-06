@@ -31,6 +31,7 @@ use App\Http\Controllers\TemporaryCourseOfferingController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |----------------------------
@@ -58,6 +59,15 @@ Route::prefix('auth')->group(function () {
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Fallback route for Philippine Addresses (Publicly accessible)
+Route::get('/addresses/fallback/{file}', function ($file) {
+    if (!Storage::disk('public')->exists('addresses/' . $file)) {
+        return response()->json([], 404);
+    }
+    $content = Storage::disk('public')->get('addresses/' . $file);
+    return response()->json(json_decode($content));
+});
 
 /*
 |-----------------------------

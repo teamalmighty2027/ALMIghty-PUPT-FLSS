@@ -1,9 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+<<<<<<< feat/admin-profile
 import { AbstractControl, ReactiveFormsModule, FormBuilder, FormGroup, Validators, ValidationErrors } from '@angular/forms';
 import { FacultyService, FacultyProfileData } from '../../core/services/superadmin/management/faculty/faculty.service';
 import { AdminService, AdminProfileData } from '../../core/services/superadmin/management/admin/admin-profile.service';
 import { AuthService } from '../../core/services/auth/auth.service';
+=======
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service'; 
+import { PhAddressService } from '../../core/services/address/ph-address.service';
+>>>>>>> main
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
@@ -22,12 +28,22 @@ export class ProfilePageComponent implements OnInit {
   profileForm!: FormGroup;
   isLoading = false;
   selectedFile: File | null = null;
+<<<<<<< feat/admin-profile
   profilePictureUrl: string | null = null; // Holds the preview/current image
   isAdmin: boolean = false;
+=======
+  profilePictureUrl: string | null = null; 
+
+  // Arrays to hold dropdown choices for the template
+  provinces: any[] = [];
+  cities: any[] = [];
+  barangays: any[] = [];
+>>>>>>> main
 
   constructor(
     private fb: FormBuilder,
     private facultyService: FacultyService,
+<<<<<<< feat/admin-profile
     private adminService: AdminService,
     private authService: AuthService,
     private snackBar: MatSnackBar,
@@ -35,9 +51,16 @@ export class ProfilePageComponent implements OnInit {
   ) {
     this.isAdmin = this.authService.getUserRole() === 'admin' || this.authService.getUserRole() === 'superadmin';
   }
+=======
+    private snackBar: MatSnackBar,
+    private addressService: PhAddressService
+  ) {}
+>>>>>>> main
 
   ngOnInit(): void {
     this.initForm();
+    this.loadProvinces();
+    this.setupAddressListeners();
     this.loadProfileData();
   }
 
@@ -48,9 +71,16 @@ export class ProfilePageComponent implements OnInit {
       last_name: ['', Validators.required],
       suffix_name: [''],
       email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
+<<<<<<< feat/admin-profile
       code: [{ value: '', disabled: true }],
       department: [''],
       birthdate: ['', [this.birthdateValidator.bind(this)]],
+=======
+      code: [{ value: '', disabled: true }], 
+      faculty_profile_id: [{ value: '', disabled: true }],
+      department: [''], 
+      birthdate: [''], 
+>>>>>>> main
       sex: [''],
       house_num: [''],
       street: [''],
@@ -88,6 +118,84 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+  /**
+   * Wire form controls to address API calls and derived values.
+   */
+  setupAddressListeners(): void {
+    // When Province changes, load Cities
+    this.profileForm.get('province')?.valueChanges.subscribe(provinceName => {
+      const selectedProv = this.provinces.find(p => p.name === provinceName);
+      if (selectedProv) {
+        this.addressService.getCities(selectedProv.code).subscribe(data => {
+          // SORT CITIES ALPHABETICALLY
+          this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
+          
+          this.profileForm.get('city')?.setValue('');
+          this.profileForm.get('barangay')?.setValue('');
+          this.barangays = []; 
+        });
+      }
+    });
+
+    // When City changes, load Barangays & Zip Code
+    this.profileForm.get('city')?.valueChanges.subscribe(cityName => {
+      const selectedCity = this.cities.find(c => c.name === cityName);
+      if (selectedCity) {
+        this.addressService.getBarangays(selectedCity.code).subscribe(data => {
+          // SORT BARANGAYS ALPHABETICALLY
+          this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
+          this.profileForm.get('barangay')?.setValue('');
+        });
+      }
+
+      const zipCodeMap: { [key: string]: string } = {
+        'City of Taguig': '1630',
+        'City of Manila': '1000',
+        'Quezon City': '1100',
+        'City of Makati': '1200',
+        'City of Pasig': '1600',
+        'City of Mandaluyong': '1550',
+        'City of Marikina': '1800',
+        'City of Muntinlupa': '1770',
+        'City of Parañaque': '1700',
+        'City of Las Piñas': '1740',
+        'City of Valenzuela': '1440',
+        'City of Malabon': '1470',
+        'City of Navotas': '1490',
+        'City of San Juan': '1500',
+        'Pasay City': '1300',
+        'Pateros': '1620',
+        'City of Caloocan': '1400',
+        'Bacoor City': '4102',
+        'Dasmariñas City': '4114',
+        'Imus City': '4103'
+      };
+
+      const foundZip = zipCodeMap[cityName];
+      this.profileForm.get('zipcode')?.setValue(foundZip ?? '');
+    });
+  }
+
+  /**
+   * Load provinces from PSGC and include Metro Manila as an option.
+   */
+  loadProvinces(): void {
+    this.addressService.getProvinces().subscribe(data => {
+      
+      // Only manually add Metro Manila if it's NOT already in the data
+      const hasNCR = data.some(p => p.code === '130000000');
+      if (!hasNCR) {
+        data.push({ code: '130000000', name: 'Metro Manila' });
+      }
+      
+      // Sort alphabetically
+      this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }
+
+  /**
+   * Load the user's profile and initialize dependent address lists.
+   */
   loadProfileData(): void {
     this.isLoading = true;
     this.profileForm.disable();
@@ -98,6 +206,7 @@ export class ProfilePageComponent implements OnInit {
       next: (data) => {
         const formData = {
           ...data,
+<<<<<<< feat/admin-profile
           sex: data.sex || ''
         };
 
@@ -106,6 +215,42 @@ export class ProfilePageComponent implements OnInit {
         this.profileForm.patchValue(formData);
 
         this.enableProfileForm();
+=======
+          sex: data.sex || '',
+          province: data.province || '',
+          city: data.city || '',
+          barangay: data.barangay || ''
+        };
+        
+        this.profilePictureUrl = data.profile_picture_url || null;
+        this.profileForm.patchValue(formData, { emitEvent: true });
+        
+        if (data.province) {
+           setTimeout(() => {
+             const prov = this.provinces.find(p => p.name === data.province);
+             if (prov) {
+               this.addressService.getCities(prov.code).subscribe(cities => {
+                 // Sort cities on initial load
+                 this.cities = cities.sort((a, b) => a.name.localeCompare(b.name));
+                 
+                 const city = this.cities.find(c => c.name === data.city);
+                 if (city) {
+                   this.addressService.getBarangays(city.code).subscribe(brgys => {
+                     // Sort barangays on initial load
+                     this.barangays = brgys.sort((a, b) => a.name.localeCompare(b.name));
+                   });
+                 }
+               });
+             }
+           }, 500); 
+        }
+
+        this.profileForm.enable();
+        this.profileForm.get('email')?.disable();
+        this.profileForm.get('faculty_profile_id')?.disable();
+        this.profileForm.get('code')?.disable(); 
+        
+>>>>>>> main
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
@@ -116,6 +261,7 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
+<<<<<<< feat/admin-profile
   private enableProfileForm(): void {
     this.profileForm.enable();
     this.profileForm.get('email')?.disable();
@@ -125,12 +271,16 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+=======
+  /**
+   * Handle file input selection for profile picture preview.
+   */
+>>>>>>> main
   onFileSelected(event: any): void {
     const file = event.target.files[0];
     if (file) {
       this.selectedFile = file;
       
-      // Show image preview locally before saving
       const reader = new FileReader();
       reader.onload = (e: any) => {
         this.profilePictureUrl = e.target.result;
@@ -139,6 +289,7 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+<<<<<<< feat/admin-profile
   onBirthdateChange(event: any): void {
     const value = event.target?.value;
     if (value && this.isToday(value)) {
@@ -176,6 +327,11 @@ export class ProfilePageComponent implements OnInit {
     return null;
   }
 
+=======
+  /**
+   * Submit the profile form to update the user's profile.
+   */
+>>>>>>> main
   onSubmit(): void {
     if (this.profileForm.valid) {
       const formValues = this.profileForm.getRawValue();
@@ -188,14 +344,18 @@ export class ProfilePageComponent implements OnInit {
       this.isLoading = true;
       const formData = new FormData();
       
+<<<<<<< feat/admin-profile
       // Get all raw values (including disabled if you need them, but mostly standard value is fine)
+=======
+      const formValues = this.profileForm.getRawValue(); 
+
+>>>>>>> main
       Object.keys(formValues).forEach(key => {
         if (formValues[key] !== null && formValues[key] !== '') {
           formData.append(key, formValues[key]);
         }
       });
 
-      // Append the file if a new one was selected
       if (this.selectedFile) {
         formData.append('profile_picture', this.selectedFile);
       }
@@ -205,7 +365,6 @@ export class ProfilePageComponent implements OnInit {
       service.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
-          // Update URL in case backend returned the new finalized path
           if (response.profile_picture_url) {
              this.profilePictureUrl = response.profile_picture_url;
           }
