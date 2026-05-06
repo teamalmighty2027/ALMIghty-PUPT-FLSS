@@ -566,19 +566,12 @@ html body div.asw-container .asw-menu * {
 .pdf-fullscreen-dialog {
   max-width: 95vw !important;
   width: 95vw !important;
-  height: auto !important; /* Lets the dialog shrink vertically */
+  height: auto !important; /* Lets the dialog shrink vertically for the table */
   max-height: 95vh !important;
 }
 
 .pdf-fullscreen-dialog .mdc-dialog__surface,
-.pdf-fullscreen-dialog .mat-mdc-dialog-surface {
-  height: auto !important; 
-  display: flex !important;
-  flex-direction: column !important;
-  padding: 0 !important;
-}
-
-/* Let the component size normally */
+.pdf-fullscreen-dialog .mat-mdc-dialog-surface,
 .pdf-fullscreen-dialog app-dialog-view-schedule,
 .pdf-fullscreen-dialog mat-dialog-content,
 .pdf-fullscreen-dialog .mat-mdc-dialog-content {
@@ -588,12 +581,17 @@ html body div.asw-container .asw-menu * {
   padding: 0 !important; 
 }
 
-/* Because the dialog is now 'auto' height, we MUST give the PDF a fixed height so it doesn't disappear */
+/* 
+  When you toggle to PDF View, this min-height forces the dialog to stretch open.
+  When you toggle to Table View, this element hides, letting the dialog shrink back down.
+*/
 .pdf-fullscreen-dialog iframe,
 .pdf-fullscreen-dialog pdf-viewer,
 .pdf-fullscreen-dialog object,
-.pdf-fullscreen-dialog embed {
-  height: 75vh !important; /* Adjust this number to make the PDF taller/shorter */
+.pdf-fullscreen-dialog embed,
+.pdf-fullscreen-dialog .pdf-viewer-container {
+  min-height: 75vh !important; /* Forces the auto-dialog to expand */
+  height: 75vh !important;
   width: 100% !important;
   border: none !important;
   display: block !important;
