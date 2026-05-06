@@ -217,9 +217,7 @@ export class ProfilePageComponent implements OnInit {
     this.isLoading = true;
     this.profileForm.disable();
 
-    const service = this.isAdmin ? this.adminService : this.facultyService;
-
-    service.getProfile().subscribe({
+    this.facultyService.getProfile().subscribe({
       next: (data) => {
         const formData = {
           ...data,
@@ -267,7 +265,6 @@ export class ProfilePageComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
-        this.enableProfileForm();
         this.isLoading = false;
       },
     });
@@ -303,7 +300,6 @@ export class ProfilePageComponent implements OnInit {
 
   onBirthdateChange(event: any): void {
     const value = event.target?.value;
-
     if (value && this.isToday(value)) {
       this.profileForm.get('birthdate')?.setValue('');
       this.openBirthdateWarning();
@@ -326,9 +322,7 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
-  private birthdateValidator(
-    control: AbstractControl,
-  ): ValidationErrors | null {
+  private birthdateValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
     if (!value) {
       return null;
@@ -352,7 +346,6 @@ export class ProfilePageComponent implements OnInit {
         this.openBirthdateWarning();
         return;
       }
-
       this.isLoading = true;
       const formData = new FormData();
 
