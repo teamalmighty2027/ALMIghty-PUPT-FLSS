@@ -6,7 +6,7 @@ import {
 } from 'rxjs';
 
 import { 
-  catchError, map, shareReplay, tap, switchMap, concatMap, toArray 
+  catchError, map, shareReplay, tap, switchMap, mergeMap, concatMap, toArray, reduce 
 } from 'rxjs/operators';
 
 import { ScheduleSuggestionService } from './schedule-suggestion.service';
@@ -525,7 +525,7 @@ export class SchedulingService {
         }
 
         return from(candidates).pipe(
-          concatMap(c => {
+          mergeMap(c => {
             const startMin = this.timeToMinutes(c.start_time);
             const endMin = this.timeToMinutes(c.end_time);
 
@@ -543,13 +543,13 @@ export class SchedulingService {
             ).pipe(
               map(ml => ({ ...c, ml }))
             );
-          }),
-          toArray(),
-          map(results => {
-            const bestMatch = results
-              .filter(r => r.ml !== null)
-              .sort((a, b) => b.ml!.confidence - a.ml!.confidence)[0];
-
+          }, 4), // Run up to 4 predictions in parallel
+          reduce((best: any, current: any) => {
+            const currentConfidence = current.ml?.confidence || 0;
+            const bestConfidence = best?.ml?.confidence || 0;
+            return currentConfidence > bestConfidence ? current : best;
+          }, null),
+          map(bestMatch => {
             if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
               return {
                 faculty_id: bestMatch.faculty_id,

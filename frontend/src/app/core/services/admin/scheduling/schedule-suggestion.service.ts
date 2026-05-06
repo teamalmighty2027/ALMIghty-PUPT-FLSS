@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, from, of } from 'rxjs';
+import { BehaviorSubject, Observable, from, of, firstValueFrom } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 
 import * as ort from 'onnxruntime-web';
@@ -12,6 +12,7 @@ import { EncoderMetadata, MlSuggestion } from '../../../models/ml-suggestion.mod
 export class ScheduleSuggestionService {
   private session: ort.InferenceSession | null = null;
   private encoders: EncoderMetadata | null = null;
+  private initPromise: Promise<void> | null = null;
   
   private isModelReadySubject = new BehaviorSubject<boolean>(false);
   public isModelReady$ = this.isModelReadySubject.asObservable();
@@ -30,26 +31,35 @@ export class ScheduleSuggestionService {
       return;
     }
 
-    try {
-      // Load encoders.json first to get the schema
-      const encodersJson = await this.http
-        .get<EncoderMetadata>('assets/ml/encoders.json')
-        .toPromise();
-
-      if (!encodersJson) {
-        throw new Error('Failed to load encoders.json');
-      }
-      this.encoders = encodersJson;
-
-      // Load model.onnx
-      this.session = await ort.InferenceSession.create('assets/ml/model.onnx');
-      
-      this.isModelReadySubject.next(true);
-    } catch (error) {
-      console.error('Failed to initialize ML suggestion service:', error);
-      this.isModelReadySubject.next(false);
-      throw error;
+    if (this.initPromise) {
+      return this.initPromise;
     }
+
+    this.initPromise = (async () => {
+      try {
+        // Load encoders.json first to get the schema
+        const encodersJson = await firstValueFrom(
+          this.http.get<EncoderMetadata>('assets/ml/encoders.json')
+        );
+
+        if (!encodersJson) {
+          throw new Error('Failed to load encoders.json');
+        }
+        this.encoders = encodersJson;
+
+        // Load model.onnx
+        this.session = await ort.InferenceSession.create('assets/ml/model.onnx');
+        
+        this.isModelReadySubject.next(true);
+      } catch (error) {
+        this.initPromise = null; // Allow retry on failure
+        console.error('Failed to initialize ML suggestion service:', error);
+        this.isModelReadySubject.next(false);
+        throw error;
+      }
+    })();
+
+    return this.initPromise;
   }
 
   /**
