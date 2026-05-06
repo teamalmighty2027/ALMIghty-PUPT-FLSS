@@ -51,11 +51,11 @@
       <div class="right-section">
         <div class="compact-row">
           <div class="field-group faculty-code">
-            <label>Faculty Code</label>
+            <label>{{ isAdmin ? 'Admin Code' : 'Faculty Code' }}</label>
             <!-- Add readonly attribute -->
             <input formControlName="code" class="pill-input" placeholder="e.g., 1234" readonly>
           </div>
-          <div class="field-group department">
+          <div class="field-group department" *ngIf="!isAdmin">
             <label>Department</label>
             <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept">
           </div>
@@ -64,7 +64,10 @@
         <div class="compact-row">
           <div class="field-group birthdate">
             <label>Birthdate</label>
-            <input type="date" formControlName="birthdate" class="pill-input">
+            <input type="date" formControlName="birthdate" class="pill-input" (change)="onBirthdateChange($event)">
+            <span class="error-text" *ngIf="profileForm.get('birthdate')?.hasError('birthdateToday') && profileForm.get('birthdate')?.touched">
+              Birthdate cannot be today. Please choose a valid date of birth.
+            </span>
           </div>
           <div class="field-group sex">
             <label>Sex</label>

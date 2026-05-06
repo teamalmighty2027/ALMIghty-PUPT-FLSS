@@ -1,15 +1,19 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service'; 
+import { AbstractControl, ReactiveFormsModule, FormBuilder, FormGroup, Validators, ValidationErrors } from '@angular/forms';
+import { FacultyService, FacultyProfileData } from '../../core/services/superadmin/management/faculty/faculty.service';
+import { AdminService, AdminProfileData } from '../../core/services/superadmin/management/admin/admin-profile.service';
+import { AuthService } from '../../core/services/auth/auth.service';
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'; 
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { DialogBirthdateWarningComponent } from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatSnackBarModule],
+  imports: [CommonModule, ReactiveFormsModule, MatSnackBarModule, MatDialogModule],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss'],
   animations: [pageFloatUpAnimation]
@@ -19,12 +23,18 @@ export class ProfilePageComponent implements OnInit {
   isLoading = false;
   selectedFile: File | null = null;
   profilePictureUrl: string | null = null; // Holds the preview/current image
+  isAdmin: boolean = false;
 
   constructor(
     private fb: FormBuilder,
     private facultyService: FacultyService,
-    private snackBar: MatSnackBar 
-  ) {}
+    private adminService: AdminService,
+    private authService: AuthService,
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
+  ) {
+    this.isAdmin = this.authService.getUserRole() === 'admin' || this.authService.getUserRole() === 'superadmin';
+  }
 
   ngOnInit(): void {
     this.initForm();
@@ -32,16 +42,15 @@ export class ProfilePageComponent implements OnInit {
   }
 
   initForm(): void {
-    this.profileForm = this.fb.group({
+    const formConfig: any = {
       first_name: ['', Validators.required],
       middle_name: [''],
       last_name: ['', Validators.required],
       suffix_name: [''],
       email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
-      code: [{ value: '', disabled: true }], 
-      faculty_profile_id: [{ value: '', disabled: true }],
-      department: [''], // <-- Changed from program_id
-      birthdate: [''], 
+      code: [{ value: '', disabled: true }],
+      department: [''],
+      birthdate: ['', [this.birthdateValidator.bind(this)]],
       sex: [''],
       house_num: [''],
       street: [''],
@@ -49,36 +58,71 @@ export class ProfilePageComponent implements OnInit {
       city: [''],
       province: [''],
       country: [''],
-      zipcode: ['', [Validators.pattern('^[0-9]{4}$')]] 
+      zipcode: ['', [Validators.pattern('^[0-9]{4}$')]]
+    };
+
+    // Only add faculty_profile_id for faculty users
+    if (!this.isAdmin) {
+      formConfig.faculty_profile_id = [{ value: '', disabled: true }];
+    }
+
+    this.profileForm = this.fb.group(formConfig);
+    this.patchInitialValuesFromAuth();
+  }
+
+  private patchInitialValuesFromAuth(): void {
+    if (!this.isAdmin) {
+      return;
+    }
+
+    const userData = this.authService.getUserData();
+    const firstName = userData.first_name || userData.name?.split(' ')[0] || '';
+    const lastName = userData.last_name || userData.name?.split(' ').slice(1).join(' ') || '';
+
+    this.profileForm.patchValue({
+      first_name: firstName,
+      last_name: lastName,
+      suffix_name: userData.suffix_name || '',
+      email: userData.email || '',
+      code: userData.code || this.authService.getUserCode() || '',
     });
   }
 
   loadProfileData(): void {
     this.isLoading = true;
-    this.profileForm.disable(); 
+    this.profileForm.disable();
 
-    this.facultyService.getProfile().subscribe({
+    const service = this.isAdmin ? this.adminService : this.facultyService;
+
+    service.getProfile().subscribe({
       next: (data) => {
         const formData = {
           ...data,
-          sex: data.sex || '' 
+          sex: data.sex || ''
         };
-        
+
         this.profilePictureUrl = data.profile_picture_url || null; // Load existing image
-        
+
         this.profileForm.patchValue(formData);
-        
-        this.profileForm.enable();
-        this.profileForm.get('email')?.disable();
-        this.profileForm.get('faculty_profile_id')?.disable();
-        
+
+        this.enableProfileForm();
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
+        this.enableProfileForm();
         this.isLoading = false;
       }
     });
+  }
+
+  private enableProfileForm(): void {
+    this.profileForm.enable();
+    this.profileForm.get('email')?.disable();
+    this.profileForm.get('code')?.disable();
+    if (!this.isAdmin) {
+      this.profileForm.get('faculty_profile_id')?.disable();
+    }
   }
 
   onFileSelected(event: any): void {
@@ -95,15 +139,56 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+  onBirthdateChange(event: any): void {
+    const value = event.target?.value;
+    if (value && this.isToday(value)) {
+      this.profileForm.get('birthdate')?.setValue('');
+      this.openBirthdateWarning();
+    }
+  }
+
+  private isToday(value: string): boolean {
+    const selected = new Date(value);
+    const today = new Date();
+    selected.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return selected.getTime() === today.getTime();
+  }
+
+  private openBirthdateWarning(): void {
+    this.dialog.open(DialogBirthdateWarningComponent, {
+      autoFocus: false,
+      restoreFocus: true,
+      panelClass: 'birthdate-warning-dialog',
+    });
+  }
+
+  private birthdateValidator(control: AbstractControl): ValidationErrors | null {
+    const value = control.value;
+    if (!value) {
+      return null;
+    }
+
+    if (this.isToday(value)) {
+      return { birthdateToday: true };
+    }
+
+    return null;
+  }
+
   onSubmit(): void {
     if (this.profileForm.valid) {
+      const formValues = this.profileForm.getRawValue();
+
+      if (formValues.birthdate && this.isToday(formValues.birthdate)) {
+        this.openBirthdateWarning();
+        return;
+      }
+
       this.isLoading = true;
       const formData = new FormData();
       
       // Get all raw values (including disabled if you need them, but mostly standard value is fine)
-      const formValues = this.profileForm.getRawValue(); 
-
-      // Append standard text fields to FormData
       Object.keys(formValues).forEach(key => {
         if (formValues[key] !== null && formValues[key] !== '') {
           formData.append(key, formValues[key]);
@@ -115,7 +200,9 @@ export class ProfilePageComponent implements OnInit {
         formData.append('profile_picture', this.selectedFile);
       }
       
-      this.facultyService.updateProfile(formData).subscribe({
+      const service = this.isAdmin ? this.adminService : this.facultyService;
+
+      service.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
           // Update URL in case backend returned the new finalized path

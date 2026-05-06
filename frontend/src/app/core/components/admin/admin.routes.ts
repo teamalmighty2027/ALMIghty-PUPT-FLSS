@@ -95,6 +95,14 @@ export const ADMIN_ROUTES: Routes = [
         ],
       },
       {
+        path: 'profile',
+        loadComponent: () =>
+          import('../../../shared/profile-page/profile-page.component').then(
+            (m) => m.ProfilePageComponent,
+          ),
+        data: { pageTitle: 'My Profile' },
+      },
+      {
         path: 'rescheduling',
         loadComponent: () =>
           import('./rescheduling/rescheduling.component').then(
