@@ -1308,6 +1308,7 @@ class ReportsController extends Controller
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
             ->select(
                 'active_semesters.active_semester_id',
+                'active_semesters.start_date',  
                 'academic_years.year_start',
                 'academic_years.year_end',
                 'semesters.semester',
