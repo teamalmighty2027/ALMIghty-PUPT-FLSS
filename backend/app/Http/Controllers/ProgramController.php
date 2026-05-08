@@ -230,17 +230,37 @@ class ProgramController extends Controller
     private function puptasProgramExists(string $programCode): bool
     {
         $baseUrl = config('services.puptas.base_url');
-        $apiKey = config('services.puptas.api_key');
+        $clientId = config('services.puptas.client_id');
+        $clientSecret = config('services.puptas.client_secret');
 
-        if (! $baseUrl || ! $apiKey) {
+        if (! $baseUrl || ! $clientId || ! $clientSecret) {
             Log::warning('PUPTAS check skipped: missing configuration.');
+            return false;
+        }
+
+        // Reuse the cached token from Cache if available
+        $token = \Illuminate\Support\Facades\Cache::get('puptas_oauth_token');
+        if (! $token) {
+            // Fetch fresh token (one-off, without full caching logic here for brevity)
+            $tokenResponse = Http::asForm()->post(
+                rtrim($baseUrl, '/') . '/oauth/token', [
+                'grant_type' => 'client_credentials',
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'scope' => 'program-read',
+            ]);
+            $token = $tokenResponse->json('access_token') ?? '';
+        }
+
+        if (! $token) {
+            Log::warning('PUPTAS check failed: could not obtain token.');
             return false;
         }
 
         $url = rtrim($baseUrl, '/') . '/api/v1/programs';
 
         try {
-            $response = Http::withToken($apiKey)
+            $response = Http::withToken($token)
                 ->acceptJson()
                 ->timeout(15)
                 ->get($url);
