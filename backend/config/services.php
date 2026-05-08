@@ -33,7 +33,8 @@ return [
 
     'puptas' => [
         'base_url' => env('PUPTAS_BASE_URL'),
-        'api_key' => env('PUPTAS_API_KEY'),
+        'client_id' => env('PUPTAS_CLIENT_ID'),
+        'client_secret' => env('PUPTAS_CLIENT_SECRET'),
     ],
 
     'idp' => [
