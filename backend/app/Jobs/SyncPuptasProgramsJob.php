@@ -67,26 +67,13 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
      */
     public function handle(): void
     {
-        // Use a cache lock to prevent concurrent execution at runtime
-        $lockKey = 'puptas_sync_lock';
-        $lockTimeout = 3600; // 1 hour
-
-        if (! Cache::lock($lockKey, $lockTimeout)->get()) {
-            Log::warning('PUPTAS sync already in progress, skipping this run.');
-            AuditLogger::log(
-                action: 'update',
-                description: 'PUPTAS sync skipped: another sync already in progress',
-                model: 'Program',
-                modelId: null,
-                metadata: []
-            );
-            return;
-        }
-
         try {
             $this->executeSyncWithLock();
-        } finally {
-            Cache::lock($lockKey)->forceRelease();
+        } catch (\Throwable $e) {
+            Log::error('PUPTAS sync job failed: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+            throw $e;
         }
     }
 
@@ -217,6 +204,8 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
             );
             throw new RuntimeException('PUPTAS API request failed.');
         }
+
+        Log::info('PUPTAS response: ', $response->json());
 
         $payload = $response->json();
         $programs = $this->extractPrograms($payload);
