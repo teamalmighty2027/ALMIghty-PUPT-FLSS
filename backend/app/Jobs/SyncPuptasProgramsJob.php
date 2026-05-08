@@ -96,12 +96,14 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
     private function executeSyncWithLock(): void
     {
         $baseUrl = config('services.puptas.base_url');
-        $apiKey = config('services.puptas.api_key');
+        $clientId = config('services.puptas.client_id');
+        $clientSecret = config('services.puptas.client_secret');
 
-        if (! $baseUrl || ! $apiKey) {
+        if (! $baseUrl || ! $clientId || ! $clientSecret) {
             Log::critical('PUPTAS sync aborted: missing configuration.', [
                 'base_url_set' => (bool) $baseUrl,
-                'api_key_set' => (bool) $apiKey,
+                'client_id_set' => (bool) $clientId,
+                'client_secret_set' => (bool) $clientSecret,
             ]);
             AuditLogger::log(
                 action: 'update',
@@ -110,17 +112,34 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 modelId: null,
                 metadata: [
                     'base_url_set' => (bool) $baseUrl,
-                    'api_key_set' => (bool) $apiKey,
+                    'client_id_set' => (bool) $clientId,
+                    'client_secret_set' => (bool) $clientSecret,
                 ]
             );
             $this->fail(new RuntimeException('PUPTAS configuration is missing.'));
             return;
         }
 
+        try {
+            $token = $this->fetchOAuthToken($baseUrl, $clientId, $clientSecret);
+        } catch (\Throwable $error) {
+            Log::error('PUPTAS OAuth token fetch failed.', [
+                'message' => $error->getMessage(),
+            ]);
+            AuditLogger::log(
+                action: 'update',
+                description: 'PUPTAS sync failed: OAuth error',
+                model: 'Program',
+                modelId: null,
+                metadata: ['error' => $error->getMessage()]
+            );
+            throw $error;
+        }
+
         $url = rtrim($baseUrl, '/') . '/api/v1/programs';
 
         try {
-            $response = Http::withToken($apiKey)
+            $response = Http::withToken($token)
                 ->acceptJson()
                 ->timeout(30)
                 ->get($url);
@@ -269,7 +288,10 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     ?? $programData['name']
                     ?? $programData['title']
                     ?? ''));
-                $programInfo = $programData['program_info'] ?? $programData['info'] ?? null;
+                $incomingDepartment = trim((string) ($programData['department'] ?? ''));
+                $programInfo = $programData['program_info']
+                    ?? $programData['info']
+                    ?? ($incomingDepartment !== '' ? $incomingDepartment : null);
                 $numberOfYears = $programData['number_of_years'] ?? $programData['years'] ?? 1;
 
                 $existing = Program::where('program_code', $normalizedCode)->first();
@@ -380,5 +402,52 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
         }
 
         return substr($trimmed, 0, 10);
+    }
+
+    /**
+     * Fetch an OAuth 2.0 bearer token from PUPTAS using
+     * Client Credentials grant. Token is cached for 23 hours
+     * to stay safely under the 50 req/day rate limit.
+     * 
+     * @param string $baseUrl
+     * @param string $clientId
+     * @param string $clientSecret
+     * @return string
+     */
+    private function fetchOAuthToken(
+        string $baseUrl,
+        string $clientId,
+        string $clientSecret
+    ): string {
+        $cacheKey = 'puptas_oauth_token';
+
+        return Cache::remember($cacheKey, now()->addHours(23), function ()
+            use ($baseUrl, $clientId, $clientSecret)
+        {
+            $tokenUrl = rtrim($baseUrl, '/') . '/oauth/token';
+
+            $response = Http::asForm()->post($tokenUrl, [
+                'grant_type' => 'client_credentials',
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'scope' => 'program-read',
+            ]);
+
+            if (! $response->successful()) {
+                throw new RuntimeException(
+                    'PUPTAS OAuth token request failed: ' . $response->status()
+                );
+            }
+
+            $token = $response->json('access_token');
+
+            if (! $token) {
+                throw new RuntimeException(
+                    'PUPTAS OAuth response missing access_token.'
+                );
+            }
+
+            return $token;
+        });
     }
 }
