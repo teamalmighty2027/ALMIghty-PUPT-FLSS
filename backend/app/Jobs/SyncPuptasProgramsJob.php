@@ -37,7 +37,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
 
     /**
      * The number of seconds to wait before retrying the job.
-      * Exponential backoff: 120s, 600s
+     * Exponential backoff: 120s, 600s
      *
      * @var array
      */
@@ -67,26 +67,14 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
      */
     public function handle(): void
     {
-        // Use a cache lock to prevent concurrent execution at runtime
-        $lockKey = 'puptas_sync_lock';
-        $lockTimeout = 3600; // 1 hour
-
-        if (! Cache::lock($lockKey, $lockTimeout)->get()) {
-            Log::warning('PUPTAS sync already in progress, skipping this run.');
-            AuditLogger::log(
-                action: 'update',
-                description: 'PUPTAS sync skipped: another sync already in progress',
-                model: 'Program',
-                modelId: null,
-                metadata: []
-            );
-            return;
-        }
-
         try {
             $this->executeSyncWithLock();
-        } finally {
-            Cache::lock($lockKey)->forceRelease();
+        } catch (\Throwable $e) {
+            Log::error('PUPTAS sync job failed: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+            
+            throw $e;
         }
     }
 
@@ -96,13 +84,16 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
     private function executeSyncWithLock(): void
     {
         $baseUrl = config('services.puptas.base_url');
-        $apiKey = config('services.puptas.api_key');
+        $clientId = config('services.puptas.client_id');
+        $clientSecret = config('services.puptas.client_secret');
 
-        if (! $baseUrl || ! $apiKey) {
+        if (! $baseUrl || ! $clientId || ! $clientSecret) {
             Log::critical('PUPTAS sync aborted: missing configuration.', [
                 'base_url_set' => (bool) $baseUrl,
-                'api_key_set' => (bool) $apiKey,
+                'client_id_set' => (bool) $clientId,
+                'client_secret_set' => (bool) $clientSecret,
             ]);
+
             AuditLogger::log(
                 action: 'update',
                 description: 'PUPTAS sync failed: missing configuration',
@@ -110,17 +101,37 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 modelId: null,
                 metadata: [
                     'base_url_set' => (bool) $baseUrl,
-                    'api_key_set' => (bool) $apiKey,
+                    'client_id_set' => (bool) $clientId,
+                    'client_secret_set' => (bool) $clientSecret,
                 ]
             );
+
             $this->fail(new RuntimeException('PUPTAS configuration is missing.'));
             return;
+        }
+
+        try {
+            $token = $this->fetchOAuthToken($baseUrl, $clientId, $clientSecret);
+        } catch (\Throwable $error) {
+            Log::error('PUPTAS OAuth token fetch failed.', [
+                'message' => $error->getMessage(),
+            ]);
+
+            AuditLogger::log(
+                action: 'update',
+                description: 'PUPTAS sync failed: OAuth error',
+                model: 'Program',
+                modelId: null,
+                metadata: ['error' => $error->getMessage()]
+            );
+
+            throw $error;
         }
 
         $url = rtrim($baseUrl, '/') . '/api/v1/programs';
 
         try {
-            $response = Http::withToken($apiKey)
+            $response = Http::withToken($token)
                 ->acceptJson()
                 ->timeout(30)
                 ->get($url);
@@ -128,6 +139,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
             Log::error('PUPTAS sync connection error.', [
                 'message' => $error->getMessage(),
             ]);
+
             AuditLogger::log(
                 action: 'update',
                 description: 'PUPTAS sync failed: connection error',
@@ -137,6 +149,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     'error' => $error->getMessage(),
                 ]
             );
+
             throw $error;
         }
 
@@ -149,6 +162,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
+
             AuditLogger::log(
                 action: 'update',
                 description: 'PUPTAS sync failed: unauthorized',
@@ -159,6 +173,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     'body' => $response->json(),
                 ]
             );
+
             $this->fail(new RuntimeException('PUPTAS API unauthorized.'));
             return;
         }
@@ -168,6 +183,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 'status' => $response->status(),
                 'retry_after' => $response->header('Retry-After'),
             ]);
+
             AuditLogger::log(
                 action: 'update',
                 description: 'PUPTAS sync failed: rate limited',
@@ -178,6 +194,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     'retry_after' => $response->header('Retry-After'),
                 ]
             );
+
             throw new RuntimeException('PUPTAS API rate limited.');
         }
 
@@ -186,6 +203,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 'status' => $response->status(),
                 'body' => $response->json(),
             ]);
+
             AuditLogger::log(
                 action: 'update',
                 description: 'PUPTAS sync failed: request error',
@@ -196,33 +214,39 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     'body' => $response->json(),
                 ]
             );
+
             throw new RuntimeException('PUPTAS API request failed.');
         }
+
+        Log::info('PUPTAS response: ', $response->json());
 
         $payload = $response->json();
         $programs = $this->extractPrograms($payload);
 
-        // Guard against empty program list: only proceed if we can confirm it's intentional
+        // Guard against empty program list: proceed only if confirmed intentional
         if (empty($programs)) {
-            $hasConfirmation = isset($payload['total_count']) && $payload['total_count'] === 0;
+            $hasConfirmation = isset($payload['total_count']) 
+                && $payload['total_count'] === 0;
 
             if (! $hasConfirmation) {
-                Log::critical('PUPTAS sync aborted: extracted program list is empty without confirmation.', [
+                Log::critical('PUPTAS sync aborted: empty list no confirmation.', [
                     'payload_keys' => array_keys($payload),
                     'total_count' => $payload['total_count'] ?? null,
                 ]);
+
                 AuditLogger::log(
                     action: 'update',
-                    description: 'PUPTAS sync failed: empty program list without confirmation',
+                    description: 'PUPTAS sync failed: empty list no confirmation',
                     model: 'Program',
                     modelId: null,
                     metadata: [
                         'payload_keys' => array_keys($payload),
                         'total_count' => $payload['total_count'] ?? null,
-                        'error' => 'Cannot confirm if zero programs is intentional or API failure',
+                        'error' => 'Cannot confirm if zero programs is intentional',
                     ]
                 );
-                $this->fail(new RuntimeException('PUPTAS API returned empty program list. Aborting to prevent mass deactivation.'));
+
+                $this->fail(new RuntimeException('PUPTAS API returned empty list.'));
                 return;
             }
 
@@ -248,7 +272,9 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
             &$skippedCount
         ) {
             foreach ($programs as $programData) {
-                $rawCode = trim((string) ($programData['program_code'] ?? $programData['code'] ?? ''));
+                $rawCode = trim((string) (
+                    $programData['program_code'] ?? $programData['code'] ?? ''
+                ));
 
                 if ($rawCode === '') {
                     $skippedCount++;
@@ -264,20 +290,34 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     ]);
                 }
 
-                $incomingTitle = trim((string) ($programData['program_title']
+                $incomingTitle = trim((string) (
+                    $programData['program_title']
                     ?? $programData['program_name']
                     ?? $programData['name']
                     ?? $programData['title']
-                    ?? ''));
-                $programInfo = $programData['program_info'] ?? $programData['info'] ?? null;
-                $numberOfYears = $programData['number_of_years'] ?? $programData['years'] ?? 1;
+                    ?? ''
+                ));
 
-                $existing = Program::where('program_code', $normalizedCode)->first();
+                $incomingDepartment = trim((string) (
+                    $programData['department'] ?? ''
+                ));
+
+                $programInfo = $programData['program_info']
+                    ?? $programData['info']
+                    ?? ($incomingDepartment !== '' ? $incomingDepartment : null);
+
+                $numberOfYears = $programData['number_of_years'] 
+                    ?? $programData['years'] 
+                    ?? 1;
+
+                $existing = Program::where('program_code', $normalizedCode)
+                    ->first();
 
                 if (! $existing && $incomingTitle !== '') {
-                    $existing = Program::whereRaw('LOWER(program_title) LIKE ?', [
-                        '%' . strtolower($incomingTitle) . '%',
-                    ])->first();
+                    $existing = Program::whereRaw(
+                        'LOWER(program_title) LIKE ?', 
+                        ['%' . strtolower($incomingTitle) . '%']
+                    )->first();
 
                     if ($existing) {
                         Log::info('PUPTAS title-based match used.', [
@@ -290,14 +330,23 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     }
                 }
 
-                $programTitle = $incomingTitle !== '' ? $incomingTitle : ($existing?->program_title ?? $normalizedCode);
-                $programInfo = $programInfo ?? $existing?->program_info ?? $programTitle;
-                $numberOfYears = $numberOfYears ?: ($existing?->number_of_years ?? 1);
+                $programTitle = $incomingTitle !== '' 
+                    ? $incomingTitle 
+                    : ($existing?->program_title ?? $normalizedCode);
+
+                $programInfo = $programInfo 
+                    ?? $existing?->program_info 
+                    ?? $programTitle;
+
+                $numberOfYears = $numberOfYears 
+                    ?: ($existing?->number_of_years ?? 1);
 
                 if ($existing) {
                     $seenCodes[] = $existing->program_code;
                     $existing->update([
-                        'program_title' => $incomingTitle !== '' ? $programTitle : $existing->program_title,
+                        'program_title' => $incomingTitle !== '' 
+                            ? $programTitle 
+                            : $existing->program_title,
                         'program_info' => $programInfo,
                         'number_of_years' => $numberOfYears,
                         'status' => 'Active',
@@ -371,6 +420,10 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
         return [];
     }
 
+    /**
+     * Helper function that trims the program code
+     * @param string $code
+     */
     private function normalizeProgramCode(string $code): string
     {
         $trimmed = trim($code);
@@ -381,4 +434,52 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
 
         return substr($trimmed, 0, 10);
     }
+
+    /**
+     * Fetch an OAuth 2.0 bearer token from PUPTAS using
+     * Client Credentials grant. Token is cached for 23 hours
+     * to stay safely under the 50 req/day rate limit.
+     * 
+     * @param string $baseUrl
+     * @param string $clientId
+     * @param string $clientSecret
+     * @return string
+     */
+    private function fetchOAuthToken(
+        string $baseUrl,
+        string $clientId,
+        string $clientSecret
+    ): string {
+        $cacheKey = 'puptas_oauth_token';
+
+        return Cache::remember($cacheKey, now()->addHours(23), function ()
+            use ($baseUrl, $clientId, $clientSecret)
+        {
+            $tokenUrl = rtrim($baseUrl, '/') . '/oauth/token';
+
+            $response = Http::asForm()->post($tokenUrl, [
+                'grant_type' => 'client_credentials',
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'scope' => 'program-read',
+            ]);
+
+            if (! $response->successful()) {
+                throw new RuntimeException(
+                    'PUPTAS OAuth token request failed: ' . $response->status()
+                );
+            }
+
+            $token = $response->json('access_token');
+
+            if (! $token) {
+                throw new RuntimeException(
+                    'PUPTAS OAuth response missing access_token.'
+                );
+            }
+
+            return $token;
+        });
+    }
 }
+
