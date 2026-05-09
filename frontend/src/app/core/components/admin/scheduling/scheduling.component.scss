@@ -102,13 +102,25 @@
           }
 
           .copy-icon,
-          .remove-icon {
+          .remove-icon,
+          .ml-suggest-icon {
             background: var(--neutral-option);
             border-radius: var(--border-radius-base);
             padding: var(--spacing-xxs);
             font-size: var(--font-size-sm);
             opacity: var(--opacity-semi-opaque);
             cursor: pointer;
+            @include mixins.default-transition;
+
+            &:hover {
+              transform: scale(1.15);
+              opacity: 1;
+            }
+          }
+
+          .ml-suggest-icon {
+            background: var(--secondary-hover);
+            color: var(--secondary-text);
           }
 
           .remove-icon {

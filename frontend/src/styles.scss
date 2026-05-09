@@ -561,3 +561,38 @@ html body div.asw-container input[type="checkbox"]:checked + div {
 html body div.asw-container .asw-menu * {
     --asw-primary: #800000 !important;
 }
+
+/* --- Clean Global Fix for Dialog Sizing --- */
+.pdf-fullscreen-dialog {
+  max-width: 95vw !important;
+  width: 95vw !important;
+  height: auto !important; /* Lets the dialog shrink vertically for the table */
+  max-height: 95vh !important;
+}
+
+.pdf-fullscreen-dialog .mdc-dialog__surface,
+.pdf-fullscreen-dialog .mat-mdc-dialog-surface,
+.pdf-fullscreen-dialog app-dialog-view-schedule,
+.pdf-fullscreen-dialog mat-dialog-content,
+.pdf-fullscreen-dialog .mat-mdc-dialog-content {
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important; 
+}
+
+/* 
+  When you toggle to PDF View, this min-height forces the dialog to stretch open.
+  When you toggle to Table View, this element hides, letting the dialog shrink back down.
+*/
+.pdf-fullscreen-dialog iframe,
+.pdf-fullscreen-dialog pdf-viewer,
+.pdf-fullscreen-dialog object,
+.pdf-fullscreen-dialog embed,
+.pdf-fullscreen-dialog .pdf-viewer-container {
+  min-height: 75vh !important; /* Forces the auto-dialog to expand */
+  height: 75vh !important;
+  width: 100% !important;
+  border: none !important;
+  display: block !important;
+}
