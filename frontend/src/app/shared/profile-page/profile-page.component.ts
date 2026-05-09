@@ -1,27 +1,57 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service'; 
-import { PhAddressService } from '../../core/services/address/ph-address.service';
+import {
+  AbstractControl,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ValidationErrors,
+} from '@angular/forms';
+import {
+  FacultyService,
+} from '../../core/services/superadmin/management/faculty/faculty.service';
+import {
+  AdminService,
+} from '../../core/services/superadmin/management/admin/admin-profile.service';
+import { AuthService } from '../../core/services/auth/auth.service';
+import {
+  PhAddressService,
+} from '../../core/services/address/ph-address.service';
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar'; 
+import {
+  MatSnackBar,
+  MatSnackBarModule,
+} from '@angular/material/snack-bar';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import {
+  DialogBirthdateWarningComponent,
+} from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
 
 @Component({
   selector: 'app-profile-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatSnackBarModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MatSnackBarModule,
+    MatDialogModule,
+  ],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss'],
-  animations: [pageFloatUpAnimation]
+  animations: [pageFloatUpAnimation],
 })
 export class ProfilePageComponent implements OnInit {
   profileForm!: FormGroup;
   isLoading = false;
   selectedFile: File | null = null;
-  profilePictureUrl: string | null = null; 
 
-  // Arrays to hold dropdown choices for the template
+  // Holds the preview/current profile image URL
+  profilePictureUrl: string | null = null;
+  isAdmin: boolean = false;
+
+  // Arrays to hold dropdown choices for the address section
   provinces: any[] = [];
   cities: any[] = [];
   barangays: any[] = [];
@@ -29,9 +59,16 @@ export class ProfilePageComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private facultyService: FacultyService,
+    private adminService: AdminService,
+    private authService: AuthService,
+    private addressService: PhAddressService,
     private snackBar: MatSnackBar,
-    private addressService: PhAddressService
-  ) {}
+    private dialog: MatDialog,
+  ) {
+    this.isAdmin =
+      this.authService.getUserRole() === 'admin' ||
+      this.authService.getUserRole() === 'superadmin';
+  }
 
   ngOnInit(): void {
     this.initForm();
@@ -40,17 +77,20 @@ export class ProfilePageComponent implements OnInit {
     this.loadProfileData();
   }
 
+  // Initialize reactive form controls
   initForm(): void {
-    this.profileForm = this.fb.group({
+    const formConfig: any = {
       first_name: ['', Validators.required],
       middle_name: [''],
       last_name: ['', Validators.required],
       suffix_name: [''],
-      email: [{ value: '', disabled: true }, [Validators.required, Validators.email]],
-      code: [{ value: '', disabled: true }], 
-      faculty_profile_id: [{ value: '', disabled: true }],
-      department: [''], 
-      birthdate: [''], 
+      email: [
+        { value: '', disabled: true },
+        [Validators.required, Validators.email],
+      ],
+      code: [{ value: '', disabled: true }],
+      department: [''],
+      birthdate: ['', [this.birthdateValidator.bind(this)]],
       sex: [''],
       house_num: [''],
       street: [''],
@@ -58,7 +98,38 @@ export class ProfilePageComponent implements OnInit {
       city: [''],
       province: [''],
       country: [''],
-      zipcode: ['', [Validators.pattern('^[0-9]{4}$')]] 
+      zipcode: ['', [Validators.pattern('^[0-9]{4}$')]],
+    };
+
+    // Only add faculty_profile_id for faculty users
+    if (!this.isAdmin) {
+      formConfig.faculty_profile_id = [{ value: '', disabled: true }];
+    }
+
+    this.profileForm = this.fb.group(formConfig);
+    this.patchInitialValuesFromAuth();
+  }
+
+  // Pre-fill name/email for admin from cached auth data
+  private patchInitialValuesFromAuth(): void {
+    if (!this.isAdmin) {
+      return;
+    }
+
+    const userData = this.authService.getUserData();
+    const firstName =
+      userData.first_name || userData.name?.split(' ')[0] || '';
+    const lastName =
+      userData.last_name ||
+      userData.name?.split(' ').slice(1).join(' ') ||
+      '';
+
+    this.profileForm.patchValue({
+      first_name: firstName,
+      last_name: lastName,
+      suffix_name: userData.suffix_name || '',
+      email: userData.email || '',
+      code: userData.code || this.authService.getUserCode() || '',
     });
   }
 
@@ -69,14 +140,15 @@ export class ProfilePageComponent implements OnInit {
     // When Province changes, load Cities
     this.profileForm.get('province')?.valueChanges.subscribe(provinceName => {
       const selectedProv = this.provinces.find(p => p.name === provinceName);
+
       if (selectedProv) {
         this.addressService.getCities(selectedProv.code).subscribe(data => {
-          // SORT CITIES ALPHABETICALLY
+          // Sort cities alphabetically
           this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
-          
+
           this.profileForm.get('city')?.setValue('');
           this.profileForm.get('barangay')?.setValue('');
-          this.barangays = []; 
+          this.barangays = [];
         });
       }
     });
@@ -84,9 +156,10 @@ export class ProfilePageComponent implements OnInit {
     // When City changes, load Barangays & Zip Code
     this.profileForm.get('city')?.valueChanges.subscribe(cityName => {
       const selectedCity = this.cities.find(c => c.name === cityName);
+
       if (selectedCity) {
         this.addressService.getBarangays(selectedCity.code).subscribe(data => {
-          // SORT BARANGAYS ALPHABETICALLY
+          // Sort barangays alphabetically
           this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
           this.profileForm.get('barangay')?.setValue('');
         });
@@ -112,7 +185,7 @@ export class ProfilePageComponent implements OnInit {
         'City of Caloocan': '1400',
         'Bacoor City': '4102',
         'Dasmariñas City': '4114',
-        'Imus City': '4103'
+        'Imus City': '4103',
       };
 
       const foundZip = zipCodeMap[cityName];
@@ -125,13 +198,13 @@ export class ProfilePageComponent implements OnInit {
    */
   loadProvinces(): void {
     this.addressService.getProvinces().subscribe(data => {
-      
       // Only manually add Metro Manila if it's NOT already in the data
       const hasNCR = data.some(p => p.code === '130000000');
+
       if (!hasNCR) {
         data.push({ code: '130000000', name: 'Metro Manila' });
       }
-      
+
       // Sort alphabetically
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
     });
@@ -142,53 +215,73 @@ export class ProfilePageComponent implements OnInit {
    */
   loadProfileData(): void {
     this.isLoading = true;
-    this.profileForm.disable(); 
+    this.profileForm.disable();
 
-    this.facultyService.getProfile().subscribe({
+    const service = this.isAdmin ? this.adminService : this.facultyService;
+
+    service.getProfile().subscribe({
       next: (data) => {
         const formData = {
           ...data,
           sex: data.sex || '',
           province: data.province || '',
           city: data.city || '',
-          barangay: data.barangay || ''
+          barangay: data.barangay || '',
         };
-        
+
+        // Load existing image URL
         this.profilePictureUrl = data.profile_picture_url || null;
-        this.profileForm.patchValue(formData, { emitEvent: true });
-        
+        this.profileForm.patchValue(formData);
+
+        // Pre-load city/barangay lists for the saved province/city
         if (data.province) {
-           setTimeout(() => {
-             const prov = this.provinces.find(p => p.name === data.province);
-             if (prov) {
-               this.addressService.getCities(prov.code).subscribe(cities => {
-                 // Sort cities on initial load
-                 this.cities = cities.sort((a, b) => a.name.localeCompare(b.name));
-                 
-                 const city = this.cities.find(c => c.name === data.city);
-                 if (city) {
-                   this.addressService.getBarangays(city.code).subscribe(brgys => {
-                     // Sort barangays on initial load
-                     this.barangays = brgys.sort((a, b) => a.name.localeCompare(b.name));
-                   });
-                 }
-               });
-             }
-           }, 500); 
+          setTimeout(() => {
+            const prov = this.provinces.find(p => p.name === data.province);
+
+            if (prov) {
+              this.addressService.getCities(prov.code).subscribe(cities => {
+                // Sort cities on initial load
+                this.cities = cities.sort(
+                  (a, b) => a.name.localeCompare(b.name),
+                );
+
+                const city = this.cities.find(c => c.name === data.city);
+
+                if (city) {
+                  this.addressService
+                    .getBarangays(city.code)
+                    .subscribe(brgys => {
+                      // Sort barangays on initial load
+                      this.barangays = brgys.sort(
+                        (a, b) => a.name.localeCompare(b.name),
+                      );
+                    });
+                }
+              });
+            }
+          }, 500);
         }
 
-        this.profileForm.enable();
-        this.profileForm.get('email')?.disable();
-        this.profileForm.get('faculty_profile_id')?.disable();
-        this.profileForm.get('code')?.disable(); 
-        
+        this.enableProfileForm();
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
+        this.enableProfileForm();
         this.isLoading = false;
-      }
+      },
     });
+  }
+
+  // Re-enable form after load, keeping read-only fields disabled
+  private enableProfileForm(): void {
+    this.profileForm.enable();
+    this.profileForm.get('email')?.disable();
+    this.profileForm.get('code')?.disable();
+
+    if (!this.isAdmin) {
+      this.profileForm.get('faculty_profile_id')?.disable();
+    }
   }
 
   /**
@@ -196,9 +289,10 @@ export class ProfilePageComponent implements OnInit {
    */
   onFileSelected(event: any): void {
     const file = event.target.files[0];
+
     if (file) {
       this.selectedFile = file;
-      
+
       const reader = new FileReader();
       reader.onload = (e: any) => {
         this.profilePictureUrl = e.target.result;
@@ -207,16 +301,62 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
+  onBirthdateChange(event: any): void {
+    const value = event.target?.value;
+
+    if (value && this.isToday(value)) {
+      this.profileForm.get('birthdate')?.setValue('');
+      this.openBirthdateWarning();
+    }
+  }
+
+  private isToday(value: string): boolean {
+    const selected = new Date(value);
+    const today = new Date();
+    selected.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return selected.getTime() === today.getTime();
+  }
+
+  private openBirthdateWarning(): void {
+    this.dialog.open(DialogBirthdateWarningComponent, {
+      autoFocus: false,
+      restoreFocus: true,
+      panelClass: 'birthdate-warning-dialog',
+    });
+  }
+
+  private birthdateValidator(
+    control: AbstractControl,
+  ): ValidationErrors | null {
+    const value = control.value;
+    if (!value) {
+      return null;
+    }
+
+    if (this.isToday(value)) {
+      return { birthdateToday: true };
+    }
+
+    return null;
+  }
+
   /**
    * Submit the profile form to update the user's profile.
    */
   onSubmit(): void {
     if (this.profileForm.valid) {
+      const formValues = this.profileForm.getRawValue();
+
+      if (formValues.birthdate && this.isToday(formValues.birthdate)) {
+        this.openBirthdateWarning();
+        return;
+      }
+
       this.isLoading = true;
       const formData = new FormData();
-      
-      const formValues = this.profileForm.getRawValue(); 
 
+      // Append all non-empty form values
       Object.keys(formValues).forEach(key => {
         if (formValues[key] !== null && formValues[key] !== '') {
           formData.append(key, formValues[key]);
@@ -226,29 +366,36 @@ export class ProfilePageComponent implements OnInit {
       if (this.selectedFile) {
         formData.append('profile_picture', this.selectedFile);
       }
-      
-      this.facultyService.updateProfile(formData).subscribe({
+
+      const service = this.isAdmin ? this.adminService : this.facultyService;
+
+      service.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
+
           if (response.profile_picture_url) {
-             this.profilePictureUrl = response.profile_picture_url;
+            this.profilePictureUrl = response.profile_picture_url;
           }
-          
+
           this.snackBar.open('Profile updated successfully!', 'Close', {
-            duration: 3000, 
+            duration: 3000,
             horizontalPosition: 'center',
             verticalPosition: 'bottom',
-            panelClass: ['success-snackbar']
+            panelClass: ['success-snackbar'],
           });
         },
         error: (err: HttpErrorResponse) => {
           this.isLoading = false;
           console.error('Update failed', err);
-          this.snackBar.open('Failed to update profile. Please try again.', 'Close', {
-            duration: 4000,
-            panelClass: ['error-snackbar']
-          });
-        }
+          this.snackBar.open(
+            'Failed to update profile. Please try again.',
+            'Close',
+            {
+              duration: 4000,
+              panelClass: ['error-snackbar'],
+            },
+          );
+        },
       });
     }
   }
