@@ -5,13 +5,13 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
-class FacultyProfile extends Model
+class UserProfile extends Model
 {
-    protected $table = 'faculty_profile';
-    protected $primaryKey = 'faculty_profile_id';
+    protected $table = 'user_profile';
+    protected $primaryKey = 'user_profile_id';
 
     protected $fillable = [
-        'faculty_id',
+        'user_id',
         'profile_picture',
         'house_num',
         'street',
@@ -28,9 +28,9 @@ class FacultyProfile extends Model
     // Automatically append the full image URL when this model is fetched
     protected $appends = ['profile_picture_url'];
 
-    public function faculty()
+    public function user()
     {
-        return $this->belongsTo(Faculty::class, 'faculty_id', 'id');
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
     public function getBirthdayAttribute(): ?string
     {
