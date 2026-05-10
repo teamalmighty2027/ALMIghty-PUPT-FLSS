@@ -343,6 +343,7 @@ export class ProfilePageComponent implements OnInit {
 
           if (response.profile_picture_url) {
             this.profilePictureUrl = response.profile_picture_url;
+            this.authService.updateProfilePictureUrl(response.profile_picture_url);
           }
 
           this.snackBar.open('Profile updated successfully!', 'Close', {

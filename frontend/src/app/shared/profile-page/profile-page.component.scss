@@ -231,7 +231,7 @@
 
 .pill-input {
   width: 100%;
-  padding: 0 var(--spacing-md); /* Changed vertical padding to 0 since we are using a fixed height */
+  padding: var(--spacing-xs) var(--spacing-md);
   border-radius: var(--border-radius-xl);
   border: 1.5px solid #e0e0e0;
   background-color: #fafafa;

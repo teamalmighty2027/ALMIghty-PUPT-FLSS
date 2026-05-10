@@ -69,25 +69,25 @@
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('profile')">
-      <span mat-symbol="account_circle"></span>
-      My Profile
+      <span mat-symbol="account_circle" class="menu-icon"></span>
+      <span>My Profile</span>
     </button>
 
     <button mat-menu-item (click)="onMenuAction('change-password')">
-      <span mat-symbol="lock"></span>
-      Change Password
+      <span mat-symbol="lock" class="menu-icon"></span>
+      <span>Change Password</span>
     </button>
 
     <button mat-menu-item (click)="onMenuAction('theme')">
-      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
-      Switch Theme
+      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" class="menu-icon"></span>
+      <span>Switch Theme</span>
     </button>
 
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
-      <span mat-symbol="door_open"></span>
-      Logout
+      <span mat-symbol="door_open" class="menu-icon"></span>
+      <span>Logout</span>
     </button>
   </mat-menu>
 
