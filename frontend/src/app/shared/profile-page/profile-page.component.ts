@@ -217,9 +217,7 @@ export class ProfilePageComponent implements OnInit {
     this.isLoading = true;
     this.profileForm.disable();
 
-    const service = this.isAdmin ? this.adminService : this.facultyService;
-
-    service.getProfile().subscribe({
+    this.facultyService.getProfile().subscribe({
       next: (data) => {
         const formData = {
           ...data,
@@ -231,43 +229,17 @@ export class ProfilePageComponent implements OnInit {
 
         // Load existing image URL
         this.profilePictureUrl = data.profile_picture_url || null;
-        this.profileForm.patchValue(formData);
+        this.profilePictureUrl = data.profile_picture_url || null; // Load existing image
 
-        // Pre-load city/barangay lists for the saved province/city
-        if (data.province) {
-          setTimeout(() => {
-            const prov = this.provinces.find(p => p.name === data.province);
-
-            if (prov) {
-              this.addressService.getCities(prov.code).subscribe(cities => {
-                // Sort cities on initial load
-                this.cities = cities.sort(
-                  (a, b) => a.name.localeCompare(b.name),
-                );
-
-                const city = this.cities.find(c => c.name === data.city);
-
-                if (city) {
-                  this.addressService
-                    .getBarangays(city.code)
-                    .subscribe(brgys => {
-                      // Sort barangays on initial load
-                      this.barangays = brgys.sort(
-                        (a, b) => a.name.localeCompare(b.name),
-                      );
-                    });
-                }
-              });
-            }
-          }, 500);
-        }
-
+        // Enable the form first before patching to ensure disabled fields get updated
         this.enableProfileForm();
+        
+        // Now patch the values
+        this.profileForm.patchValue(formData);
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
-        this.enableProfileForm();
         this.isLoading = false;
       },
     });
@@ -303,7 +275,6 @@ export class ProfilePageComponent implements OnInit {
 
   onBirthdateChange(event: any): void {
     const value = event.target?.value;
-
     if (value && this.isToday(value)) {
       this.profileForm.get('birthdate')?.setValue('');
       this.openBirthdateWarning();
@@ -326,9 +297,7 @@ export class ProfilePageComponent implements OnInit {
     });
   }
 
-  private birthdateValidator(
-    control: AbstractControl,
-  ): ValidationErrors | null {
+  private birthdateValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
     if (!value) {
       return null;
@@ -352,7 +321,6 @@ export class ProfilePageComponent implements OnInit {
         this.openBirthdateWarning();
         return;
       }
-
       this.isLoading = true;
       const formData = new FormData();
 
@@ -375,6 +343,7 @@ export class ProfilePageComponent implements OnInit {
 
           if (response.profile_picture_url) {
             this.profilePictureUrl = response.profile_picture_url;
+            this.authService.updateProfilePictureUrl(response.profile_picture_url);
           }
 
           this.snackBar.open('Profile updated successfully!', 'Close', {

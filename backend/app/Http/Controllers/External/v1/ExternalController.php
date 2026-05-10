@@ -5,7 +5,7 @@ namespace App\Http\Controllers\External\v1;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Faculty;
-use App\Models\FacultyProfile;
+use App\Models\UserProfile;
 use App\Models\Program;
 use App\Models\Room;
 use Illuminate\Http\Request;
@@ -463,37 +463,38 @@ class ExternalController extends Controller
     public function facultyProfiles(Request $request) {
         $clientSystem = $this->logExternalAccess($request, 'Faculty profiles');
 
-        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType'])
+        $faculties = UserProfile::with(['user.faculty.facultyType'])
             ->get()
             ->filter(function ($profile) {
                 // Filter out profiles with missing required relationships before sorting
-                return !empty($profile->faculty) && !empty($profile->faculty->user);
+                return !empty($profile->user) && !empty($profile->user->faculty);
             })
             ->sortBy([
-                fn($faculty) => $faculty->faculty->user->last_name,
-                fn($faculty) => $faculty->faculty->user->first_name,
+                fn($profile) => $profile->user->last_name,
+                fn($profile) => $profile->user->first_name,
             ]);
 
         $formattedFaculties = $faculties->map(function ($profile) {
             // Skip profiles missing required relationships
-            if (!$profile->faculty || !$profile->faculty->user) {
-                Log::warning('Skipping FacultyProfile with missing faculty or user relationship', [
-                    'faculty_profile_id' => $profile->faculty_profile_id ?? 'unknown',
-                    'has_faculty' => !empty($profile->faculty),
-                    'has_user' => !empty($profile->faculty?->user),
+            if (!$profile->user || !$profile->user->faculty) {
+                Log::warning('Skipping UserProfile with missing faculty or user relationship', [
+                    'user_profile_id' => $profile->user_profile_id ?? 'unknown',
+                    'has_user' => !empty($profile->user),
+                    'has_faculty' => !empty($profile->user?->faculty),
                 ]);
                 return null;
             }
 
-            if (!$profile->faculty->facultyType) {
-                Log::warning('Skipping FacultyProfile with missing facultyType relationship', [
-                    'faculty_id' => $profile->faculty->id ?? 'unknown',
-                    'user_id' => $profile->faculty->user->id ?? 'unknown',
+            if (!$profile->user->faculty->facultyType) {
+                Log::warning('Skipping UserProfile with missing facultyType relationship', [
+                    'faculty_id' => $profile->user->faculty->id ?? 'unknown',
+                    'user_id' => $profile->user->id ?? 'unknown',
                 ]);
                 return null;
             }
 
-            $user = $profile->faculty->user;
+            $user = $profile->user;
+            $faculty = $user->faculty;
             
             $department = $profile->department;
 
@@ -504,13 +505,13 @@ class ExternalController extends Controller
 
             $data = [
                 'faculty_id'    => $user->id,
-                'idp_user_id'   => $profile->faculty->idp_user_id,
+                'idp_user_id'   => $faculty->idp_user_id,
                 'first_name'    => $user->first_name,
                 'middle_name'   => $user->middle_name,
                 'last_name'     => $user->last_name,
                 'suffix_name'   => $user->suffix_name ?? null,
                 'faculty_code'  => $user->code,
-                'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                'faculty_type'  => $faculty->facultyType->faculty_type,
                 'department'    => $department,
                 'email'         => $user->email,
                 'status'        => $user->status
@@ -548,15 +549,15 @@ class ExternalController extends Controller
     {
         $this->logExternalAccess($request, 'Department list');
 
-        $faculties = FacultyProfile::with(['faculty.user', 'faculty.facultyType'])
+        $faculties = UserProfile::with(['user.faculty.facultyType'])
             ->get()
             ->filter(function ($profile) {
                 // Filter out profiles with missing required relationships before sorting
-                return !empty($profile->faculty) && !empty($profile->faculty->user);
+                return !empty($profile->user) && !empty($profile->user->faculty);
             })
             ->sortBy([
-                fn($faculty) => $faculty->faculty->user->last_name,
-                fn($faculty) => $faculty->faculty->user->first_name,
+                fn($profile) => $profile->user->last_name,
+                fn($profile) => $profile->user->first_name,
             ]);
 
         // If any faculty profile is missing a department, try to infer it
@@ -572,34 +573,35 @@ class ExternalController extends Controller
         })->map(function ($departmentFaculties) {
             return $departmentFaculties->map(function ($profile) {
                 // Skip profiles missing required relationships
-                if (!$profile->faculty || !$profile->faculty->user) {
-                    Log::warning('Skipping FacultyProfile with missing faculty or user relationship in departmentList', [
-                        'faculty_profile_id' => $profile->faculty_profile_id ?? 'unknown',
-                        'has_faculty' => !empty($profile->faculty),
-                        'has_user' => !empty($profile->faculty?->user),
+                if (!$profile->user || !$profile->user->faculty) {
+                    Log::warning('Skipping UserProfile with missing faculty or user relationship in departmentList', [
+                        'user_profile_id' => $profile->user_profile_id ?? 'unknown',
+                        'has_user' => !empty($profile->user),
+                        'has_faculty' => !empty($profile->user?->faculty),
                     ]);
                     return null;
                 }
 
-                if (!$profile->faculty->facultyType) {
-                    Log::warning('Skipping FacultyProfile with missing facultyType relationship in departmentList', [
-                        'faculty_id' => $profile->faculty->id ?? 'unknown',
-                        'user_id' => $profile->faculty->user->id ?? 'unknown',
+                if (!$profile->user->faculty->facultyType) {
+                    Log::warning('Skipping UserProfile with missing facultyType relationship in departmentList', [
+                        'faculty_id' => $profile->user->faculty->id ?? 'unknown',
+                        'user_id' => $profile->user->id ?? 'unknown',
                     ]);
                     return null;
                 }
 
-                $user = $profile->faculty->user;
+                $user = $profile->user;
+                $faculty = $user->faculty;
 
                 return [
                     'faculty_id'    => $user->id,
-                    'idp_user_id'   => $profile->faculty->idp_user_id,
+                    'idp_user_id'   => $faculty->idp_user_id,
                     'first_name'    => $user->first_name,
                     'middle_name'   => $user->middle_name,
                     'last_name'     => $user->last_name,
                     'suffix_name'   => $user->suffix_name ?? null,
                     'faculty_code'  => $user->code,
-                    'faculty_type'  => $profile->faculty->facultyType->faculty_type,
+                    'faculty_type'  => $faculty->facultyType->faculty_type,
                     'email'         => $user->email,
                     'status'        => $user->status,
                 ];
@@ -615,12 +617,12 @@ class ExternalController extends Controller
      * Attempt to infer a faculty's department by inspecting their schedules.
      * If found, it permanently updates the department in the database.
      *
-     * @param  \App\Models\FacultyProfile  $profile
+     * @param  \App\Models\UserProfile  $profile
      * @return string|null
      */
-    private function assignDepartmentFromSchedules(FacultyProfile $profile): ?string
+    private function assignDepartmentFromSchedules(UserProfile $profile): ?string
     {
-        $facultyId = $profile->faculty?->id;
+        $facultyId = $profile->user?->faculty?->id;
 
         if (! $facultyId) {
             return null;

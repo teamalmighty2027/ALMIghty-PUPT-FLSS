@@ -1,8 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-
-import { Observable, of } from 'rxjs';
+import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, tap, switchMap, finalize, catchError, shareReplay } from 'rxjs/operators';
 
 import { CookieService } from 'ngx-cookie-service';
@@ -45,6 +44,8 @@ export class AuthService {
   private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null;
   private refreshLeewayMs = 30 * 60 * 1000;
   private refreshInFlight: Observable<RefreshResponse> | null = null;
+  private profilePictureUrlSubject = new BehaviorSubject<string | null>(null);
+  public profilePictureUrl$ = this.profilePictureUrlSubject.asObservable();
 
   // Initialize AuthService dependencies.
   constructor(
@@ -404,7 +405,11 @@ export class AuthService {
       is_full_access: user.is_full_access !== false,
       expires_at: expiresAt || user.expires_at || null,
       auth_provider: authProvider || user.auth_provider || null,
+      profile_picture_url: user.profile_picture_url || user.profile?.profile_picture_url || null,
     };
+
+    // Update the profile picture observable
+    this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
     // Save to localStorage (not cookies) if needed for page reloads
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(this.userDataCache.expires_at);
@@ -415,9 +420,26 @@ export class AuthService {
     if (!this.userDataCache) {
       this.userDataCache = this.loadUserDataFromStorage();
       this.scheduleSessionExpiry(this.userDataCache?.expires_at);
+      
+      // Initialize the profile picture observable from storage
+      if (this.userDataCache?.profile_picture_url) {
+        this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
+      }
     }
 
     return this.userDataCache;
+  }
+
+  /**
+   * Manually update the profile picture URL and notify subscribers
+   */
+  updateProfilePictureUrl(url: string | null): void {
+    const userData = this.getUserData();
+    if (userData) {
+      userData.profile_picture_url = url;
+      localStorage.setItem('user_data', JSON.stringify(userData));
+    }
+    this.profilePictureUrlSubject.next(url);
   }
 
   // Return the session expiration timestamp in ms.

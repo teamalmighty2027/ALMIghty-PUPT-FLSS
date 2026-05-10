@@ -59,6 +59,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public facultyName: string | null = '';
   public facultyEmail: string | null = '';
+  public facultyProfilePictureUrl: string | null = null;
 
   constructor(
     public themeService: ThemeService,
@@ -78,6 +79,11 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadFacultyInfo();
+
+    this.authService.profilePictureUrl$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(url => this.facultyProfilePictureUrl = url);
+
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,

@@ -6,40 +6,42 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\UserProfile;
 
 class AdminProfileController extends Controller
 {
+    /**
+     * Display the specified admin profile.
+     */
     public function show(Request $request)
     {
         $user = $request->user();
+        $profile = UserProfile::where('user_id', $user->id)->first();
 
-        // For admin, we don't have a separate profile table like faculty
-        // So we return the user data directly
-        // In the future, we could create an AdminProfile model if needed
+        $responseData = array_merge(
+            $user->toArray(),
+            $profile ? $profile->toArray() : [
+                'department' => '',
+                'birthdate' => null,
+                'sex' => '',
+                'house_num' => '',
+                'street' => '',
+                'barangay' => '',
+                'city' => '',
+                'province' => '',
+                'country' => '',
+                'zipcode' => '',
+                'profile_picture' => null,
+                'profile_picture_url' => null,
+            ]
+        );
 
-        return response()->json([
-            'first_name' => $user->first_name,
-            'last_name' => $user->last_name,
-            'middle_name' => $user->middle_name,
-            'suffix_name' => $user->suffix_name,
-            'email' => $user->email,
-            'code' => $user->code,
-            // Add any additional admin-specific fields here
-            'department' => '', // Admins might not have departments
-            'birthdate' => null,
-            'sex' => null,
-            'house_num' => null,
-            'street' => null,
-            'barangay' => null,
-            'city' => null,
-            'province' => null,
-            'country' => null,
-            'zipcode' => null,
-            'profile_picture' => null,
-            'profile_picture_url' => null,
-        ]);
+        return response()->json($responseData);
     }
 
+    /**
+     * Update the specified admin profile.
+     */
     public function update(Request $request)
     {
         $user = $request->user();
@@ -47,20 +49,59 @@ class AdminProfileController extends Controller
         DB::beginTransaction();
 
         try {
-            $user->update($request->only(['first_name', 'last_name', 'middle_name', 'suffix_name']));
+            // Update base user data
+            $user->update($request->only([
+                'first_name', 
+                'last_name', 
+                'middle_name', 
+                'suffix_name'
+            ]));
 
-            // For now, admins don't have additional profile fields like faculty
-            // In the future, we could create an AdminProfile model and handle additional fields
+            // Prepare profile data
+            $profileData = $request->only([
+                'house_num', 
+                'street', 
+                'barangay', 
+                'city', 
+                'province', 
+                'country', 
+                'zipcode', 
+                'department',
+                'birthdate', 
+                'sex'
+            ]);
+
+            // Handle Profile Picture Upload
+            if ($request->hasFile('profile_picture')) {
+                $file = $request->file('profile_picture');
+                $path = $file->store('profile_pictures', 'public');
+                $profileData['profile_picture'] = $path;
+                
+                // Delete old picture if it exists
+                $currentProfile = UserProfile::where('user_id', $user->id)->first();
+                if ($currentProfile && $currentProfile->profile_picture) {
+                    Storage::disk('public')->delete($currentProfile->profile_picture);
+                }
+            }
+
+            // Update or create the profile
+            $updatedProfile = UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                $profileData
+            );
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'profile_picture_url' => null
+                'profile_picture_url' => $updatedProfile->profile_picture_url
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Failed to update profile', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Failed to update profile', 
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

@@ -69,7 +69,10 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   public pageTitle = '';
   public accountName!: string;
   public accountRole!: string;
+  public accountEmail!: string;
   public isReportsView: boolean = false;
+  public isProfileRoute: boolean = false;
+  public accountProfilePictureUrl: string | null = null;
 
   public isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
@@ -93,11 +96,16 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
         this.isReportsView = event.urlAfterRedirects.includes('/reports');
+        this.isProfileRoute = event.urlAfterRedirects.includes('/profile');
       });
   }
 
   ngOnInit(): void {
     this.initializeUserData();
+    
+    this.authService.profilePictureUrl$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(url => this.accountProfilePictureUrl = url);
     
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
@@ -133,6 +141,7 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   private initializeUserData(): void {
     this.accountName = this.authService.getUserName();
     this.accountRole = this.toTitleCase(this.authService.getUserRole());
+    this.accountEmail = this.authService.getUserEmail();
   }
 
   public toggleTheme() {
@@ -146,6 +155,7 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   private setPageTitle(): void {
     const pageTitle = this.route.snapshot.firstChild?.data['pageTitle'];
     this.pageTitle = pageTitle;
+    this.isProfileRoute = this.router.url.includes('/profile');
   }
 
   public logout() {
