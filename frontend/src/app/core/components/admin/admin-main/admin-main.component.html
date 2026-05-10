@@ -85,7 +85,7 @@
         </button>
         <div class="mobile-admin-account" *ngIf="!isDropdownOpen">
           <div class="profile-dropdown">
-            <img src="../../../../../assets/images/default_admin_icon.png" alt="Profile Icon" class="profile-icon" />
+            <img [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'" alt="Profile Icon" class="profile-icon" />
           </div>
           <div class="account-text">
             <div class="account-name">{{ accountName }}</div>
@@ -100,7 +100,7 @@
       <div class="mobile-dropdown" [@slideUpDown]>
         <div class="mobile-dropdown-header">
           <img
-            src="../../../../../assets/images/default_admin_icon.png"
+            [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'"
             alt="Profile Icon"
             class="mobile-profile-icon" />
           <div class="mobile-account-info">
@@ -156,7 +156,7 @@
           </div>
           <div class="admin-account" [class.profile-active]="isProfileRoute" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings" matTooltipPosition="below">
             <div class="profile-dropdown">
-              <img src="../../../../../assets/images/default_admin_icon.png" alt="Profile Icon" class="profile-icon" />
+              <img [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'" alt="Profile Icon" class="profile-icon" />
             </div>
             <div class="account-text">
               <div class="account-name">{{ accountName }}</div>

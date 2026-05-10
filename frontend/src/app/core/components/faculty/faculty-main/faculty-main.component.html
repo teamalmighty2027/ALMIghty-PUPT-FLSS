@@ -50,7 +50,7 @@
       </div>
       <div class="profile-dropdown">
         <img
-          src="assets/images/default_faculty_icon.png"
+          [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
           alt="Profile Icon"
           class="profile-icon"
           [matMenuTriggerFor]="desktopProfileMenu" 
@@ -135,7 +135,7 @@
   <div class="mobile-dropdown" [@slideUpDown]>
     <div class="mobile-dropdown-header">
       <img
-        src="assets/images/default_faculty_icon.png"
+        [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
         alt="Profile Icon"
         class="mobile-profile-icon" />
       <div class="mobile-account-info">
