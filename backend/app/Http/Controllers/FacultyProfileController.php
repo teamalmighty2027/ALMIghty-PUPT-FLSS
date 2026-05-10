@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Faculty;
-use App\Models\FacultyProfile;
+use App\Models\UserProfile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -41,7 +41,7 @@ class FacultyProfileController extends Controller
             // Prepare profile data
             $profileData = $request->only([
                 'house_num', 'street', 'barangay', 'city', 
-                'province', 'country', 'zipcode', 'department', // <-- updated
+                'province', 'country', 'zipcode', 'department',
                 'birthdate', 'sex'
             ]);
 
@@ -52,21 +52,19 @@ class FacultyProfileController extends Controller
                 $path = $file->store('profile_pictures', 'public');
                 $profileData['profile_picture'] = $path;
                 
-                // Optional: Delete old picture if you want to save storage space
-                if ($faculty->profile && $faculty->profile->profile_picture) {
-                    Storage::disk('public')->delete($faculty->profile->profile_picture);
+                // Delete old picture if it exists
+                $currentProfile = UserProfile::where('user_id', $user->id)->first();
+                if ($currentProfile && $currentProfile->profile_picture) {
+                    Storage::disk('public')->delete($currentProfile->profile_picture);
                 }
             }
 
-            FacultyProfile::updateOrCreate(
-                ['faculty_id' => $faculty->id],
+            $updatedProfile = UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
                 $profileData
             );
 
             DB::commit();
-
-            // Return the updated profile picture URL so Angular can update immediately
-            $updatedProfile = FacultyProfile::where('faculty_id', $faculty->id)->first();
 
             return response()->json([
                 'message' => 'Profile updated successfully',
