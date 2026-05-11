@@ -15,6 +15,7 @@ use App\Mail\AppealAccessApproved;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class RescheduleController extends Controller
 {
@@ -24,10 +25,6 @@ class RescheduleController extends Controller
     // ─────────────────────────────────────────────────────────
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
-        while (ob_get_level() > 0) { @ob_end_clean(); }
-        @ini_set('display_errors', '0');
-        error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-
         $validated = $request->validate([
             'scheduleId' => 'required|integer|exists:schedules,schedule_id',
             'reason'     => 'required|string',
@@ -51,12 +48,14 @@ class RescheduleController extends Controller
             $file = $request->file('appealFile');
 
             // --- VIRUS SCAN START ---
-            $apiKey = env('CLOUDMERSIVE_API_KEY');
+            $apiKey = config('services.cloudmersive.api_key');
             
             if ($apiKey) {
                 $scanResponse = Http::withHeaders(['Apikey' => $apiKey])
                     ->attach('inputFile', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
                     ->post('https://api.cloudmersive.com/virus/scan/file');
+
+                Log::info('Virus scan response: ' . $scanResponse->body());
 
                 if ($scanResponse->successful()) {
                     $scanResult = $scanResponse->json();
@@ -326,6 +325,7 @@ class RescheduleController extends Controller
                 'appeal'  => $appeal,
             ], 201);
         } catch (\Exception $e) {
+            Log::warning('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to approve appeal: ' . $e->getMessage(),
                 'error' => $e->getMessage()
@@ -353,6 +353,7 @@ class RescheduleController extends Controller
 
             return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
         } catch (\Exception $e) {
+            Log::warning('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'message' => 'Failed to deny appeal: ' . $e->getMessage(),
                 'error' => $e->getMessage()
@@ -397,7 +398,7 @@ class RescheduleController extends Controller
 
         } catch (\Exception $e) {
             // This logs the exact crash reason to storage/logs/laravel.log
-            \Illuminate\Support\Facades\Log::error('Toggle Appeal Error: ' . $e->getMessage());
+            Log::error('Toggle Appeal Error: ' . $e->getMessage(), ['exception' => $e]);
             
             // This sends the exact crash reason back to your browser console!
             return response()->json([
@@ -430,7 +431,7 @@ class RescheduleController extends Controller
             }
         } catch (\Throwable $e) {
             // If the email fails (or class is missing), I catch the error, log it, and prevent the 500 crash.
-            \Illuminate\Support\Facades\Log::error('Failed to send rejection email: ' . $e->getMessage());
+            Log::error('Failed to send rejection email: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
                 'message' => 'Appeal request denied, but the email failed to send.'
             ], 200); 
@@ -502,7 +503,7 @@ class RescheduleController extends Controller
             \Illuminate\Support\Facades\Mail::to('pupt.flss2027@gmail.com')
                 ->send(new \App\Mail\AppealAccessRequested($fName, $lName));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to send appeal request email: ' . $e->getMessage());
+            Log::error('Failed to send appeal request email: ' . $e->getMessage(), ['exception' => $e]);
             // Still return success since the DB was updated — email is secondary
             return response()->json(['message' => 'Appeal request sent successfully (email delivery failed).']);
         }
