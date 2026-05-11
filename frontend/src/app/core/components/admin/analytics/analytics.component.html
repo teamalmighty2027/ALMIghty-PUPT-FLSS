@@ -3,18 +3,31 @@
     <div class="header-content">
       <div class="title-section">
         <h1>Analytics Dashboard</h1>
-        <p class="subtitle">Descriptive and prescriptive insights for scheduling and resource allocation</p>
+        <p class="subtitle">
+          Descriptive and prescriptive insights for scheduling and resource
+          allocation
+        </p>
       </div>
 
       <div class="filter-section">
         <mat-form-field appearance="outline" class="term-selector">
           <mat-label>Academic Term</mat-label>
-          <mat-select [(ngModel)]="selectedTermId" (selectionChange)="onTermChange()" [disabled]="isTermsLoading">
-            <mat-option *ngFor="let term of availableTerms" [value]="term.active_semester_id">
-              {{ term.year_start }}-{{ term.year_end }} | {{ getSemesterLabel(term.semester) }}
+          <mat-select
+            [(ngModel)]="selectedTermId"
+            (selectionChange)="onTermChange()"
+            [disabled]="isTermsLoading"
+          >
+            <mat-option
+              *ngFor="let term of availableTerms"
+              [value]="term.active_semester_id"
+            >
+              {{ term.year_start }}-{{ term.year_end }} |
+              {{ getSemesterLabel(term.semester) }}
             </mat-option>
           </mat-select>
-          <mat-icon matPrefix fontSet="material-symbols-rounded">calendar_month</mat-icon>
+          <mat-icon matPrefix fontSet="material-symbols-rounded"
+            >calendar_month</mat-icon
+          >
         </mat-form-field>
       </div>
     </div>
@@ -77,7 +90,7 @@
       <div class="widget-placeholder">
         <div class="widget-header">
           <h3>Appeal Activity</h3>
-          <mat-icon fontSet="material-symbols-rounded">history_edu</mat-icon>
+          <mat-icon>history_edu</mat-icon>
         </div>
         <div class="widget-body">
           <p>Implementation in progress...</p>
