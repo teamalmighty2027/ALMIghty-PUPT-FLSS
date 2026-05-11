@@ -10,10 +10,13 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { 
   AnalyticsHeatmapComponent 
-} from './analytics-heatmap/analytics-heatmap.component';
+} from './widgets/analytics-heatmap/analytics-heatmap.component';
 import { 
   AnalyticsFacultyTypeComponent 
-} from './analytics-faculty-type/analytics-faculty-type.component';
+} from './widgets/analytics-faculty-type/analytics-faculty-type.component';
+import { 
+  RoomUtilizationComponent 
+} from './widgets/room-utilization/room-utilization.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -27,6 +30,7 @@ import { fadeAnimation } from '../../../animations/animations';
     MatIconModule,
     AnalyticsHeatmapComponent,
     AnalyticsFacultyTypeComponent,
+    RoomUtilizationComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
