@@ -1,15 +1,21 @@
-import { Component, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AnalyticsService } from '../../../../../services/admin/analytics/analytics.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-analytics-heatmap',
   standalone: true,
-  imports: [CommonModule, MatTooltipModule, MatProgressSpinnerModule],
+  imports: [
+    CommonModule, 
+    MatTooltipModule, 
+    MatProgressSpinnerModule, 
+    MatIconModule
+  ],
   templateUrl: './analytics-heatmap.component.html',
   styleUrl: './analytics-heatmap.component.scss',
 })
@@ -22,6 +28,7 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
   timeSlots: string[] = [];
   heatmapData: Map<string, number> = new Map();
   isLoading = true;
+  isEmpty = false;
   maxCount = 0;
 
   private destroy$ = new Subject<void>();
@@ -67,6 +74,7 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
   // Fetches aggregated schedule density from the backend
   private fetchHeatmapData(termId: number): void {
     this.isLoading = true;
+    this.isEmpty = false;
     
     this.analyticsService.getScheduleHeatmap(termId)
       .pipe(takeUntil(this.destroy$))
@@ -75,6 +83,12 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
           const data = response.data || [];
           this.heatmapData.clear();
           this.maxCount = 0;
+
+          if (data.length === 0) {
+            this.isEmpty = true;
+            this.isLoading = false;
+            return;
+          }
 
           data.forEach((item: any) => {
             const key = `${item.day}-${this.formatTime(item.start_time)}`;
@@ -90,6 +104,7 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
         error: (error) => {
           console.error('Error fetching heatmap data:', error);
           this.isLoading = false;
+          this.isEmpty = true;
         }
       });
   }

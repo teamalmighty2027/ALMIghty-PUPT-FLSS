@@ -6,23 +6,30 @@ import { takeUntil } from 'rxjs/operators';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-analytics-room-utilization',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, MatProgressSpinnerModule],
+  imports: [
+    CommonModule, 
+    BaseChartDirective, 
+    MatProgressSpinnerModule,
+    MatIconModule
+  ],
   templateUrl: './analytics-room-utilization.component.html',
   styleUrl: './analytics-room-utilization.component.scss',
 })
 export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
   isLoading = true;
+  isEmpty = false;
   private destroy$ = new Subject<void>();
 
   // Bar Chart Configuration
   public barChartOptions: ChartConfiguration['options'] = {
     responsive: true,
     maintainAspectRatio: false,
-    indexAxis: 'x', // Vertical bar chart
+    indexAxis: 'x', 
     plugins: {
       legend: {
         display: false
@@ -46,7 +53,9 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
         }
       },
       x: {
-        grid: { display: false },
+        grid: {
+          display: false
+        },
         ticks: {
           autoSkip: true,
           maxRotation: 0,
@@ -92,11 +101,18 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
   // Fetches aggregated room usage data from the backend
   private fetchRoomUtilization(termId: number): void {
     this.isLoading = true;
+    this.isEmpty = false;
     
     this.analyticsService.getRoomUtilization(termId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: any[]) => {
+          if (!data || data.length === 0 || data.every(i => !i.total_scheduled_minutes)) {
+            this.isEmpty = true;
+            this.isLoading = false;
+            return;
+          }
+
           this.barChartData = {
             labels: data.map(item => item.room_code),
             datasets: [{
@@ -111,6 +127,7 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
         error: (error) => {
           console.error('Error fetching room utilization:', error);
           this.isLoading = false;
+          this.isEmpty = true;
         }
       });
   }

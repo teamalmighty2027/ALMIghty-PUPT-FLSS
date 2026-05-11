@@ -6,16 +6,23 @@ import { takeUntil } from 'rxjs/operators';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-analytics-faculty-load',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, MatProgressSpinnerModule],
+  imports: [
+    CommonModule, 
+    BaseChartDirective, 
+    MatProgressSpinnerModule,
+    MatIconModule
+  ],
   templateUrl: './analytics-faculty-load.component.html',
   styleUrl: './analytics-faculty-load.component.scss',
 })
 export class AnalyticsFacultyLoadComponent implements OnInit, OnDestroy {
   isLoading = true;
+  isEmpty = false;
   private destroy$ = new Subject<void>();
 
   // Bar Chart Configuration for Load Distribution
@@ -93,17 +100,24 @@ export class AnalyticsFacultyLoadComponent implements OnInit, OnDestroy {
   // Fetches aggregated faculty load data and computes distribution
   private fetchFacultyLoad(termId: number): void {
     this.isLoading = true;
+    this.isEmpty = false;
     
     this.analyticsService.getFacultyLoadDistribution(termId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: any[]) => {
+          if (!data || data.length === 0) {
+            this.isEmpty = true;
+            this.isLoading = false;
+            return;
+          }
           this.processLoadDistribution(data);
           this.isLoading = false;
         },
         error: (error) => {
           console.error('Error fetching faculty load:', error);
           this.isLoading = false;
+          this.isEmpty = true;
         }
       });
   }

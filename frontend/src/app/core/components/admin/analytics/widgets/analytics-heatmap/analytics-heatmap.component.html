@@ -1,48 +1,32 @@
 <div class="heatmap-container">
-  <div class="heatmap-wrapper" *ngIf="!isLoading; else loading">
-    <div class="heatmap-grid">
-      <!-- Top-left empty cell -->
-      <div class="grid-header time-label"></div>
-      
-      <!-- Day Headers -->
-      <div class="grid-header day-label" *ngFor="let day of days">
-        {{ day.substring(0, 3) }}
-      </div>
-
-      <!-- Time Rows -->
-      <ng-container *ngFor="let time of timeSlots">
-        <div class="time-cell">{{ time }}</div>
-        <div 
-          *ngFor="let day of days" 
-          class="heatmap-cell"
-          [style.background-color]="getBgColor(day, time)"
-          [matTooltip]="day + ' ' + time + ': ' + getCount(day, time) + ' classes'"
-          [class.has-data]="getCount(day, time) > 0"
-        >
-          <span class="count-overlay" *ngIf="getCount(day, time) > 0">
-            {{ getCount(day, time) }}
-          </span>
-        </div>
-      </ng-container>
-    </div>
-
-    <div class="heatmap-legend">
-      <span>Less Busy</span>
-      <div class="legend-scale">
-        <div class="scale-item" style="background: rgba(128, 0, 0, 0.1)"></div>
-        <div class="scale-item" style="background: rgba(128, 0, 0, 0.3)"></div>
-        <div class="scale-item" style="background: rgba(128, 0, 0, 0.5)"></div>
-        <div class="scale-item" style="background: rgba(128, 0, 0, 0.7)"></div>
-        <div class="scale-item" style="background: rgba(128, 0, 0, 0.9)"></div>
-      </div>
-      <span>More Busy</span>
-    </div>
+  <div class="loading-overlay" *ngIf="isLoading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading distribution data...</p>
   </div>
 
-  <ng-template #loading>
-    <div class="loading-overlay">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Analyzing schedule distribution...</p>
+  <div class="empty-state" *ngIf="!isLoading && isEmpty">
+    <mat-icon fontSet="material-symbols-rounded">event_busy</mat-icon>
+    <p>No schedule data available for this term</p>
+    <span>Try selecting a different academic year or semester</span>
+  </div>
+
+  <div class="heatmap-grid" *ngIf="!isLoading && !isEmpty">
+    <!-- Header: Days -->
+    <div class="grid-header"></div>
+    <div class="grid-header day-label" *ngFor="let day of days">
+      {{ day | slice : 0 : 3 }}
     </div>
-  </ng-template>
+
+    <!-- Rows: Time Slots -->
+    <ng-container *ngFor="let time of timeSlots; let i = index">
+      <div class="time-label">{{ time }}</div>
+      <div
+        *ngFor="let day of days"
+        class="heatmap-cell"
+        [style.backgroundColor]="getBgColor(day, time)"
+        [matTooltip]="day + ' ' + time + ': ' + getCount(day, time) + ' classes'"
+        matTooltipPosition="above"
+      ></div>
+    </ng-container>
+  </div>
 </div>
