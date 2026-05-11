@@ -44,6 +44,10 @@ return [
         'api_key' => env('IDP_API_KEY'),
     ],
 
+    'cloudmersive' => [
+        'api_key' => env('CLOUDMERSIVE_API_KEY'),
+    ],
+
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
     ],
