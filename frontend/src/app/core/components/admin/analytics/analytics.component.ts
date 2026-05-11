@@ -11,6 +11,9 @@ import { takeUntil } from 'rxjs/operators';
 import { 
   AnalyticsHeatmapComponent 
 } from './analytics-heatmap/analytics-heatmap.component';
+import { 
+  AnalyticsFacultyTypeComponent 
+} from './analytics-faculty-type/analytics-faculty-type.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -23,6 +26,7 @@ import { fadeAnimation } from '../../../animations/animations';
     MatFormFieldModule,
     MatIconModule,
     AnalyticsHeatmapComponent,
+    AnalyticsFacultyTypeComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
