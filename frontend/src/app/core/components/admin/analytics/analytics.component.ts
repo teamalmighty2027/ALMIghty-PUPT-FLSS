@@ -15,8 +15,8 @@ import {
   AnalyticsFacultyTypeComponent 
 } from './widgets/analytics-faculty-type/analytics-faculty-type.component';
 import { 
-  RoomUtilizationComponent 
-} from './widgets/room-utilization/room-utilization.component';
+  AnalyticsRoomUtilizationComponent 
+} from './widgets/analytics-room-utilization/analytics-room-utilization.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -30,7 +30,7 @@ import { fadeAnimation } from '../../../animations/animations';
     MatIconModule,
     AnalyticsHeatmapComponent,
     AnalyticsFacultyTypeComponent,
-    RoomUtilizationComponent,
+    AnalyticsRoomUtilizationComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',

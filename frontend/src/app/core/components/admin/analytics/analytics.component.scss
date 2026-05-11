@@ -76,6 +76,10 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 
+  &.tall-card {
+    min-height: 450px;
+  }
+
   &.heatmap-card {
     min-height: 400px;
   }
