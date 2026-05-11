@@ -234,34 +234,43 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     }
   }
 
-  // Add event handler for file selection
   onFileSelected(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf') {
-        this.snackBar.open('Please upload a PDF file only.', 
-          'Close', { duration: 3000 }
-        );
-        event.target.value = '';
-        return;
-      }
+  const file = event.target.files[0];
+  if (!file) return;
 
-      // Validate file size (max 2MB)
-      const maxSize = 2 * 1024 * 1024; 
-      if (file.size > maxSize) {
-        this.snackBar.open('File size must be less than 2MB.', 
-          'Close', { duration: 3000 }
-        );
-        event.target.value = '';
-        return;
-      }
+  // 1. Basic Type Check
+  if (file.type !== 'application/pdf') {
+    this.snackBar.open('Please upload a PDF file only.', 'Close', { duration: 3000 });
+    return;
+  }
 
+  // 2. Size Check (2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    this.snackBar.open('File size must be less than 2MB.', 'Close', { duration: 3000 });
+    return;
+  }
+
+  // 3. "Magic Number" Header Check (Local Sanity Check)
+  // This reads the first 4 bytes of the file to see if it actually starts with '%PDF'
+  const reader = new FileReader();
+  reader.onloadend = (e: any) => {
+    const arr = (new Uint8Array(e.target.result)).subarray(0, 4);
+    let header = "";
+    for (let i = 0; i < arr.length; i++) {
+       header += String.fromCharCode(arr[i]);
+    }
+    
+    if (header !== "%PDF") {
+      this.snackBar.open('Invalid PDF content detected.', 'Close', { duration: 3000 });
+      this.removeFile();
+    } else {
       this.selectedFile = file;
       this.selectedFileName = file.name;
       this.appealForm.patchValue({ appealFile: file });
     }
-  }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
   // Remove selected file button handler
   removeFile(): void {

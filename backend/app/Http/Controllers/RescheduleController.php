@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use App\Mail\AppealAccessRequested;
 use App\Mail\AppealAccessApproved;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 
 class RescheduleController extends Controller
 {
@@ -40,8 +42,6 @@ class RescheduleController extends Controller
             return response()->json(['message' => 'The end time must be after the start time.'], 422);
         }
 
-        // Use findOrFail to directly grab the schedule without the strict inner join 
-        // to prevent failure if the room_id is currently null/TBA
         $schedule = Schedule::findOrFail($validated['scheduleId']);
 
         $filePath = null;
@@ -49,6 +49,30 @@ class RescheduleController extends Controller
 
         if ($request->hasFile('appealFile')) {
             $file = $request->file('appealFile');
+
+            // --- VIRUS SCAN START ---
+            $apiKey = env('CLOUDMERSIVE_API_KEY');
+            
+            if ($apiKey) {
+                $scanResponse = Http::withHeaders(['Apikey' => $apiKey])
+                    ->attach('inputFile', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                    ->post('https://api.cloudmersive.com/virus/scan/file');
+
+                if ($scanResponse->successful()) {
+                    $scanResult = $scanResponse->json();
+                    
+                    if (isset($scanResult['CleanResult']) && $scanResult['CleanResult'] === false) {
+                        throw ValidationException::withMessages([
+                            'appealFile' => 'Security alert: Malicious content detected. Upload blocked.',
+                        ]);
+                    }
+                } else {
+                    return response()->json(['message' => 'Security scan service unavailable. Try again later.'], 503);
+                }
+            }
+            // --- VIRUS SCAN END ---
+
+            // File is clean, proceed with storage and AI summarization
             $filePath = $file->store('appeals', 'public');
             $absolutePath = storage_path('app/public/' . $filePath);
             $aiSummary = GeminiService::summarizeAppealDocument($absolutePath);
@@ -65,7 +89,6 @@ class RescheduleController extends Controller
             $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . trim($aiSummary);
         }
 
-        // Map the missing audit fields into the Appeal
         $appeal = Appeal::create([
             'schedule_id'         => $validated['scheduleId'],
             'original_day'        => $schedule->day,
@@ -406,7 +429,7 @@ class RescheduleController extends Controller
                     ->send(new \App\Mail\AppealAccessDenied($faculty->user->first_name));
             }
         } catch (\Throwable $e) {
-            // If the email fails (or class is missing), we catch the error, log it, and prevent the 500 crash.
+            // If the email fails (or class is missing), I catch the error, log it, and prevent the 500 crash.
             \Illuminate\Support\Facades\Log::error('Failed to send rejection email: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Appeal request denied, but the email failed to send.'
