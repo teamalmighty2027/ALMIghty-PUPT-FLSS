@@ -16,6 +16,7 @@ class FacultyProfileController extends Controller
         try {
             $user = $request->user();
             
+            // 1. Get the faculty record
             $faculty = Faculty::where('user_id', $user->id)->first();
             
             // Fetch profile using user_id instead of faculty_id
@@ -31,6 +32,7 @@ class FacultyProfileController extends Controller
                 }
             }
 
+            // Safely merge data
             $responseData = array_merge(
                 $user ? $user->toArray() : [],
                 $faculty ? $faculty->toArray() : [],
@@ -52,8 +54,10 @@ class FacultyProfileController extends Controller
         DB::beginTransaction();
 
         try {
+            // Get the faculty record
             $faculty = Faculty::where('user_id', $user->id)->firstOrFail();
 
+            // Update the name fields on the Faculty model
             $faculty->update($request->only(['first_name', 'last_name', 'middle_name', 'suffix_name']));
             
             if ($request->has('code')) {
@@ -86,6 +90,7 @@ class FacultyProfileController extends Controller
 
             DB::commit();
 
+            // Fallback added in case your model lacks a profile_picture_url accessor
             $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
