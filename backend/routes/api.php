@@ -294,7 +294,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Analytics
      */
-    Route::prefix('analytics')->group(function () {
+    Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
         Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
         Route::get('/room-utilization', [AnalyticsController::class, 'getRoomUtilization']);
         Route::get('/faculty-load', [AnalyticsController::class, 'getFacultyLoadDistribution']);
