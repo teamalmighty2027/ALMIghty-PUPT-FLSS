@@ -17,6 +17,9 @@ import {
 import { 
   AnalyticsRoomUtilizationComponent 
 } from './widgets/analytics-room-utilization/analytics-room-utilization.component';
+import { 
+  AnalyticsFacultyLoadComponent 
+} from './widgets/analytics-faculty-load/analytics-faculty-load.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -31,6 +34,7 @@ import { fadeAnimation } from '../../../animations/animations';
     AnalyticsHeatmapComponent,
     AnalyticsFacultyTypeComponent,
     AnalyticsRoomUtilizationComponent,
+    AnalyticsFacultyLoadComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',

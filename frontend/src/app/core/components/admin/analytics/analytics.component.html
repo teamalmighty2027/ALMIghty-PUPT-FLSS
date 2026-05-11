@@ -51,18 +51,6 @@
     <div class="grid-item">
       <div class="widget-card">
         <div class="widget-header">
-          <h3>Faculty Composition</h3>
-          <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
-        </div>
-        <div class="widget-body">
-          <app-analytics-faculty-type></app-analytics-faculty-type>
-        </div>
-      </div>
-    </div>
-
-    <div class="grid-item">
-      <div class="widget-card">
-        <div class="widget-header">
           <h3>Room Utilization</h3>
           <mat-icon fontSet="material-symbols-rounded">meeting_room</mat-icon>
         </div>
@@ -75,11 +63,23 @@
     <div class="grid-item">
       <div class="widget-card">
         <div class="widget-header">
+          <h3>Faculty Composition</h3>
+          <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-type></app-analytics-faculty-type>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
           <h3>Faculty Load Distribution</h3>
           <mat-icon fontSet="material-symbols-rounded">groups</mat-icon>
         </div>
         <div class="widget-body">
-          <p>Implementation in progress...</p>
+          <app-analytics-faculty-load></app-analytics-faculty-load>
         </div>
       </div>
     </div>

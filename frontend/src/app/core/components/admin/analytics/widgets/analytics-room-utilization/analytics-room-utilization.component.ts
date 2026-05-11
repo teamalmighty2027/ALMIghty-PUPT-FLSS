@@ -97,13 +97,15 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: any[]) => {
-          this.barChartData.labels = data.map(item => item.room_code);
-          
-          // Convert minutes to hours for better readability
-          this.barChartData.datasets[0].data = data.map(item => 
-            Math.round((item.total_scheduled_minutes / 60) * 10) / 10
-          );
-          
+          this.barChartData = {
+            labels: data.map(item => item.room_code),
+            datasets: [{
+              ...this.barChartData.datasets[0],
+              data: data.map(item => 
+                Math.round((item.total_scheduled_minutes / 60) * 10) / 10
+              )
+            }]
+          };
           this.isLoading = false;
         },
         error: (error) => {

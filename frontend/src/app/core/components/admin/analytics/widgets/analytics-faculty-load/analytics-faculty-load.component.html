@@ -1,0 +1,17 @@
+<div class="chart-container">
+  <div class="chart-wrapper" *ngIf="!isLoading; else loading">
+    <canvas 
+      baseChart
+      [data]="barChartData"
+      [options]="barChartOptions"
+      [type]="barChartType">
+    </canvas>
+  </div>
+
+  <ng-template #loading>
+    <div class="loading-overlay">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Analyzing faculty loads...</p>
+    </div>
+  </ng-template>
+</div>
