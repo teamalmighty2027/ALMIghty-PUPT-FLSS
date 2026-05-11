@@ -217,7 +217,10 @@ export class ProfilePageComponent implements OnInit {
     this.isLoading = true;
     this.profileForm.disable();
 
-    this.facultyService.getProfile().subscribe({
+    // FIX 1: Dynamically choose the correct service based on the user's role
+    const service = this.isAdmin ? this.adminService : this.facultyService;
+
+    service.getProfile().subscribe({
       next: (data) => {
         const formData = {
           ...data,
@@ -227,20 +230,18 @@ export class ProfilePageComponent implements OnInit {
           barangay: data.barangay || '',
         };
 
-        // Load existing image URL
         this.profilePictureUrl = data.profile_picture_url || null;
-        this.profilePictureUrl = data.profile_picture_url || null; // Load existing image
 
-        // Enable the form first before patching to ensure disabled fields get updated
         this.enableProfileForm();
-        
-        // Now patch the values
         this.profileForm.patchValue(formData);
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
         this.isLoading = false;
+        
+        // FIX 2: Re-enable the form even if the API request fails so the UI doesn't freeze
+        this.enableProfileForm();
       },
     });
   }
@@ -335,8 +336,12 @@ export class ProfilePageComponent implements OnInit {
         formData.append('profile_picture', this.selectedFile);
       }
 
+      // FIX 3: Spoof the PUT request for Laravel to process the FormData and File correctly
+      formData.append('_method', 'PUT');
+
       const service = this.isAdmin ? this.adminService : this.facultyService;
 
+      // CRITICAL: Ensure your service.updateProfile() uses this.http.post(), NOT this.http.put()
       service.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
