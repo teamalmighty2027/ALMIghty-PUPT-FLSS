@@ -81,7 +81,12 @@ class AnalyticsController extends Controller
             )
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.start_time')
-            ->select('schedules.day', 'schedules.start_time', 'schedules.end_time')
+            ->select(
+                'schedules.day', 
+                'schedules.start_time', 
+                DB::raw('count(*) as count')
+            )
+            ->groupBy('schedules.day', 'schedules.start_time')
             ->get();
 
         return response()->json([

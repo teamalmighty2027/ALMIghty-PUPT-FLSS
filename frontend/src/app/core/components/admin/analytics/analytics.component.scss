@@ -62,7 +62,7 @@
   }
 }
 
-.widget-placeholder {
+.widget-card {
   background: var(--mat-sys-surface-container-lowest);
   border: 1px solid var(--mat-sys-outline-variant);
   border-radius: 12px;
@@ -76,7 +76,7 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   }
 
-  &.heatmap-widget {
+  &.heatmap-card {
     min-height: 400px;
   }
 
