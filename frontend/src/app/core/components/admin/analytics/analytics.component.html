@@ -34,8 +34,8 @@
   </div>
 
   <div class="analytics-grid">
-    <!-- Tier 1: Primary Metrics & Heatmap -->
-    <div class="grid-item span-full">
+    <!-- Left Column: Main Distribution Heatmap -->
+    <div class="grid-item span-v-3">
       <div class="widget-card heatmap-card">
         <div class="widget-header">
           <h3>Schedule Distribution (Heatmap)</h3>
@@ -47,8 +47,20 @@
       </div>
     </div>
 
-    <!-- Tier 2: Resource Utilization -->
-    <div class="grid-item span-full">
+    <!-- Right Column: Stacking 3 widgets -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <h3>Faculty Composition</h3>
+          <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-type></app-analytics-faculty-type>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-item">
       <div class="widget-card">
         <div class="widget-header">
           <h3>Room Utilization</h3>
@@ -72,19 +84,7 @@
       </div>
     </div>
 
-    <!-- Tier 3: Composition & Activity -->
-    <div class="grid-item">
-      <div class="widget-card">
-        <div class="widget-header">
-          <h3>Faculty Composition</h3>
-          <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
-        </div>
-        <div class="widget-body">
-          <app-analytics-faculty-type></app-analytics-faculty-type>
-        </div>
-      </div>
-    </div>
-
+    <!-- Bottom Row (spans if needed or continues stacking) -->
     <div class="grid-item">
       <div class="widget-card">
         <div class="widget-header">

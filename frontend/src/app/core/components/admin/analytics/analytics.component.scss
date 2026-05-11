@@ -59,6 +59,14 @@
     &.span-full {
       grid-column: 1 / -1;
     }
+
+    &.span-v-2 {
+      grid-row: span 2;
+    }
+
+    &.span-v-3 {
+      grid-row: span 3;
+    }
   }
 }
 
@@ -81,7 +89,7 @@
   }
 
   &.heatmap-card {
-    min-height: 400px;
+    min-height: 800px;
   }
 
   .widget-header {
