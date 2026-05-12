@@ -25,6 +25,9 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { CookieService } from 'ngx-cookie-service';
 
+// Added AdminService Import
+import { AdminService } from '../../../services/superadmin/management/admin/admin-profile.service';
+
 import { slideInAnimation, fadeAnimation, slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 import { HasPermissionDirective } from '../../../directives/has-permission.directive';
@@ -90,7 +93,8 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private cookieService: CookieService,
     private el: ElementRef,
     private renderer: Renderer2,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private adminService: AdminService // Injected AdminService
   ) {
     this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
@@ -142,6 +146,17 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
     this.accountName = this.authService.getUserName();
     this.accountRole = this.toTitleCase(this.authService.getUserRole());
     this.accountEmail = this.authService.getUserEmail();
+
+    // Fetch the profile data on initial load to ensure the admin picture populates
+    this.adminService.getProfile().subscribe({
+      next: (profile) => {
+        if (profile && profile.profile_picture_url) {
+          this.accountProfilePictureUrl = profile.profile_picture_url;
+          this.authService.updateProfilePictureUrl(profile.profile_picture_url);
+        }
+      },
+      error: (err) => console.error('Failed to load admin profile picture on startup', err)
+    });
   }
 
   public toggleTheme() {
@@ -208,7 +223,9 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,      autoFocus: true,    });
+      disableClose: true,
+      autoFocus: true,
+    });
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result?.message) {

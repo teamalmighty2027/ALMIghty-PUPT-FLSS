@@ -7,20 +7,17 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\UserProfile;
+use Illuminate\Support\Facades\Log;
 
 class AdminProfileController extends Controller
 {
-    /**
-     * Display the specified admin profile.
-     */
     public function show(Request $request)
     {
-        $user = $request->user();
-        $profile = UserProfile::where('user_id', $user->id)->first();
+        try {
+            $user = $request->user();
+            $profile = UserProfile::where('user_id', $user->id)->first();
 
-        $responseData = array_merge(
-            $user->toArray(),
-            $profile ? $profile->toArray() : [
+            $profileArray = [
                 'department' => '',
                 'birthdate' => null,
                 'sex' => '',
@@ -33,15 +30,27 @@ class AdminProfileController extends Controller
                 'zipcode' => '',
                 'profile_picture' => null,
                 'profile_picture_url' => null,
-            ]
-        );
+            ];
 
-        return response()->json($responseData);
+            if ($profile) {
+                $profileArray = array_merge($profileArray, $profile->toArray());
+                
+                // Convert raw database path into a full web URL for Admins
+                if ($profile->profile_picture) {
+                    $profileArray['profile_picture_url'] = url('storage/' . $profile->profile_picture);
+                }
+            }
+
+            $responseData = array_merge($user->toArray(), $profileArray);
+
+            return response()->json($responseData);
+            
+        } catch (\Exception $e) {
+            Log::error('Admin Profile GET Error: ' . $e->getMessage());
+            return response()->json(['error' => 'Internal Server Error', 'details' => $e->getMessage()], 500);
+        }
     }
 
-    /**
-     * Update the specified admin profile.
-     */
     public function update(Request $request)
     {
         $user = $request->user();
@@ -49,7 +58,6 @@ class AdminProfileController extends Controller
         DB::beginTransaction();
 
         try {
-            // Update base user data
             $user->update($request->only([
                 'first_name', 
                 'last_name', 
@@ -57,34 +65,23 @@ class AdminProfileController extends Controller
                 'suffix_name'
             ]));
 
-            // Prepare profile data
             $profileData = $request->only([
-                'house_num', 
-                'street', 
-                'barangay', 
-                'city', 
-                'province', 
-                'country', 
-                'zipcode', 
-                'department',
-                'birthdate', 
-                'sex'
+                'house_num', 'street', 'barangay', 'city', 
+                'province', 'country', 'zipcode', 'department',
+                'birthdate', 'sex'
             ]);
 
-            // Handle Profile Picture Upload
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
                 $path = $file->store('profile_pictures', 'public');
                 $profileData['profile_picture'] = $path;
                 
-                // Delete old picture if it exists
                 $currentProfile = UserProfile::where('user_id', $user->id)->first();
                 if ($currentProfile && $currentProfile->profile_picture) {
                     Storage::disk('public')->delete($currentProfile->profile_picture);
                 }
             }
 
-            // Update or create the profile
             $updatedProfile = UserProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 $profileData
@@ -92,12 +89,15 @@ class AdminProfileController extends Controller
 
             DB::commit();
 
+            $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
+
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'profile_picture_url' => $updatedProfile->profile_picture_url
+                'profile_picture_url' => $pictureUrl
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Admin Profile POST Error: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Failed to update profile', 
                 'error' => $e->getMessage()
