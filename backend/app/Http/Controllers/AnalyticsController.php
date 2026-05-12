@@ -198,6 +198,18 @@ class AnalyticsController extends Controller
                 '=', 
                 'courses.course_id'
             )
+            ->leftJoin(
+                'sections_per_program_year',
+                'section_courses.sections_per_program_year_id',
+                '=',
+                'sections_per_program_year.sections_per_program_year_id'
+            )
+            ->where(function($query) use ($activeSemester) {
+                $query->where(
+                    'sections_per_program_year.academic_year_id',
+                    $activeSemester->academic_year_id
+                );
+            })
             ->select(
                 'faculty.id',
                 'users.first_name',
