@@ -307,17 +307,29 @@ class AnalyticsController extends Controller
                 'section_courses.sections_per_program_year_id'
             )
             ->leftJoin(
+                'course_assignments',
+                'section_courses.course_assignment_id',
+                '=',
+                'course_assignments.course_assignment_id'
+            )
+            ->leftJoin(
                 'schedules', 
                 'section_courses.section_course_id', 
                 '=', 
                 'schedules.section_course_id'
             )
             ->where(function($query) use ($activeSemester) {
-                $query->where(
-                    'sections_per_program_year.academic_year_id', 
-                    $activeSemester->academic_year_id
-                )
-                ->orWhereNull('sections_per_program_year.academic_year_id');
+                $query->where(function($q) use ($activeSemester) {
+                    $q->where(
+                        'sections_per_program_year.academic_year_id', 
+                        $activeSemester->academic_year_id
+                    )
+                    ->where(
+                        'course_assignments.semester_id', 
+                        $activeSemester->semester_id
+                    );
+                })
+                ->orWhereNull('sections_per_program_year.sections_per_program_year_id');
             })
             ->select(
                 'programs.program_code',

@@ -20,6 +20,9 @@ import {
 import { 
   AnalyticsFacultyLoadComponent 
 } from './widgets/analytics-faculty-load/analytics-faculty-load.component';
+import { 
+  AnalyticsProgramCoverageComponent 
+} from './widgets/analytics-program-coverage/analytics-program-coverage.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -35,6 +38,7 @@ import { fadeAnimation } from '../../../animations/animations';
     AnalyticsFacultyTypeComponent,
     AnalyticsRoomUtilizationComponent,
     AnalyticsFacultyLoadComponent,
+    AnalyticsProgramCoverageComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
