@@ -11,6 +11,10 @@ use App\Http\Controllers\CurriculumDetailsController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+<<<<<<< HEAD
+=======
+use App\Http\Controllers\FacultyProfileController;
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
@@ -31,6 +35,7 @@ use App\Http\Controllers\TemporaryCourseOfferingController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |----------------------------
@@ -44,6 +49,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 });
 
 /**
@@ -58,6 +64,15 @@ Route::prefix('auth')->group(function () {
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Fallback route for Philippine Addresses (Publicly accessible)
+Route::get('/addresses/fallback/{file}', function ($file) {
+    if (!Storage::disk('public')->exists('addresses/' . $file)) {
+        return response()->json([], 404);
+    }
+    $content = Storage::disk('public')->get('addresses/' . $file);
+    return response()->json(json_decode($content));
+});
 
 /*
 |-----------------------------
@@ -330,7 +345,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
     Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
 
     /**

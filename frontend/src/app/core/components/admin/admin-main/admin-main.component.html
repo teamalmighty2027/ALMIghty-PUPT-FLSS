@@ -85,7 +85,7 @@
         </button>
         <div class="mobile-admin-account" *ngIf="!isDropdownOpen">
           <div class="profile-dropdown">
-            <img src="../../../../../assets/images/default_admin_icon.png" alt="Profile Icon" class="profile-icon" />
+            <img [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'" alt="Profile Icon" class="profile-icon" />
           </div>
           <div class="account-text">
             <div class="account-name">{{ accountName }}</div>
@@ -100,7 +100,11 @@
       <div class="mobile-dropdown" [@slideUpDown]>
         <div class="mobile-dropdown-header">
           <img
+<<<<<<< HEAD
             src="../../../../../assets/images/default_admin_icon.png"
+=======
+            [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'"
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
             alt="Profile Icon"
             class="mobile-profile-icon" />
           <div class="mobile-account-info">
@@ -156,7 +160,11 @@
           </div>
           <div class="admin-account" [class.profile-active]="isProfileRoute" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings" matTooltipPosition="below">
             <div class="profile-dropdown">
+<<<<<<< HEAD
               <img src="../../../../../assets/images/default_admin_icon.png" alt="Profile Icon" class="profile-icon" />
+=======
+              <img [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'" alt="Profile Icon" class="profile-icon" />
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
             </div>
             <div class="account-text">
               <div class="account-name">{{ accountName }}</div>
@@ -177,6 +185,7 @@
       <div class="menu-divider"></div>
 
       <button mat-menu-item (click)="onMenuAction('profile')">
+<<<<<<< HEAD
         <span mat-symbol="account_circle"></span>
         My Profile
       </button>
@@ -184,13 +193,27 @@
       <button mat-menu-item (click)="onMenuAction('change-password')">
         <span mat-symbol="lock"></span>
         Change Password
+=======
+        <span mat-symbol="account_circle" class="menu-icon"></span>
+        <span>My Profile</span>
+      </button>
+
+      <button mat-menu-item (click)="onMenuAction('change-password')">
+        <span mat-symbol="lock" class="menu-icon"></span>
+        <span>Change Password</span>
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
       </button>
 
       <div class="menu-divider"></div>
 
       <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
+<<<<<<< HEAD
         <span mat-symbol="door_open"></span>
         Logout
+=======
+        <span mat-symbol="door_open" class="menu-icon"></span>
+        <span>Logout</span>
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
       </button>
     </mat-menu>
 

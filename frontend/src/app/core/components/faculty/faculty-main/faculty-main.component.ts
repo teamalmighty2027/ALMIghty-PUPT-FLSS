@@ -20,6 +20,7 @@ import { CookieService } from 'ngx-cookie-service';
 
 import { slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { FacultyService } from '../../../services/superadmin/management/faculty/faculty.service';
 
 @Component({
   selector: 'app-faculty-main',
@@ -59,6 +60,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public facultyName: string | null = '';
   public facultyEmail: string | null = '';
+  public facultyProfilePictureUrl: string | null = null;
 
   constructor(
     public themeService: ThemeService,
@@ -69,6 +71,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private authService: AuthService,
     private dialog: MatDialog,
     private cookieService: CookieService,
+    private facultyService: FacultyService
   ) {}
 
   navigateToProfile() {
@@ -78,6 +81,11 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadFacultyInfo();
+
+    this.authService.profilePictureUrl$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(url => this.facultyProfilePictureUrl = url);
+
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
@@ -105,6 +113,20 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadFacultyInfo(): void {
     this.facultyName = this.authService.getUserName();
     this.facultyEmail = this.authService.getUserEmail();
+
+    // Fetch the profile data on initial load to ensure the picture populates
+    this.facultyService.getProfile().subscribe({
+      next: (profile) => {
+        if (profile && profile.profile_picture_url) {
+          // Set the local variable for the navbar
+          this.facultyProfilePictureUrl = profile.profile_picture_url;
+          
+          // Optionally push it to the auth service so other components stay synced
+          this.authService.updateProfilePictureUrl(profile.profile_picture_url);
+        }
+      },
+      error: (err) => console.error('Failed to load profile picture on startup', err)
+    });
   }
 
   toggleDropdown(event: Event) {

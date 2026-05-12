@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Observable, Subject, forkJoin, of, from } from 'rxjs';
 import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
+import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -39,8 +40,6 @@ import {
   TemporaryCourseOfferingPayload,
   DraftEntry
 } from '../../../models/scheduling.model';
-
-import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
 
 @Component({
   selector: 'app-scheduling',
@@ -89,8 +88,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   activeYear: string = '';
   activeSemester: number = 0;
+  activeSemesterId: number = 0;
+  activeSemesterRecordId: number | null = null;
   activeAcademicYearId: number | null = null;
-  activeSemesterId: number | null = null;
   startDate: string = '';
   endDate: string = '';
 
@@ -111,6 +111,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   hasBridgingCourses: boolean = false;
 
+  isMlPredicting: boolean = false;
+  
   private destroy$ = new Subject<void>();
   private readonly DIALOG_INFO_PREF_KEY = 'doNotShowDialogInfo';
 
@@ -121,7 +123,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private draftStateService: DraftStateService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -452,35 +454,34 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     from(emptySlots).pipe(
       concatMap(slot => {
-        return this.schedulingService.getAISuggestion(
+        return this.schedulingService.getSmartSuggestion(
+          slot.course_id,
+          this.activeAcademicYearId || 0,
+          this.activeSemesterId || 0,
+          this.activeSemesterRecordId || 0,
           programId,
           this.selectedYear,
-          sectionId,
-          slot.course_id
+          sectionId
         ).pipe(
           switchMap(suggestion => {
-            if (suggestion && suggestion.preferences && suggestion.preferences.length > 0) {
-              const pref = suggestion.preferences[0];
-              const [startTime, endTime] = pref.time.split(' - ').map((t: string) => t.trim());
-              
+            if (suggestion && suggestion.faculty_id) {
               const entry: DraftEntry = {
                 schedule_id: slot.schedule_id!,
                 faculty_id: suggestion.faculty_id,
-                faculty_name: suggestion.name,
+                faculty_name: suggestion.faculty_name,
                 room_id: null,
                 room_code: 'Not set',
-                day: pref.day,
-                start_time: this.convertTimeToBackendFormat(startTime),
-                end_time: this.convertTimeToBackendFormat(endTime),
+                day: suggestion.day,
+                start_time: this.convertTimeToBackendFormat(suggestion.start_time),
+                end_time: this.convertTimeToBackendFormat(suggestion.end_time),
                 hasConflict: false
               };
               this.draftStateService.set(slot.schedule_id!, entry);
               return this.runConflictCheck(entry);
             } else {
-              console.warn(`[AI Fill] No suitable preferences found for ${slot.course_code}.`);
               unassignedCount++;
+              return of(void 0);
             }
-            return of(void 0);
           }),
           tap(() => {
             this.aiFillProgress.current++;
@@ -500,12 +501,92 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         
         const assignedCount = emptySlots.length - unassignedCount;
         const msg = assignedCount === emptySlots.length 
-          ? `AI fill completed. All ${emptySlots.length} slots filled successfully.`
-          : `AI fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned due to lacking preferences.`;
+          ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
+          : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
         
         this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
+  }
+
+  /**
+   * Triggers a suggestion for a single row.
+   */
+  protected onMlSuggest(slot: Schedule): void {
+    if (this.isAiFilling || this.isMlPredicting) return;
+
+    this.isMlPredicting = true;
+    this.snackBar.open(
+      `Analyzing suggestions for ${slot.course_code}...`, 
+      'Close', 
+      { duration: 2000 }
+    );
+
+    const selectedOption = this.programOptions.find(
+      (o) => o.display === this.selectedProgram
+    );
+    const programId = selectedOption?.id || 0;
+    
+    const selectedYearLevelObj = selectedOption?.year_levels.find(
+      (y: any) => y.year_level === this.selectedYear
+    );
+    const selectedSectionObj = selectedYearLevelObj?.sections.find(
+      (s: any) => s.section_name === this.selectedSection
+    );
+    const sectionId = selectedSectionObj?.section_id || 0;
+
+    this.schedulingService.getSmartSuggestion(
+      slot.course_id,
+      this.activeAcademicYearId || 0,
+      this.activeSemesterId || 0,
+      this.activeSemesterRecordId || 0,
+      programId,
+      this.selectedYear,
+      sectionId
+    ).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isMlPredicting = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe(suggestion => {
+      if (suggestion && suggestion.faculty_id) {
+        const entry: DraftEntry = {
+          schedule_id: slot.schedule_id!,
+          faculty_id: suggestion.faculty_id,
+          faculty_name: suggestion.faculty_name,
+          room_id: null,
+          room_code: 'Not set',
+          day: suggestion.day,
+          start_time: this.convertTimeToBackendFormat(
+            suggestion.start_time
+          ),
+          end_time: this.convertTimeToBackendFormat(
+            suggestion.end_time
+          ),
+          hasConflict: false
+        };
+        
+        this.draftStateService.set(slot.schedule_id!, entry);
+        this.runConflictCheck(entry).subscribe(() => {
+          this.rebuildDraftSchedules();
+          this.cdr.markForCheck();
+          
+          const source = suggestion.isMl ? 'ML Model' : 'Backend Rules';
+          this.snackBar.open(
+            `Suggested ${suggestion.faculty_name} (${source})`, 
+            'Close', 
+            { duration: 3000 }
+          );
+        });
+      } else {
+        this.snackBar.open(
+          `No suggestions found for ${slot.course_code}`, 
+          'Close', 
+          { duration: 3000 }
+        );
+      }
+    });
   }
 
   /**
@@ -546,10 +627,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         concatMap(entry => {
           saveStream$.next({ schedule_id: entry.schedule_id, status: 'saving' });
 
-          const selectedOption = this.programOptions.find(o => o.display === this.selectedProgram);
+          const selectedOption = this.programOptions.find(
+            (o) => o.display === this.selectedProgram
+          );
           const programId = selectedOption?.id || 0;
-          const selectedYearLevelObj = selectedOption?.year_levels.find((y: any) => y.year_level === this.selectedYear);
-          const selectedSectionObj = selectedYearLevelObj?.sections.find((s: any) => s.section_name === this.selectedSection);
+          const selectedYearLevelObj = selectedOption?.year_levels.find(
+            (y: any) => y.year_level === this.selectedYear
+          );
+          const selectedSectionObj = selectedYearLevelObj?.sections.find(
+            (s: any) => s.section_name === this.selectedSection
+          );
           const sectionId = selectedSectionObj?.section_id || 0;
           
           return this.schedulingService.assignSchedule(
@@ -1034,6 +1121,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.isSubmissionEnabled = response.is_submission_enabled;
         this.activeAcademicYearId = response.academic_year_id;
         this.activeSemesterId = response.semester_id;
+        this.activeSemesterRecordId = response.active_semester_id;
 
         this.schedules = sectionData.courses.map(
           (course: CourseResponse, index, array) => {

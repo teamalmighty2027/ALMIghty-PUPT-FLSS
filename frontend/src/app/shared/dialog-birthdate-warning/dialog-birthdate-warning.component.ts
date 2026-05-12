@@ -7,6 +7,7 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
   selector: 'app-dialog-birthdate-warning',
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule],
+<<<<<<< HEAD
   template: `
     <div class="dialog-content">
       <h2 class="dialog-title">Invalid Birthdate</h2>
@@ -42,6 +43,15 @@ import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 })
 export class DialogBirthdateWarningComponent {
   constructor(private dialogRef: MatDialogRef<DialogBirthdateWarningComponent>) {}
+=======
+  templateUrl: './dialog-birthdate-warning.component.html',
+  styleUrl: './dialog-birthdate-warning.component.scss'
+})
+export class DialogBirthdateWarningComponent {
+  constructor(
+    private dialogRef: MatDialogRef<DialogBirthdateWarningComponent>
+  ) {}
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
 
   close(): void {
     this.dialogRef.close();

@@ -53,10 +53,12 @@ export class DialogFacultyLoginComponent implements OnInit {
     @Inject(MAT_DIALOG_DATA) public data: any,
   ) {}
 
+  // Initialize the dialog form.
   ngOnInit(): void {
     this.initForm();
   }
 
+  // Configure the login form controls.
   initForm(): void {
     this.loginForm = this.formBuilder.group({
       email: [
@@ -78,22 +80,27 @@ export class DialogFacultyLoginComponent implements OnInit {
     });
   }
 
+  // Return the email control.
   get email() {
     return this.loginForm.get('email');
   }
 
+  // Return the password control.
   get password() {
     return this.loginForm.get('password');
   }
 
+  // Toggle password visibility.
   public togglePasswordVisibility(): void {
     this.showPassword = !this.showPassword;
   }
 
+  // Close the dialog without logging in.
   public onCloseClick(): void {
     this.dialogRef.close();
   }
 
+  // Submit the login form and navigate on success.
   public onSubmit(): void {
     if (this.loginForm.valid) {
       this.isLoading = true;
@@ -101,12 +108,7 @@ export class DialogFacultyLoginComponent implements OnInit {
 
       this.authService.handleLogin(email, password, ['faculty']).subscribe({
         next: (response) => {
-          const expiryDate = new Date(response.expires_at);
-
           this.authService.setSanctumToken(response.token, response.expires_at);
-
-          const expirationTime = expiryDate.getTime() - Date.now();
-          setTimeout(() => this.onAutoLogout(), expirationTime);
 
           this.isLoading = false;
           this.dialogRef.close();
@@ -120,6 +122,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     }
   }
 
+  // Start the IDP login flow.
   onIdpLogin(): void {
     if (this.isRedirectDialogOpen) return;
 
@@ -145,6 +148,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     }
   }
 
+  // Log out after an automatic expiry event.
   private onAutoLogout(): void {
     if (this.authService.getToken()) {
       this.authService.logout().subscribe({
@@ -158,6 +162,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     }
   }
 
+  // Finalize logout by clearing auth state and redirecting.
   private handleLogoutSuccess(message?: string): void {
     this.authService.clearCookies();
     this.dialogRef.close();
@@ -167,6 +172,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
+  // Show error feedback for the login attempt.
   private showErrorSnackbar(message: string): void {
     this.snackbar.open(message, 'Close', {
       duration: 5000,
@@ -176,6 +182,7 @@ export class DialogFacultyLoginComponent implements OnInit {
     });
   }
 
+  // Navigate to the password reset flow.
   public onForgotPassword(): void {
     this.dialogRef.close();
     this.router.navigate(['/reset-password']);

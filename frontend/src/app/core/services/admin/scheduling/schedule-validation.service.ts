@@ -351,13 +351,28 @@ export class ScheduleValidationService {
 
   /**
    * Formats a time string for display.
+   * Handles 24h (HH:mm:ss) and already formatted 12h (HH:mm AM/PM) strings.
    * @returns A formatted time string.
    */
   public formatTimeForDisplay(time: string): string {
     if (!time) return '';
-    const [hours, minutes] = time.split(':').map(Number);
+    
+    // If it's already in AM/PM format, just return it
+    if (time.toUpperCase().includes('AM') || time.toUpperCase().includes('PM')) {
+      return time;
+    }
+
+    const parts = time.split(':');
+    if (parts.length < 2) return time;
+
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+
+    if (isNaN(hours) || isNaN(minutes)) return time;
+
     const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours % 12 || 12;
+    
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   }
 

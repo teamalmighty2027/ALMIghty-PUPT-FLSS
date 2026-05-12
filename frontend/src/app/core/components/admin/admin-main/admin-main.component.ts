@@ -72,6 +72,10 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   public accountEmail!: string;
   public isReportsView: boolean = false;
   public isProfileRoute: boolean = false;
+<<<<<<< HEAD
+=======
+  public accountProfilePictureUrl: string | null = null;
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
 
   public isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
@@ -101,6 +105,10 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     this.initializeUserData();
+    
+    this.authService.profilePictureUrl$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(url => this.accountProfilePictureUrl = url);
     
     if (this.cookieService.get('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {

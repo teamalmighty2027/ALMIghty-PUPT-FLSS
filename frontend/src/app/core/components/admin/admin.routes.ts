@@ -88,6 +88,19 @@ export const ADMIN_ROUTES: Routes = [
             data: { pageTitle: 'Reports' },
           },
           {
+            path: 'faculty-assignment',
+            loadComponent: () =>
+              import('./reports/report-faculty-assignment/report-faculty-assignment.component').then(
+                (m) => m.ReportFacultyAssignmentComponent
+              ),
+            data: { pageTitle: 'Reports' },
+          },
+          {
+            path: '',
+            redirectTo: 'faculty',
+            pathMatch: 'full',
+          },
+          {
             path: '',
             redirectTo: 'faculty',
             pathMatch: 'full',

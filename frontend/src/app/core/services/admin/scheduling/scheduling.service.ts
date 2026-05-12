@@ -1,8 +1,15 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
-import { Observable, throwError, forkJoin } from 'rxjs';
-import { catchError, map, shareReplay, tap } from 'rxjs/operators';
+import { 
+  Observable, throwError, forkJoin, from, of 
+} from 'rxjs';
+
+import { 
+  catchError, map, shareReplay, tap, switchMap, mergeMap, concatMap, toArray, reduce 
+} from 'rxjs/operators';
+
+import { ScheduleSuggestionService } from './schedule-suggestion.service';
 
 import { ScheduleValidationService } from './schedule-validation.service';
 import {
@@ -14,6 +21,7 @@ import {
   CourseCatalogItem,
   BridgingCourseOption,
   TemporaryCourseOfferingPayload,
+  SmartSuggestion,
 } from '../../../models/scheduling.model';
 
 import { environment } from '../../../../../environments/environment.dev';
@@ -39,7 +47,8 @@ export class SchedulingService {
 
   constructor(
     private http: HttpClient,
-    private scheduleValidationService: ScheduleValidationService
+    private scheduleValidationService: ScheduleValidationService,
+    private mlService: ScheduleSuggestionService
   ) {}
 
   /**
@@ -406,56 +415,187 @@ export class SchedulingService {
 
   /*
   * Creates an Observable that, when subscribed, sends a POST request
-  * to fetch AI scheduling suggestions for the given parameters.
+  * to fetch heuristic scheduling suggestions for the given parameters.
   **/
-  public getAISuggestion(
+  public getHeuristicSuggestion(
     program_id: number,
     year_level: number,
     section_id: number,
     course_id: number
   ): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/ai-suggestion`, { 
+      .post<any>(`${this.baseUrl}/suggestion-heuristic`, { 
         program_id, 
         year_level, 
         section_id,
         course_id
       })
       .pipe(
-        // Map backend response to front-end SuggestedFaculty shape
-        map(response => {
-          if (!response) return null;
-
-          if (response.success === false) {
-            return { success: false, message: response.message};
-          }
-
-          const facultyId = response.faculty_id ?? null;
-          const name = response.faculty_name ?? null;
-          const facultyType = response.faculty_type ?? 'Unknown';
-
-          const prefs: { day: string; time: string }[] = [];
-          const start = response.preferred_start_time;
-          const end = response.preferred_end_time;
-          const day = response.preference_day;
-
-          if (day && start && end) {
-            const displayStart = this.scheduleValidationService.formatTimeForDisplay(start);
-            const displayEnd = this.scheduleValidationService.formatTimeForDisplay(end);
-            prefs.push({ day, time: `${displayStart} - ${displayEnd}` });
-          }
-
-          return {
-            faculty_id: facultyId,
-            success: response.success,
-            name,
-            type: facultyType,
-            preferences: prefs,
-            prefIndex: 0,
-            animating: false
-          };
-        }),
         catchError(this.handleError)
       );
+  }
+  /**
+   * Orchestrates the suggestion process: ML first, then backend fallback.
+   * @param courseId The ID of the course to find a suggestion for.
+   * @param academicYearId The academic year ID.
+   * @param semesterId The semester ID.
+   * @param activeSemesterId The active semester record ID.
+   */
+  public getSmartSuggestion(
+    courseId: number,
+    academicYearId: number,
+    semesterId: number,
+    activeSemesterId: number,
+    programId: number,
+    yearLevel: number,
+    sectionId: number
+  ): Observable<SmartSuggestion> {
+    return this.getSubmittedPreferencesForActiveSemester().pipe(
+      switchMap(response => {
+        const preferences = response.preferences || [];
+        const candidates: any[] = [];
+        
+        preferences.forEach(pref => {
+          const activeSem = pref.active_semesters.find(s => 
+            s.academic_year_id === academicYearId && 
+            s.semester_id === semesterId
+          );
+
+          if (activeSem) {
+            const coursePref = activeSem.courses.find(c => 
+              c.course_details.course_id === courseId
+            );
+
+            if (coursePref) {
+              coursePref.preferred_days.forEach(dayPref => {
+                candidates.push({
+                  faculty_id: pref.faculty_id,
+                  faculty_name: pref.faculty_name,
+                  course_assignment_id: coursePref.course_assignment_id,
+                  is_ignored: !!coursePref.is_ignored,
+                  day: dayPref.day,
+                  start_time: dayPref.start_time,
+                  end_time: dayPref.end_time
+                });
+              });
+            }
+          }
+        });
+
+        if (candidates.length === 0) {
+          return this.runBackendFallback(
+            programId, 
+            yearLevel, 
+            sectionId, 
+            courseId
+          );
+        }
+
+        return from(candidates).pipe(
+          mergeMap(c => {
+            const startMin = this.timeToMinutes(c.start_time);
+            const endMin = this.timeToMinutes(c.end_time);
+
+            return this.mlService.predict(
+              c.faculty_id,
+              academicYearId,
+              semesterId,
+              activeSemesterId,
+              c.course_assignment_id,
+              0,
+              c.is_ignored,
+              c.day,
+              startMin,
+              endMin
+            ).pipe(
+              map(ml => ({ ...c, ml }))
+            );
+          }, 4), // Run up to 4 predictions in parallel
+          reduce((best: any, current: any) => {
+            const currentConfidence = current.ml?.confidence || 0;
+            const bestConfidence = best?.ml?.confidence || 0;
+            return currentConfidence > bestConfidence ? current : best;
+          }, null),
+          map(bestMatch => {
+            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+              return {
+                faculty_id: bestMatch.faculty_id,
+                faculty_name: bestMatch.faculty_name,
+                day: bestMatch.day,
+                start_time: bestMatch.start_time,
+                end_time: bestMatch.end_time,
+                confidence: bestMatch.ml!.confidence,
+                isMl: true,
+                success: true
+              } as SmartSuggestion;
+            }
+
+            return null;
+          }),
+          switchMap(mlSuggestion => {
+            if (mlSuggestion) return of(mlSuggestion);
+            return this.runBackendFallback(
+              programId, 
+              yearLevel, 
+              sectionId, 
+              courseId
+            );
+          })
+        );
+      }),
+      catchError(() => this.runBackendFallback(
+        programId, 
+        yearLevel, 
+        sectionId, 
+        courseId
+      ))
+    );
+  }
+
+  private runBackendFallback(
+    programId: number, 
+    yearLevel: number, 
+    sectionId: number, 
+    courseId: number
+  ): Observable<SmartSuggestion> {
+    return this.getHeuristicSuggestion(
+      programId, 
+      yearLevel, 
+      sectionId, 
+      courseId
+    ).pipe(
+      map(res => {
+        if (!res || !res.success || !res.faculty_id) {
+          return { success: false } as SmartSuggestion;
+        }
+
+        return {
+          faculty_id: res.faculty_id,
+          faculty_name: res.faculty_name,
+          day: res.preference_day,
+          start_time: res.preferred_start_time,
+          end_time: res.preferred_end_time,
+          isMl: false,
+          success: true
+        } as SmartSuggestion;
+      })
+    );
+  }
+
+  /**
+   * Converts a 12-hour format time string to total minutes from midnight.
+   * @param time The time string (e.g., "08:00 AM").
+   * @returns The total minutes as a number.
+   */
+  private timeToMinutes(time: string): number {
+    if (!time) return 0;
+    
+    const [timeStr, modifier] = time.split(' ');
+    let [hours, minutes] = timeStr.split(':').map(Number);
+    
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    
+    return (hours * 60) + minutes;
   }
 }

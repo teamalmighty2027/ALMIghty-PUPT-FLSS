@@ -68,7 +68,8 @@
           </div>
           <div class="field-group department" *ngIf="!isAdmin">
             <label>Department</label>
-            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept">
+            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept" 
+                  [title]="profileForm.get('department')?.value || ''">
           </div>
         </div>
 
@@ -97,20 +98,45 @@
     
     <div class="address-grid">
       <div class="field-group">
-        <input formControlName="house_num" placeholder="House #" class="pill-input">
+        <input formControlName="house_num" placeholder="House / Unit #" class="pill-input"
+              [title]="profileForm.get('house_num')?.value || ''">
       </div>
       <div class="field-group">
-        <input formControlName="street" placeholder="Street" class="pill-input">
+        <input formControlName="street" placeholder="Street / Subdivision" class="pill-input"
+              [title]="profileForm.get('street')?.value || ''">
       </div>
+
+      <!-- Province Dropdown -->
       <div class="field-group">
-        <input formControlName="barangay" placeholder="Barangay" class="pill-input">
+        <select formControlName="province" class="pill-input">
+          <!-- Note the brackets around [value]="''" -->
+          <option [value]="''" disabled selected>Select Province...</option>
+          <option *ngFor="let prov of provinces" [value]="prov.name">
+            {{ prov.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- City Dropdown -->
       <div class="field-group">
-        <input formControlName="city" placeholder="City" class="pill-input">
+        <select formControlName="city" class="pill-input">
+          <option [value]="''" disabled selected>Select City/Municipality...</option>
+          <option *ngFor="let city of cities" [value]="city.name">
+            {{ city.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- Barangay Dropdown -->
       <div class="field-group">
-        <input formControlName="province" placeholder="Province" class="pill-input">
+        <select formControlName="barangay" class="pill-input">
+          <option [value]="''" disabled selected>Select Barangay...</option>
+          <option *ngFor="let brgy of barangays" [value]="brgy.name">
+            {{ brgy.name }}
+          </option>
+        </select>
       </div>
+
       <div class="field-group">
         <input formControlName="zipcode" placeholder="Zipcode" class="pill-input" maxlength="4">
         <span class="error-text" *ngIf="profileForm.get('zipcode')?.invalid && profileForm.get('zipcode')?.touched">

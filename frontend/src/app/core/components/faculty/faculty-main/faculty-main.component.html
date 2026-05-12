@@ -50,7 +50,7 @@
       </div>
       <div class="profile-dropdown">
         <img
-          src="assets/images/default_faculty_icon.png"
+          [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
           alt="Profile Icon"
           class="profile-icon"
           [matMenuTriggerFor]="desktopProfileMenu" 
@@ -69,6 +69,7 @@
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('profile')">
+<<<<<<< HEAD
       <span mat-symbol="account_circle"></span>
       My Profile
     </button>
@@ -81,13 +82,32 @@
     <button mat-menu-item (click)="onMenuAction('theme')">
       <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
       Switch Theme
+=======
+      <span mat-symbol="account_circle" class="menu-icon"></span>
+      <span>My Profile</span>
+    </button>
+
+    <button mat-menu-item (click)="onMenuAction('change-password')">
+      <span mat-symbol="lock" class="menu-icon"></span>
+      <span>Change Password</span>
+    </button>
+
+    <button mat-menu-item (click)="onMenuAction('theme')">
+      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" class="menu-icon"></span>
+      <span>Switch Theme</span>
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
     </button>
 
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
+<<<<<<< HEAD
       <span mat-symbol="door_open"></span>
       Logout
+=======
+      <span mat-symbol="door_open" class="menu-icon"></span>
+      <span>Logout</span>
+>>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
     </button>
   </mat-menu>
 
@@ -135,7 +155,7 @@
   <div class="mobile-dropdown" [@slideUpDown]>
     <div class="mobile-dropdown-header">
       <img
-        src="assets/images/default_faculty_icon.png"
+        [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
         alt="Profile Icon"
         class="mobile-profile-icon" />
       <div class="mobile-account-info">
