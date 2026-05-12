@@ -70,6 +70,18 @@ class AnalyticsController extends Controller
                 'section_courses.section_course_id'
             )
             ->join(
+                'course_assignments',
+                'section_courses.course_assignment_id',
+                '=',
+                'course_assignments.course_assignment_id'
+            )
+            ->join(
+                'semesters',
+                'course_assignments.semester_id',
+                '=',
+                'semesters.semester_id'
+            )
+            ->join(
                 'sections_per_program_year', 
                 'section_courses.sections_per_program_year_id', 
                 '=', 
@@ -78,6 +90,10 @@ class AnalyticsController extends Controller
             ->where(
                 'sections_per_program_year.academic_year_id', 
                 $activeSemester->academic_year_id
+            )
+            ->where(
+                'semesters.semester',
+                $activeSemester->semester
             )
             ->whereNotNull('schedules.day')
             ->whereNotNull('schedules.start_time')
@@ -123,29 +139,34 @@ class AnalyticsController extends Controller
                 'section_courses.section_course_id'
             )
             ->leftJoin(
+                'course_assignments',
+                'section_courses.course_assignment_id',
+                '=',
+                'course_assignments.course_assignment_id'
+            )
+            ->leftJoin(
+                'semesters',
+                'course_assignments.semester_id',
+                '=',
+                'semesters.semester_id'
+            )
+            ->leftJoin(
                 'sections_per_program_year', 
                 'section_courses.sections_per_program_year_id', 
                 '=', 
                 'sections_per_program_year.sections_per_program_year_id'
             )
-            ->where(function($query) use ($activeSemester) {
-                $query->where(
-                    'sections_per_program_year.academic_year_id', 
-                    $activeSemester->academic_year_id
-                )
-                ->orWhereNull('sections_per_program_year.academic_year_id');
-            })
             ->select(
                 'rooms.room_id',
                 'rooms.room_code',
                 'rooms.capacity',
-                DB::raw('
-                    SUM(TIMESTAMPDIFF(
-                        MINUTE, 
-                        schedules.start_time, 
-                        schedules.end_time
-                    )) as total_scheduled_minutes
-                ')
+                DB::raw("
+                    SUM(CASE WHEN 
+                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
+                        semesters.semester = {$activeSemester->semester}
+                    THEN TIMESTAMPDIFF(MINUTE, schedules.start_time, schedules.end_time) 
+                    ELSE 0 END) as total_scheduled_minutes
+                ")
             )
             ->groupBy('rooms.room_id', 'rooms.room_code', 'rooms.capacity')
             ->get();
@@ -193,6 +214,12 @@ class AnalyticsController extends Controller
                 'course_assignments.course_assignment_id'
             )
             ->leftJoin(
+                'semesters',
+                'course_assignments.semester_id',
+                '=',
+                'semesters.semester_id'
+            )
+            ->leftJoin(
                 'courses', 
                 'course_assignments.course_id', 
                 '=', 
@@ -204,19 +231,18 @@ class AnalyticsController extends Controller
                 '=',
                 'sections_per_program_year.sections_per_program_year_id'
             )
-            ->where(function($query) use ($activeSemester) {
-                $query->where(
-                    'sections_per_program_year.academic_year_id',
-                    $activeSemester->academic_year_id
-                );
-            })
             ->select(
                 'faculty.id',
                 'users.first_name',
                 'users.last_name',
                 'faculty_type.regular_units',
                 'faculty_type.additional_units',
-                DB::raw('SUM(DISTINCT courses.units) as assigned_units')
+                DB::raw("
+                    SUM(DISTINCT CASE WHEN 
+                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
+                        semesters.semester = {$activeSemester->semester}
+                    THEN courses.units ELSE 0 END) as assigned_units
+                ")
             )
             ->groupBy(
                 'faculty.id', 
@@ -313,32 +339,31 @@ class AnalyticsController extends Controller
                 'course_assignments.course_assignment_id'
             )
             ->leftJoin(
+                'semesters',
+                'course_assignments.semester_id',
+                '=',
+                'semesters.semester_id'
+            )
+            ->leftJoin(
                 'schedules', 
                 'section_courses.section_course_id', 
                 '=', 
                 'schedules.section_course_id'
             )
-            ->where(function($query) use ($activeSemester) {
-                $query->where(function($q) use ($activeSemester) {
-                    $q->where(
-                        'sections_per_program_year.academic_year_id', 
-                        $activeSemester->academic_year_id
-                    )
-                    ->where(
-                        'course_assignments.semester_id', 
-                        $activeSemester->semester_id
-                    );
-                })
-                ->orWhereNull('sections_per_program_year.sections_per_program_year_id');
-            })
             ->select(
                 'programs.program_code',
-                DB::raw('
-                    COUNT(DISTINCT section_courses.section_course_id) as total_courses
-                '),
-                DB::raw('
-                    COUNT(DISTINCT schedules.schedule_id) as scheduled_courses
-                ')
+                DB::raw("
+                    COUNT(DISTINCT CASE WHEN 
+                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
+                        semesters.semester = {$activeSemester->semester}
+                    THEN section_courses.section_course_id END) as total_courses
+                "),
+                DB::raw("
+                    COUNT(DISTINCT CASE WHEN 
+                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
+                        semesters.semester = {$activeSemester->semester}
+                    THEN schedules.schedule_id END) as scheduled_courses
+                ")
             )
             ->groupBy('programs.program_code')
             ->get();

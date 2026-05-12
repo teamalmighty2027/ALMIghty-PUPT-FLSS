@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, shareReplay } from 'rxjs/operators';
+import { catchError } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment.dev';
 
 @Injectable({
@@ -20,9 +20,11 @@ export class AnalyticsService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Set the selected term ID globally for analytics widgets
+   * Set the selected term ID globally for analytics widgets.
+   * Clears all cached responses to force a fresh fetch on term change.
    */
   setSelectedTerm(termId: number | null): void {
+    this.cache = {};
     this.selectedTermSource.next(termId);
   }
 
@@ -50,10 +52,11 @@ export class AnalyticsService {
         params = params.set('active_semester_id', termId.toString());
       }
 
+      // Cache the observable, but do not use shareReplay to allow
+      // fresh fetches on the next subscription after cache is cleared
       this.cache[endpoint][cacheKey] = this.http
         .get(url, { params })
         .pipe(
-          shareReplay(1),
           catchError(this.handleError)
         );
     }
