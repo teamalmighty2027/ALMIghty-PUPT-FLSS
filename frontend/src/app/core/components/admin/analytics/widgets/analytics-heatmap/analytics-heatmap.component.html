@@ -1,0 +1,32 @@
+<div class="heatmap-container">
+  <div class="loading-overlay" *ngIf="isLoading">
+    <mat-spinner diameter="40"></mat-spinner>
+    <p>Loading distribution data...</p>
+  </div>
+
+  <div class="empty-state" *ngIf="!isLoading && isEmpty">
+    <mat-icon fontSet="material-symbols-rounded">event_busy</mat-icon>
+    <p>No schedule data available for this term</p>
+    <span>Try selecting a different academic year or semester</span>
+  </div>
+
+  <div class="heatmap-grid" *ngIf="!isLoading && !isEmpty">
+    <!-- Header: Days -->
+    <div class="grid-header"></div>
+    <div class="grid-header day-label" *ngFor="let day of days">
+      {{ day | slice : 0 : 3 }}
+    </div>
+
+    <!-- Rows: Time Slots -->
+    <ng-container *ngFor="let time of timeSlots; let i = index">
+      <div class="time-label">{{ time }}</div>
+      <div
+        *ngFor="let day of days"
+        class="heatmap-cell"
+        [style.backgroundColor]="getBgColor(day, time)"
+        [matTooltip]="day + ' ' + time + ': ' + getCount(day, time) + ' classes'"
+        matTooltipPosition="above"
+      ></div>
+    </ng-container>
+  </div>
+</div>
