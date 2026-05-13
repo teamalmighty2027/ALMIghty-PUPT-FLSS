@@ -188,3 +188,150 @@
     }
   }
 }
+
+// Tablets
+@media screen and (max-width: bp.$breakpoint-md) {
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .input-container {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    justify-content: stretch;
+
+    mat-form-field {
+      flex: 1 1 calc(50% - var(--spacing-xs));
+      min-width: 0;
+    }
+
+    .search-field {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+
+    // Program field — full width so names aren't compressed
+    .program-field {
+      flex: 1 1 100%;
+      max-width: 100%;
+      width: 100%;
+    }
+
+    .year-level-field,
+    .sections-field {
+      flex: 1 1 calc(50% - var(--spacing-xs));
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  .header-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex: 1 1 100%;
+
+    .button-container {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+      justify-content: center;
+    }
+
+    .object-container {
+      flex: 1 1 auto;
+      justify-content: center;
+
+      .active-year-sem-container,
+      .faculty-view-container {
+        align-items: center;
+        text-align: center;
+      }
+    }
+  }
+}
+
+// Phones
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .header-container {
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-xs);
+  }
+
+  .input-container {
+    gap: var(--spacing-xs);
+
+    mat-form-field {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    .program-field,
+    .year-level-field,
+    .sections-field {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  .header-actions {
+    gap: var(--spacing-xs);
+    justify-content: center;
+    width: 100%;
+
+    .button-container {
+      width: 100%;
+      gap: var(--spacing-xs);
+      justify-content: center;
+      flex-wrap: wrap;
+
+      .tooltip-container {
+        flex: 1 1 100%;
+        width: 100%;
+        display: flex;
+      }
+
+      button {
+        flex: 1 1 100%;
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+      }
+    }
+
+    .object-container {
+      width: 100%;
+      justify-content: center;
+
+      .active-year-sem-container,
+      .faculty-view-container {
+        width: 100%;
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+        align-items: center;
+        text-align: center;
+      }
+    }
+  }
+
+  // On phones keep button text visible — icon + label both shown
+  .custom-mat-button {
+    width: 100%;
+    padding: 0 var(--spacing-md);
+    min-height: 44px;
+    font-size: var(--font-size-sm);
+
+    span {
+      display: inline !important; // Keep text visible
+    }
+  }
+
+  .export-button {
+    span {
+      display: inline !important;
+    }
+  }
+}

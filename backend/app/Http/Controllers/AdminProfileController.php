@@ -58,6 +58,7 @@ class AdminProfileController extends Controller
         DB::beginTransaction();
 
         try {
+            // Update base user data
             $user->update($request->only([
                 'first_name', 
                 'last_name', 
@@ -86,13 +87,13 @@ class AdminProfileController extends Controller
                 ['user_id' => $user->id],
                 $profileData
             );
-
             DB::commit();
 
             $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
                 'message' => 'Profile updated successfully',
+                'profile_picture_url' => $updatedProfile->profile_picture_url
                 'profile_picture_url' => $pictureUrl
             ]);
         } catch (\Exception $e) {

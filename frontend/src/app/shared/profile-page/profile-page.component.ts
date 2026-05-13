@@ -8,26 +8,16 @@ import {
   Validators,
   ValidationErrors,
 } from '@angular/forms';
-import {
-  FacultyService,
-} from '../../core/services/superadmin/management/faculty/faculty.service';
-import {
-  AdminService,
-} from '../../core/services/superadmin/management/admin/admin-profile.service';
+import { FacultyService } from '../../core/services/superadmin/management/faculty/faculty.service';
+import { AdminService } from '../../core/services/superadmin/management/admin/admin-profile.service';
 import { AuthService } from '../../core/services/auth/auth.service';
-import {
-  PhAddressService,
-} from '../../core/services/address/ph-address.service';
+import { PhAddressService } from '../../core/services/address/ph-address.service';
 import { pageFloatUpAnimation } from '../../core/animations/animations';
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  MatSnackBar,
-  MatSnackBarModule,
-} from '@angular/material/snack-bar';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import {
-  DialogBirthdateWarningComponent,
-} from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
+import { DialogBirthdateWarningComponent } from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
+import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 @Component({
   selector: 'app-profile-page',
@@ -37,6 +27,7 @@ import {
     ReactiveFormsModule,
     MatSnackBarModule,
     MatDialogModule,
+    MatSymbolDirective,
   ],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss'],
@@ -143,9 +134,7 @@ export class ProfilePageComponent implements OnInit {
 
       if (selectedProv) {
         this.addressService.getCities(selectedProv.code).subscribe(data => {
-          // Sort cities alphabetically
           this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
-
           this.profileForm.get('city')?.setValue('');
           this.profileForm.get('barangay')?.setValue('');
           this.barangays = [];
@@ -159,7 +148,6 @@ export class ProfilePageComponent implements OnInit {
 
       if (selectedCity) {
         this.addressService.getBarangays(selectedCity.code).subscribe(data => {
-          // Sort barangays alphabetically
           this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
           this.profileForm.get('barangay')?.setValue('');
         });
@@ -198,14 +186,10 @@ export class ProfilePageComponent implements OnInit {
    */
   loadProvinces(): void {
     this.addressService.getProvinces().subscribe(data => {
-      // Only manually add Metro Manila if it's NOT already in the data
       const hasNCR = data.some(p => p.code === '130000000');
-
       if (!hasNCR) {
         data.push({ code: '130000000', name: 'Metro Manila' });
       }
-
-      // Sort alphabetically
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
     });
   }
@@ -217,7 +201,6 @@ export class ProfilePageComponent implements OnInit {
     this.isLoading = true;
     this.profileForm.disable();
 
-    // FIX 1: Dynamically choose the correct service based on the user's role
     const service = this.isAdmin ? this.adminService : this.facultyService;
 
     service.getProfile().subscribe({
@@ -232,16 +215,23 @@ export class ProfilePageComponent implements OnInit {
 
         this.profilePictureUrl = data.profile_picture_url || null;
 
+        // Enable first so disabled fields get patched correctly
         this.enableProfileForm();
         this.profileForm.patchValue(formData);
+
+        // Re-disable read-only fields
+        this.profileForm.get('email')?.disable();
+        this.profileForm.get('code')?.disable();
+        if (!this.isAdmin) {
+          this.profileForm.get('faculty_profile_id')?.disable();
+        }
+
         this.isLoading = false;
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load profile', err);
-        this.isLoading = false;
-        
-        // FIX 2: Re-enable the form even if the API request fails so the UI doesn't freeze
         this.enableProfileForm();
+        this.isLoading = false;
       },
     });
   }
@@ -251,7 +241,6 @@ export class ProfilePageComponent implements OnInit {
     this.profileForm.enable();
     this.profileForm.get('email')?.disable();
     this.profileForm.get('code')?.disable();
-
     if (!this.isAdmin) {
       this.profileForm.get('faculty_profile_id')?.disable();
     }
@@ -262,10 +251,8 @@ export class ProfilePageComponent implements OnInit {
    */
   onFileSelected(event: any): void {
     const file = event.target.files[0];
-
     if (file) {
       this.selectedFile = file;
-
       const reader = new FileReader();
       reader.onload = (e: any) => {
         this.profilePictureUrl = e.target.result;
@@ -300,14 +287,8 @@ export class ProfilePageComponent implements OnInit {
 
   private birthdateValidator(control: AbstractControl): ValidationErrors | null {
     const value = control.value;
-    if (!value) {
-      return null;
-    }
-
-    if (this.isToday(value)) {
-      return { birthdateToday: true };
-    }
-
+    if (!value) return null;
+    if (this.isToday(value)) return { birthdateToday: true };
     return null;
   }
 
@@ -322,10 +303,10 @@ export class ProfilePageComponent implements OnInit {
         this.openBirthdateWarning();
         return;
       }
+
       this.isLoading = true;
       const formData = new FormData();
 
-      // Append all non-empty form values
       Object.keys(formValues).forEach(key => {
         if (formValues[key] !== null && formValues[key] !== '') {
           formData.append(key, formValues[key]);
@@ -336,21 +317,15 @@ export class ProfilePageComponent implements OnInit {
         formData.append('profile_picture', this.selectedFile);
       }
 
-      // FIX 3: Spoof the PUT request for Laravel to process the FormData and File correctly
-      formData.append('_method', 'PUT');
-
       const service = this.isAdmin ? this.adminService : this.facultyService;
 
-      // CRITICAL: Ensure your service.updateProfile() uses this.http.post(), NOT this.http.put()
       service.updateProfile(formData).subscribe({
         next: (response) => {
           this.isLoading = false;
-
           if (response.profile_picture_url) {
             this.profilePictureUrl = response.profile_picture_url;
             this.authService.updateProfilePictureUrl(response.profile_picture_url);
           }
-
           this.snackBar.open('Profile updated successfully!', 'Close', {
             duration: 3000,
             horizontalPosition: 'center',
@@ -361,14 +336,10 @@ export class ProfilePageComponent implements OnInit {
         error: (err: HttpErrorResponse) => {
           this.isLoading = false;
           console.error('Update failed', err);
-          this.snackBar.open(
-            'Failed to update profile. Please try again.',
-            'Close',
-            {
-              duration: 4000,
-              panelClass: ['error-snackbar'],
-            },
-          );
+          this.snackBar.open('Failed to update profile. Please try again.', 'Close', {
+            duration: 4000,
+            panelClass: ['error-snackbar'],
+          });
         },
       });
     }

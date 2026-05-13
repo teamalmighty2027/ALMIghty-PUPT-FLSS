@@ -147,3 +147,144 @@
 .reports-main-relative {
   position: relative;
 }
+
+// ============================================================
+// MOBILE RESPONSIVE
+// ============================================================
+
+@media (max-width: 825px) {
+  .reports-main {
+    gap: var(--spacing-xs);
+    height: 100%;
+  }
+
+  .reports-content {
+    flex: 1 1 auto;
+    overflow: hidden;
+    min-height: 0;
+
+    .report-container {
+      gap: var(--spacing-xs);
+      height: 100%;
+    }
+
+    .report-header-container {
+      flex-shrink: 0;
+    }
+
+    .report-table-container {
+      flex: 1 1 auto;
+      max-height: none;
+      height: auto;
+      overflow-x: auto;
+      overflow-y: auto;
+
+      .table-container {
+        max-height: 55vh;
+        overflow-x: auto;
+
+        .custom-table {
+          min-width: 540px;
+        }
+
+        // Ensure header cells don't clip
+        .custom-header {
+          text-align: center;
+          white-space: nowrap;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          // Prevent overflow clipping icons/toggles
+          overflow: visible;
+        }
+
+        .custom-cell {
+          padding: var(--spacing-xs);
+          text-align: center;
+          overflow: visible; // Prevent icon clipping
+
+          // Toggle buttons — centered
+          .helper-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-xxs);
+          }
+
+          // View/export icons — ensure full visibility
+          button {
+            min-height: 44px;
+            overflow: visible;
+
+            mat-icon {
+              flex-shrink: 0;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+            }
+          }
+
+          // Stack action buttons vertically
+          &.action {
+            white-space: nowrap;
+
+            .view-button,
+            .export-button {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              width: 100%;
+              margin-right: 0;
+              margin-bottom: var(--spacing-xxs);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Tab bar at bottom
+  .reports-tab {
+    flex-shrink: 0;
+
+    .tab-label {
+      font-size: var(--font-size-smx);
+      gap: var(--spacing-xxs);
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+
+@media (max-width: 512px) {
+  .reports-content {
+    .report-table-container {
+      .table-container {
+        max-height: 50vh;
+
+        .custom-table {
+          min-width: 460px;
+        }
+
+        .custom-cell {
+          padding: var(--spacing-xxs) var(--spacing-xs);
+          font-size: var(--font-size-sm);
+        }
+
+        .custom-header {
+          font-size: var(--font-size-sm);
+          padding: var(--spacing-xs);
+        }
+      }
+    }
+  }
+
+  // Tab labels — icon only on very small screens
+  .reports-tab {
+    .tab-label {
+      font-size: 0;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-lg);
+      }
+    }
+  }
+}
