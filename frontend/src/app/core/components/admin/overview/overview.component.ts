@@ -360,6 +360,17 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Navigates to the Data Analytics view.
+   */
+  viewAnalytics(): void {
+    if (!this.canViewReports) {
+      this.showNoPermissionMessage();
+      return;
+    }
+    this.router.navigate(['/admin/analytics']);
+  }
+
+  /**
    * Displays a snackbar message if no schedules exist, with a link to scheduling.
    */
   private showSchedulingRedirectMessage(): void {
