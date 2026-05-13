@@ -93,7 +93,6 @@ class AdminProfileController extends Controller
 
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'profile_picture_url' => $updatedProfile->profile_picture_url
                 'profile_picture_url' => $pictureUrl
             ]);
         } catch (\Exception $e) {

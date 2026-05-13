@@ -37,7 +37,7 @@ export class AnalyticsFacultyLoadComponent implements OnInit, OnDestroy {
       },
       tooltip: {
         callbacks: {
-          label: (context) => ` ${context.dataset.label}: ${context.raw} faculty`
+          label: (context: any) => ` ${context.dataset.label}: ${context.raw} faculty`
         }
       }
     },
