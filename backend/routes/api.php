@@ -11,10 +11,7 @@ use App\Http\Controllers\CurriculumDetailsController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
-<<<<<<< HEAD
-=======
 use App\Http\Controllers\FacultyProfileController;
->>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
