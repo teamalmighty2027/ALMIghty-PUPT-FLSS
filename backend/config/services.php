@@ -33,7 +33,8 @@ return [
 
     'puptas' => [
         'base_url' => env('PUPTAS_BASE_URL'),
-        'api_key' => env('PUPTAS_API_KEY'),
+        'client_id' => env('PUPTAS_CLIENT_ID'),
+        'client_secret' => env('PUPTAS_CLIENT_SECRET'),
     ],
 
     'idp' => [
@@ -41,6 +42,10 @@ return [
         'client_id' => env('CLIENT_ID'),
         'client_secret' => env('CLIENT_SECRET'),
         'api_key' => env('IDP_API_KEY'),
+    ],
+
+    'cloudmersive' => [
+        'api_key' => env('CLOUDMERSIVE_API_KEY'),
     ],
 
     'gemini' => [

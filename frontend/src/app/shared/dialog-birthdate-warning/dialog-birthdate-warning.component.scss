@@ -1,0 +1,17 @@
+.dialog-content {
+  padding: 24px;
+  min-width: 320px;
+}
+.dialog-title {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.dialog-message {
+  margin: 0 0 24px;
+  color: rgba(0, 0, 0, 0.8);
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -12,6 +12,7 @@ use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\FacultyProfileController;
+use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
 use App\Http\Controllers\LogoController;
@@ -26,8 +27,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
-use App\Http\Controllers\TemporaryCourseOfferingController;
-
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
@@ -193,6 +193,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/faculty', [FacultyController::class, 'store']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
+    Route::get('/admin/profile', [AdminProfileController::class, 'show']);
+    Route::put('/admin/profile', [AdminProfileController::class, 'update']);
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
@@ -289,7 +291,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
 
-
+    /**
+     * Analytics
+     */
+    Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
+        Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
+        Route::get('/room-utilization', [AnalyticsController::class, 'getRoomUtilization']);
+        Route::get('/faculty-load', [AnalyticsController::class, 'getFacultyLoadDistribution']);
+        Route::get('/faculty-type-composition', [AnalyticsController::class, 'getFacultyTypeComposition']);
+        Route::get('/appeal-activity', [AnalyticsController::class, 'getAppealActivity']);
+        Route::get('/program-coverage', [AnalyticsController::class, 'getProgramCoverage']);
+        Route::get('/semester-trends', [AnalyticsController::class, 'getSemesterTrends']);
+        Route::get('/preference-insights', [AnalyticsController::class, 'getPreferenceInsights']);
+        Route::get('/optimal-slots', [AnalyticsController::class, 'getOptimalSlots']);
+    });
 
     /**
      * Rooms

@@ -1,0 +1,100 @@
+<div class="analytics-container" [@fadeAnimation]>
+  <div class="analytics-header">
+    <div class="header-content">
+      <div class="title-section">
+        <h1>Analytics Dashboard</h1>
+        <p class="subtitle">
+          Descriptive and prescriptive insights for scheduling and resource
+          allocation
+        </p>
+      </div>
+
+      <div class="filter-section">
+        <mat-form-field appearance="outline" class="term-selector">
+          <mat-label>Academic Term</mat-label>
+          <mat-select
+            [(ngModel)]="selectedTermId"
+            (selectionChange)="onTermChange()"
+            [disabled]="isTermsLoading"
+          >
+            <mat-option
+              *ngFor="let term of availableTerms"
+              [value]="term.active_semester_id"
+            >
+              {{ term.year_start }}-{{ term.year_end }} |
+              {{ getSemesterLabel(term.semester) }}
+            </mat-option>
+          </mat-select>
+          <mat-icon matPrefix fontSet="material-symbols-rounded"
+            >calendar_month</mat-icon
+          >
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+
+  <div class="analytics-grid">
+    <!-- Left Column: Main Distribution Heatmap -->
+    <div class="grid-item span-v-3">
+      <div class="widget-card heatmap-card">
+        <div class="widget-header">
+          <h3>Schedule Distribution (Heatmap)</h3>
+          <mat-icon fontSet="material-symbols-rounded">insights</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-heatmap></app-analytics-heatmap>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Stacking 3 widgets -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <h3>Room Utilization</h3>
+          <mat-icon fontSet="material-symbols-rounded">meeting_room</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-room-utilization></app-analytics-room-utilization>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <h3>Faculty Composition</h3>
+          <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-type></app-analytics-faculty-type>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <h3>Faculty Load Distribution</h3>
+          <mat-icon fontSet="material-symbols-rounded">groups</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-load></app-analytics-faculty-load>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Row: Program Coverage -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <h3>Program Scheduling Progress</h3>
+          <mat-icon fontSet="material-symbols-rounded">analytics</mat-icon>
+        </div>
+        <div class="widget-body">
+          <app-analytics-program-coverage></app-analytics-program-coverage>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

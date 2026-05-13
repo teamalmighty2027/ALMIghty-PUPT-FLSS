@@ -414,6 +414,13 @@ export class ScheduleValidationService {
     start_time: string,
     end_time: string
   ): { isValid: boolean; message: string } {
+
+    // Skip hours validation for Summer term (semester_id === 3)
+    // as subjects may be scheduled multiple times a week
+    if (schedules.semester_id === 3) {
+      return { isValid: true, message: '' };
+    }
+
     let targetCourse: any;
     let allCourseSchedules: any[] = [];
 

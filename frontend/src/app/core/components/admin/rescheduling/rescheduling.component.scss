@@ -515,3 +515,235 @@
     flex-grow: 0; /* Prevent the search bar from expanding full width */
   }
 }
+
+// ============================================================
+// MOBILE RESPONSIVE
+// ============================================================
+
+@media (max-width: 825px) {
+  .rescheduling-container {
+    gap: var(--spacing-xs);
+  }
+
+  // Tab content card — override the inline styles from HTML
+  .tab-content-wrapper {
+    padding: var(--spacing-md) !important;
+    gap: var(--spacing-sm) !important;
+    height: auto !important;
+    background: var(--neutral-light) !important;
+    border-radius: var(--border-radius-md) !important;
+    box-shadow: var(--shadow-level-0) !important;
+    margin-bottom: var(--spacing-sm) !important;
+  }
+
+  // Header containers — no extra margin
+  .rescheduling-header-container,
+  .report-header-container {
+    margin-bottom: 0;
+  }
+
+  // Filter row stacks vertically
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-xs);
+
+    .filter-field {
+      max-width: 100%;
+      min-width: 0;
+      flex: 1 1 100%;
+    }
+
+    .clear-filters-btn {
+      align-self: center;
+      min-height: 44px;
+    }
+  }
+
+  // Tables — horizontal scroll
+  .rescheduling-table-container,
+  .report-table-container {
+    .table-container {
+      max-height: 50vh;
+      overflow-x: auto;
+
+      .custom-table {
+        min-width: 580px;
+      }
+
+      // Header cells — centered, no clipping
+      .custom-header {
+        text-align: center;
+        white-space: nowrap;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        overflow: visible;
+      }
+
+      .custom-cell {
+        padding: var(--spacing-xs);
+        text-align: center;
+        overflow: visible; // Prevent icon clipping
+
+        // Toggle buttons — centered
+        .helper-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-xxs);
+        }
+
+        // Ensure icons are fully visible
+        button {
+          min-height: 44px;
+          overflow: visible;
+
+          mat-icon {
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+          }
+        }
+
+        &.action {
+          .action-button-container {
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-xxs);
+          }
+
+          .view-button,
+          .export-button,
+          .edit-button {
+            width: 100%;
+            justify-content: center;
+            display: flex;
+            align-items: center;
+          }
+        }
+      }
+    }
+  }
+
+  // Modal — stack left/right panels
+  .modal-body {
+    flex-direction: column;
+    padding: var(--spacing-md) !important;
+    gap: var(--spacing-sm) !important;
+
+    .modal-left {
+      flex: 1 1 100%;
+      border-right: none;
+      padding-right: 0;
+      border-bottom: 1px solid var(--neutral-fade);
+      padding-bottom: var(--spacing-md);
+      margin-bottom: 0;
+    }
+
+    .modal-right {
+      flex: 1 1 100%;
+      padding-left: 0;
+    }
+  }
+
+  .modal-top {
+    padding: var(--spacing-md) var(--spacing-md) 0 !important;
+  }
+
+  .modal-scrollable-content {
+    max-height: calc(100vh - 180px);
+  }
+
+  // Modal footer actions
+  .modal-actions {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+
+    .btn-clear {
+      margin-right: 0;
+      order: 10;
+      width: 100%;
+      text-align: center;
+    }
+
+    .btn-cancel {
+      flex: 1 1 auto;
+      min-height: 44px;
+    }
+
+    .btn-deny,
+    .btn-approve {
+      flex: 1 1 auto;
+      min-height: 44px;
+      height: auto;
+      line-height: normal;
+      padding: var(--spacing-xs) var(--spacing-md);
+    }
+  }
+
+  // Time row stacks
+  .time-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  // Schedule summary info rows — stack label above value
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xxs);
+    margin-bottom: var(--spacing-xs);
+
+    .label {
+      min-width: unset;
+    }
+  }
+}
+
+@media (max-width: 512px) {
+  .tab-content-wrapper {
+    padding: var(--spacing-sm) !important;
+    gap: var(--spacing-xs) !important;
+    margin-bottom: var(--spacing-xs) !important;
+  }
+
+  .rescheduling-table-container,
+  .report-table-container {
+    .table-container {
+      max-height: 45vh;
+
+      .custom-table {
+        min-width: 500px;
+      }
+
+      .custom-cell {
+        padding: var(--spacing-xxs) var(--spacing-xs);
+        font-size: var(--font-size-sm);
+      }
+
+      .custom-header {
+        font-size: var(--font-size-sm);
+        padding: var(--spacing-xs);
+      }
+    }
+  }
+
+  .modal-body {
+    padding: var(--spacing-sm) !important;
+  }
+
+  .modal-top {
+    padding: var(--spacing-sm) var(--spacing-sm) 0 !important;
+  }
+
+  .modal-scrollable-content {
+    max-height: calc(100vh - 160px);
+  }
+
+  .schedule-summary,
+  .reason-section,
+  .document-section,
+  .edit-mode-section {
+    padding: var(--spacing-sm);
+  }
+}

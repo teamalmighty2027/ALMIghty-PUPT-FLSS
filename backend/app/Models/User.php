@@ -88,21 +88,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(Faculty::class, 'user_id');
     }
-        public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
 
-    public function facultyProfile()
+    public function profile()
     {
-        return $this->hasOneThrough(
-            FacultyProfile::class,
-            Faculty::class,
-            'user_id',
-            'faculty_id',
-            'id',
-            'id'
-        );
+        return $this->hasOne(UserProfile::class, 'user_id');
     }
 
     /**
