@@ -36,7 +36,10 @@ export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
       },
       tooltip: {
         callbacks: {
-          label: (context) => ` ${context.raw}% Coverage`
+          label: (context: any) => {
+            const item = context.dataset.raw_data[context.dataIndex];
+            return ` ${context.raw}% (${item.scheduled} / ${item.total} Slots Assigned)`;
+          }
         }
       }
     },
@@ -68,8 +71,10 @@ export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
         borderRadius: 6,
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.1)',
-        barPercentage: 0.6, // Create gaps between bars
-        categoryPercentage: 0.8
+        barPercentage: 0.5, // Even larger gaps for progress bar look
+        categoryPercentage: 0.8,
+        // @ts-ignore - custom property for tooltip
+        raw_data: []
       }
     ]
   };
@@ -133,12 +138,14 @@ export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
    */
   private processCoverageData(data: any[]): void {
     const labels = data.map(item => item.program_code);
-    const percentages = data.map(item => {
-      const total = Number(item.total_courses) || 0;
-      const scheduled = Number(item.scheduled_courses) || 0;
-      
-      if (total === 0) return 0;
-      return Math.round((scheduled / total) * 100);
+    const rawData = data.map(item => ({
+      total: Number(item.total_courses) || 0,
+      scheduled: Number(item.scheduled_courses) || 0
+    }));
+
+    const percentages = rawData.map(item => {
+      if (item.total === 0) return 0;
+      return Math.round((item.scheduled / item.total) * 100);
     });
 
     this.barChartData = {
@@ -146,10 +153,12 @@ export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
       datasets: [{
         ...this.barChartData.datasets[0],
         data: percentages,
+        // @ts-ignore
+        raw_data: rawData,
         backgroundColor: percentages.map(p => {
-          if (p >= 100) return '#4CAF50'; // Success Green
-          if (p >= 50) return '#2196F3';  // Primary Blue
-          return '#FF9800';               // Warning Orange
+          if (p >= 100) return '#4CAF50'; 
+          if (p >= 50) return '#2196F3';  
+          return '#FF9800';               
         }),
         borderColor: percentages.map(p => {
           if (p >= 100) return '#388E3C';

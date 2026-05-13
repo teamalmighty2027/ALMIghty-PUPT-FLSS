@@ -319,54 +319,50 @@ class AnalyticsController extends Controller
             );
         }
 
-        $coverage = DB::table('programs')
-            ->leftJoin(
-                'sections_per_program_year', 
-                'programs.program_id', 
-                '=', 
-                'sections_per_program_year.program_id'
-            )
-            ->leftJoin(
-                'section_courses', 
-                'sections_per_program_year.sections_per_program_year_id', 
-                '=', 
-                'section_courses.sections_per_program_year_id'
-            )
-            ->leftJoin(
-                'course_assignments',
-                'section_courses.course_assignment_id',
-                '=',
-                'course_assignments.course_assignment_id'
-            )
-            ->leftJoin(
-                'semesters',
-                'course_assignments.semester_id',
-                '=',
-                'semesters.semester_id'
-            )
-            ->leftJoin(
-                'schedules', 
-                'section_courses.section_course_id', 
-                '=', 
-                'schedules.section_course_id'
-            )
+        // Get all programs first to ensure we return all of them
+        $programs = DB::table('programs')->select('program_id', 'program_code')->get();
+        
+        // Get schedules grouped by program
+        $schedulesData = DB::table('schedules')
+            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
+            ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
+            ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
+            ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->join('programs', 'sections_per_program_year.program_id', '=', 'programs.program_id')
+            ->where('ca_semesters.semester', '=', $activeSemester->semester)
+            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
             ->select(
                 'programs.program_code',
-                DB::raw("
-                    COUNT(DISTINCT CASE WHEN 
-                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
-                        semesters.semester = {$activeSemester->semester}
-                    THEN section_courses.section_course_id END) as total_courses
-                "),
-                DB::raw("
-                    COUNT(DISTINCT CASE WHEN 
-                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
-                        semesters.semester = {$activeSemester->semester}
-                    THEN schedules.schedule_id END) as scheduled_courses
-                ")
+                DB::raw('COUNT(schedules.schedule_id) as total_schedules'),
+                DB::raw('
+                    SUM(
+                        (CASE WHEN schedules.day IS NULL THEN 1 ELSE 0 END) +
+                        (CASE WHEN schedules.start_time IS NULL THEN 1 ELSE 0 END) +
+                        (CASE WHEN schedules.end_time IS NULL THEN 1 ELSE 0 END) +
+                        (CASE WHEN schedules.faculty_id IS NULL THEN 1 ELSE 0 END) +
+                        (CASE WHEN schedules.room_id IS NULL THEN 1 ELSE 0 END)
+                    ) as total_null_fields
+                ')
             )
             ->groupBy('programs.program_code')
-            ->get();
+            ->get()
+            ->keyBy('program_code');
+
+        $coverage = $programs->map(function ($program) use ($schedulesData) {
+            $data = $schedulesData->get($program->program_code);
+            
+            $totalSchedules = $data ? $data->total_schedules : 0;
+            $totalNullFields = $data ? $data->total_null_fields : 0;
+            
+            $totalPossibleFields = $totalSchedules * 5;
+            $totalFilledFields = $totalPossibleFields - $totalNullFields;
+            
+            return [
+                'program_code' => $program->program_code,
+                'total_courses' => $totalPossibleFields,
+                'scheduled_courses' => $totalFilledFields,
+            ];
+        })->values()->toArray();
 
         return response()->json($coverage);
     }
