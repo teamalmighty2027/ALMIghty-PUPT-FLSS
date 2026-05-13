@@ -259,6 +259,19 @@
   }
 }
 
+// Clean single dropdown arrow for all select elements
+select.pill-input {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: var(--spacing-2xl);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-md) center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
 .error-text {
   display: block;
   color: #d32f2f;
@@ -372,21 +385,37 @@
 
     .hero-content {
       flex-direction: column;
+      align-items: center;
       text-align: center;
+      gap: var(--spacing-md);
     }
 
-    .hero-info .hero-name {
-      font-size: var(--font-size-xl);
+    .hero-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      .hero-name {
+        font-size: var(--font-size-xl);
+        text-align: center;
+      }
+
+      .hero-role,
+      .hero-email {
+        text-align: center;
+      }
     }
   }
 
   .profile-form-card {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-lg) var(--spacing-md);
   }
 
+  // Stack the two-column layout
   .compact-row {
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
+    align-items: stretch;
   }
 
   .faculty-code,
@@ -394,19 +423,71 @@
   .birthdate,
   .sex {
     flex: 1 1 100%;
+    width: 100%;
+  }
+
+  // Birthdate input — full width, properly sized
+  .birthdate {
+    .pill-input[type="date"] {
+      width: 100%;
+      min-height: 44px;
+      padding: var(--spacing-xs) var(--spacing-md);
+      // Prevent the native calendar icon from being clipped
+      padding-right: var(--spacing-xl);
+      box-sizing: border-box;
+    }
+  }
+
+  // Select dropdowns — clean single arrow, no crowding
+  select.pill-input {
+    width: 100%;
+    min-height: 44px;
+    padding: var(--spacing-xs) var(--spacing-xl) var(--spacing-xs) var(--spacing-md);
+    // Remove browser default appearance and use a single clean arrow
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-md) center;
+    background-size: 16px;
+    cursor: pointer;
+    box-sizing: border-box;
   }
 
   .address-grid {
     grid-template-columns: 1fr;
+    row-gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .address-section-header {
+    margin-top: var(--spacing-md);
+    text-align: center;
+    justify-content: center;
   }
 
   .action-row {
     flex-direction: column;
+    align-items: stretch;
+    margin-top: var(--spacing-lg);
 
     button {
       width: 100%;
       justify-content: center;
+      min-height: 48px;
     }
+  }
+
+  // Upload button centered on mobile
+  .avatar-upload-row {
+    justify-content: center;
+  }
+
+  // Form labels consistent
+  .form-control-group label,
+  .field-group label {
+    font-size: var(--font-size-sm);
   }
 }
 
@@ -462,6 +543,10 @@
     &::placeholder {
       color: #666666;
     }
+  }
+
+  select.pill-input {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23aaa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   }
 
   .v-divider {
