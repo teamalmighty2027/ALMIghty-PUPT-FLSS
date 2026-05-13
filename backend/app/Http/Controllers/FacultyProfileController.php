@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Faculty;
-use App\Models\FacultyProfile; 
+use App\Models\UserProfile; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
@@ -19,18 +19,16 @@ class FacultyProfileController extends Controller
             // 1. Get the faculty record
             $faculty = Faculty::where('user_id', $user->id)->first();
             
-            // 2. Safely get the profile using faculty_id
+            // Fetch profile using user_id instead of faculty_id
+            $profile = UserProfile::where('user_id', $user->id)->first();
+            
             $profileArray = [];
-            if ($faculty) {
-                $profile = FacultyProfile::where('faculty_id', $faculty->id)->first();
+            if ($profile) {
+                $profileArray = $profile->toArray();
                 
-                if ($profile) {
-                    $profileArray = $profile->toArray();
-                    
-                    // FIX: Convert the raw database path into a full, usable web URL
-                    if ($profile->profile_picture) {
-                        $profileArray['profile_picture_url'] = url('storage/' . $profile->profile_picture);
-                    }
+                // Convert raw database path into a full web URL
+                if ($profile->profile_picture) {
+                    $profileArray['profile_picture_url'] = url('storage/' . $profile->profile_picture);
                 }
             }
 
@@ -66,29 +64,27 @@ class FacultyProfileController extends Controller
                 $faculty->update(['code' => $request->code]); 
             }
 
-            // Prepare profile data
             $profileData = $request->only([
                 'house_num', 'street', 'barangay', 'city', 
                 'province', 'country', 'zipcode', 'department',
                 'birthdate', 'sex'
             ]);
 
-            // Handle Profile Picture Upload
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
                 $path = $file->store('profile_pictures', 'public');
                 $profileData['profile_picture'] = $path;
                 
-                // Delete old picture if it exists, checking by faculty_id
-                $currentProfile = FacultyProfile::where('faculty_id', $faculty->id)->first();
+                // Delete old picture if it exists, checking by user_id
+                $currentProfile = UserProfile::where('user_id', $user->id)->first();
                 if ($currentProfile && $currentProfile->profile_picture) {
                     Storage::disk('public')->delete($currentProfile->profile_picture);
                 }
             }
 
-            // Create or update the profile matching the faculty_id
-            $updatedProfile = FacultyProfile::updateOrCreate(
-                ['faculty_id' => $faculty->id],
+            // Create or update the profile matching the user_id
+            $updatedProfile = UserProfile::updateOrCreate(
+                ['user_id' => $user->id],
                 $profileData
             );
 

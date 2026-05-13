@@ -245,13 +245,7 @@
                   </span>
                 </div>
               </div>
-              <!--Item Group two-->
               <div class="item-group two">
-                <!--Action: Email Faculty (Currently disabled)-->
-                <!-- <div class="item send-email" (click)="openSendEmailDialog()">
-                <span mat-symbol="email"></span>
-                <span class="desc">Send Email to Faculty Members</span>
-              </div> -->
                 <!--Action: Open Generate Report-->
                 <div 
                   class="item generate-report" 
@@ -261,6 +255,16 @@
                 >
                   <span mat-symbol="assessment"></span>
                   <span class="desc">Generate the Schedule Reports</span>
+                </div>
+                <!--Action: View Data Analytics-->
+                <div 
+                  class="item view-analytics" 
+                  [class.disabled-action]="!canViewReports"
+                  [matTooltip]="!canViewReports ? 'You do not have permission to view analytics' : ''"
+                  (click)="viewAnalytics()"
+                >
+                  <span mat-symbol="analytics"></span>
+                  <span class="desc">View Data Analytics</span>
                 </div>
               </div>
             </div>
