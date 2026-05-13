@@ -87,15 +87,16 @@ class AdminProfileController extends Controller
                 ['user_id' => $user->id],
                 $profileData
             );
+            
             DB::commit();
 
             $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
                 'message' => 'Profile updated successfully',
-                'profile_picture_url' => $updatedProfile->profile_picture_url
                 'profile_picture_url' => $pictureUrl
             ]);
+            
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Admin Profile POST Error: ' . $e->getMessage());
