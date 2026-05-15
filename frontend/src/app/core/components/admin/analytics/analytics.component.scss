@@ -122,5 +122,32 @@
     align-items: center;
     color: var(--mat-sys-on-surface-variant);
     font-style: italic;
+
+    .placeholder-text {
+      opacity: 0.5;
+    }
   }
+}
+
+.section-divider {
+  margin: 2rem 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--mat-sys-outline-variant);
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+  }
+
+  p {
+    margin: 0.25rem 0 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.9rem;
+  }
+}
+
+.prescriptive-grid {
+  margin-top: 1rem;
 }
