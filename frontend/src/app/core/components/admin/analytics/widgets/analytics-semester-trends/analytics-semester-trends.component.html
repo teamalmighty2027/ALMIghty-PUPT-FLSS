@@ -1,0 +1,21 @@
+<div class="widget-container">
+  <div *ngIf="isLoading" class="loading-overlay">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Fetching historical data...</span>
+  </div>
+
+  <div *ngIf="!isLoading && isEmpty" class="empty-state">
+    <mat-icon>trending_flat</mat-icon>
+    <p>No historical trends available yet.</p>
+  </div>
+
+  <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper">
+    <canvas baseChart
+      [data]="lineChartData"
+      [options]="lineChartOptions"
+      [type]="lineChartType">
+    </canvas>
+  </div>
+
+  <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
+</div>

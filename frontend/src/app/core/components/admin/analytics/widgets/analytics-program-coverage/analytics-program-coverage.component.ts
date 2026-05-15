@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-program-coverage',
   standalone: true,
@@ -15,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-program-coverage.component.html',
   styleUrl: './analytics-program-coverage.component.scss',
@@ -23,6 +28,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   // Bar Chart Configuration for Program Coverage
@@ -167,5 +174,25 @@ export class AnalyticsProgramCoverageComponent implements OnInit, OnDestroy {
         })
       }]
     };
+    this.generateInsight(data, percentages);
+  }
+
+  /** Generates a plain-text insight based on program coverage data */
+  private generateInsight(data: any[], percentages: number[]): void {
+    const minProgress = Math.min(...percentages);
+    const minIdx = percentages.indexOf(minProgress);
+    const lowestProgram = data[minIdx].program_code;
+    const avgProgress = Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length);
+
+    if (minProgress < 50) {
+      this.insightText = `${lowestProgram} has the lowest scheduling progress at ${minProgress}%. Needs attention.`;
+      this.insightType = 'warning';
+    } else if (avgProgress >= 90) {
+      this.insightText = 'All programs are nearly fully scheduled this term.';
+      this.insightType = 'success';
+    } else {
+      this.insightText = `Average scheduling coverage across all programs is ${avgProgress}%.`;
+      this.insightType = 'info';
+    }
   }
 }

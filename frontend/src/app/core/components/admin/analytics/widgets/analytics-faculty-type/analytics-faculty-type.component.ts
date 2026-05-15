@@ -6,16 +6,28 @@ import { takeUntil } from 'rxjs/operators';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
 
 @Component({
   selector: 'app-analytics-faculty-type',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, MatProgressSpinnerModule],
+  imports: [
+    CommonModule, 
+    BaseChartDirective, 
+    MatProgressSpinnerModule,
+    MatIconModule,
+    AnalyticsInsightComponent
+  ],
   templateUrl: './analytics-faculty-type.component.html',
   styleUrl: './analytics-faculty-type.component.scss',
 })
 export class AnalyticsFacultyTypeComponent implements OnInit, OnDestroy {
   isLoading = true;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   // Doughnut Chart Configuration
@@ -88,6 +100,7 @@ export class AnalyticsFacultyTypeComponent implements OnInit, OnDestroy {
         next: (data: any[]) => {
           this.doughnutChartData.labels = data.map(item => item.faculty_type);
           this.doughnutChartData.datasets[0].data = data.map(item => item.count);
+          this.generateInsight(data);
           this.isLoading = false;
         },
         error: (error) => {
@@ -95,5 +108,26 @@ export class AnalyticsFacultyTypeComponent implements OnInit, OnDestroy {
           this.isLoading = false;
         }
       });
+  }
+
+  /** Generates a plain-text insight based on faculty composition */
+  private generateInsight(data: any[]): void {
+    if (!data || data.length === 0) return;
+
+    const total = data.reduce((a, b) => a + (b.count || 0), 0);
+    const regular = data.find(i => i.faculty_type.toLowerCase().includes('regular'))?.count || 0;
+    const nonRegular = total - regular;
+    const regularPercent = Math.round((regular / total) * 100);
+
+    if (regularPercent > 70) {
+      this.insightText = `Majority of courses (${regularPercent}%) are handled by regular faculty.`;
+      this.insightType = 'success';
+    } else if (nonRegular > regular) {
+      this.insightText = 'More than half of faculty are non-regular. Consider workload sustainability.';
+      this.insightType = 'warning';
+    } else {
+      this.insightText = `Faculty consists of ${regular} regular and ${nonRegular} non-regular members.`;
+      this.insightType = 'info';
+    }
   }
 }

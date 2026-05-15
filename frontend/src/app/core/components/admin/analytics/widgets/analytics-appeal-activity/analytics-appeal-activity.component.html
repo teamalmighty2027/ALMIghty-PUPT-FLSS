@@ -1,0 +1,25 @@
+<div class="widget-container">
+  <div *ngIf="isLoading" class="loading-overlay">
+    <mat-spinner diameter="40"></mat-spinner>
+    <span>Fetching appeals...</span>
+  </div>
+
+  <div *ngIf="!isLoading && isEmpty" class="empty-state">
+    <mat-icon>inbox</mat-icon>
+    <p>No rescheduling appeals found.</p>
+  </div>
+
+  <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper">
+    <div class="chart-center-text">
+      <span class="count">{{ totalAppeals }}</span>
+      <span class="label">Total</span>
+    </div>
+    <canvas baseChart
+      [data]="doughnutChartData"
+      [options]="doughnutChartOptions"
+      [type]="doughnutChartType">
+    </canvas>
+  </div>
+
+  <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
+</div>
