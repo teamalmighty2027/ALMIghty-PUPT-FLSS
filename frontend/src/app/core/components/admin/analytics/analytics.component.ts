@@ -32,6 +32,9 @@ import {
 import { 
   AnalyticsSemesterTrendsComponent 
 } from './widgets/analytics-semester-trends/analytics-semester-trends.component';
+import { 
+  AnalyticsOptimalSlotsComponent 
+} from './widgets/analytics-optimal-slots/analytics-optimal-slots.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -51,6 +54,7 @@ import { fadeAnimation } from '../../../animations/animations';
     AnalyticsLoadAnalysisComponent,
     AnalyticsAppealActivityComponent,
     AnalyticsSemesterTrendsComponent,
+    AnalyticsOptimalSlotsComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',

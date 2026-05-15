@@ -25,7 +25,7 @@ export class AnalyticsAppealActivityComponent implements OnInit, OnDestroy {
   isEmpty = false;
   private destroy$ = new Subject<void>();
 
-  public doughnutChartOptions: ChartConfiguration['options'] = {
+  public doughnutChartOptions: ChartConfiguration<'doughnut'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {

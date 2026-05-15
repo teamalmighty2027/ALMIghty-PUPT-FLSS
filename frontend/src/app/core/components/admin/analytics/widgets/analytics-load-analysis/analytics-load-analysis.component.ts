@@ -24,9 +24,10 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
   private destroy$ = new Subject<void>();
+  private facultyMetadata: any[] = [];
 
   // Diverging Bar Chart Configuration
-  public barChartOptions: ChartConfiguration['options'] = {
+  public barChartOptions: ChartConfiguration<'bar'>['options'] = {
     indexAxis: 'y', // Horizontal bars
     responsive: true,
     maintainAspectRatio: false,
@@ -36,7 +37,7 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
         callbacks: {
           label: (context: any) => {
             const val = context.raw;
-            const faculty = context.dataset.metadata[context.dataIndex];
+            const faculty = this.facultyMetadata[context.dataIndex];
             return ` Delta: ${val > 0 ? '+' : ''}${val} Units (Assigned: ${faculty.assigned_units} / Max: ${faculty.regular_units})`;
           }
         }
@@ -67,8 +68,7 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
       {
         data: [],
         backgroundColor: [],
-        borderRadius: 4,
-        metadata: [] as any[]
+        borderRadius: 4
       }
     ]
   };
@@ -135,14 +135,14 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.facultyMetadata = filtered;
     this.barChartData = {
       labels: filtered.map(f => f.name),
       datasets: [
         {
           data: filtered.map(f => f.delta),
           backgroundColor: filtered.map(f => f.delta > 0 ? '#F44336' : '#FFC107'),
-          borderRadius: 4,
-          metadata: filtered
+          borderRadius: 4
         }
       ]
     };

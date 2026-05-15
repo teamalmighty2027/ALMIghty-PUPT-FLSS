@@ -97,10 +97,6 @@ export class AnalyticsService {
     return this.getAnalyticsData('optimal-slots', termId);
   }
 
-  getPreferenceInsights(termId: number | null): Observable<any> {
-    return this.getAnalyticsData('preference-insights', termId);
-  }
-
   getFacultyLoadAnalysis(termId: number | null): Observable<any> {
     return this.getAnalyticsData('faculty-load-analysis', termId);
   }
