@@ -134,6 +134,11 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
     this.filterAndProcessData();
   }
 
+  /** Expose hasData for the template to keep search bar visible */
+  get hasData(): boolean {
+    return this.allAnalysisData.length > 0;
+  }
+
   /** Filters and processes analysis data into chart-friendly format */
   private filterAndProcessData(): void {
     let filtered = this.allAnalysisData;
@@ -155,7 +160,7 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
         .sort((a, b) => b.delta - a.delta);
 
     if (displayData.length === 0) {
-      this.isEmpty = this.searchTerm.trim() ? false : true; // Show empty if no matching results
+      this.isEmpty = true;
       this.barChartData = { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
       return;
     }

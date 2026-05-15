@@ -494,8 +494,10 @@ class AnalyticsController extends Controller
                 )
                 ->count();
 
+            $semLabel = $sem->semester == 1 ? '1st Sem' : ($sem->semester == 2 ? '2nd Sem' : 'Summer');
+            
             $trends[] = [
-                'semester_label' => "{$sem->year_start}-{$sem->year_end} {$sem->semester}",
+                'semester_label' => "{$sem->year_start}-{$sem->year_end} {$semLabel}",
                 'scheduling_progress' => $totalCourses > 0 
                     ? round(($scheduledCourses / $totalCourses) * 100, 2) 
                     : 0,

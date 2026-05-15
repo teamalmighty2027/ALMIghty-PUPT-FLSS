@@ -1,5 +1,5 @@
 <div class="widget-container">
-  <div class="search-header" *ngIf="!isLoading && !isEmpty">
+  <div class="search-header" *ngIf="hasData">
     <mat-form-field appearance="outline" subscriptSizing="dynamic">
       <mat-label>Search Faculty</mat-label>
       <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" 
@@ -13,8 +13,14 @@
   </div>
 
   <div *ngIf="!isLoading && isEmpty" class="empty-state">
-    <mat-icon>check_circle</mat-icon>
-    <p>All faculty are optimally loaded.</p>
+    <ng-container *ngIf="searchTerm.trim(); else defaultEmpty">
+      <mat-icon>search_off</mat-icon>
+      <p>No matching faculty found.</p>
+    </ng-container>
+    <ng-template #defaultEmpty>
+      <mat-icon>check_circle</mat-icon>
+      <p>All faculty are optimally loaded.</p>
+    </ng-template>
   </div>
 
   <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper">
