@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { FormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+
 @Component({
   selector: 'app-analytics-load-analysis',
   standalone: true,
@@ -15,7 +19,10 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    FormsModule,
+    MatInputModule,
+    MatFormFieldModule
   ],
   templateUrl: './analytics-load-analysis.component.html',
   styleUrl: './analytics-load-analysis.component.scss'
@@ -23,6 +30,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  searchTerm = '';
+  private allAnalysisData: any[] = [];
   private destroy$ = new Subject<void>();
   private facultyMetadata: any[] = [];
 
@@ -73,7 +82,7 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
     ]
   };
 
-  public barChartType: ChartType = 'bar';
+  public barChartType: 'bar' = 'bar';
 
   constructor(private analyticsService: AnalyticsService) {}
 
@@ -103,12 +112,13 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (data: any[]) => {
-          if (!data || data.length === 0) {
+          this.allAnalysisData = data || [];
+          if (this.allAnalysisData.length === 0) {
             this.isEmpty = true;
             this.isLoading = false;
             return;
           }
-          this.processAnalysis(data);
+          this.filterAndProcessData();
           this.isLoading = false;
         },
         error: (error) => {
@@ -119,29 +129,45 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
       });
   }
 
-  /** Processes load analysis data into chart-friendly format */
-  private processAnalysis(analysis: any[]): void {
-    // Sort by delta descending
-    const sorted = [...analysis].sort((a, b) => b.delta - a.delta);
-    
-    // Show top 15 by absolute delta.
-    const filtered = sorted.filter(f => f.delta !== 0)
-      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-      .slice(0, 15)
-      .sort((a, b) => b.delta - a.delta);
+  /** Handles search input changes */
+  onSearchChange(): void {
+    this.filterAndProcessData();
+  }
 
-    if (filtered.length === 0) {
-      this.isEmpty = true;
+  /** Filters and processes analysis data into chart-friendly format */
+  private filterAndProcessData(): void {
+    let filtered = this.allAnalysisData;
+
+    if (this.searchTerm.trim()) {
+      const term = this.searchTerm.toLowerCase();
+      filtered = filtered.filter(f => f.name.toLowerCase().includes(term));
+    }
+
+    // Sort by delta descending
+    const sorted = [...filtered].sort((a, b) => b.delta - a.delta);
+    
+    // Show top 15 by absolute delta if no search term, otherwise show all matching
+    const displayData = this.searchTerm.trim() 
+      ? sorted 
+      : sorted.filter(f => f.delta !== 0)
+        .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+        .slice(0, 10)
+        .sort((a, b) => b.delta - a.delta);
+
+    if (displayData.length === 0) {
+      this.isEmpty = this.searchTerm.trim() ? false : true; // Show empty if no matching results
+      this.barChartData = { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
       return;
     }
 
-    this.facultyMetadata = filtered;
+    this.isEmpty = false;
+    this.facultyMetadata = displayData;
     this.barChartData = {
-      labels: filtered.map(f => f.name),
+      labels: displayData.map(f => f.name),
       datasets: [
         {
-          data: filtered.map(f => f.delta),
-          backgroundColor: filtered.map(f => f.delta > 0 ? '#F44336' : '#FFC107'),
+          data: displayData.map(f => f.delta),
+          backgroundColor: displayData.map(f => f.delta > 0 ? '#F44336' : '#FFC107'),
           borderRadius: 4
         }
       ]

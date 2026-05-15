@@ -40,8 +40,8 @@
           <tr *ngFor="let time of timeSlots">
             <td class="time-label">{{ time.substring(0, 5) }}</td>
             <td *ngFor="let day of days" 
-                [style.background-color]="getScoreColor(gridData[day + '-' + time]?.score || 0)"
-                [matTooltip]="(gridData[day + '-' + time]?.pref || 0) + ' Prefs / ' + (gridData[day + '-' + time]?.sched || 0) + ' Sched'"
+                [style.background-color]="getScoreColor(gridData[day + '-' + time].score || 0)"
+                [matTooltip]="(gridData[day + '-' + time].pref || 0) + ' Prefs / ' + (gridData[day + '-' + time].sched || 0) + ' Sched'"
                 class="heat-cell">
             </td>
           </tr>

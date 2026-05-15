@@ -1,4 +1,12 @@
 <div class="widget-container">
+  <div class="search-header" *ngIf="!isLoading && !isEmpty">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Search Faculty</mat-label>
+      <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" 
+             placeholder="Enter name...">
+      <mat-icon matPrefix>search</mat-icon>
+    </mat-form-field>
+  </div>
   <div *ngIf="isLoading" class="loading-overlay">
     <mat-spinner diameter="40"></mat-spinner>
     <span>Analyzing loads...</span>

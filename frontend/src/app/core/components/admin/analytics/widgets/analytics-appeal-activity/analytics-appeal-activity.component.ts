@@ -58,7 +58,7 @@ export class AnalyticsAppealActivityComponent implements OnInit, OnDestroy {
     ]
   };
 
-  public doughnutChartType: ChartType = 'doughnut';
+  public doughnutChartType: 'doughnut' = 'doughnut';
   public totalAppeals = 0;
 
   constructor(private analyticsService: AnalyticsService) {}
