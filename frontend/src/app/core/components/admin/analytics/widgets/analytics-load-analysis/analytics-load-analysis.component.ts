@@ -12,6 +12,10 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-load-analysis',
   standalone: true,
@@ -22,7 +26,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
     MatIconModule,
     FormsModule,
     MatInputModule,
-    MatFormFieldModule
+    MatFormFieldModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-load-analysis.component.html',
   styleUrl: './analytics-load-analysis.component.scss'
@@ -83,6 +88,9 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
   };
 
   public barChartType: 'bar' = 'bar';
+
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
 
   constructor(private analyticsService: AnalyticsService) {}
 
@@ -161,6 +169,7 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
 
     if (displayData.length === 0) {
       this.isEmpty = true;
+      this.insightText = '';
       this.barChartData = { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
       return;
     }
@@ -177,5 +186,24 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
         }
       ]
     };
+
+    this.generateInsight();
+  }
+
+  /** Generates a plain-text insight based on current filtered data */
+  private generateInsight(): void {
+    const overloaded = this.allAnalysisData.filter(f => f.delta > 0).length;
+    const underloaded = this.allAnalysisData.filter(f => f.delta < 0).length;
+
+    if (overloaded === 0 && underloaded === 0) {
+      this.insightText = 'All faculty are currently loaded within their regular unit limits.';
+      this.insightType = 'success';
+      return;
+    }
+
+    const mostExtreme = [...this.allAnalysisData].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0];
+    
+    this.insightText = `${overloaded} faculty are overloaded and ${underloaded} are underloaded. Most extreme case: ${mostExtreme.name} at ${mostExtreme.delta > 0 ? '+' : ''}${mostExtreme.delta} units.`;
+    this.insightType = overloaded > 3 ? 'alert' : (overloaded > 0 ? 'warning' : 'info');
   }
 }

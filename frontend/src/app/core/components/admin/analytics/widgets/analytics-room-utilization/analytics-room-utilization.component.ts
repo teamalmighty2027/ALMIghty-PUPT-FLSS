@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-room-utilization',
   standalone: true,
@@ -15,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-room-utilization.component.html',
   styleUrl: './analytics-room-utilization.component.scss',
@@ -23,6 +28,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   // Bar Chart Configuration
@@ -122,6 +129,7 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
               )
             }]
           };
+          this.generateInsight(data);
           this.isLoading = false;
         },
         error: (error) => {
@@ -130,5 +138,18 @@ export class AnalyticsRoomUtilizationComponent implements OnInit, OnDestroy {
           this.isEmpty = true;
         }
       });
+  }
+
+  /** Generates a plain-text insight based on room utilization data */
+  private generateInsight(data: any[]): void {
+    const hours = data.map(item => item.total_scheduled_minutes / 60);
+    const maxIdx = hours.indexOf(Math.max(...hours));
+    const minIdx = hours.indexOf(Math.min(...hours));
+    const mostUsed = data[maxIdx];
+    const leastUsed = data[minIdx];
+    const avgHours = hours.reduce((a, b) => a + b, 0) / hours.length;
+
+    this.insightText = `Room ${mostUsed.room_code} has the highest utilization (${Math.round(hours[maxIdx])} hrs/wk). Avg utilization: ${Math.round(avgHours)} hrs/wk.`;
+    this.insightType = hours[maxIdx] > 40 ? 'warning' : 'info';
   }
 }

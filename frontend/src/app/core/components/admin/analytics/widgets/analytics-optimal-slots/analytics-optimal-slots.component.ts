@@ -7,6 +7,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-optimal-slots',
   standalone: true,
@@ -14,7 +18,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     CommonModule, 
     MatProgressSpinnerModule,
     MatIconModule,
-    MatTooltipModule
+    MatTooltipModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-optimal-slots.component.html',
   styleUrl: './analytics-optimal-slots.component.scss'
@@ -22,6 +27,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 export class AnalyticsOptimalSlotsComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -127,6 +134,20 @@ export class AnalyticsOptimalSlotsComponent implements OnInit, OnDestroy {
     // Sort by score descending
     this.recommendations.sort((a, b) => b.score - a.score);
     this.recommendations = this.recommendations.slice(0, 5);
+
+    this.generateInsight();
+  }
+
+  /** Generates a plain-text insight based on recommendations */
+  private generateInsight(): void {
+    if (this.recommendations.length > 0) {
+      const top = this.recommendations[0];
+      this.insightText = `Best available slot: ${top.day} at ${top.time} has +${top.score} unfulfilled faculty preferences vs current schedules.`;
+      this.insightType = 'info';
+    } else {
+      this.insightText = 'All preferred faculty time slots are already well-covered by current schedules.';
+      this.insightType = 'success';
+    }
   }
 
   /** Formats 24h time to 12h for display */

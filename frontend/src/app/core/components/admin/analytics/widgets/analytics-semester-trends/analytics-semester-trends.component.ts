@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-semester-trends',
   standalone: true,
@@ -15,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-semester-trends.component.html',
   styleUrl: './analytics-semester-trends.component.scss'
@@ -23,6 +28,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsSemesterTrendsComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   public lineChartOptions: ChartConfiguration['options'] = {
@@ -123,5 +130,30 @@ export class AnalyticsSemesterTrendsComponent implements OnInit, OnDestroy {
         }
       ]
     };
+    this.generateInsight(data);
+  }
+
+  /** Generates a plain-text insight based on trend data */
+  private generateInsight(data: any[]): void {
+    if (data.length < 2) {
+      this.insightText = 'Historical trend analysis requires at least two terms of data.';
+      this.insightType = 'info';
+      return;
+    }
+
+    const latest = data[data.length - 1];
+    const previous = data[data.length - 2];
+    const diff = latest.scheduling_progress - previous.scheduling_progress;
+
+    if (diff > 0) {
+      this.insightText = `Scheduling progress improved by ${diff.toFixed(1)}% compared to the previous term.`;
+      this.insightType = 'success';
+    } else if (diff < 0) {
+      this.insightText = `Scheduling progress dropped by ${Math.abs(diff).toFixed(1)}% compared to the previous term.`;
+      this.insightType = 'warning';
+    } else {
+      this.insightText = 'Scheduling progress remained consistent with the previous term.';
+      this.insightType = 'info';
+    }
   }
 }

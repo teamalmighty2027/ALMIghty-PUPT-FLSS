@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-appeal-activity',
   standalone: true,
@@ -15,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-appeal-activity.component.html',
   styleUrl: './analytics-appeal-activity.component.scss'
@@ -23,6 +28,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsAppealActivityComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   public doughnutChartOptions: ChartConfiguration<'doughnut'>['options'] = {
@@ -120,5 +127,26 @@ export class AnalyticsAppealActivityComponent implements OnInit, OnDestroy {
         ]
       }]
     };
+    this.generateInsight(data);
+  }
+
+  /** Generates a plain-text insight based on appeal data */
+  private generateInsight(data: any): void {
+    const total = Number(data.total) || 0;
+    const approved = Number(data.approved) || 0;
+    const pending = Number(data.pending) || 0;
+    const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
+
+    this.insightText = `${total} appeals filed this term. Approval rate: ${approvalRate}%. ${pending} appeals are still pending.`;
+    
+    if (pending > 5) {
+      this.insightType = 'warning';
+    } else if (approvalRate < 30 && total > 5) {
+      this.insightType = 'alert';
+    } else if (approvalRate > 70 && total > 5) {
+      this.insightType = 'success';
+    } else {
+      this.insightType = 'info';
+    }
   }
 }

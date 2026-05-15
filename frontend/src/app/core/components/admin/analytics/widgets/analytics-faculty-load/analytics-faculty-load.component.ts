@@ -8,6 +8,10 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-faculty-load',
   standalone: true,
@@ -15,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     BaseChartDirective, 
     MatProgressSpinnerModule,
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-faculty-load.component.html',
   styleUrl: './analytics-faculty-load.component.scss',
@@ -23,6 +28,8 @@ import { MatIconModule } from '@angular/material/icon';
 export class AnalyticsFacultyLoadComponent implements OnInit, OnDestroy {
   isLoading = true;
   isEmpty = false;
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   private destroy$ = new Subject<void>();
 
   // Bar Chart Configuration for Load Distribution
@@ -148,5 +155,19 @@ export class AnalyticsFacultyLoadComponent implements OnInit, OnDestroy {
         data: [underloaded, optimal, overloaded]
       }]
     };
+
+    this.generateInsight(underloaded, optimal, overloaded);
+  }
+
+  /** Generates a plain-text insight based on load distribution */
+  private generateInsight(under: number, optimal: number, over: number): void {
+    if (over === 0 && under === 0) {
+      this.insightText = 'All faculty loads are within the recommended range.';
+      this.insightType = 'success';
+      return;
+    }
+
+    this.insightText = `${over} faculty are overloaded and ${under} are underloaded this term.`;
+    this.insightType = over > 3 ? 'alert' : (over > 0 ? 'warning' : 'info');
   }
 }
