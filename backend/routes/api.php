@@ -27,6 +27,7 @@ use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
+use App\Http\Controllers\TemporaryCourseOfferingController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
@@ -302,8 +303,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/appeal-activity', [AnalyticsController::class, 'getAppealActivity']);
         Route::get('/program-coverage', [AnalyticsController::class, 'getProgramCoverage']);
         Route::get('/semester-trends', [AnalyticsController::class, 'getSemesterTrends']);
-        Route::get('/preference-insights', [AnalyticsController::class, 'getPreferenceInsights']);
         Route::get('/optimal-slots', [AnalyticsController::class, 'getOptimalSlots']);
+        Route::get('/underutilized-rooms', [AnalyticsController::class, 'getUnderutilizedRooms']);
+        Route::get('/faculty-load-analysis', [AnalyticsController::class, 'getFacultyLoadAnalysis']);
+        Route::get('/conflict-risk', [AnalyticsController::class, 'getConflictRisk']);
+        Route::get('/program-laggards', [AnalyticsController::class, 'getProgramLaggards']);
     });
 
     /**
