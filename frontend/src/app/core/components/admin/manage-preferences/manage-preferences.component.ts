@@ -746,7 +746,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
             (doc as any).autoTable(tableConfig);
 
-            currentY = doc.autoTable.previous.finalY + 10;
+            currentY = (doc as any).lastAutoTable.finalY + 10;
             if (currentY > 270) {
               doc.addPage();
               this.reportHeaderService
