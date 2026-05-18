@@ -76,6 +76,8 @@ class ExternalController extends Controller
             'semester'                   => $this->formatSemesterLabel(
                                                 $activeSemester->semester
                                             ),
+            'start_date'                  => $activeSemester->start_date,
+            'end_date'                    => $activeSemester->end_date,
             'parttime_faculty_schedules' => $faculties,
         ]);
     }
@@ -114,6 +116,8 @@ class ExternalController extends Controller
             'semester'                   => $this->formatSemesterLabel(
                                                 $activeSemester->semester
                                             ),
+            'start_date'                  => $activeSemester->start_date,
+            'end_date'                    => $activeSemester->end_date,
             'temporary_faculty_schedules' => $faculties,
         ]);
     }
@@ -131,8 +135,8 @@ class ExternalController extends Controller
             ->get()
             ->map(function ($room) {
                 return [
-                    'room_id' => $room->room_id,
-                    'room_code' => $room->room_code,
+                    'room_id' => $room->room_id ?? 'TBA',
+                    'room_code' => $room->room_code ?? 'TBA',
                     'building_name' => $room->building?->building_name,
                 ];
             });
@@ -277,8 +281,8 @@ class ExternalController extends Controller
                 'course_subjects'    => $firstSchedule->course_subjects,
                 'year_section'       => $firstSchedule->year_level . 
                     '-' . $firstSchedule->section_name,
-                'room_id'            => $firstSchedule->room_id,
-                'room_code'          => $firstSchedule->room_code,
+                'room_id'            => $firstSchedule->room_id ?? 'TBA',
+                'room_code'          => $firstSchedule->room_code ?? 'TBA',
                 'schedule'           => $combinedSchedule,
                 'semester'           => $this->formatSemesterLabel(
                     $activeSemester->semester
