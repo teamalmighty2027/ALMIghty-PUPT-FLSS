@@ -650,6 +650,15 @@ class ReportsController extends Controller
     public function getSingleFacultySchedule(Request $request, $faculty_id)
 
     {
+        // 🛑 1. SECURITY CHECK (IDOR FIX)
+        $user = $request->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin']);
+        $isOwner = $user && $user->role === 'faculty' && $user->faculty && $user->faculty->id == $faculty_id;
+
+        if (!$isAdmin && !$isOwner) {
+            return response()->json(['message' => 'Forbidden. You are not authorized to view this schedule.'], 403);
+        }
+
         // Step 1: Validate the faculty_id
         $validator = Validator::make(['faculty_id' => $faculty_id], [
             'faculty_id' => 'required|integer|exists:faculty,id',
@@ -833,6 +842,15 @@ class ReportsController extends Controller
      */
     public function getFacultyScheduleHistory($faculty_id, Request $request)
     {
+        // 🛑 1. SECURITY CHECK (IDOR FIX)
+        $user = $request->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin']);
+        $isOwner = $user && $user->role === 'faculty' && $user->faculty && $user->faculty->id == $faculty_id;
+
+        if (!$isAdmin && !$isOwner) {
+            return response()->json(['message' => 'Forbidden. You are not authorized to view this history.'], 403);
+        }
+
         // Step 1: Validate input
         $validator = Validator::make([
             'faculty_id' => $faculty_id,
@@ -1008,8 +1026,17 @@ class ReportsController extends Controller
     /**
      * Retrieves academic years and semesters where a faculty had published schedules
      */
-    public function getFacultyAcademicYearsHistory($faculty_id)
+    public function getFacultyAcademicYearsHistory(Request $request, $faculty_id) // Note: Add Request $request to the parameters
     {
+        // 🛑 1. SECURITY CHECK (IDOR FIX)
+        $user = $request->user();
+        $isAdmin = $user && in_array($user->role, ['admin', 'superadmin']);
+        $isOwner = $user && $user->role === 'faculty' && $user->faculty && $user->faculty->id == $faculty_id;
+
+        if (!$isAdmin && !$isOwner) {
+            return response()->json(['message' => 'Forbidden. You are not authorized to view this data.'], 403);
+        }
+        
         $validator = Validator::make(['faculty_id' => $faculty_id], [
             'faculty_id' => 'required|integer|exists:faculty,id',
         ]);

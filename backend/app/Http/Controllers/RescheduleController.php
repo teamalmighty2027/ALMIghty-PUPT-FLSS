@@ -39,7 +39,20 @@ class RescheduleController extends Controller
             return response()->json(['message' => 'The end time must be after the start time.'], 422);
         }
 
+        // 🛑 1. IDOR SECURITY FIX: Get the currently authenticated faculty
+        $user = $request->user();
+        $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
+
+        if (!$faculty) {
+            return response()->json(['message' => 'Unauthorized. Faculty profile not found.'], 403);
+        }
+
         $schedule = Schedule::findOrFail($validated['scheduleId']);
+
+        // 🛑 2. IDOR SECURITY FIX: Verify the schedule belongs to this faculty
+        if ($schedule->faculty_id !== $faculty->id) {
+            return response()->json(['message' => 'Forbidden. You are not authorized to appeal this schedule.'], 403);
+        }
 
         $filePath = null;
         $aiSummary = null;
