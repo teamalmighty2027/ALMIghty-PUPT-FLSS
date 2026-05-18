@@ -76,6 +76,8 @@ class ExternalController extends Controller
             'semester'                   => $this->formatSemesterLabel(
                                                 $activeSemester->semester
                                             ),
+            'start_date'                  => $activeSemester->start_date,
+            'end_date'                    => $activeSemester->end_date,
             'parttime_faculty_schedules' => $faculties,
         ]);
     }
@@ -114,6 +116,8 @@ class ExternalController extends Controller
             'semester'                   => $this->formatSemesterLabel(
                                                 $activeSemester->semester
                                             ),
+            'start_date'                  => $activeSemester->start_date,
+            'end_date'                    => $activeSemester->end_date,
             'temporary_faculty_schedules' => $faculties,
         ]);
     }
