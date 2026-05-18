@@ -281,8 +281,8 @@ class ExternalController extends Controller
                 'course_subjects'    => $firstSchedule->course_subjects,
                 'year_section'       => $firstSchedule->year_level . 
                     '-' . $firstSchedule->section_name,
-                'room_id'            => $firstSchedule->room_id,
-                'room_code'          => $firstSchedule->room_code,
+                'room_id'            => $firstSchedule->room_id ?? 'TBA',
+                'room_code'          => $firstSchedule->room_code ?? 'TBA',
                 'schedule'           => $combinedSchedule,
                 'semester'           => $this->formatSemesterLabel(
                     $activeSemester->semester
