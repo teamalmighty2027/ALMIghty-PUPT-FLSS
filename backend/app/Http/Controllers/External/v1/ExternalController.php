@@ -135,8 +135,8 @@ class ExternalController extends Controller
             ->get()
             ->map(function ($room) {
                 return [
-                    'room_id' => $room->room_id,
-                    'room_code' => $room->room_code,
+                    'room_id' => $room->room_id ?? 'TBA',
+                    'room_code' => $room->room_code ?? 'TBA',
                     'building_name' => $room->building?->building_name,
                 ];
             });
