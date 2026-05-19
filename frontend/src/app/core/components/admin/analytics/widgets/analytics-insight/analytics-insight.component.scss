@@ -1,0 +1,58 @@
+.insight-container {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.divider {
+  height: 1px;
+  background: var(--mat-sys-outline-variant);
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+.insight-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0.25rem;
+}
+
+mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+.insight-text {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Type variations
+.type-info {
+  mat-icon { color: var(--mat-sys-primary); }
+}
+
+.type-success {
+  mat-icon { color: #4CAF50; }
+}
+
+.type-warning {
+  mat-icon { color: #FFC107; }
+}
+
+.type-alert {
+  mat-icon { color: #F44336; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

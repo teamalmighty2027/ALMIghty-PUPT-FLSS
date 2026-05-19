@@ -23,6 +23,18 @@ import {
 import { 
   AnalyticsProgramCoverageComponent 
 } from './widgets/analytics-program-coverage/analytics-program-coverage.component';
+import { 
+  AnalyticsLoadAnalysisComponent 
+} from './widgets/analytics-load-analysis/analytics-load-analysis.component';
+import { 
+  AnalyticsAppealActivityComponent 
+} from './widgets/analytics-appeal-activity/analytics-appeal-activity.component';
+import { 
+  AnalyticsSemesterTrendsComponent 
+} from './widgets/analytics-semester-trends/analytics-semester-trends.component';
+import { 
+  AnalyticsOptimalSlotsComponent 
+} from './widgets/analytics-optimal-slots/analytics-optimal-slots.component';
 import { fadeAnimation } from '../../../animations/animations';
 
 @Component({
@@ -39,6 +51,10 @@ import { fadeAnimation } from '../../../animations/animations';
     AnalyticsRoomUtilizationComponent,
     AnalyticsFacultyLoadComponent,
     AnalyticsProgramCoverageComponent,
+    AnalyticsLoadAnalysisComponent,
+    AnalyticsAppealActivityComponent,
+    AnalyticsSemesterTrendsComponent,
+    AnalyticsOptimalSlotsComponent,
   ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
@@ -67,7 +83,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  // Loads available semesters for the term selector
+  /** Loads available semesters for the term selector */
   loadTerms(): void {
     this.isTermsLoading = true;
     
@@ -102,12 +118,12 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
       });
   }
 
-  // Updates the global term state when the user selects a different term
+  /** Updates the global term state when the user selects a different term */
   onTermChange(): void {
     this.analyticsService.setSelectedTerm(this.selectedTermId);
   }
 
-  // Returns a descriptive label for a semester number
+  /** Returns a descriptive label for a semester number */
   getSemesterLabel(semesterNumber: number): string {
     switch (semesterNumber) {
       case 1: return '1st Semester';

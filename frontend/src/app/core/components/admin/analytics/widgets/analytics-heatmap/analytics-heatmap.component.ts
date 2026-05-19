@@ -7,6 +7,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
+import { 
+  AnalyticsInsightComponent 
+} from '../analytics-insight/analytics-insight.component';
+
 @Component({
   selector: 'app-analytics-heatmap',
   standalone: true,
@@ -14,12 +18,15 @@ import { MatIconModule } from '@angular/material/icon';
     CommonModule, 
     MatTooltipModule, 
     MatProgressSpinnerModule, 
-    MatIconModule
+    MatIconModule,
+    AnalyticsInsightComponent
   ],
   templateUrl: './analytics-heatmap.component.html',
   styleUrl: './analytics-heatmap.component.scss',
 })
 export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
+  public insightText = '';
+  public insightType: 'info' | 'success' | 'warning' | 'alert' = 'info';
   days = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
     'Friday', 'Saturday', 'Sunday'
@@ -99,6 +106,7 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
             }
           });
 
+          this.generateInsight(data);
           this.isLoading = false;
         },
         error: (error) => {
@@ -107,6 +115,20 @@ export class AnalyticsHeatmapComponent implements OnInit, OnDestroy {
           this.isEmpty = true;
         }
       });
+  }
+
+  /** Generates a plain-text insight based on heatmap density */
+  private generateInsight(data: any[]): void {
+    if (data.length === 0) {
+      this.insightText = '';
+      return;
+    }
+
+    const peak = [...data].sort((a, b) => b.count - a.count)[0];
+    const formattedTime = this.formatTime(peak.start_time);
+    
+    this.insightText = `Peak scheduling density is on ${peak.day} at ${formattedTime} with ${peak.count} concurrent classes.`;
+    this.insightType = peak.count > 20 ? 'warning' : 'info';
   }
 
   // Formats HH:mm:ss to a human-readable 12-hour format

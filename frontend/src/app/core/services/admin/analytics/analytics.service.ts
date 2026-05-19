@@ -97,8 +97,20 @@ export class AnalyticsService {
     return this.getAnalyticsData('optimal-slots', termId);
   }
 
-  getPreferenceInsights(termId: number | null): Observable<any> {
-    return this.getAnalyticsData('preference-insights', termId);
+  getFacultyLoadAnalysis(termId: number | null): Observable<any> {
+    return this.getAnalyticsData('faculty-load-analysis', termId);
+  }
+
+  getProgramLaggards(termId: number | null): Observable<any> {
+    return this.getAnalyticsData('program-laggards', termId);
+  }
+
+  getUnderutilizedRooms(termId: number | null): Observable<any> {
+    return this.getAnalyticsData('underutilized-rooms', termId);
+  }
+
+  getConflictRisk(termId: number | null): Observable<any> {
+    return this.getAnalyticsData('conflict-risk', termId);
   }
 
   /**
