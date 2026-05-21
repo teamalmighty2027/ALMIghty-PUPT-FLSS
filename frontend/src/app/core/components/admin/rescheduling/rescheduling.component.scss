@@ -463,9 +463,10 @@
   align-items: center;
   gap: 0.5rem;
   justify-content: flex-end;
+  flex-wrap: wrap;
 
   .btn-clear  { margin-right: auto; color: var(--secondary-text); font-size: 0.9rem; }
-  .btn-cancel { color: var(--secondary-text); font-size: 0.9rem; }
+  .btn-cancel { color: var(--secondary-text); font-size: 0.9rem; min-height: 36px; }
 
   .btn-deny, .btn-approve {
     background-color: var(--primary-one, #7d1f1f);
@@ -658,19 +659,16 @@
   .modal-actions {
     flex-wrap: wrap;
     gap: var(--spacing-xs);
+    justify-content: flex-end;
 
-    .btn-clear {
-      margin-right: 0;
-      order: 10;
-      width: 100%;
-      text-align: center;
-    }
-
+    // Cancel always visible — never hidden
     .btn-cancel {
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       min-height: 44px;
+      order: 0;
     }
 
+    // Deny and Approve share a row
     .btn-deny,
     .btn-approve {
       flex: 1 1 auto;
@@ -678,6 +676,16 @@
       height: auto;
       line-height: normal;
       padding: var(--spacing-xs) var(--spacing-md);
+      order: 1;
+    }
+
+    // Clear goes to its own row at the bottom
+    .btn-clear {
+      margin-right: 0;
+      order: 10;
+      width: 100%;
+      text-align: center;
+      min-height: 40px;
     }
   }
 

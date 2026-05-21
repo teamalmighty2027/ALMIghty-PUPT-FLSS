@@ -53,7 +53,7 @@
           [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
           alt="Profile Icon"
           class="profile-icon"
-          [matMenuTriggerFor]="desktopProfileMenu" 
+          [matMenuTriggerFor]="desktopProfileMenu"
           matTooltip="Click to open settings"
           matTooltipPosition="below" />
       </div>
@@ -69,7 +69,6 @@
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('profile')">
-<<<<<<< HEAD
       <span mat-symbol="account_circle"></span>
       My Profile
     </button>
@@ -82,32 +81,13 @@
     <button mat-menu-item (click)="onMenuAction('theme')">
       <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
       Switch Theme
-=======
-      <span mat-symbol="account_circle" class="menu-icon"></span>
-      <span>My Profile</span>
-    </button>
-
-    <button mat-menu-item (click)="onMenuAction('change-password')">
-      <span mat-symbol="lock" class="menu-icon"></span>
-      <span>Change Password</span>
-    </button>
-
-    <button mat-menu-item (click)="onMenuAction('theme')">
-      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" class="menu-icon"></span>
-      <span>Switch Theme</span>
->>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
     </button>
 
     <div class="menu-divider"></div>
 
     <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
-<<<<<<< HEAD
       <span mat-symbol="door_open"></span>
       Logout
-=======
-      <span mat-symbol="door_open" class="menu-icon"></span>
-      <span>Logout</span>
->>>>>>> bc930bb6c46df52076b60341f075a51f3906ed44
     </button>
   </mat-menu>
 
@@ -192,16 +172,16 @@
   }
 
   <footer class="admin-footer">
-  <div class="footer-divider"></div>
-  <div class="footer-content">
-    <p class="footer-text">
-      © 2026 PUP Taguig Faculty Loading & Scheduling System. All rights reserved.
-    </p>
-    <div class="privacy-links">
-      <a href="https://www.pup.edu.ph/privacy/" target="_blank" class="privacyNotice">Privacy Policy</a>
-      <span class="separator">|</span>
-      <a href="https://www.pup.edu.ph/terms/" target="_blank" class="privacyNotice">Terms and Conditions</a>
+    <div class="footer-divider"></div>
+    <div class="footer-content">
+      <p class="footer-text">
+        © 2026 PUP Taguig Faculty Loading & Scheduling System. All rights reserved.
+      </p>
+      <div class="privacy-links">
+        <a href="https://www.pup.edu.ph/privacy/" target="_blank" class="privacyNotice">Privacy Policy</a>
+        <span class="separator">|</span>
+        <a href="https://www.pup.edu.ph/terms/" target="_blank" class="privacyNotice">Terms and Conditions</a>
+      </div>
     </div>
-  </div>
-</footer>
+  </footer>
 </div>
