@@ -32,6 +32,7 @@ import { Program, Course, PreferredDay, Section } from '../../../models/preferen
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
 import { DialogImportHistoryComponent } from '../../../../shared/dialog-import-history/dialog-import-history.component';
+import { HasUnsavedPreferences } from '../../../guards/unsaved-preferences.guard';
 
 interface TableData extends Course {
   preferredDays: PreferredDay[];
@@ -64,7 +65,7 @@ interface TableData extends Course {
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [fadeAnimation, cardEntranceAnimation, rowAdditionAnimation],
 })
-export class PreferencesComponent implements OnInit, OnDestroy {
+export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPreferences {
   // UI State
   isLoading = signal(true);
   searchState = signal<
@@ -195,6 +196,23 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.dataSource().data;
     });
 
+    // Auto-save draft to localStorage on every change so refreshing the page
+    // doesn't lose unsaved courses. Only saves when there are unsubmitted rows
+    // and the faculty/semester IDs are already known.
+    effect(() => {
+      const courses = this.allSelectedCourses();
+      const key = this.getDraftKey();
+      if (!key) return;
+
+      const unsaved = courses.filter((c) => !c.isSubmitted);
+      if (unsaved.length > 0) {
+        localStorage.setItem(key, JSON.stringify(unsaved));
+      } else {
+        // All rows submitted — no draft needed
+        localStorage.removeItem(key);
+      }
+    });
+
     this.searchQuerySubject
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((query) => {
@@ -292,6 +310,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
+
+      // Restore any locally saved draft on top of submitted courses
+      this.restoreDraft();
     } else {
       this.isPreferencesEnabled.set(true);
       this.isSchedulesPublished.set(false);
@@ -813,6 +834,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
                   : course,
               ),
             );
+
+            // If no more unsaved rows remain, clear any saved draft
+            if (!this.hasUnsavedPreferences()) {
+              const key = this.getDraftKey();
+              if (key) localStorage.removeItem(key);
+            }
           }
         }
       });
@@ -1155,5 +1182,77 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     return course.course_assignment_id ?? null;
+  }
+
+  /**
+   * Returns true when there are courses in the table that have not been
+   * submitted to the backend yet (draft rows). Used by the CanDeactivate guard.
+   */
+  hasUnsavedPreferences(): boolean {
+    return this.allSelectedCourses().some((c) => !c.isSubmitted);
+  }
+
+  /**
+   * Persists the current unsubmitted courses to localStorage so the faculty
+   * can continue later. Key is scoped to the faculty + semester so drafts
+   * don't bleed across semesters.
+   */
+  saveDraft(): void {
+    const key = this.getDraftKey();
+    if (!key) return;
+
+    const draftCourses = this.allSelectedCourses().filter((c) => !c.isSubmitted);
+    localStorage.setItem(key, JSON.stringify(draftCourses));
+  }
+
+  /**
+   * Restores a previously saved draft from localStorage and merges it with
+   * any already-submitted courses already loaded from the backend.
+   */
+  private restoreDraft(): void {
+    const key = this.getDraftKey();
+    if (!key) return;
+
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+
+    try {
+      const draftCourses: TableData[] = JSON.parse(raw);
+      if (!draftCourses?.length) return;
+
+      // Merge: keep submitted courses from backend, add draft ones on top
+      const existingKeys = new Set(
+        this.allSelectedCourses().map((c) => this.getSelectionKey(c))
+      );
+
+      const newDraftCourses = draftCourses.filter(
+        (c) => !existingKeys.has(this.getSelectionKey(c))
+      );
+
+      if (newDraftCourses.length > 0) {
+        this.allSelectedCourses.update((current) => [
+          ...current,
+          ...newDraftCourses,
+        ]);
+        this.showSnackBar(
+          `Draft restored: ${newDraftCourses.length} course${newDraftCourses.length > 1 ? 's' : ''} added from your saved draft.`
+        );
+      }
+
+      // Clear draft after restoring so it doesn't re-appear on next load
+      localStorage.removeItem(key);
+    } catch {
+      localStorage.removeItem(key);
+    }
+  }
+
+  /**
+   * Builds a localStorage key scoped to this faculty + active semester.
+   */
+  private getDraftKey(): string | null {
+    const facultyId = this.facultyId();
+    const semesterId = this.activeSemesterId();
+    if (!facultyId || !semesterId) return null;
+    return `pref_draft_${facultyId}_${semesterId}`;
   }
 }
