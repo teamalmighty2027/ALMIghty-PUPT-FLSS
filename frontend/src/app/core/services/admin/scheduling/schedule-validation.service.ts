@@ -94,6 +94,81 @@ export class ScheduleValidationService {
   }
 
   /**
+   * Checks if a schedule has an exact match from another program.
+   * For bridging courses, matches are allowed (returns undefined).
+   * For non-bridging courses, matches are conflicts (returns details).
+   * @returns Conflict details if a conflict exists, otherwise undefined
+   */
+  public checkMatchingSchedule(
+    schedules: PopulateSchedulesResponse,
+    params: {
+      schedule_id: number;
+      program_id: number;
+      year_level: number;
+      day: string;
+      start_time: string;
+      end_time: string;
+      section_id: number;
+      faculty_id: number | null;
+      room_id: number | null;
+    }
+  ): ConflictingScheduleDetail | undefined {
+    let targetCourse: CourseResponse | undefined;
+    
+    // TODO: Optimize searching
+    for (const program of schedules.programs) {
+      for (const yearLevel of program.year_levels) {
+        for (const semester of yearLevel.semesters) {
+          for (const section of semester.sections) {
+            const course = section.courses.find(
+              (c) => c.schedule?.schedule_id === params.schedule_id
+            );
+            if (course) {
+              targetCourse = course;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Find matching schedule in OTHER programs
+    const matchingDetail = this.findConflictingScheduleForPredicate(
+      schedules,
+      (course) =>
+        course.schedule?.day === params.day &&
+        course.schedule?.schedule_id !== params.schedule_id &&
+        this.doTimesOverlap(
+          params.start_time,
+          params.end_time,
+          course.schedule?.start_time,
+          course.schedule?.end_time
+        ) &&
+        (params.faculty_id ? course.faculty_id === params.faculty_id : true) &&
+        (params.room_id ? course.schedule?.room_id === params.room_id : true)
+    );
+
+    // If no match found, return undefined
+    if (!matchingDetail) {
+      return undefined;
+    }
+
+    // For non-bridging courses, return the conflict details
+    return matchingDetail;
+  }
+
+  /**
+   * Produces a combined program label in reverse-alphabetical order,
+   * e.g., "BSME" and "BSECE" -> "BSME/BSECE".
+   * @param codeA First program code
+   * @param codeB Second program code
+   * @returns The combined label
+   */
+  public buildCombinedLabel(codeA: string, codeB: string): string {
+    return [codeA, codeB].sort().reverse().join('/');
+  }
+
+  /**
    * Validates schedule conflicts using a merged view of schedules + arrangements.
    */
   public validateScheduleConflictsWithArrangements(
@@ -337,6 +412,7 @@ export class ScheduleValidationService {
                 return {
                   course,
                   programCode: program.program_code,
+                  programId: program.program_id,
                   yearLevel: yearLevel.year_level,
                   sectionName: section.section_name,
                 };

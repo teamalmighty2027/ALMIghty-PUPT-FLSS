@@ -221,6 +221,37 @@ class ReportsController extends Controller
                 '.temporary_course_offering_id'
             )
             ->leftJoin(
+                'bridging_courses',
+                'temporary_course_offerings.bridging_course_id',
+                '=',
+                'bridging_courses.bridging_course_id'
+            )
+            ->leftJoin(
+                'bridging_courses as peer_bc',
+                function ($join) {
+                    $join->on(
+                        'peer_bc.course_id',
+                        '=',
+                        'bridging_courses.course_id'
+                    )
+                        ->on(
+                            'peer_bc.year_level_id',
+                            '=',
+                            'bridging_courses.year_level_id'
+                        )
+                        ->on(
+                            'peer_bc.semester_id',
+                            '=',
+                            'bridging_courses.semester_id'
+                        )
+                        ->on(
+                            'peer_bc.program_id',
+                            '=',
+                            'bridging_courses.combined_with_program_id'
+                        );
+                }
+            )
+            ->leftJoin(
                 'sections_per_program_year',
                 'sections_per_program_year' .
                 '.sections_per_program_year_id',
@@ -294,18 +325,43 @@ class ReportsController extends Controller
                 'current_schedules.end_time',
                 'rooms.room_code',
                 'course_assignments.course_assignment_id',
-                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
-                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
-                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec_hours'),
-                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab_hours'),
-                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
-                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'temporary_course_offerings.temporary_course_offering_id',
+                'bridging_courses.bridging_course_id',
+                'bridging_courses.combined_with_program_id',
+                'peer_bc.bridging_course_id as combined_bridging_course_id',
+                DB::raw(
+                    'COALESCE(ca_courses.course_title, ' .
+                    'to_courses.course_title) as course_title'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.course_code, ' .
+                    'to_courses.course_code) as course_code'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.lec_hours, ' .
+                    'to_courses.lec_hours) as lec_hours'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.lab_hours, ' .
+                    'to_courses.lab_hours) as lab_hours'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.units, ' .
+                    'to_courses.units) as units'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.tuition_hours, ' .
+                    'to_courses.tuition_hours) as tuition_hours'
+                ),
                 'temporary_course_offerings.type as offering_type',
                 'programs.program_code',
                 'programs.program_title',
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
-                DB::raw('IFNULL(faculty_schedule_publication.is_published, 0) as is_published')
+                DB::raw(
+                    'IFNULL(faculty_schedule_publication.is_published, 0) ' .
+                    'as is_published'
+                )
             )
             ->get();
 
@@ -340,10 +396,27 @@ class ReportsController extends Controller
             }
 
             if ($schedule->schedule_id) {
-                // Only add units if we haven't counted this course assignment before
-                if (!in_array($schedule->course_assignment_id, $faculties[$schedule->faculty_id]['tracked_courses'])) {
-                    $faculties[$schedule->faculty_id]['assigned_units'] += $schedule->units;
-                    $faculties[$schedule->faculty_id]['tracked_courses'][] = $schedule->course_assignment_id;
+                $courseKey = $schedule->course_assignment_id
+                    ? 'ca_' . $schedule->course_assignment_id
+                    : 'to_' . $schedule->temporary_course_offering_id;
+
+                if ($schedule->bridging_course_id &&
+                    $schedule->combined_with_program_id
+                ) {
+                    $courseKey = 'bc_combined_' . min(
+                        $schedule->bridging_course_id,
+                        $schedule->combined_bridging_course_id
+                    );
+                }
+
+                if (!in_array(
+                    $courseKey,
+                    $faculties[$schedule->faculty_id]['tracked_courses']
+                )) {
+                    $faculties[$schedule->faculty_id]['assigned_units'] +=
+                        $schedule->units;
+                    $faculties[$schedule->faculty_id]['tracked_courses'][] =
+                        $courseKey;
                 }
 
                 $faculties[$schedule->faculty_id]['is_published'] = $schedule->is_published;
@@ -957,25 +1030,131 @@ class ReportsController extends Controller
 
         // Step 6: Fetch schedules with publication status
         $facultySchedules = DB::table('schedules')
-            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->leftJoin('course_assignments', 'course_assignments.course_assignment_id', '=', 'section_courses.course_assignment_id')
-            ->leftJoin('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
-            ->join('sections_per_program_year', 'sections_per_program_year.sections_per_program_year_id', '=', 'section_courses.sections_per_program_year_id')
-            ->leftJoin('temporary_course_offerings', 'section_courses.temporary_course_offering_id', '=', 'temporary_course_offerings.temporary_course_offering_id')
-            ->leftJoin('courses as ca_courses', 'ca_courses.course_id', '=', 'course_assignments.course_id')
-            ->leftJoin('courses as to_courses', 'to_courses.course_id', '=', 'temporary_course_offerings.course_id')
-            ->leftJoin('rooms', 'rooms.room_id', '=', 'schedules.room_id')
-            ->leftJoin('programs', 'programs.program_id', '=', 'sections_per_program_year.program_id')
-            ->leftJoin('faculty_schedule_publication', function ($join) use ($activeSemester) {
-                $join->on('faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
-                    ->where('faculty_schedule_publication.academic_year_id', '=', $activeSemester->academic_year_id)
-                    ->where('faculty_schedule_publication.semester_id', '=', $activeSemester->semester_id);
-            })
+            ->join(
+                'section_courses',
+                'schedules.section_course_id',
+                '=',
+                'section_courses.section_course_id'
+            )
+            ->leftJoin(
+                'course_assignments',
+                'course_assignments.course_assignment_id',
+                '=',
+                'section_courses.course_assignment_id'
+            )
+            ->leftJoin(
+                'semesters as ca_semesters',
+                'ca_semesters.semester_id',
+                '=',
+                'course_assignments.semester_id'
+            )
+            ->join(
+                'sections_per_program_year',
+                'sections_per_program_year' .
+                '.sections_per_program_year_id',
+                '=',
+                'section_courses.sections_per_program_year_id'
+            )
+            ->leftJoin(
+                'temporary_course_offerings',
+                'section_courses.temporary_course_offering_id',
+                '=',
+                'temporary_course_offerings.temporary_course_offering_id'
+            )
+            ->leftJoin(
+                'bridging_courses',
+                'temporary_course_offerings.bridging_course_id',
+                '=',
+                'bridging_courses.bridging_course_id'
+            )
+            ->leftJoin(
+                'bridging_courses as peer_bc',
+                function ($join) {
+                    $join->on(
+                        'peer_bc.course_id',
+                        '=',
+                        'bridging_courses.course_id'
+                    )
+                        ->on(
+                            'peer_bc.year_level_id',
+                            '=',
+                            'bridging_courses.year_level_id'
+                        )
+                        ->on(
+                            'peer_bc.semester_id',
+                            '=',
+                            'bridging_courses.semester_id'
+                        )
+                        ->on(
+                            'peer_bc.program_id',
+                            '=',
+                            'bridging_courses.combined_with_program_id'
+                        );
+                }
+            )
+            ->leftJoin(
+                'courses as ca_courses',
+                'ca_courses.course_id',
+                '=',
+                'course_assignments.course_id'
+            )
+            ->leftJoin(
+                'courses as to_courses',
+                'to_courses.course_id',
+                '=',
+                'temporary_course_offerings.course_id'
+            )
+            ->leftJoin(
+                'rooms',
+                'rooms.room_id',
+                '=',
+                'schedules.room_id'
+            )
+            ->leftJoin(
+                'programs',
+                'programs.program_id',
+                '=',
+                'sections_per_program_year.program_id'
+            )
+            ->leftJoin(
+                'faculty_schedule_publication',
+                function ($join) use ($activeSemester) {
+                    $join->on(
+                        'faculty_schedule_publication.faculty_id',
+                        '=',
+                        'schedules.faculty_id'
+                    )
+                        ->where(
+                            'faculty_schedule_publication' .
+                            '.academic_year_id',
+                            '=',
+                            $activeSemester->academic_year_id
+                        )
+                        ->where(
+                            'faculty_schedule_publication' .
+                            '.semester_id',
+                            '=',
+                            $activeSemester->semester_id
+                        );
+                }
+            )
             ->where('schedules.faculty_id', '=', $faculty->id)
-            ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
+            ->where(
+                'sections_per_program_year.academic_year_id',
+                '=',
+                $activeSemester->academic_year_id
+            )
             ->where(function ($query) use ($activeSemester) {
-                $query->where('ca_semesters.semester', '=', $activeSemester->semester)
-                    ->orWhere('temporary_course_offerings.semester_id', '=', $activeSemester->semester_id);
+                $query->where(
+                    'ca_semesters.semester',
+                    '=',
+                    $activeSemester->semester
+                )
+                    ->orWhere(
+                        'temporary_course_offerings.semester_id',
+                        '=',
+                        $activeSemester->semester_id
+                    );
             })
             ->select(
                 'schedules.schedule_id',
@@ -985,18 +1164,42 @@ class ReportsController extends Controller
                 'rooms.room_code',
                 'section_courses.course_assignment_id',
                 'section_courses.temporary_course_offering_id',
-                DB::raw('COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'),
-                DB::raw('COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'),
-                DB::raw('COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec_hours'),
-                DB::raw('COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab_hours'),
-                DB::raw('COALESCE(ca_courses.units, to_courses.units) as units'),
-                DB::raw('COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'),
+                'bridging_courses.bridging_course_id',
+                'bridging_courses.combined_with_program_id',
+                'peer_bc.bridging_course_id as combined_bridging_course_id',
+                DB::raw(
+                    'COALESCE(ca_courses.course_title, ' .
+                    'to_courses.course_title) as course_title'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.course_code, ' .
+                    'to_courses.course_code) as course_code'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.lec_hours, ' .
+                    'to_courses.lec_hours) as lec_hours'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.lab_hours, ' .
+                    'to_courses.lab_hours) as lab_hours'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.units, ' .
+                    'to_courses.units) as units'
+                ),
+                DB::raw(
+                    'COALESCE(ca_courses.tuition_hours, ' .
+                    'to_courses.tuition_hours) as tuition_hours'
+                ),
                 'programs.program_code',
                 'programs.program_title',
                 'sections_per_program_year.year_level',
                 'sections_per_program_year.section_name',
                 'temporary_course_offerings.type as offering_type',
-                DB::raw('IFNULL(faculty_schedule_publication.is_published, 0) as is_published')
+                DB::raw(
+                    'IFNULL(faculty_schedule_publication.is_published, 0) ' .
+                    'as is_published'
+                )
             )
             ->get();
 
@@ -1009,13 +1212,24 @@ class ReportsController extends Controller
                 $isPublished = true;
             }
 
-            $courseKey = $schedule->course_assignment_id 
-                ? 'ca_' . $schedule->course_assignment_id 
+            $courseKey = $schedule->course_assignment_id
+                ? 'ca_' . $schedule->course_assignment_id
                 : 'to_' . $schedule->temporary_course_offering_id;
 
+            if ($schedule->bridging_course_id &&
+                $schedule->combined_with_program_id
+            ) {
+                $courseKey = 'bc_combined_' . min(
+                    $schedule->bridging_course_id,
+                    $schedule->combined_bridging_course_id
+                );
+            }
+
             if ($courseKey && !in_array($courseKey, $trackedCourses)) {
-                $response['faculty_schedule']['assigned_units'] += $schedule->units;
-                $response['faculty_schedule']['total_hours'] += $schedule->tuition_hours;
+                $response['faculty_schedule']['assigned_units'] +=
+                    $schedule->units;
+                $response['faculty_schedule']['total_hours'] +=
+                    $schedule->tuition_hours;
                 $trackedCourses[] = $courseKey;
             }
         }
@@ -1148,6 +1362,55 @@ class ReportsController extends Controller
                 $join->on('sched.room_id', '=', 'rooms.room_id');
             })
             ->leftJoin(
+                'course_assignments',
+                'course_assignments.course_assignment_id',
+                '=',
+                'sched.course_assignment_id'
+            )
+            ->leftJoin(
+                'temporary_course_offerings',
+                'temporary_course_offerings.temporary_course_offering_id',
+                '=',
+                'sched.temporary_course_offering_id'
+            )
+            ->leftJoin(
+                'bridging_courses',
+                'temporary_course_offerings.bridging_course_id',
+                '=',
+                'bridging_courses.bridging_course_id'
+            )
+            ->leftJoin(
+                'bridging_courses as peer_bc',
+                function ($join) {
+                    $join->on(
+                        'peer_bc.course_id',
+                        '=',
+                        'bridging_courses.course_id'
+                    )
+                        ->on(
+                            'peer_bc.year_level_id',
+                            '=',
+                            'bridging_courses.year_level_id'
+                        )
+                        ->on(
+                            'peer_bc.semester_id',
+                            '=',
+                            'bridging_courses.semester_id'
+                        )
+                        ->on(
+                            'peer_bc.program_id',
+                            '=',
+                            'bridging_courses.combined_with_program_id'
+                        );
+                }
+            )
+            ->leftJoin(
+                'programs',
+                'programs.program_id',
+                '=',
+                'sched.program_id'
+            )
+            ->leftJoin(
                 'courses as ca_courses',
                 'ca_courses.course_id',
                 '=',
@@ -1197,23 +1460,32 @@ class ReportsController extends Controller
                 'rooms.room_code',
                 'sched.course_assignment_id',
                 'sched.temporary_course_offering_id',
+                'bridging_courses.bridging_course_id',
+                'bridging_courses.combined_with_program_id',
+                'peer_bc.bridging_course_id as combined_bridging_course_id',
                 DB::raw(
-                    'COALESCE(ca_courses.course_title, to_courses.course_title) as course_title'
+                    'COALESCE(ca_courses.course_title, ' .
+                    'to_courses.course_title) as course_title'
                 ),
                 DB::raw(
-                    'COALESCE(ca_courses.course_code, to_courses.course_code) as course_code'
+                    'COALESCE(ca_courses.course_code, ' .
+                    'to_courses.course_code) as course_code'
                 ),
                 DB::raw(
-                    'COALESCE(ca_courses.lec_hours, to_courses.lec_hours) as lec_hours'
+                    'COALESCE(ca_courses.lec_hours, ' .
+                    'to_courses.lec_hours) as lec_hours'
                 ),
                 DB::raw(
-                    'COALESCE(ca_courses.lab_hours, to_courses.lab_hours) as lab_hours'
+                    'COALESCE(ca_courses.lab_hours, ' .
+                    'to_courses.lab_hours) as lab_hours'
                 ),
                 DB::raw(
-                    'COALESCE(ca_courses.units, to_courses.units) as units'
+                    'COALESCE(ca_courses.units, ' .
+                    'to_courses.units) as units'
                 ),
                 DB::raw(
-                    'COALESCE(ca_courses.tuition_hours, to_courses.tuition_hours) as tuition_hours'
+                    'COALESCE(ca_courses.tuition_hours, ' .
+                    'to_courses.tuition_hours) as tuition_hours'
                 ),
                 'programs.program_code',
                 'programs.program_title',
@@ -1230,9 +1502,18 @@ class ReportsController extends Controller
         $totalHours = 0;
 
         foreach ($schedules as $schedule) {
-            $courseKey = $schedule->course_assignment_id 
-                ? 'ca_' . $schedule->course_assignment_id 
+            $courseKey = $schedule->course_assignment_id
+                ? 'ca_' . $schedule->course_assignment_id
                 : 'to_' . $schedule->temporary_course_offering_id;
+
+            if ($schedule->bridging_course_id &&
+                $schedule->combined_with_program_id
+            ) {
+                $courseKey = 'bc_combined_' . min(
+                    $schedule->bridging_course_id,
+                    $schedule->combined_bridging_course_id
+                );
+            }
 
             if ($courseKey && !isset($trackedCourses[$courseKey])) {
                 $assignedUnits += $schedule->units;

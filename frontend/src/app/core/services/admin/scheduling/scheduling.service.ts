@@ -165,6 +165,29 @@ export class SchedulingService {
   }
 
   /**
+   * Combines or un-combines a bridging course with another program.
+   * @param bridgingCourseId The ID of the bridging course to combine
+   * @param combinedWithProgramId The program ID to combine with, or null
+   *                              to un-combine
+   * @returns Observable response from the server
+   */
+  combineBridgingCourses(
+    bridgingCourseId: number,
+    combinedWithProgramId: number | null
+  ): Observable<any> {
+    const payload = { combined_with_program_id: combinedWithProgramId };
+    return this.http
+      .patch(
+        `${this.baseUrl}/bridging-courses/${bridgingCourseId}/combine`,
+        payload
+      )
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
+  }
+
+  /**
    * Creates a temporary course offering for the active term.
    */
   createTemporaryCourseOffering(

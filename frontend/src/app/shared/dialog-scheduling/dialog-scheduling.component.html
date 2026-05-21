@@ -264,7 +264,26 @@
 
       <!-- Schedule Validator (if applicable) -->
       <div class="schedule-validator">
-        @if (conflictMessage) {
+        @if (pendingCombinedLabel) {
+          <div class="combine-prompt-container">
+            <mat-checkbox
+              [checked]="userConfirmedCombine"
+              (change)="onCombineToggle($event.checked)"
+              class="combine-checkbox"
+            >
+              Combine with {{ pendingMatchingProgramCode }}?
+              (Will be listed as <strong>{{ pendingCombinedLabel }}</strong>)
+            </mat-checkbox>
+            @if (!userConfirmedCombine) {
+              <div class="combine-warning-message">
+                <span mat-symbol="warning"></span>
+                <span>
+                  You must confirm the combination to save this schedule.
+                </span>
+              </div>
+            }
+          </div>
+        } @else if (conflictMessage) {
           <div class="validation-message conflict">
             <span mat-symbol="error"></span>
             <span>{{ conflictMessage }}</span>
