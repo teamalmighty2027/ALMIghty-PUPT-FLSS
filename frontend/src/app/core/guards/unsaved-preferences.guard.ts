@@ -17,6 +17,7 @@ import {
 export interface HasUnsavedPreferences {
   hasUnsavedPreferences(): boolean;
   saveDraft(): void;
+  discardDraft(): void;
 }
 
 export const unsavedPreferencesGuard: CanDeactivateFn<HasUnsavedPreferences> = (
@@ -41,7 +42,6 @@ export const unsavedPreferencesGuard: CanDeactivateFn<HasUnsavedPreferences> = (
   return dialogRef.afterClosed().pipe(
     map((action: UnsavedPreferencesAction) => {
       if (action === 'save-draft') {
-        // Save draft locally then allow navigation
         component.saveDraft();
         snackBar.open(
           'Draft saved. Your preferences will be restored next time.',
@@ -50,8 +50,13 @@ export const unsavedPreferencesGuard: CanDeactivateFn<HasUnsavedPreferences> = (
         );
         return true;
       }
-      // 'leave' → discard and navigate, 'stay' → block navigation
-      return action === 'leave';
+      if (action === 'leave') {
+        // Explicitly wipe the auto-saved draft so it doesn't restore on next visit
+        component.discardDraft();
+        return true;
+      }
+      // 'stay' → block navigation
+      return false;
     })
   );
 };

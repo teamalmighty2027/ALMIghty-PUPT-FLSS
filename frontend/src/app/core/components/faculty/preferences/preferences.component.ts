@@ -1200,9 +1200,18 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   saveDraft(): void {
     const key = this.getDraftKey();
     if (!key) return;
-
     const draftCourses = this.allSelectedCourses().filter((c) => !c.isSubmitted);
     localStorage.setItem(key, JSON.stringify(draftCourses));
+  }
+
+  /**
+   * Explicitly removes the draft from localStorage.
+   * Called when the faculty chooses "Discard & Leave" so the auto-saved
+   * draft doesn't get restored on the next visit.
+   */
+  discardDraft(): void {
+    const key = this.getDraftKey();
+    if (key) localStorage.removeItem(key);
   }
 
   /**
