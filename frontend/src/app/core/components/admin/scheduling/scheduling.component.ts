@@ -1500,6 +1500,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             schedule_id: schedule.schedule_id,
             course_id: schedule.course_id,
             isDraftMode: this.isDraftMode,
+            isTemporaryCourse: schedule.is_temporary,
           },
         });
 
@@ -1873,7 +1874,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   protected getTemporaryBadgeText(element: Schedule): string {
     if (!element.is_temporary) {
-      return '';
+      return ''; 
     }
 
     const type = this.formatTempValue(element.temporary_type);

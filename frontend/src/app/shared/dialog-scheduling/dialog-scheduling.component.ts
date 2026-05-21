@@ -88,6 +88,7 @@ interface DialogData {
   schedule_id: number;
   course_id: number;
   isDraftMode?: boolean;
+  isTemporaryCourse?: boolean;
 }
 
 @Component({
@@ -128,6 +129,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   conflictMessage: string = '';
 
   isLoading = false;
+  private populatedSchedules: any;
 
   private destroy$ = new Subject<void>();
 
@@ -169,6 +171,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     queueMicrotask(() => {
       this.schedulingService.populateSchedules().pipe(
         takeUntil(this.destroy$),
+        tap(schedules => {
+          this.populatedSchedules = schedules;
+        }),
         switchMap(activeInfo => {
           return this.schedulingService.getSmartSuggestion(
             this.data.course_id,
@@ -431,6 +436,51 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     const roomId = selectedRoom?.room_id || null;
 
     // Call the centralized conflict detection method
+    let hasMatchingSchedule = false;
+    console.log('Initiating conflict validation with values:', {
+      day,
+      startTime: formattedStartTime,
+      endTime: formattedEndTime,
+      professor,
+      room,
+    });
+
+    console.log("Temporary course check:", {
+      isTemporaryCourse: this.data.isTemporaryCourse,
+      populatedSchedules: this.populatedSchedules
+    });
+    
+    if (this.data.isTemporaryCourse && this.populatedSchedules) {
+      const matchingResult = 
+        this.scheduleValidationService.checkMatchingSchedule(
+          this.populatedSchedules,
+          {
+            schedule_id: this.data.schedule_id,
+            program_id: this.data.program.id,
+            year_level: this.data.academic.year_level,
+            day,
+            start_time: formattedStartTime || '',
+            end_time: formattedEndTime || '',
+            section_id: this.data.academic.section_id,
+            faculty_id: facultyId,
+            room_id: roomId,
+          }
+        );
+        
+      if (matchingResult) {
+        hasMatchingSchedule = true;
+        this.hasConflicts = true;
+        this.conflictMessage = 
+          'A matching schedule already exists.';
+        this.cdr.markForCheck();
+      }      
+    }
+
+    // Skip regular conflict check if matching schedule found
+    if (!hasMatchingSchedule) {
+      return of(undefined);
+    }
+
     return this.schedulingService
       .checkForScheduleConflicts(
         this.data.schedule_id,
