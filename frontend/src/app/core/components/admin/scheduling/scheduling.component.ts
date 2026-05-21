@@ -1465,6 +1465,17 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           });
         });
 
+        // Lookup combined program code if schedule is combined
+        let combinedProgramCode: string | null = null;
+        if (schedule.combined_with_program_id &&
+            this.programOptions.length > 0) {
+          const combinedProgram = this.programOptions.find(
+            (p) => p.id === schedule.combined_with_program_id
+          );
+          combinedProgramCode = combinedProgram?.display?.split(' ')[0] ||
+            null;
+        }
+
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
           maxWidth: '50rem',
           width: '100%',
@@ -1505,6 +1516,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               schedule.temporary_type === 'bridging',
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
+            combined_with_program_code: combinedProgramCode,
           },
         });
 

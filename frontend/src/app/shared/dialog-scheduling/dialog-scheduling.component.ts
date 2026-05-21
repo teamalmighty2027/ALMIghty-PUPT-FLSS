@@ -93,6 +93,7 @@ interface DialogData {
   isBridgingCourse?: boolean;
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
+  combined_with_program_code?: string | null;
 }
 
 @Component({
@@ -183,6 +184,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         tap(schedules => {
           this.populatedSchedules = schedules;
+          // Trigger conflict detection with existing form
+          // values to detect combined schedules on load
+          this.initiateConflictValidation().subscribe();
         }),
         switchMap(activeInfo => {
           return this.schedulingService.getSmartSuggestion(
@@ -209,9 +213,18 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         const name = suggestion.faculty_name;
         
         const prefs: Preference[] = [];
-        if (suggestion.day && suggestion.start_time && suggestion.end_time) {
-          const displayStart = this.scheduleValidationService.formatTimeForDisplay(suggestion.start_time);
-          const displayEnd = this.scheduleValidationService.formatTimeForDisplay(suggestion.end_time);
+        if (suggestion.day && suggestion.start_time && 
+            suggestion.end_time) {
+          const displayStart =
+            this.scheduleValidationService
+              .formatTimeForDisplay(
+                suggestion.start_time
+              );
+          const displayEnd =
+            this.scheduleValidationService
+              .formatTimeForDisplay(
+                suggestion.end_time
+              );
           prefs.push({ 
             day: suggestion.day, 
             time: `${displayStart} - ${displayEnd}`,
@@ -222,7 +235,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         const mappedSuggestion: SuggestedFaculty = {
           faculty_id: facultyId,
           name: name,
-          type: suggestion.isMl ? 'ML Suggestion' : 'Rule-based',
+          type: suggestion.isMl
+            ? 'ML Suggestion'
+            : 'Rule-based',
           preferences: prefs,
           prefIndex: 0,
           animating: false
@@ -276,7 +291,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       this.updateEndTimeOptions(startTime);
     }
 
-    if (this.data.isBridgingCourse && this.data.combined_with_program_id) {
+    if (this.data.isBridgingCourse &&
+        this.data.combined_with_program_id) {
       this.userConfirmedCombine = true;
     }
 
@@ -434,7 +450,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       .subscribe();
   }
 
-  private initiateConflictValidation(): Observable<void> {
+  initiateConflictValidation(): Observable<void> {
     const formValues = this.scheduleForm.value;
     const { day, startTime, endTime, professor, room } = formValues;
     const formattedStartTime = this.convertTimeToBackendFormat(startTime);

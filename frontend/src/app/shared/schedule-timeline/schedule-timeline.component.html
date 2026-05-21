@@ -38,18 +38,18 @@
                 {{ getBlockProperty(day, i, "courseTitle") }}
               </span>
             </div>
-            
-            <!-- Combined Label (Visible when schedules overlap) -->
-            @if (getBlockProperty(day, i, "combinedLabel")) {
-            <div class="combined-label">
-              {{ getBlockProperty(day, i, "combinedLabel") }}
-            </div>
-            }
+
             <!-- Program Details (Visible for faculty and room) -->
-            @else if (entity === 'faculty' || entity === 'room') {
+            @if (entity === 'faculty' || entity === 'room') {
             <div>
-              ({{ getBlockProperty(day, i, "program") }}
-              {{ getBlockProperty(day, i, "yearLevel") }}-{{
+              @if (getBlockProperty(day, i, "combinedLabel")) {
+              <div class="combined-label">
+                {{ getBlockProperty(day, i, "combinedLabel") }}
+              </div>
+              } @else {
+                {{ getBlockProperty(day, i, "program") }}
+              }
+              ({{ getBlockProperty(day, i, "yearLevel") }}-{{
                 getBlockProperty(day, i, "section")
               }})
             </div>
