@@ -48,11 +48,11 @@
     @if (!scheduleGroups) {
     <div class="single-schedule-container">
       <app-schedule-timeline
-        [scheduleData]="scheduleData"
+        [scheduleData]="scheduleDataCopy"
         [entity]="data.entity"
         [@fadeAnimation]></app-schedule-timeline>
     </div>
-    } 
+    }
   }
 
   @if (selectedView === 'pdf-view' || data.exportType === 'all') {

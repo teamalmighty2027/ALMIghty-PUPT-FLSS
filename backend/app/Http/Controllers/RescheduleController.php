@@ -134,6 +134,17 @@ class RescheduleController extends Controller
               trim($aiSummary);
         }
 
+        $existing = Appeal::where('schedule_id', $validated['scheduleId'])
+            ->whereNull('is_approved')
+            ->first();
+
+        if ($existing) {
+            return response()->json(
+                ['message' => 'You already have a pending appeal for this schedule.'],
+                422
+            );
+        }
+
         $appeal = Appeal::create([
             'schedule_id'         => $validated['scheduleId'],
             'original_day'        => $schedule->day,
@@ -279,23 +290,21 @@ class RescheduleController extends Controller
     public function getAllAppeals(): JsonResponse
     {
         $appeals = DB::table('appeals as a')
-            ->join('schedules as s', 'a.schedule_id', '=',
-                   'schedules.schedule_id')
+            ->join('schedules as s', 'a.schedule_id', '=', 's.schedule_id')
             ->join('section_courses as sc', 's.section_course_id', '=',
-                   'sc.section_course_id')
-            ->join('course_assignments as ca',
-                   'sc.course_assignment_id', '=',
-                   'ca.course_assignment_id')
-            ->join('courses as c', 'ca.course_id', '=', 'c.course_id')
+                'sc.section_course_id')
+            ->leftJoin('course_assignments as ca',
+                'sc.course_assignment_id', '=',
+                'ca.course_assignment_id')
+            ->leftJoin('courses as c', 'ca.course_id', '=', 'c.course_id')
             ->join('sections_per_program_year as spy',
-                   'sc.sections_per_program_year_id', '=',
-                   'spy.sections_per_program_year_id')
+                'sc.sections_per_program_year_id', '=',
+                'spy.sections_per_program_year_id')
             ->join('programs as p', 'spy.program_id', '=',
-                   'p.program_id')
+                'p.program_id')
             ->join('faculty as f', 's.faculty_id', '=', 'f.id')
             ->join('users as u', 'f.user_id', '=', 'u.id')
-            ->leftJoin('rooms as orig_r', 's.room_id', '=',
-                       'orig_r.room_id')
+            ->leftJoin('rooms as orig_r', 's.room_id', '=', 'orig_r.room_id')
             ->leftJoin('rooms as ar', 'a.room_id', '=', 'ar.room_id')
             ->select([
                 'a.appeal_id',

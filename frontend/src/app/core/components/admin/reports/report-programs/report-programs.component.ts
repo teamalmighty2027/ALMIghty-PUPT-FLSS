@@ -1035,7 +1035,25 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       });
 
       // --- Draw the Blocks ---
-      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+      // Group same-slot bridging entries into one merged block
+      const mergedMap = new Map<string, any>();
+      for (const item of scheduleData) {
+        const key = `${item.day}|${item.start_time}|${item.end_time}`;
+        if (mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          if (!existing._mergedFaculty) {
+            existing._mergedFaculty = [existing.faculty_name];
+          }
+          if (!existing._mergedFaculty.includes(item.faculty_name)) {
+            existing._mergedFaculty.push(item.faculty_name);
+          }
+        } else {
+          mergedMap.set(key, { ...item });
+        }
+      }
+      const sortedScheduleData = [...mergedMap.values()].sort(
+        (a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time)
+      );
 
       sortedScheduleData.forEach(item => {
         const dayIndex = days.indexOf(item.day);
@@ -1058,13 +1076,11 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         const yPos = currentY + startSlot * rowHeight;
         const height = duration * rowHeight;
 
-        // Draw Block Box
-        doc.setFillColor(240, 240, 240); 
-        doc.setDrawColor(128, 0, 0);     
+        doc.setFillColor(240, 240, 240);
+        doc.setDrawColor(128, 0, 0);
         doc.setLineWidth(0.3);
-        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD');
 
-        // --- DYNAMIC TEXT SCALING ---
         let startPadding = 5;
         let lineSpacing = 4.2;
         let bottomBoundary = 6;
@@ -1073,63 +1089,62 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         let timeFontSize = 9.5;
         let timeBottomPadding = 2;
 
-        if (duration <= 2) { 
-          startPadding = 3.5;
-          lineSpacing = 2.8;
-          bottomBoundary = 3.5;
-          codeFontSize = 7.5;
-          textFontSize = 6.5;
-          timeFontSize = 7;
-          timeBottomPadding = 1.2;
-        } else if (duration === 3) { 
-          startPadding = 4;
-          lineSpacing = 3.4;
-          bottomBoundary = 4.5;
-          codeFontSize = 8.5;   
-          textFontSize = 7.5;   
-          timeFontSize = 8;     
-          timeBottomPadding = 1.5;
-        } else if (duration === 4) { 
-          startPadding = 4;
-          lineSpacing = 3.4;
-          bottomBoundary = 4.5;
-          codeFontSize = 8.5;
-          textFontSize = 7.5;
-          timeFontSize = 8;
-          timeBottomPadding = 1.5;
-        } else if (duration === 4) { 
-          startPadding = 5;
-          lineSpacing = 4;
-          bottomBoundary = 5;
-          codeFontSize = 9.5;
-          textFontSize = 8.5;
-          timeFontSize = 9;
-          timeBottomPadding = 1.8;
+        if (duration <= 2) {
+          startPadding = 3.5; lineSpacing = 2.8; bottomBoundary = 3.5;
+          codeFontSize = 7.5; textFontSize = 6.5; timeFontSize = 7; timeBottomPadding = 1.2;
+        } else if (duration === 3) {
+          startPadding = 4; lineSpacing = 3.4; bottomBoundary = 4.5;
+          codeFontSize = 8.5; textFontSize = 7.5; timeFontSize = 8; timeBottomPadding = 1.5;
+        } else if (duration === 4) {
+          startPadding = 5; lineSpacing = 4; bottomBoundary = 5;
+          codeFontSize = 9.5; textFontSize = 8.5; timeFontSize = 9; timeBottomPadding = 1.8;
         }
 
-        // ALWAYS print the Time Range at the very bottom of the box first
         const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
         doc.setTextColor(0);
         doc.setFontSize(timeFontSize);
         doc.setFont('helvetica', 'normal');
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
-        // Clean up the faculty name so it doesn't just say an ugly "N/A"
         let facultyName = item.faculty_name || '';
-        if (facultyName.trim().toUpperCase() === 'N/A') {
-          facultyName = 'Faculty TBA'; 
-        }
+        if (facultyName.trim().toUpperCase() === 'N/A') facultyName = 'Faculty TBA';
 
-        // Block Content
+        const isBridging = item.course_details?.offering_type === 'bridging';
+
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
           facultyName,
           item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
-        ].filter(line => line !== ''); 
+        ].filter(line => line !== '');
 
-        let textY = yPos + startPadding; 
-        
+        let textY = yPos + startPadding;
+
+        // Draw "Bridging" badge at top-right of block if applicable
+        if (isBridging) {
+          const badgeLabel = 'Bridging';
+          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
+          const badgePaddingX = 2.5;
+          const badgePaddingY = 1.5;
+          doc.setFontSize(badgeFontSize);
+          doc.setFont('helvetica', 'bold');
+          const badgeTextWidth = doc.getTextWidth(badgeLabel);
+          const badgeW = badgeTextWidth + badgePaddingX * 2;
+          const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
+          // Center the badge horizontally in the block
+          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
+          // Place it just below the course code (textY is already advanced past course code)
+          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          doc.setFillColor(128, 0, 0);
+          doc.setDrawColor(128, 0, 0);
+          doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+          doc.setTextColor(255, 255, 255);
+          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.setTextColor(0, 0, 0);
+          // Advance textY so subsequent lines don't overlap the badge
+          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
+        }
+
         content.forEach((line, idx) => {
           doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
           doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');

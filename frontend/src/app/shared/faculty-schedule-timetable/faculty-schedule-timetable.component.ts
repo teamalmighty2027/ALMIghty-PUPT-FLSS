@@ -31,6 +31,7 @@ interface ScheduleBlock {
   program: string;
   yearLevel: number;
   section: string;
+  isBridging: boolean;
 }
 
 type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
@@ -140,23 +141,49 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
 
   private processScheduleData() {
     if (this.facultySchedule && this.facultySchedule.schedules) {
-      this.scheduleBlocks = this.facultySchedule.schedules.map((schedule: any) => {
+      // Merge same-slot bridging entries first
+      const mergedMap = new Map<string, any>();
+      for (const schedule of this.facultySchedule.schedules) {
+        const key = `${schedule.day}|${schedule.start_time}|${schedule.end_time}`;
+        if (mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          if (!existing._mergedPrograms) existing._mergedPrograms = [existing.program_code];
+          if (!existing._mergedPrograms.includes(schedule.program_code)) {
+            existing._mergedPrograms.push(schedule.program_code);
+          }
+        } else {
+          mergedMap.set(key, { ...schedule });
+        }
+      }
+
+      this.scheduleBlocks = [...mergedMap.values()].map((schedule: any) => {
         const startTime = this.convertTimeToMinutes(schedule.start_time);
         const endTime   = this.convertTimeToMinutes(schedule.end_time);
         const startSlot = this.findTimeSlotIndex(startTime);
         const duration  = Math.ceil((endTime - startTime) / 30);
         const adjustedDuration = (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
+
+        // Build program display
+        let programDisplay: string;
+        if (schedule._mergedPrograms && schedule._mergedPrograms.length > 1) {
+          programDisplay = schedule._mergedPrograms.sort().reverse().join('/') +
+            ` ${schedule.year_level}-${schedule.section_name}`;
+        } else {
+          programDisplay = `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`;
+        }
+
         return {
-          scheduleId: schedule.schedule_id,
-          day:        schedule.day,
+          scheduleId:     schedule.schedule_id,
+          day:            schedule.day,
           startSlot,
-          duration:   adjustedDuration,
-          courseCode: schedule.course_details.course_code,
-          courseTitle: schedule.course_details.course_title,
-          roomCode:   schedule.room_code,
-          program:    schedule.program_code,
-          yearLevel:  schedule.year_level,
-          section:    schedule.section_name,
+          duration:       adjustedDuration,
+          courseCode:     schedule.course_details.course_code,
+          courseTitle:    schedule.course_details.course_title,
+          roomCode:       schedule.room_code,
+          program:        programDisplay,
+          yearLevel:      schedule.year_level,
+          section:        schedule.section_name,
+          isBridging:     schedule.course_details?.offering_type === 'bridging',
         };
       });
     }
@@ -305,132 +332,246 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
   private async generatePdfBlob(): Promise<Blob> {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
     const margin = 10;
     const topMargin = 15;
 
-    let currentY = await this.drawHeaderAsync(
-      doc,
-      topMargin,
-      this.facultySchedule.faculty_name,
-      `For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`
-    );
+    const scheduleData = this.facultySchedule?.schedules || [];
+    const title = this.facultySchedule.faculty_name;
+    const subtitle = `For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`;
+
+    let currentY = await this.drawHeaderAsync(doc, topMargin, title, subtitle);
+
+    this.drawScheduleGrid(doc, scheduleData, title, subtitle, currentY, margin, pageWidth);
+
+    this.reportHeaderService.addStandardFooter(doc);
+    return doc.output('blob');
+  }
+
+  private drawScheduleGrid(
+    doc: jsPDF, scheduleData: any[], title: string, subtitle: string,
+    startY: number, margin: number, pageWidth: number
+  ): void {
+    if (!scheduleData || scheduleData.length === 0) return;
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const dayColumnWidth = (pageWidth - margin * 2) / days.length;
-    const maxContentHeight = pageHeight - 20; 
-    let maxYPosition = currentY;
+    const timeColWidth = 22;
+    const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
+    const rowHeight = 8.5;
 
-    const startNewPage = async () => {
-      this.reportHeaderService.addStandardFooter(doc);
-      doc.addPage();
-      currentY = await this.drawHeaderAsync(
-        doc,
-        topMargin,
-        'Faculty Schedule (Continued)',
-        `For Academic Year ${this.facultySchedule.year_start}-${this.facultySchedule.year_end}, ${this.formatSemester(this.facultySchedule.semester)}`
-      );
-      
-      days.forEach((day, index) => {
-        const xPosition = margin + index * dayColumnWidth;
-        doc.setFillColor(128, 0, 0);
-        doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.rect(xPosition, currentY, dayColumnWidth, 10);
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, 
-          { align: 'center' }
-        );
-      });
-      currentY += 10;
-      return currentY;
-    };
+    const timeSlots: { time: string; minutes: number }[] = [];
+    for (let t = 7 * 60; t <= 21 * 60; t += 30) {
+      const h = Math.floor(t / 60), m = t % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const hh = h % 12 || 12;
+      timeSlots.push({ time: `${hh}:${m.toString().padStart(2, '0')} ${ampm}`, minutes: t });
+    }
 
-    days.forEach((day, index) => {
-      const xPosition = margin + index * dayColumnWidth;
+    const chunks = [
+      { name: 'Morning',   start: 420,  end: 840  },
+      { name: 'Afternoon', start: 840,  end: 1260 },
+    ];
+
+    const activeChunks = chunks.filter(chunk =>
+      scheduleData.some(s => {
+        const ss = this.convertTimeToMinutes(s.start_time);
+        const se = this.convertTimeToMinutes(s.end_time);
+        return Math.max(ss, chunk.start) < Math.min(se, chunk.end);
+      })
+    );
+
+    if (activeChunks.length === 0) {
+      doc.setFontSize(20); doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
+      return;
+    }
+
+    // Merge same-slot bridging entries
+    const mergedMap = new Map<string, any>();
+    for (const item of scheduleData) {
+      const key = `${item.day}|${item.start_time}|${item.end_time}`;
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        if (!existing._mergedPrograms) existing._mergedPrograms = [existing.program_code];
+        if (!existing._mergedPrograms.includes(item.program_code)) {
+          existing._mergedPrograms.push(item.program_code);
+        }
+      } else {
+        mergedMap.set(key, { ...item });
+      }
+    }
+    const mergedData = [...mergedMap.values()];
+
+    let pageUsed = false;
+    let currentY = startY;
+
+    for (const chunk of activeChunks) {
+      if (pageUsed) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+        currentY = 15;
+        // Re-draw header on new page (sync fallback)
+        this.reportHeaderService.addHeader(doc, title, currentY, subtitle)
+          .subscribe(newY => { currentY = newY; });
+      }
+      pageUsed = true;
+      currentY -= 3;
+
+      // --- Column Headers ---
       doc.setFillColor(128, 0, 0);
-      doc.rect(xPosition, currentY, dayColumnWidth, 10, 'F');
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.rect(xPosition, currentY, dayColumnWidth, 10);
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text(day, xPosition + dayColumnWidth / 2, currentY + 7, 
-        { align: 'center' })
-      ;
-    });
-    currentY += 10;
 
-    for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-      const day = days[dayIndex];
-      const xPosition = margin + dayIndex * dayColumnWidth;
-      let yPosition = currentY;
-      const daySchedule = this.facultySchedule.schedules
-        .filter((item: any) => item.day === day)
-        .sort((a: any, b: any) => this.convertTimeToMinutes(a.start_time) - this.convertTimeToMinutes(b.start_time));
-
-      for (const item of daySchedule) {
-        const courseContent = [
-          item.course_details.course_code, item.course_details.course_title,
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'TBA',
-          `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`,
-        ];
-        
-        const boxHeight = this.calculateBoxHeight(doc, courseContent, dayColumnWidth);
-        
-        if (yPosition + boxHeight > maxContentHeight) {
-          days.forEach((_, i) => {
-            const lineX = margin + i * dayColumnWidth;
-            doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
-            doc.line(lineX, currentY, lineX, maxYPosition);
-          });
-          doc.line(
-            pageWidth - margin, 
-            currentY, 
-            pageWidth - margin, 
-            maxYPosition
-          );
-          
-          yPosition = await startNewPage(); 
-          maxYPosition = yPosition;
-        }
-        
-        doc.setFillColor(240, 240, 240); 
-        doc.rect(xPosition, yPosition, dayColumnWidth, boxHeight, 'F');
-        let textYPosition = yPosition + 5;
-        
-        courseContent.forEach((line: string, index) => {
-          doc.setTextColor(0); doc.setFontSize(9); 
-          doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
-          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 10);
-          wrappedLines.forEach((wrappedLine: string) => { doc.text(wrappedLine, xPosition + 5, textYPosition); textYPosition += 5; });
-
-          if (index === courseContent.length - 1) {
-            const timeTextWidth = doc.getTextWidth(line);
-            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.2);
-            doc.line(xPosition + 5, textYPosition - 4, xPosition + 5 + timeTextWidth, textYPosition - 4);
-          }
-        });
-        yPosition += boxHeight + 5;
-        if (yPosition > maxYPosition) maxYPosition = yPosition;
-      }
-    }
-
-    days.forEach((_, i) => {
-      const lineX = margin + i * dayColumnWidth;
+      doc.rect(margin, currentY, timeColWidth, 10, 'F');
       doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
-      doc.line(lineX, currentY, lineX, maxYPosition);
-    });
-    doc.line(pageWidth - margin, currentY, pageWidth - margin, maxYPosition);
-    doc.line(margin, maxYPosition, pageWidth - margin, maxYPosition);
-    
-    this.reportHeaderService.addStandardFooter(doc);
-    return doc.output('blob'); 
+      doc.rect(margin, currentY, timeColWidth, 10);
+      doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
+
+      days.forEach((day, i) => {
+        const xPos = margin + timeColWidth + i * dayColumnWidth;
+        doc.setFillColor(128, 0, 0);
+        doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
+        doc.rect(xPos, currentY, dayColumnWidth, 10);
+        doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
+      });
+      currentY += 10;
+
+      // --- Time Grid ---
+      doc.setTextColor(0, 0, 0);
+      const chunkSlots = timeSlots.filter(s => s.minutes >= chunk.start && s.minutes < chunk.end);
+
+      chunkSlots.forEach((slot, index) => {
+        const yPos = currentY + index * rowHeight;
+        const isTopRow    = index === 0;
+        const isBottomRow = index === chunkSlots.length - 1;
+        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
+
+        if (isTopRow || isBottomRow || isThreeHourGap) {
+          if (!isTopRow) {
+            doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
+            doc.line(margin, yPos, pageWidth - margin, yPos);
+          }
+          doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        }
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
+      doc.line(margin, currentY, margin, finalY);
+      doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY);
+      days.forEach((_, i) => {
+        const xPos = margin + timeColWidth + (i + 1) * dayColumnWidth;
+        doc.line(xPos, currentY, xPos, finalY);
+      });
+
+      // --- Draw Blocks ---
+      const sorted = [...mergedData].sort(
+        (a, b) => this.convertTimeToMinutes(a.start_time) - this.convertTimeToMinutes(b.start_time)
+      );
+
+      sorted.forEach(item => {
+        const dayIndex = days.indexOf(item.day);
+        if (dayIndex === -1) return;
+
+        const cappedStart = Math.max(this.convertTimeToMinutes(item.start_time), chunk.start);
+        const cappedEnd   = Math.min(this.convertTimeToMinutes(item.end_time), chunk.end);
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(s => s.minutes === cappedStart);
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos  = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos  = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        doc.setFillColor(240, 240, 240);
+        doc.setDrawColor(128, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD');
+
+        // Dynamic sizing
+        let startPadding = 5, lineSpacing = 4.2, bottomBoundary = 6;
+        let codeFontSize = 10, textFontSize = 9, timeFontSize = 9.5, timeBottomPadding = 2;
+
+        if (duration <= 2) {
+          startPadding = 3.5; lineSpacing = 2.8; bottomBoundary = 3.5;
+          codeFontSize = 7.5; textFontSize = 6.5; timeFontSize = 7; timeBottomPadding = 1.2;
+        } else if (duration === 3) {
+          startPadding = 4; lineSpacing = 3.4; bottomBoundary = 4.5;
+          codeFontSize = 8.5; textFontSize = 7.5; timeFontSize = 8; timeBottomPadding = 1.5;
+        } else if (duration >= 4) {
+          startPadding = 5; lineSpacing = 4; bottomBoundary = 5;
+          codeFontSize = 9.5; textFontSize = 8.5; timeFontSize = 9; timeBottomPadding = 1.8;
+        }
+
+        // Time at bottom
+        const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
+        doc.setTextColor(0); doc.setFontSize(timeFontSize); doc.setFont('helvetica', 'normal');
+        doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
+
+        // Program display — merge if combined
+        let programDisplay: string;
+        if (item._mergedPrograms && item._mergedPrograms.length > 1) {
+          programDisplay = item._mergedPrograms.sort().reverse().join('/') +
+            ` ${item.year_level} - ${item.section_name}`;
+        } else {
+          programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
+        }
+
+        const isBridging = item.course_details?.offering_type === 'bridging';
+
+        const content = [
+          item.course_details?.course_code || '',
+          item.course_details?.course_title || '',
+          programDisplay,
+          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA',
+        ].filter(l => l !== '');
+
+        let textY = yPos + startPadding;
+
+        // Draw "Bridging" badge at top-right of block if applicable
+        if (isBridging) {
+          const badgeLabel = 'Bridging';
+          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
+          const badgePaddingX = 2.5;
+          const badgePaddingY = 1.5;
+          doc.setFontSize(badgeFontSize);
+          doc.setFont('helvetica', 'bold');
+          const badgeTextWidth = doc.getTextWidth(badgeLabel);
+          const badgeW = badgeTextWidth + badgePaddingX * 2;
+          const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
+          // Center the badge horizontally in the block
+          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
+          // Place it just below the course code (textY is already advanced past course code)
+          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          doc.setFillColor(128, 0, 0);
+          doc.setDrawColor(128, 0, 0);
+          doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+          doc.setTextColor(255, 255, 255);
+          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.setTextColor(0, 0, 0);
+          // Advance textY so subsequent lines don't overlap the badge
+          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
+        }
+
+        content.forEach((line, idx) => {
+          doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
+          doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
+          
+          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
+          wrappedLines.forEach((wLine: string) => {
+            if (textY < yPos + height - bottomBoundary) { 
+              doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
+              textY += lineSpacing; 
+            }
+          });
+        });
+      });
+    }
   }
 
   private drawHeaderAsync(
@@ -462,16 +603,4 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     return `${formattedName}_${type}_${academicYear}_${semester}`;
   }
 
-  private calculateBoxHeight(
-    doc: jsPDF, content: string[], dayColumnWidth: number
-  ): number {
-
-    const padding = 10; let totalHeight = 5;
-    content.forEach((line: string, index: number) => {
-      doc.setFontSize(9); doc.setFont('helvetica', index <= 1 ? 'bold' : 'normal');
-      const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - padding);
-      totalHeight += wrappedLines.length * 5;
-    });
-    return totalHeight + 5;
-  }
 }

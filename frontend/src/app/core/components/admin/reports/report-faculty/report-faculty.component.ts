@@ -688,7 +688,26 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       });
 
       // --- Draw the Blocks ---
-      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+      // Group same-slot bridging entries into one merged block
+      const mergedMap = new Map<string, any>();
+      for (const item of scheduleData) {
+        const key = `${item.day}|${item.start_time}|${item.end_time}`;
+        if (mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          // Merge program codes into a combined display
+          if (!existing._mergedPrograms) {
+            existing._mergedPrograms = [existing.program_code];
+          }
+          if (!existing._mergedPrograms.includes(item.program_code)) {
+            existing._mergedPrograms.push(item.program_code);
+          }
+        } else {
+          mergedMap.set(key, { ...item });
+        }
+      }
+      const sortedScheduleData = [...mergedMap.values()].sort(
+        (a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time)
+      );
 
       sortedScheduleData.forEach(item => {
         const dayIndex = days.indexOf(item.day);
@@ -760,14 +779,17 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
         // Block Content - Show combined label if applicable
-        let programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
-        if (item.combined_with_program_id && item.combined_with_program_code) {
-          const currentProgramCode = item.program_code;
-          programDisplay = [
-            currentProgramCode,
-            item.combined_with_program_code
-          ].sort().reverse().join('/');
+        let programDisplay: string;
+        if (item._mergedPrograms && item._mergedPrograms.length > 1) {
+          programDisplay = item._mergedPrograms
+            .sort()
+            .reverse()
+            .join('/') + ` ${item.year_level} - ${item.section_name}`;
+        } else {
+          programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
         }
+
+        const isBridging = item.course_details?.offering_type === 'bridging';
 
         const content = [
           item.course_details?.course_code || '',
@@ -776,8 +798,33 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
         ].filter(line => line !== '');
 
-        let textY = yPos + startPadding; 
-        
+        let textY = yPos + startPadding;
+
+        // Draw "Bridging" badge at top-right of block if applicable
+        if (isBridging) {
+          const badgeLabel = 'Bridging';
+          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
+          const badgePaddingX = 2.5;
+          const badgePaddingY = 1.5;
+          doc.setFontSize(badgeFontSize);
+          doc.setFont('helvetica', 'bold');
+          const badgeTextWidth = doc.getTextWidth(badgeLabel);
+          const badgeW = badgeTextWidth + badgePaddingX * 2;
+          const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
+          // Center the badge horizontally in the block
+          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
+          // Place it just below the course code (textY is already advanced past course code)
+          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          doc.setFillColor(128, 0, 0);
+          doc.setDrawColor(128, 0, 0);
+          doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+          doc.setTextColor(255, 255, 255);
+          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.setTextColor(0, 0, 0);
+          // Advance textY so subsequent lines don't overlap the badge
+          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
+        }
+
         content.forEach((line, idx) => {
           doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
           doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');

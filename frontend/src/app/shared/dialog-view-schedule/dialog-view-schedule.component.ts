@@ -8,8 +8,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
+import { ChangeDetectorRef } from '@angular/core';
 
-// Ensure these paths match your project structure
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { LoadingComponent } from '../loading/loading.component';
 import { ScheduleTimelineComponent } from '../schedule-timeline/schedule-timeline.component';
@@ -56,20 +56,29 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   title: string = '';
   subtitle: string = '';
   isLoading = true;
-  scheduleData: any;
   scheduleGroups?: ScheduleGroup[];
   selectedView: 'table-view' | 'pdf-view' = 'table-view';
   pdfBlobUrl: SafeResourceUrl | null = null;
   showViewToggle: boolean = true;
-  
+
+  // ── Getter so the template always reads the live array reference ──
+  get scheduleData(): any {
+    return this.data.entityData;
+  }
+
+  // ── Spread copy so ngOnChanges fires in ScheduleTimelineComponent ──
+  get scheduleDataCopy(): any[] {
+    return Array.isArray(this.data.entityData) ? [...this.data.entityData] : [];
+  }
+
   private currentRawBlobUrl: string | null = null;
 
   constructor(
     public dialogRef: MatDialogRef<DialogViewScheduleComponent>,
     @Inject(MAT_DIALOG_DATA) public data: ViewScheduleDialogData,
     private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef,
   ) {
-    // Hide the toggle and default to PDF if specified by the parent component
     this.showViewToggle = data.showViewToggle ?? true;
     if (!this.showViewToggle) {
       this.selectedView = 'pdf-view';
@@ -89,40 +98,28 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   private initializeScheduleData() {
     if (this.data.entity === 'program') {
-        if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
-            this.scheduleGroups = this.data.scheduleGroups;
-            this.scheduleData = this.flattenScheduleGroups(
-                this.data.scheduleGroups
-            );
-            if (this.selectedView === 'pdf-view') this.generateAndDisplayPdf();
-            else this.isLoading = false;
-        } else {
-            console.warn('No schedule groups available for programs.');
-            this.scheduleData = [];
-            this.isLoading = false;
-        }
+      if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
+        this.scheduleGroups = this.data.scheduleGroups;
+        // scheduleData getter returns data.entityData automatically
+        if (this.selectedView === 'pdf-view') this.generateAndDisplayPdf();
+        else this.isLoading = false;
+      } else {
+        console.warn('No schedule groups available for programs.');
+        this.isLoading = false;
+      }
     } else if (this.data.entity === 'faculty' || this.data.entity === 'room') {
-        if (this.data.exportType === 'all') {
-            this.scheduleData = this.data.entityData;
-            this.generateAndDisplayPdf();
-        } else if (Array.isArray(this.data.entityData) &&
-            this.data.entityData.length > 0) {
-            this.scheduleData = this.data.entityData;
-            
-            // If the view defaults to PDF (like in Faculty Assignment), generate it immediately
-            if (this.selectedView === 'pdf-view') {
-                this.generateAndDisplayPdf();
-            } else {
-                this.isLoading = false;
-            }
+      if (this.data.exportType === 'all') {
+        this.generateAndDisplayPdf();
+      } else if (Array.isArray(this.data.entityData) && this.data.entityData.length > 0) {
+        if (this.selectedView === 'pdf-view') {
+          this.generateAndDisplayPdf();
         } else {
-            console.warn(
-                'No schedules found or invalid data structure:',
-                this.data.entityData
-            );
-            this.scheduleData = this.data.entityData || [];
-            this.isLoading = false;
+          this.isLoading = false;
         }
+      } else {
+        console.warn('No schedules found or invalid data structure:', this.data.entityData);
+        this.isLoading = false;
+      }
     }
   }
 
@@ -131,10 +128,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     groups.forEach((group) => {
       if (Array.isArray(group.scheduleData)) {
         group.scheduleData.forEach((scheduleItem: any) => {
-          flattenedData.push({
-            ...scheduleItem,
-            groupTitle: group.title,
-          });
+          flattenedData.push({ ...scheduleItem, groupTitle: group.title });
         });
       }
     });
@@ -148,7 +142,9 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   private setTitleAndSubtitle(): void {
     const { customTitle, entityData, academicYear, semester } = this.data;
     this.title = customTitle ?? entityData?.name ?? entityData?.title ?? 'Schedule';
-    this.subtitle = academicYear && semester ? `For Academic Year ${academicYear}, ${semester}` : '';
+    this.subtitle = academicYear && semester
+      ? `For Academic Year ${academicYear}, ${semester}`
+      : '';
   }
 
   public closeDialog(): void {
@@ -195,11 +191,9 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   async downloadPdf(): Promise<void> {
     if (!this.data.generatePdfFunction) return;
-
     try {
       const result = this.data.generatePdfFunction(false);
       const pdfResult = result instanceof Promise ? await result : result;
-
       if (pdfResult instanceof Blob) {
         const blobUrl = URL.createObjectURL(pdfResult);
         const a = document.createElement('a');
