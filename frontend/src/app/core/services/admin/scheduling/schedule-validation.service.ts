@@ -158,6 +158,17 @@ export class ScheduleValidationService {
   }
 
   /**
+   * Produces a combined program label in reverse-alphabetical order,
+   * e.g., "BSME" and "BSECE" -> "BSME/BSECE".
+   * @param codeA First program code
+   * @param codeB Second program code
+   * @returns The combined label
+   */
+  public buildCombinedLabel(codeA: string, codeB: string): string {
+    return [codeA, codeB].sort().reverse().join('/');
+  }
+
+  /**
    * Validates schedule conflicts using a merged view of schedules + arrangements.
    */
   public validateScheduleConflictsWithArrangements(

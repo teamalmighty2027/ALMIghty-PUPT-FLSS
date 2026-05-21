@@ -175,6 +175,15 @@ export interface BridgingCourseOption {
   lab_hours: number;
   units: number;
   tuition_hours: number;
+  combined_with_program_id?: number | null;
+  combined_label?: string | null;
+}
+
+// Data format for prompting the user to combine matching bridging schedules
+export interface CombinedSchedulePromptData {
+  matchingProgramCode: string;
+  currentProgramCode: string;
+  combinedLabel: string;
 }
 
 export interface TemporaryCourseOfferingPayload {
