@@ -8,11 +8,11 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
+// Ensure these paths match your project structure
+import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { LoadingComponent } from '../loading/loading.component';
 import { ScheduleTimelineComponent } from '../schedule-timeline/schedule-timeline.component';
-
 import { fadeAnimation } from '../../core/animations/animations';
 
 interface ScheduleGroup {
@@ -27,9 +27,7 @@ interface ViewScheduleDialogData {
   academicYear?: string;
   semester?: number;
   scheduleGroups?: ScheduleGroup[];
-  // UPDATED: Allow Promise for PDF generation
   generatePdfFunction: (preview: boolean) => Blob | Promise<Blob> | void;
-  // NEW: Allow Excel function
   generateExcelFunction?: () => Promise<void> | void;
   showViewToggle?: boolean;
   exportType?: 'all' | 'single';
@@ -38,16 +36,17 @@ interface ViewScheduleDialogData {
 
 @Component({
   selector: 'app-dialog-view-schedule',
+  standalone: true,
   imports: [
     CommonModule,
     FormsModule,
     LoadingComponent,
-    ScheduleTimelineComponent,
     MatTableModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
     MatSymbolDirective,
+    ScheduleTimelineComponent 
   ],
   templateUrl: './dialog-view-schedule.component.html',
   styleUrls: ['./dialog-view-schedule.component.scss'],
@@ -70,6 +69,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     @Inject(MAT_DIALOG_DATA) public data: ViewScheduleDialogData,
     private sanitizer: DomSanitizer,
   ) {
+    // Hide the toggle and default to PDF if specified by the parent component
     this.showViewToggle = data.showViewToggle ?? true;
     if (!this.showViewToggle) {
       this.selectedView = 'pdf-view';
@@ -94,7 +94,8 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
             this.scheduleData = this.flattenScheduleGroups(
                 this.data.scheduleGroups
             );
-            this.generateAndDisplayPdf();
+            if (this.selectedView === 'pdf-view') this.generateAndDisplayPdf();
+            else this.isLoading = false;
         } else {
             console.warn('No schedule groups available for programs.');
             this.scheduleData = [];
@@ -107,7 +108,13 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
         } else if (Array.isArray(this.data.entityData) &&
             this.data.entityData.length > 0) {
             this.scheduleData = this.data.entityData;
-            this.isLoading = false;
+            
+            // If the view defaults to PDF (like in Faculty Assignment), generate it immediately
+            if (this.selectedView === 'pdf-view') {
+                this.generateAndDisplayPdf();
+            } else {
+                this.isLoading = false;
+            }
         } else {
             console.warn(
                 'No schedules found or invalid data structure:',
@@ -150,14 +157,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   onViewChange(view: 'table-view' | 'pdf-view'): void {
     this.selectedView = view;
+    this.isLoading = true;
     if (view === 'pdf-view') {
       this.generateAndDisplayPdf();
     } else {
       this.pdfBlobUrl = null;
+      this.isLoading = false;
     }
   }
 
-  // UPDATED: Now handles async PDF generation smoothly
   async generateAndDisplayPdf(): Promise<void> {
     if (this.data.generatePdfFunction) {
       try {
@@ -185,7 +193,6 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
-  // UPDATED: Handles async download
   async downloadPdf(): Promise<void> {
     if (!this.data.generatePdfFunction) return;
 
@@ -209,7 +216,6 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
-  // NEW: Excel download method
   async downloadExcel(): Promise<void> {
     if (this.data.generateExcelFunction) {
       try {

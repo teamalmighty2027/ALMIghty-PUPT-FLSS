@@ -38,6 +38,8 @@ class ReportsController extends Controller
             ->select(
                 'active_semesters.active_semester_id',
                 'active_semesters.semester_id',
+                'active_semesters.start_date',
+                'active_semesters.end_date',
                 'academic_years.academic_year_id',
                 'academic_years.year_start',
                 'academic_years.year_end',
