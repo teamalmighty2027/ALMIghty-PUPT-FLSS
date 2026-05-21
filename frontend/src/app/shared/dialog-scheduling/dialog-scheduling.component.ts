@@ -436,7 +436,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     const roomId = selectedRoom?.room_id || null;
 
     // Call the centralized conflict detection method
-    let hasMatchingSchedule = false;
     console.log('Initiating conflict validation with values:', {
       day,
       startTime: formattedStartTime,
@@ -450,6 +449,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       populatedSchedules: this.populatedSchedules
     });
     
+    // Call the centralized conflict detection method
+    let hasMatchingSchedule = false;
+
     if (this.data.isTemporaryCourse && this.populatedSchedules) {
       const matchingResult = 
         this.scheduleValidationService.checkMatchingSchedule(
@@ -468,16 +470,13 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         );
         
       if (matchingResult) {
+        // For temporary courses, matching schedules are allowed
         hasMatchingSchedule = true;
-        this.hasConflicts = true;
-        this.conflictMessage = 
-          'A matching schedule already exists.';
-        this.cdr.markForCheck();
       }      
     }
 
     // Skip regular conflict check if matching schedule found
-    if (!hasMatchingSchedule) {
+    if (hasMatchingSchedule) {
       return of(undefined);
     }
 
