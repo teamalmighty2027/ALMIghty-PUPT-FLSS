@@ -654,3 +654,63 @@ html body div.asw-container .asw-menu * {
     }
   }
 }
+
+
+/* ============================================================
+   Analytics Widget — Shared Loading Bar
+   Matches the system's app-loading progress bar style
+   ============================================================ */
+
+.widget-loading-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+  width: 100%;
+
+  .widget-loading-label {
+    font-size: 0.8125rem;
+    color: var(--neutral-base);
+    opacity: 0.55;
+    font-style: italic;
+  }
+
+  .widget-progress-track {
+    width: 100%;
+    max-width: 240px;
+    height: 3px;
+    background-color: var(--neutral-option);
+    border-radius: 9999px;
+    overflow: hidden;
+    position: relative;
+
+    .widget-progress-bar {
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      border-radius: 9999px;
+      background: linear-gradient(90deg, #800000, #c0392b);
+      animation: widget-bar-primary 2.25s infinite cubic-bezier(0.65, 0.815, 0.735, 0.395);
+
+      &.secondary {
+        animation: widget-bar-secondary 2.25s infinite cubic-bezier(0.165, 0.84, 0.44, 1);
+        animation-delay: 1s;
+      }
+    }
+  }
+}
+
+@keyframes widget-bar-primary {
+  0%   { left: -35%; right: 100%; }
+  60%  { left: 100%; right: -90%; }
+  100% { left: 100%; right: -90%; }
+}
+
+@keyframes widget-bar-secondary {
+  0%   { left: -200%; right: 100%; }
+  60%  { left: 107%; right: -8%; }
+  100% { left: 107%; right: -8%; }
+}

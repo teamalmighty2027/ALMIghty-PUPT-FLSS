@@ -1,7 +1,12 @@
 <div class="heatmap-container">
   <div class="loading-overlay" *ngIf="isLoading">
-    <mat-spinner diameter="40"></mat-spinner>
-    <p>Loading distribution data...</p>
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Loading distribution data...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
   <div class="empty-state" *ngIf="!isLoading && isEmpty">

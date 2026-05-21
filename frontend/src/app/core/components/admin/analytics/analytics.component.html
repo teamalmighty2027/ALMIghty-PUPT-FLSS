@@ -1,4 +1,12 @@
-<div class="analytics-container" [@fadeAnimation]>
+<div class="analytics-wrapper">
+
+  <!-- Page-level loading — matches system pattern -->
+  <div class="analytics-loading" *ngIf="isTermsLoading">
+    <app-loading></app-loading>
+  </div>
+
+  <!-- Dashboard content — fades in once terms are loaded -->
+  <div class="analytics-container" [@fadeAnimation] *ngIf="!isTermsLoading">
 
   <!-- ── Header Banner ─────────────────────────────────────── -->
   <div class="analytics-header">
@@ -247,4 +255,5 @@
     </div>
 
   </div>
+
 </div>
