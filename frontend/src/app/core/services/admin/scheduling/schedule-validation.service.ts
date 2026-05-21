@@ -412,6 +412,7 @@ export class ScheduleValidationService {
                 return {
                   course,
                   programCode: program.program_code,
+                  programId: program.program_id,
                   yearLevel: yearLevel.year_level,
                   sectionName: section.section_name,
                 };

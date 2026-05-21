@@ -55,6 +55,8 @@ export interface Schedule {
   temporary_status?: string | null;
   petition_required?: boolean;
   temporary_course_offering_id?: number | null;
+  bridging_course_id?: number | null;
+  combined_with_program_id?: number | null;
 }
 
 export interface Semester {
@@ -270,6 +272,7 @@ export interface ConflictingCourseDetail {
 export interface ConflictingScheduleDetail {
   course: CourseResponse;
   programCode: string;
+  programId: number;
   yearLevel: number;
   sectionName: string;
 }

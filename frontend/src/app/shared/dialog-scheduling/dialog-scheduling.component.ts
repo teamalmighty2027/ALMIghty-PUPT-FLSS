@@ -14,12 +14,13 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatRippleModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
-import { Faculty, Room } from '../../core/models/scheduling.model';
+import { Faculty, Room, ConflictingScheduleDetail } from '../../core/models/scheduling.model';
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
 
@@ -89,6 +90,9 @@ interface DialogData {
   course_id: number;
   isDraftMode?: boolean;
   isTemporaryCourse?: boolean;
+  isBridgingCourse?: boolean;
+  bridging_course_id?: number | null;
+  combined_with_program_id?: number | null;
 }
 
 @Component({
@@ -107,6 +111,7 @@ interface DialogData {
     MatSnackBarModule,
     MatProgressSpinnerModule,
     MatSymbolDirective,
+    MatCheckboxModule,
   ],
   templateUrl: './dialog-scheduling.component.html',
   styleUrls: ['./dialog-scheduling.component.scss'],
@@ -127,6 +132,11 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   hasConflicts = false;
   conflictMessage: string = '';
+
+  pendingCombinedLabel: string | null = null;
+  pendingMatchingProgramCode: string | null = null;
+  pendingMatchingProgramId: number | null = null;
+  userConfirmedCombine = false;
 
   isLoading = false;
   private populatedSchedules: any;
@@ -265,6 +275,11 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     if (startTime && startTime !== 'Not set') {
       this.updateEndTimeOptions(startTime);
     }
+
+    if (this.data.isBridgingCourse && this.data.combined_with_program_id) {
+      this.userConfirmedCombine = true;
+    }
+
     this.cdr.markForCheck();
   }
 
@@ -437,9 +452,12 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
     // Call the centralized conflict detection method
     let hasMatchingSchedule = false;
+    let matchingResult: ConflictingScheduleDetail | undefined;
 
-    if (this.data.isTemporaryCourse && this.populatedSchedules) {
-      const matchingResult = 
+    // NOTE: Currently scoped to bridging courses only.
+    // To extend to other temporary types, adjust this condition.
+    if (this.data.isBridgingCourse && this.populatedSchedules) {
+      matchingResult =
         this.scheduleValidationService.checkMatchingSchedule(
           this.populatedSchedules,
           {
@@ -454,17 +472,61 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             room_id: roomId,
           }
         );
-        
+
       if (matchingResult) {
-        // For temporary courses, matching schedules are allowed
         hasMatchingSchedule = true;
-      }      
+        this.pendingMatchingProgramCode = matchingResult.programCode;
+        this.pendingMatchingProgramId = matchingResult.programId;
+        const currentProgramCode = this.data.program.info.split(' ')[0];
+        this.pendingCombinedLabel = this.scheduleValidationService
+          .buildCombinedLabel(
+            currentProgramCode,
+            matchingResult.programCode
+          );
+
+        this.hasConflicts = !this.userConfirmedCombine;
+        this.conflictMessage = this.hasConflicts
+          ? `Matching schedule found for ` +
+            `${this.pendingMatchingProgramCode}. ` +
+            `You must combine them to save.`
+          : '';
+        this.cdr.markForCheck();
+      }
+    } else if (this.data.isTemporaryCourse && this.populatedSchedules) {
+      matchingResult =
+        this.scheduleValidationService.checkMatchingSchedule(
+          this.populatedSchedules,
+          {
+            schedule_id: this.data.schedule_id,
+            program_id: this.data.program.id,
+            year_level: this.data.academic.year_level,
+            day,
+            start_time: formattedStartTime || '',
+            end_time: formattedEndTime || '',
+            section_id: this.data.academic.section_id,
+            faculty_id: facultyId,
+            room_id: roomId,
+          }
+        );
+
+      if (matchingResult) {
+        hasMatchingSchedule = true;
+      }
     }
 
-    // Skip regular conflict check if matching schedule found
     if (hasMatchingSchedule) {
+      if (!this.data.isBridgingCourse) {
+        this.pendingCombinedLabel = null;
+        this.pendingMatchingProgramCode = null;
+        this.pendingMatchingProgramId = null;
+      }
       return of(undefined);
     }
+
+    // No matching schedule found: clear any pending combine states
+    this.pendingCombinedLabel = null;
+    this.pendingMatchingProgramCode = null;
+    this.pendingMatchingProgramId = null;
 
     return this.schedulingService
       .checkForScheduleConflicts(
@@ -546,31 +608,59 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.schedulingService.assignSchedule(
-      this.data.schedule_id,
-      selectedFaculty?.faculty_id ?? null,
-      selectedRoomId,
-      formValues.day ?? null,
-      formattedStartTime,
-      formattedEndTime,
-      this.data.program.id,
-      this.data.academic.year_level,
-      this.data.academic.section_id
-    )
-    .pipe(
-      tap(() => {
-        this.isLoading = false;
-        this.originalDay = this.selectedDay;
-        this.dialogRef.close(true);
-      }),
-      catchError((error) => {
-        this.isLoading = false;
-        this.handleAssignmentError(error);
-        return of(null);
-      }),
-      takeUntil(this.destroy$)
-    )
-    .subscribe();
+    let combineObservable = of(null);
+    if (this.data.isBridgingCourse && this.data.bridging_course_id) {
+      const targetProgramId = this.userConfirmedCombine
+        ? this.pendingMatchingProgramId
+        : null;
+
+      if (targetProgramId !== this.data.combined_with_program_id) {
+        combineObservable = this.schedulingService.combineBridgingCourses(
+          this.data.bridging_course_id,
+          targetProgramId
+        );
+      }
+    }
+
+    combineObservable
+      .pipe(
+        switchMap(() => {
+          return this.schedulingService.assignSchedule(
+            this.data.schedule_id,
+            selectedFaculty?.faculty_id ?? null,
+            selectedRoomId,
+            formValues.day ?? null,
+            formattedStartTime,
+            formattedEndTime,
+            this.data.program.id,
+            this.data.academic.year_level,
+            this.data.academic.section_id
+          );
+        }),
+        tap(() => {
+          this.isLoading = false;
+          this.originalDay = this.selectedDay;
+          this.dialogRef.close(true);
+        }),
+        catchError((error) => {
+          this.isLoading = false;
+          this.handleAssignmentError(error);
+          return of(null);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe();
+  }
+
+  // Handles toggle event for combining bridging courses.
+  public onCombineToggle(checked: boolean): void {
+    this.userConfirmedCombine = checked;
+    this.hasConflicts = !checked;
+    this.conflictMessage = this.hasConflicts
+      ? `Matching schedule found for ${this.pendingMatchingProgramCode}. ` +
+        `You must combine them to save.`
+      : '';
+    this.cdr.markForCheck();
   }
 
   private handleAssignmentError(error: any): void {

@@ -370,8 +370,22 @@ class ScheduleController extends Controller
         } else if (!is_null($originalSectionCourse->temporary_course_offering_id)) {
             $temporaryMeta = DB::table('temporary_course_offerings as t')
                 ->join('courses as co', 't.course_id', '=', 'co.course_id')
-                ->where('t.temporary_course_offering_id', $originalSectionCourse->temporary_course_offering_id)
-                ->select('co.course_id', 'co.course_code', 'co.course_title', 'co.lec_hours', 'co.lab_hours', 'co.units', 'co.tuition_hours', 't.type', 't.status')
+                ->where(
+                    't.temporary_course_offering_id',
+                    $originalSectionCourse->temporary_course_offering_id
+                )
+                ->select(
+                    'co.course_id',
+                    'co.course_code',
+                    'co.course_title',
+                    'co.lec_hours',
+                    'co.lab_hours',
+                    'co.units',
+                    'co.tuition_hours',
+                    't.type',
+                    't.status',
+                    't.bridging_course_id'
+                )
                 ->first();
             $course = $temporaryMeta;
         } else {
@@ -402,6 +416,9 @@ class ScheduleController extends Controller
             'temporary_type' => $temporaryType,
             'temporary_status' => $temporaryStatus,
             'petition_required' => $petitionRequired,
+            'bridging_course_id' => $temporaryMeta
+                ? $temporaryMeta->bridging_course_id
+                : null,
             'schedule' => [
                 'schedule_id' => $newScheduleId,
                 'day' => 'Not set',
@@ -776,12 +793,20 @@ class ScheduleController extends Controller
                     ->where('pylc.academic_year_id', $academicYearId);
             })
             ->leftJoin('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
+            ->leftJoin(
+                'bridging_courses as bc',
+                't.bridging_course_id',
+                '=',
+                'bc.bridging_course_id'
+            )
             ->where('t.academic_year_id', $academicYearId)
             ->where('t.semester_id', $semesterId)
             ->where('t.is_archived', 0)
             ->where('t.status', 'Approved')
             ->select(
                 't.temporary_course_offering_id',
+                't.bridging_course_id',
+                'bc.combined_with_program_id',
                 't.program_id',
                 't.year_level',
                 't.section_per_program_year_id',
@@ -963,6 +988,9 @@ class ScheduleController extends Controller
                 'temporary_type' => $offering->type,
                 'temporary_status' => $offering->status,
                 'petition_required' => in_array($offering->type, ['petition', 'tutorial'], true),
+                'bridging_course_id' => $offering->bridging_course_id ?? null,
+                'combined_with_program_id' =>
+                    $offering->combined_with_program_id ?? null,
                 'is_copy' => $section_course->is_copy,
                 'section_course_id' => $section_course->section_course_id,
             ];

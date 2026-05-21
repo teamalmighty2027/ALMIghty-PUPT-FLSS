@@ -1501,6 +1501,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             course_id: schedule.course_id,
             isDraftMode: this.isDraftMode,
             isTemporaryCourse: schedule.is_temporary,
+            isBridgingCourse: schedule.is_temporary &&
+              schedule.temporary_type === 'bridging',
+            bridging_course_id: schedule.bridging_course_id,
+            combined_with_program_id: schedule.combined_with_program_id,
           },
         });
 
