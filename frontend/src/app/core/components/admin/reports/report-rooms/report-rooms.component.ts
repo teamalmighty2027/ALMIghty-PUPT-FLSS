@@ -684,11 +684,21 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           facultyName = 'Faculty TBA'; 
         }
 
+        // Block Content - Show combined label if applicable
+        let programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
+        if (item.combined_with_program_id && item.combined_program_code) {
+          const currentProgramCode = item.program_code;
+          programDisplay = [
+            currentProgramCode,
+            item.combined_program_code
+          ].sort().reverse().join('/');
+        }
+
         // Block Content (Tailored for Rooms)
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+          programDisplay,
           facultyName
         ].filter(line => line !== ''); 
 

@@ -759,13 +759,22 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         doc.setFont('helvetica', 'normal');
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
-        // Block Content (Tailored for Faculty)
+        // Block Content - Show combined label if applicable
+        let programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
+        if (item.combined_with_program_id && item.combined_with_program_code) {
+          const currentProgramCode = item.program_code;
+          programDisplay = [
+            currentProgramCode,
+            item.combined_with_program_code
+          ].sort().reverse().join('/');
+        }
+
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+          programDisplay,
           item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
-        ].filter(line => line !== ''); 
+        ].filter(line => line !== '');
 
         let textY = yPos + startPadding; 
         
