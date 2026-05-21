@@ -18,6 +18,7 @@ class BridgingCourse extends Model
         'semester_id',
         'course_id',
         'created_by',
+        'combined_with_program_id',
     ];
 
     public function curriculum()
@@ -48,5 +49,15 @@ class BridgingCourse extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by', 'id');
+    }
+
+    // Get the program that this bridging course is combined with.
+    public function combinedWithProgram()
+    {
+        return $this->belongsTo(
+            Program::class,
+            'combined_with_program_id',
+            'program_id'
+        );
     }
 }
