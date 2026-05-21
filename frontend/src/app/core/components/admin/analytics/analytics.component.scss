@@ -182,8 +182,6 @@
 
   .grid-item {
     &.span-full { grid-column: 1 / -1; }
-    &.span-v-2  { grid-row: span 2; }
-    &.span-v-3  { grid-row: span 3; }
   }
 }
 
@@ -256,7 +254,7 @@
   }
 
   &.tall-card    { min-height: 450px; }
-  &.heatmap-card { min-height: 780px; }
+  &.heatmap-card { min-height: 320px; } // Shrinks to fit empty/loading state
 
   // ── Widget header ──────────────────────────────────────────
   .widget-header {
@@ -270,8 +268,10 @@
 
     .widget-title-group {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: var(--spacing-sm);
+      flex: 1;
+      min-width: 0;
 
       .widget-icon {
         width: 32px;
@@ -282,6 +282,7 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        margin-top: 2px;
 
         mat-icon {
           font-size: 17px;
@@ -291,12 +292,30 @@
         }
       }
 
-      h3 {
-        margin: 0;
-        font-size: var(--font-size-smx);
-        font-weight: 600;
-        color: var(--neutral-base);
-        line-height: 1.3;
+      .widget-title-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+
+        h3 {
+          margin: 0;
+          font-size: var(--font-size-smx);
+          font-weight: 600;
+          color: var(--neutral-base);
+          line-height: 1.3;
+        }
+
+        .widget-subtitle {
+          margin: 0;
+          font-size: var(--font-size-xs);
+          color: var(--neutral-base);
+          opacity: 0.55;
+          line-height: 1.4;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
       }
     }
 
@@ -362,7 +381,10 @@
           mat-icon { color: #e57373; }
         }
 
-        h3 { color: #e0e0e0; }
+        .widget-title-text {
+          h3 { color: #e0e0e0; }
+          .widget-subtitle { color: #aaaaaa; opacity: 0.7; }
+        }
       }
 
       .widget-badge {

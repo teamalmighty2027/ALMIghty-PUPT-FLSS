@@ -23,7 +23,7 @@
     </ng-template>
   </div>
 
-  <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper">
+  <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper" [style.height.px]="chartHeight">
     <canvas baseChart
       [data]="barChartData"
       [options]="barChartOptions"

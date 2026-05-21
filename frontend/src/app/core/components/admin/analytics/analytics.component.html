@@ -45,15 +45,18 @@
 
   <div class="analytics-grid">
 
-    <!-- Heatmap — spans 3 rows on the left -->
-    <div class="grid-item span-v-3">
+    <!-- Heatmap — full width -->
+    <div class="grid-item span-full">
       <div class="widget-card heatmap-card">
         <div class="widget-header">
           <div class="widget-title-group">
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">insights</mat-icon>
             </div>
-            <h3>Schedule Distribution Heatmap</h3>
+            <div class="widget-title-text">
+              <h3>Schedule Distribution Heatmap</h3>
+              <p class="widget-subtitle">Class density across days and time slots for the selected term</p>
+            </div>
           </div>
           <span class="widget-badge badge-descriptive">Heatmap</span>
         </div>
@@ -71,7 +74,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">meeting_room</mat-icon>
             </div>
-            <h3>Room Utilization</h3>
+            <div class="widget-title-text">
+              <h3>Room Utilization</h3>
+              <p class="widget-subtitle">Total scheduled hours per room this term</p>
+            </div>
           </div>
           <span class="widget-badge badge-descriptive">Bar Chart</span>
         </div>
@@ -89,7 +95,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
             </div>
-            <h3>Faculty Composition</h3>
+            <div class="widget-title-text">
+              <h3>Faculty Composition</h3>
+              <p class="widget-subtitle">Breakdown of faculty by employment type</p>
+            </div>
           </div>
           <span class="widget-badge badge-descriptive">Doughnut</span>
         </div>
@@ -107,7 +116,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">groups</mat-icon>
             </div>
-            <h3>Faculty Load Distribution</h3>
+            <div class="widget-title-text">
+              <h3>Faculty Load Distribution</h3>
+              <p class="widget-subtitle">Count of underloaded, optimal, and overloaded faculty</p>
+            </div>
           </div>
           <span class="widget-badge badge-descriptive">Bar Chart</span>
         </div>
@@ -125,7 +137,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">analytics</mat-icon>
             </div>
-            <h3>Program Scheduling Progress</h3>
+            <div class="widget-title-text">
+              <h3>Program Scheduling Progress</h3>
+              <p class="widget-subtitle">Percentage of course slots assigned per program</p>
+            </div>
           </div>
           <span class="widget-badge badge-descriptive">Progress</span>
         </div>
@@ -155,7 +170,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">engineering</mat-icon>
             </div>
-            <h3>Faculty Load Analysis</h3>
+            <div class="widget-title-text">
+              <h3>Faculty Load Analysis</h3>
+              <p class="widget-subtitle">Unit deviation from regular load per faculty member</p>
+            </div>
           </div>
           <span class="widget-badge badge-prescriptive">Diverging</span>
         </div>
@@ -173,7 +191,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">history_edu</mat-icon>
             </div>
-            <h3>Appeal Activity</h3>
+            <div class="widget-title-text">
+              <h3>Appeal Activity</h3>
+              <p class="widget-subtitle">Status breakdown of rescheduling appeals this term</p>
+            </div>
           </div>
           <span class="widget-badge badge-prescriptive">Doughnut</span>
         </div>
@@ -191,7 +212,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">auto_awesome</mat-icon>
             </div>
-            <h3>Optimal Time-Slot Recommendations</h3>
+            <div class="widget-title-text">
+              <h3>Optimal Time-Slot Recommendations</h3>
+              <p class="widget-subtitle">Time slots with high faculty preference but low current schedule usage</p>
+            </div>
           </div>
           <span class="widget-badge badge-prescriptive">Recommendation</span>
         </div>
@@ -209,7 +233,10 @@
             <div class="widget-icon">
               <mat-icon fontSet="material-symbols-rounded">trending_up</mat-icon>
             </div>
-            <h3>Multi-Semester Scheduling Trends</h3>
+            <div class="widget-title-text">
+              <h3>Multi-Semester Scheduling Trends</h3>
+              <p class="widget-subtitle">Scheduling progress compared across the last 5 academic terms</p>
+            </div>
           </div>
           <span class="widget-badge badge-prescriptive">Trend Line</span>
         </div>

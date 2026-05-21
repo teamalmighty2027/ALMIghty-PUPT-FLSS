@@ -1,11 +1,15 @@
 .heatmap-container {
   width: 100%;
-  height: 100%;
   position: relative;
-  min-height: 400px;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
+  // Height is driven by content — no fixed min-height here
+
+  // Only the actual grid gets the tall treatment
+  .heatmap-grid {
+    min-height: 600px;
+  }
 }
 
 // ── Loading / Empty ───────────────────────────────────────────
@@ -27,22 +31,52 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 2rem;
+  padding: var(--spacing-2xl) var(--spacing-lg);
   text-align: center;
   color: var(--neutral-base);
-  background: var(--neutral-option);
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(128, 0, 0, 0.02),
+    rgba(128, 0, 0, 0.02) 10px,
+    transparent 10px,
+    transparent 20px
+  );
   border-radius: var(--border-radius-md);
-  border: 1px dashed rgba(128, 0, 0, 0.2);
-  opacity: 0.7;
+  border: 1px dashed rgba(128, 0, 0, 0.18);
+  gap: var(--spacing-sm);
 
-  mat-icon {
-    font-size: 48px; width: 48px; height: 48px;
-    margin-bottom: var(--spacing-md);
-    color: #800000; opacity: 0.4;
+  .empty-icon-wrapper {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(128, 0, 0, 0.06);
+    border: 2px solid rgba(128, 0, 0, 0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-xs);
+
+    mat-icon {
+      font-size: 36px;
+      width: 36px;
+      height: 36px;
+      color: #800000;
+      opacity: 0.5;
+    }
   }
 
-  p  { font-weight: 600; margin: 0; font-size: var(--font-size-md); }
-  span { font-size: var(--font-size-sm); margin-top: var(--spacing-xs); opacity: 0.7; }
+  p {
+    font-weight: 600;
+    margin: 0;
+    font-size: var(--font-size-md);
+    color: var(--neutral-base);
+  }
+
+  span {
+    font-size: var(--font-size-sm);
+    opacity: 0.6;
+    max-width: 320px;
+  }
 }
 
 // ── Grid ──────────────────────────────────────────────────────
@@ -69,18 +103,21 @@
   border-left: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.time-cell {
+// Time label column — centered
+.time-label {
   background: var(--neutral-option);
   color: var(--neutral-base);
   font-size: var(--font-size-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  text-align: right;
+  padding: var(--spacing-xs) 0;
   font-weight: 500;
+  text-align: center;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   border-bottom: 1px solid rgba(128, 0, 0, 0.06);
   opacity: 0.75;
+  white-space: nowrap;
+  height: 30px;
 }
 
 .heatmap-cell {

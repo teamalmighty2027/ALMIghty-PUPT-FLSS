@@ -10,6 +10,8 @@
   </div>
 
   <div *ngIf="!isLoading && !isEmpty" class="content">
+
+    <!-- Left: Top 5 recommendations -->
     <div class="recommendations">
       <h4>Top Opportunities</h4>
       <div class="rec-list">
@@ -21,33 +23,37 @@
             <span class="rec-slot">{{ rec.day }} {{ rec.time }}</span>
             <span class="rec-desc">{{ rec.pref }} requests vs {{ rec.sched }} used</span>
           </div>
-          <div class="rec-score">
-            +{{ rec.score }}
-          </div>
+          <div class="rec-score">+{{ rec.score }}</div>
         </div>
       </div>
     </div>
 
-    <div class="heatmap-container">
-      <table class="heatmap-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th *ngFor="let day of days">{{ day.substring(0, 3) }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let time of timeSlots">
-            <td class="time-label">{{ time.substring(0, 5) }}</td>
-            <td *ngFor="let day of days" 
-                [style.background-color]="getScoreColor(gridData[day + '-' + time].score || 0)"
-                [matTooltip]="(gridData[day + '-' + time].pref || 0) + ' Prefs / ' + (gridData[day + '-' + time].sched || 0) + ' Sched'"
-                class="heat-cell">
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Right: Opportunity grid heatmap -->
+    <div class="heatmap-section">
+      <h4>Opportunity Grid</h4>
+      <div class="heatmap-scroll">
+        <table class="heatmap-table">
+          <thead>
+            <tr>
+              <th class="corner-cell"></th>
+              <th *ngFor="let day of days">{{ day.substring(0, 3) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let time of timeSlots">
+              <td class="time-label">{{ time.substring(0, 5) }}</td>
+              <td *ngFor="let day of days"
+                  class="heat-cell"
+                  [style.background-color]="getScoreColor(gridData[day + '-' + time]?.score || 0)"
+                  [matTooltip]="(gridData[day + '-' + time]?.pref || 0) + ' Prefs / ' + (gridData[day + '-' + time]?.sched || 0) + ' Sched'"
+                  matTooltipPosition="above">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+
   </div>
 
   <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
