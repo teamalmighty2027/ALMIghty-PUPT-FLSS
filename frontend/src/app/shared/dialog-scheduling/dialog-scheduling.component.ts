@@ -436,20 +436,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     const roomId = selectedRoom?.room_id || null;
 
     // Call the centralized conflict detection method
-    console.log('Initiating conflict validation with values:', {
-      day,
-      startTime: formattedStartTime,
-      endTime: formattedEndTime,
-      professor,
-      room,
-    });
-
-    console.log("Temporary course check:", {
-      isTemporaryCourse: this.data.isTemporaryCourse,
-      populatedSchedules: this.populatedSchedules
-    });
-    
-    // Call the centralized conflict detection method
     let hasMatchingSchedule = false;
 
     if (this.data.isTemporaryCourse && this.populatedSchedules) {

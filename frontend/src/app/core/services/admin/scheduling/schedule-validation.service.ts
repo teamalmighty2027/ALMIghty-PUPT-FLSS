@@ -112,9 +112,10 @@ export class ScheduleValidationService {
       faculty_id: number | null;
       room_id: number | null;
     }
-    ): ConflictingScheduleDetail | undefined {
-    // Find the target course
+  ): ConflictingScheduleDetail | undefined {
     let targetCourse: CourseResponse | undefined;
+    
+    // TODO: Optimize searching
     for (const program of schedules.programs) {
       for (const yearLevel of program.year_levels) {
         for (const semester of yearLevel.semesters) {
