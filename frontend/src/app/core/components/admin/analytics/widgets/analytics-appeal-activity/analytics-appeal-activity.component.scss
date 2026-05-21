@@ -6,34 +6,30 @@
   flex-direction: column;
 }
 
-.loading-overlay, .empty-state {
+.loading-overlay,
+.empty-state {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.8);
+  gap: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.85);
   z-index: 2;
+  border-radius: var(--border-radius-md);
 
-  span, p {
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.9rem;
-  }
+  span, p { color: var(--neutral-base); font-size: var(--font-size-sm); margin: 0; }
 }
 
 .empty-state {
-  mat-icon {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    color: var(--mat-sys-primary);
-    opacity: 0.5;
-  }
+  background: var(--neutral-option);
+  border: 1px dashed rgba(128, 0, 0, 0.2);
+  position: relative;
+  flex: 1;
+
+  mat-icon { font-size: 44px; width: 44px; height: 44px; color: #800000; opacity: 0.35; }
+  p { font-weight: 600; font-size: var(--font-size-md); }
 }
 
 .chart-wrapper {
@@ -43,10 +39,11 @@
   position: relative;
 }
 
+// Center total count inside doughnut
 .chart-center-text {
   position: absolute;
   top: 50%;
-  left: 41.5%;
+  left: 42%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
@@ -57,13 +54,19 @@
     font-size: 2rem;
     font-weight: 700;
     line-height: 1;
-    color: var(--mat-sys-on-surface);
+    color: var(--neutral-base);
   }
 
   .label {
-    font-size: 0.75rem;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--neutral-base);
+    opacity: 0.6;
     letter-spacing: 0.05em;
   }
+}
+
+:host-context(.dark-theme) {
+  .loading-overlay { background: rgba(30, 30, 30, 0.85); }
+  .empty-state { background: rgba(255, 255, 255, 0.04); border-color: rgba(229, 115, 115, 0.2); }
 }
