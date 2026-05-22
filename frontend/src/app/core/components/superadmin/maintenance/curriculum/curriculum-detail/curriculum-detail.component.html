@@ -41,6 +41,8 @@
                   <div class="elective-title">{{ slot.slotName }}</div>
                   <div class="elective-select">
                     <select
+                      [attr.aria-label]="'Curriculum elective for ' + slot.slotName"
+                      [attr.title]="'Curriculum elective for ' + slot.slotName"
                       [value]="slot.selectedElectiveId || ''"
                       [disabled]="slot.options.length === 0"
                       (change)="onElectiveSelectionChange(slot, $event)"

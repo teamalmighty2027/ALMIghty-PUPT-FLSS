@@ -52,6 +52,49 @@
       }
     </div>
 
+    @if (canManageElectiveOverrides) {
+      <div class="elective-override-section" [@pageFloatUpAnimation]>
+        <div class="elective-override-header">
+          <div class="title">Elective Overrides</div>
+          <div class="subtitle">
+            Applies to active academic year {{ activeYear }}
+          </div>
+        </div>
+
+        @if (isLoadingElectiveOverrides) {
+          <div class="elective-override-note">
+            Loading elective overrides...
+          </div>
+        } @else if (electiveOverrideSlots.length === 0) {
+          <div class="elective-override-note">
+            No elective slots detected for this term.
+          </div>
+        } @else {
+          <div class="elective-override-grid">
+            @for (slot of electiveOverrideSlots; track slot.slotName) {
+              <div class="elective-override-card">
+                <div class="slot-title">{{ slot.slotName }}</div>
+                <select
+                  [attr.aria-label]="'Elective override for ' + slot.slotName"
+                  [attr.title]="'Elective override for ' + slot.slotName"
+                  [value]="slot.selectedElectiveId || ''"
+                  [disabled]="slot.options.length === 0"
+                  (change)="onElectiveOverrideChange(slot, $event)"
+                >
+                  <option value="">Select elective</option>
+                  @for (option of slot.options; track option.elective_id) {
+                    <option [value]="option.elective_id">
+                      {{ option.course_code }} - {{ option.course_title }}
+                    </option>
+                  }
+                </select>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
     <!-- Draft Toolbar -->
     @if (isDraftMode) {
       <div class="draft-toolbar" [@pageFloatUpAnimation]>
