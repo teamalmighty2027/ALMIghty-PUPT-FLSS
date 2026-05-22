@@ -1,13 +1,20 @@
 <div class="heatmap-container">
   <div class="loading-overlay" *ngIf="isLoading">
-    <mat-spinner diameter="40"></mat-spinner>
-    <p>Loading distribution data...</p>
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Loading distribution data...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
   <div class="empty-state" *ngIf="!isLoading && isEmpty">
-    <mat-icon fontSet="material-symbols-rounded">event_busy</mat-icon>
+    <div class="empty-icon-wrapper">
+      <mat-icon fontSet="material-symbols-rounded">event_busy</mat-icon>
+    </div>
     <p>No schedule data available for this term</p>
-    <span>Try selecting a different academic year or semester</span>
+    <span>Try selecting a different academic year or semester to view the schedule density heatmap.</span>
   </div>
 
   <div class="heatmap-grid" *ngIf="!isLoading && !isEmpty">

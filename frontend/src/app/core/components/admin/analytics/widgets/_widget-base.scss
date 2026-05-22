@@ -1,4 +1,9 @@
-.chart-container {
+// Shared base styles for all chart widget components.
+// Import this in each widget SCSS: @use '../widget-base' as base;
+
+@use '../../../../../../styles/mixins';
+
+%widget-base {
   width: 100%;
   height: 100%;
   min-height: 220px;
@@ -7,14 +12,14 @@
   flex-direction: column;
 }
 
-.chart-wrapper {
+%chart-wrapper {
   flex: 1;
   width: 100%;
   min-height: 0;
   position: relative;
 }
 
-.loading-overlay {
+%loading-overlay {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -23,10 +28,15 @@
   gap: var(--spacing-md);
   color: var(--neutral-base);
   opacity: 0.7;
-  p { font-style: italic; font-size: var(--font-size-sm); margin: 0; }
+
+  p {
+    font-style: italic;
+    font-size: var(--font-size-sm);
+    margin: 0;
+  }
 }
 
-.empty-state {
+%empty-state {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -40,7 +50,24 @@
   border: 1px dashed rgba(128, 0, 0, 0.2);
   opacity: 0.75;
 
-  mat-icon { font-size: 44px; width: 44px; height: 44px; margin-bottom: var(--spacing-md); color: #800000; opacity: 0.35; }
-  p { font-weight: 600; margin: 0; font-size: var(--font-size-md); }
-  span { font-size: var(--font-size-sm); margin-top: var(--spacing-xs); opacity: 0.65; }
+  mat-icon {
+    font-size: 44px;
+    width: 44px;
+    height: 44px;
+    margin-bottom: var(--spacing-md);
+    color: #800000;
+    opacity: 0.35;
+  }
+
+  p {
+    font-weight: 600;
+    margin: 0;
+    font-size: var(--font-size-md);
+  }
+
+  span {
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+    opacity: 0.65;
+  }
 }

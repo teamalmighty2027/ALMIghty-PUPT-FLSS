@@ -2,57 +2,76 @@
   display: flex;
   flex-direction: column;
   margin-top: auto;
-  padding-top: 0.5rem;
+  padding-top: var(--spacing-sm);
   animation: fadeIn 0.3s ease-out;
 }
 
 .divider {
   height: 1px;
-  background: var(--mat-sys-outline-variant);
-  margin-bottom: 0.75rem;
-  opacity: 0.5;
+  background: rgba(128, 0, 0, 0.1);
+  margin-bottom: var(--spacing-sm);
 }
 
 .insight-content {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.5rem 0.25rem;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 mat-icon {
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
+  font-size: 17px;
+  width: 17px;
+  height: 17px;
   margin-top: 1px;
+  flex-shrink: 0;
 }
 
 .insight-text {
   margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
   font-style: italic;
-  color: var(--mat-sys-on-surface-variant);
+  color: var(--neutral-base);
+  opacity: 0.8;
 }
 
-// Type variations
+// ── Type variations ───────────────────────────────────────────
 .type-info {
-  mat-icon { color: var(--mat-sys-primary); }
+  .insight-content { background: rgba(33, 150, 243, 0.06); }
+  mat-icon { color: #1976d2; }
 }
 
 .type-success {
-  mat-icon { color: #4CAF50; }
+  .insight-content { background: rgba(76, 175, 80, 0.06); }
+  mat-icon { color: #2e7d32; }
 }
 
 .type-warning {
-  mat-icon { color: #FFC107; }
+  .insight-content { background: rgba(255, 193, 7, 0.08); }
+  mat-icon { color: #f57f17; }
 }
 
 .type-alert {
-  mat-icon { color: #F44336; }
+  .insight-content { background: rgba(244, 67, 54, 0.06); }
+  mat-icon { color: #c62828; }
+}
+
+// ── Dark theme ────────────────────────────────────────────────
+:host-context(.dark-theme) {
+  .divider { background: rgba(229, 115, 115, 0.12); }
+
+  .insight-text { color: #cccccc; }
+
+  .type-info    .insight-content { background: rgba(33, 150, 243, 0.1); }
+  .type-success .insight-content { background: rgba(76, 175, 80, 0.1); }
+  .type-warning .insight-content { background: rgba(255, 193, 7, 0.1); }
+  .type-alert   .insight-content { background: rgba(244, 67, 54, 0.1); }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
