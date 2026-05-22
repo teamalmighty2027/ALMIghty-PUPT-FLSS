@@ -8,11 +8,11 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
+import { ChangeDetectorRef } from '@angular/core';
 
+import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { LoadingComponent } from '../loading/loading.component';
 import { ScheduleTimelineComponent } from '../schedule-timeline/schedule-timeline.component';
-
 import { fadeAnimation } from '../../core/animations/animations';
 
 interface ScheduleGroup {
@@ -27,9 +27,7 @@ interface ViewScheduleDialogData {
   academicYear?: string;
   semester?: number;
   scheduleGroups?: ScheduleGroup[];
-  // UPDATED: Allow Promise for PDF generation
   generatePdfFunction: (preview: boolean) => Blob | Promise<Blob> | void;
-  // NEW: Allow Excel function
   generateExcelFunction?: () => Promise<void> | void;
   showViewToggle?: boolean;
   exportType?: 'all' | 'single';
@@ -38,16 +36,17 @@ interface ViewScheduleDialogData {
 
 @Component({
   selector: 'app-dialog-view-schedule',
+  standalone: true,
   imports: [
     CommonModule,
     FormsModule,
     LoadingComponent,
-    ScheduleTimelineComponent,
     MatTableModule,
     MatButtonModule,
     MatButtonToggleModule,
     MatIconModule,
     MatSymbolDirective,
+    ScheduleTimelineComponent 
   ],
   templateUrl: './dialog-view-schedule.component.html',
   styleUrls: ['./dialog-view-schedule.component.scss'],
@@ -57,18 +56,28 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   title: string = '';
   subtitle: string = '';
   isLoading = true;
-  scheduleData: any;
   scheduleGroups?: ScheduleGroup[];
   selectedView: 'table-view' | 'pdf-view' = 'table-view';
   pdfBlobUrl: SafeResourceUrl | null = null;
   showViewToggle: boolean = true;
-  
+
+  // ── Getter so the template always reads the live array reference ──
+  get scheduleData(): any {
+    return this.data.entityData;
+  }
+
+  // ── Spread copy so ngOnChanges fires in ScheduleTimelineComponent ──
+  get scheduleDataCopy(): any[] {
+    return Array.isArray(this.data.entityData) ? [...this.data.entityData] : [];
+  }
+
   private currentRawBlobUrl: string | null = null;
 
   constructor(
     public dialogRef: MatDialogRef<DialogViewScheduleComponent>,
     @Inject(MAT_DIALOG_DATA) public data: ViewScheduleDialogData,
     private sanitizer: DomSanitizer,
+    private cdr: ChangeDetectorRef,
   ) {
     this.showViewToggle = data.showViewToggle ?? true;
     if (!this.showViewToggle) {
@@ -89,33 +98,28 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   private initializeScheduleData() {
     if (this.data.entity === 'program') {
-        if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
-            this.scheduleGroups = this.data.scheduleGroups;
-            this.scheduleData = this.flattenScheduleGroups(
-                this.data.scheduleGroups
-            );
-            this.generateAndDisplayPdf();
-        } else {
-            console.warn('No schedule groups available for programs.');
-            this.scheduleData = [];
-            this.isLoading = false;
-        }
+      if (this.data.scheduleGroups && this.data.scheduleGroups.length > 0) {
+        this.scheduleGroups = this.data.scheduleGroups;
+        // scheduleData getter returns data.entityData automatically
+        if (this.selectedView === 'pdf-view') this.generateAndDisplayPdf();
+        else this.isLoading = false;
+      } else {
+        console.warn('No schedule groups available for programs.');
+        this.isLoading = false;
+      }
     } else if (this.data.entity === 'faculty' || this.data.entity === 'room') {
-        if (this.data.exportType === 'all') {
-            this.scheduleData = this.data.entityData;
-            this.generateAndDisplayPdf();
-        } else if (Array.isArray(this.data.entityData) &&
-            this.data.entityData.length > 0) {
-            this.scheduleData = this.data.entityData;
-            this.isLoading = false;
+      if (this.data.exportType === 'all') {
+        this.generateAndDisplayPdf();
+      } else if (Array.isArray(this.data.entityData) && this.data.entityData.length > 0) {
+        if (this.selectedView === 'pdf-view') {
+          this.generateAndDisplayPdf();
         } else {
-            console.warn(
-                'No schedules found or invalid data structure:',
-                this.data.entityData
-            );
-            this.scheduleData = this.data.entityData || [];
-            this.isLoading = false;
+          this.isLoading = false;
         }
+      } else {
+        console.warn('No schedules found or invalid data structure:', this.data.entityData);
+        this.isLoading = false;
+      }
     }
   }
 
@@ -124,10 +128,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     groups.forEach((group) => {
       if (Array.isArray(group.scheduleData)) {
         group.scheduleData.forEach((scheduleItem: any) => {
-          flattenedData.push({
-            ...scheduleItem,
-            groupTitle: group.title,
-          });
+          flattenedData.push({ ...scheduleItem, groupTitle: group.title });
         });
       }
     });
@@ -141,7 +142,9 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   private setTitleAndSubtitle(): void {
     const { customTitle, entityData, academicYear, semester } = this.data;
     this.title = customTitle ?? entityData?.name ?? entityData?.title ?? 'Schedule';
-    this.subtitle = academicYear && semester ? `For Academic Year ${academicYear}, ${semester}` : '';
+    this.subtitle = academicYear && semester
+      ? `For Academic Year ${academicYear}, ${semester}`
+      : '';
   }
 
   public closeDialog(): void {
@@ -150,14 +153,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   onViewChange(view: 'table-view' | 'pdf-view'): void {
     this.selectedView = view;
+    this.isLoading = true;
     if (view === 'pdf-view') {
       this.generateAndDisplayPdf();
     } else {
       this.pdfBlobUrl = null;
+      this.isLoading = false;
     }
   }
 
-  // UPDATED: Now handles async PDF generation smoothly
   async generateAndDisplayPdf(): Promise<void> {
     if (this.data.generatePdfFunction) {
       try {
@@ -185,14 +189,11 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
-  // UPDATED: Handles async download
   async downloadPdf(): Promise<void> {
     if (!this.data.generatePdfFunction) return;
-
     try {
       const result = this.data.generatePdfFunction(false);
       const pdfResult = result instanceof Promise ? await result : result;
-
       if (pdfResult instanceof Blob) {
         const blobUrl = URL.createObjectURL(pdfResult);
         const a = document.createElement('a');
@@ -209,7 +210,6 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
-  // NEW: Excel download method
   async downloadExcel(): Promise<void> {
     if (this.data.generateExcelFunction) {
       try {

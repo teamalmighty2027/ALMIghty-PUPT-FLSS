@@ -55,6 +55,8 @@ export interface Schedule {
   temporary_status?: string | null;
   petition_required?: boolean;
   temporary_course_offering_id?: number | null;
+  bridging_course_id?: number | null;
+  combined_with_program_id?: number | null;
 }
 
 export interface Semester {
@@ -175,6 +177,15 @@ export interface BridgingCourseOption {
   lab_hours: number;
   units: number;
   tuition_hours: number;
+  combined_with_program_id?: number | null;
+  combined_label?: string | null;
+}
+
+// Data format for prompting the user to combine matching bridging schedules
+export interface CombinedSchedulePromptData {
+  matchingProgramCode: string;
+  currentProgramCode: string;
+  combinedLabel: string;
 }
 
 export interface TemporaryCourseOfferingPayload {
@@ -261,6 +272,7 @@ export interface ConflictingCourseDetail {
 export interface ConflictingScheduleDetail {
   course: CourseResponse;
   programCode: string;
+  programId: number;
   yearLevel: number;
   sectionName: string;
 }

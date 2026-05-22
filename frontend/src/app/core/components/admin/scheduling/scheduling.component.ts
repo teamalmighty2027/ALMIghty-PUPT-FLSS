@@ -1465,6 +1465,17 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           });
         });
 
+        // Lookup combined program code if schedule is combined
+        let combinedProgramCode: string | null = null;
+        if (schedule.combined_with_program_id &&
+            this.programOptions.length > 0) {
+          const combinedProgram = this.programOptions.find(
+            (p) => p.id === schedule.combined_with_program_id
+          );
+          combinedProgramCode = combinedProgram?.display?.split(' ')[0] ||
+            null;
+        }
+
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
           maxWidth: '50rem',
           width: '100%',
@@ -1500,6 +1511,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             schedule_id: schedule.schedule_id,
             course_id: schedule.course_id,
             isDraftMode: this.isDraftMode,
+            isTemporaryCourse: schedule.is_temporary,
+            isBridgingCourse: schedule.is_temporary &&
+              schedule.temporary_type === 'bridging',
+            bridging_course_id: schedule.bridging_course_id,
+            combined_with_program_id: schedule.combined_with_program_id,
+            combined_with_program_code: combinedProgramCode,
           },
         });
 
@@ -1873,7 +1890,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   protected getTemporaryBadgeText(element: Schedule): string {
     if (!element.is_temporary) {
-      return '';
+      return ''; 
     }
 
     const type = this.formatTempValue(element.temporary_type);

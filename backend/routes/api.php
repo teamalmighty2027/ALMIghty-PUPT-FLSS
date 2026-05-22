@@ -110,6 +110,10 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
     Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
     Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
+    Route::patch(
+        '/bridging-courses/{id}/combine',
+        [BridgingCourseController::class, 'combine']
+    );
 });
 
 /*
