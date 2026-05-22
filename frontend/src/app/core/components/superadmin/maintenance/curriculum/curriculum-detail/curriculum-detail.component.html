@@ -23,6 +23,42 @@
     <div class="scrollable-content">
 
       @if (selectedCategory === 'Regular') {
+        <div class="elective-section" [@pageFloatUpAnimation]>
+          @if (!canManageElectives) {
+            <div class="elective-note">
+              Select a program, year level, and semester to manage electives.
+            </div>
+          } @else if (isLoadingElectives) {
+            <div class="elective-note">Loading electives...</div>
+          } @else if (electiveSlots.length === 0) {
+            <div class="elective-note">
+              No elective slots detected for this term.
+            </div>
+          } @else {
+            <div class="elective-grid">
+              @for (slot of electiveSlots; track slot.slotName) {
+                <div class="elective-card">
+                  <div class="elective-title">{{ slot.slotName }}</div>
+                  <div class="elective-select">
+                    <select
+                      [value]="slot.selectedElectiveId || ''"
+                      [disabled]="slot.options.length === 0"
+                      (change)="onElectiveSelectionChange(slot, $event)"
+                    >
+                      <option value="">Select elective</option>
+                      @for (option of slot.options; track option.elective_id) {
+                        <option [value]="option.elective_id">
+                          {{ option.course_code }} - {{ option.course_title }}
+                        </option>
+                      }
+                    </select>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
         <div class="bridging-section" [@pageFloatUpAnimation]>
           @if (!canManageBridgingCourses) {
             <div class="bridging-note">

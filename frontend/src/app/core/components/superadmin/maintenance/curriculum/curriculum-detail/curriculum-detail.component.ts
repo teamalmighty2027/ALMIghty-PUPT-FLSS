@@ -29,6 +29,9 @@ import {
   CourseRequirement,
   CourseWithRequirements,
   CourseRequirementLink,
+  Elective,
+  CurriculumElective,
+  CurriculumElectivesResponse,
 } from '../../../../../services/superadmin/curriculum/curriculum.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
@@ -40,6 +43,12 @@ import { saveAs } from 'file-saver';
 interface TableCell {
   content: string;
   colSpan?: number;
+}
+
+interface ElectiveSlotSelection {
+  slotName: string;
+  options: Elective[];
+  selectedElectiveId: number | null;
 }
 
 @Component({
@@ -76,6 +85,13 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public bridgingCourses: Array<
     BridgingCourse & { pre_req: string; co_req: string }
   > = [];
+  public isLoadingElectives: boolean = false;
+  public electiveSlots: ElectiveSlotSelection[] = [];
+
+  private electiveVariants: Record<string, Elective[]> = {};
+  private curriculumElectives: CurriculumElective[] = [];
+  private curriculumElectiveMap = new Map<string, CurriculumElective>();
+  private electivesLoadedForYear: string | null = null;
 
   headerInputFields: InputField[] = [];
 
@@ -177,6 +193,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             this.updateRenderGroups();
             this.updateCustomExportOptions();
             this.loadBridgingCourses();
+            this.loadElectiveData(year);
             this.cdr.markForCheck();
           }
           this.isLoading = false;
@@ -333,6 +350,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
 
     this.renderGroups = groups;
+    this.updateElectiveSlots();
     this.cdr.detectChanges();
   }
 
@@ -464,6 +482,231 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Load electives and curriculum assignments for the active curriculum.
+   */
+  private loadElectiveData(curriculumYear: string): void {
+    if (this.electivesLoadedForYear === curriculumYear) {
+      this.updateElectiveSlots();
+      return;
+    }
+
+    this.isLoadingElectives = true;
+
+    forkJoin({
+      variants: this.curriculumService.getElectives(),
+      assignments: this.curriculumService.getCurriculumElectives(
+        curriculumYear
+      ),
+    })
+      .pipe(finalize(() => (this.isLoadingElectives = false)))
+      .subscribe({
+        next: ({ variants, assignments }) => {
+          this.electiveVariants = variants;
+          this.applyCurriculumElectiveAssignments(assignments);
+          this.electivesLoadedForYear = curriculumYear;
+          this.updateElectiveSlots();
+        },
+        error: () => {
+          this.snackBar.open(
+            'Error loading electives. Please try again.',
+            'Close',
+            { duration: 3000 }
+          );
+        },
+      });
+  }
+
+  /**
+   * Apply curriculum elective assignments to the local state.
+   */
+  private applyCurriculumElectiveAssignments(
+    response: CurriculumElectivesResponse
+  ): void {
+    this.curriculumElectives = response.electives || [];
+    this.buildCurriculumElectiveMap();
+  }
+
+  /**
+   * Build a quick lookup for elective assignments.
+   */
+  private buildCurriculumElectiveMap(): void {
+    this.curriculumElectiveMap.clear();
+
+    this.curriculumElectives.forEach((assignment) => {
+      const key = this.buildElectiveKey(
+        assignment.program_id,
+        assignment.year_level,
+        assignment.semester_id,
+        assignment.elective_slot_name
+      );
+
+      this.curriculumElectiveMap.set(key, assignment);
+    });
+  }
+
+  /**
+   * Update the elective slots based on the current filters.
+   */
+  private updateElectiveSlots(): void {
+    if (!this.curriculum || !this.canManageElectives) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const program = this.getSelectedProgramData();
+    const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
+
+    if (!program) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const yearLevelData = this.getSelectedYearLevelData(
+      program,
+      yearLevel
+    );
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
+
+    if (!yearLevelData || !semesterData) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const slotNames = this.getElectiveSlotsFromCourses(
+      semesterData.courses
+    );
+
+    this.electiveSlots = slotNames.map((slotName) => {
+      const key = this.buildElectiveKey(
+        program.program_id,
+        yearLevelData.year,
+        semesterData.semester_id,
+        slotName
+      );
+      const existing = this.curriculumElectiveMap.get(key);
+
+      return {
+        slotName,
+        options: this.electiveVariants[slotName] || [],
+        selectedElectiveId: existing?.selected_elective_id ?? null,
+      };
+    });
+  }
+
+  /**
+   * Build the unique key for a curriculum elective assignment.
+   */
+  private buildElectiveKey(
+    programId: number,
+    yearLevel: number,
+    semesterId: number,
+    slotName: string
+  ): string {
+    return `${programId}-${yearLevel}-${semesterId}-${slotName}`;
+  }
+
+  /**
+   * Detect elective slot names from the curriculum courses.
+   */
+  private getElectiveSlotsFromCourses(courses: Course[]): string[] {
+    const slotPattern = /elective\s*\d+/i;
+    const slotNames = new Set<string>();
+
+    courses.forEach((course) => {
+      const titleMatch = course.course_title.match(slotPattern);
+      const codeMatch = course.course_code.match(slotPattern);
+      const match = titleMatch || codeMatch;
+
+      if (match?.[0]) {
+        slotNames.add(match[0].replace(/\s+/g, ' ').trim());
+      }
+    });
+
+    return Array.from(slotNames.values()).sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }
+
+  /**
+   * Save an elective selection for the current curriculum scope.
+   */
+  onElectiveSelectionChange(
+    slot: ElectiveSlotSelection,
+    event: Event
+  ): void {
+    const target = event.target as HTMLSelectElement | null;
+    const selectedValue = target?.value || '';
+    const selectedElectiveId = selectedValue
+      ? Number(selectedValue)
+      : null;
+
+    if (!this.curriculum || !this.canManageElectives || !selectedElectiveId) {
+      return;
+    }
+
+    const program = this.getSelectedProgramData();
+    const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
+
+    if (!program) return;
+
+    const yearLevelData = this.getSelectedYearLevelData(
+      program,
+      yearLevel
+    );
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
+
+    if (!yearLevelData || !semesterData) return;
+
+    this.curriculumService
+      .saveCurriculumElective({
+        curriculum_id: this.curriculum.curriculum_id,
+        program_id: program.program_id,
+        year_level: yearLevelData.year,
+        semester_id: semesterData.semester_id,
+        elective_slot_name: slot.slotName,
+        selected_elective_id: selectedElectiveId,
+      })
+      .subscribe({
+        next: () => {
+          slot.selectedElectiveId = selectedElectiveId;
+          const key = this.buildElectiveKey(
+            program.program_id,
+            yearLevelData.year,
+            semesterData.semester_id,
+            slot.slotName
+          );
+          this.curriculumElectiveMap.set(key, {
+            curriculum_elective_id: 0,
+            curriculum_id: this.curriculum!.curriculum_id,
+            program_id: program.program_id,
+            year_level: yearLevelData.year,
+            semester_id: semesterData.semester_id,
+            elective_slot_name: slot.slotName,
+            selected_elective_id: selectedElectiveId,
+          });
+          this.snackBar.open(
+            'Elective updated successfully.',
+            'Close',
+            { duration: 3000 }
+          );
+        },
+        error: () => {
+          this.snackBar.open(
+            'Error saving elective. Please try again.',
+            'Close',
+            { duration: 3000 }
+          );
+        },
+      });
+  }
+
   onInputChange(values: { [key: string]: any }) {
     let refreshBridging = false;
     let needsRender = false;
@@ -483,6 +726,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       needsRender = true;
       if (this.selectedCategory === 'Bridging') {
         refreshBridging = true;
+        this.electiveSlots = [];
       }
     }
 
@@ -651,6 +895,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
   get canManageBridgingCourses(): boolean {
     return (!!this.curriculum && this.selectedProgram !== 'All' && this.selectedYear !== 'All' && this.selectedSemester !== 'All');
+  }
+
+  get canManageElectives(): boolean {
+    return (
+      !!this.curriculum &&
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    );
   }
 
   get bridgingHeading(): string {

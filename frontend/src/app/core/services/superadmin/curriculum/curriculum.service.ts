@@ -83,6 +83,36 @@ export interface BridgingCourse {
   tuition_hours: number;
 }
 
+export interface Elective {
+  elective_id: number;
+  elective_slot_name: string;
+  course_code: string;
+  course_title: string;
+  lec_hours: number;
+  lab_hours: number;
+  units: number;
+  tuition_hours: number;
+  description?: string | null;
+  is_active: boolean;
+}
+
+export interface CurriculumElective {
+  curriculum_elective_id: number;
+  curriculum_id: number;
+  program_id: number;
+  year_level: number;
+  semester_id: number;
+  elective_slot_name: string;
+  selected_elective_id: number;
+  elective?: Elective;
+}
+
+export interface CurriculumElectivesResponse {
+  curriculum_id: number;
+  curriculum_year: string;
+  electives: CurriculumElective[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -253,6 +283,60 @@ export class CurriculumService {
     return this.http.delete(
       `${this.baseUrl}/bridging-courses/${bridgingCourseId}`
     );
+  }
+
+  // Fetch elective variants grouped by slot name.
+  getElectives(
+    includeInactive: boolean = false
+  ): Observable<Record<string, Elective[]>> {
+    let params = new HttpParams();
+
+    if (includeInactive) {
+      params = params.set('include_inactive', 'true');
+    }
+
+    return this.http.get<Record<string, Elective[]>>(
+      `${this.baseUrl}/electives`,
+      { params }
+    );
+  }
+
+  // Fetch elective variants for a specific slot name.
+  getElectivesBySlot(
+    slotName: string,
+    includeInactive: boolean = false
+  ): Observable<Elective[]> {
+    let params = new HttpParams();
+
+    if (includeInactive) {
+      params = params.set('include_inactive', 'true');
+    }
+
+    return this.http.get<Elective[]>(
+      `${this.baseUrl}/electives/${slotName}`,
+      { params }
+    );
+  }
+
+  // Fetch elective assignments for a curriculum year.
+  getCurriculumElectives(
+    curriculumYear: string
+  ): Observable<CurriculumElectivesResponse> {
+    return this.http.get<CurriculumElectivesResponse>(
+      `${this.baseUrl}/curriculum/${curriculumYear}/electives`
+    );
+  }
+
+  // Save a curriculum elective assignment.
+  saveCurriculumElective(payload: {
+    curriculum_id: number;
+    program_id: number;
+    year_level: number;
+    semester_id: number;
+    elective_slot_name: string;
+    selected_elective_id: number;
+  }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/curriculum-electives`, payload);
   }
 
   // Update course
