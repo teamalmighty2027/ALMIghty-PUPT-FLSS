@@ -10,8 +10,13 @@
 
   <ng-template #loading>
     <div class="loading-overlay">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Analyzing faculty composition...</p>
+      <div class="widget-loading-bar">
+        <span class="widget-loading-label">Analyzing faculty composition...</span>
+        <div class="widget-progress-track">
+          <div class="widget-progress-bar"></div>
+          <div class="widget-progress-bar secondary"></div>
+        </div>
+      </div>
     </div>
   </ng-template>
 

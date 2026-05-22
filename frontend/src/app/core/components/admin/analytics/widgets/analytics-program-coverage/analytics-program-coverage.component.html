@@ -1,7 +1,12 @@
 <div class="chart-container">
   <div class="loading-overlay" *ngIf="isLoading">
-    <mat-spinner diameter="40"></mat-spinner>
-    <p>Calculating program coverage...</p>
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Calculating program coverage...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
   <div class="empty-state" *ngIf="!isLoading && isEmpty">
@@ -11,8 +16,7 @@
   </div>
 
   <div class="chart-wrapper" *ngIf="!isLoading && !isEmpty">
-    <canvas 
-      baseChart
+    <canvas baseChart
       [data]="barChartData"
       [options]="barChartOptions"
       [type]="barChartType">

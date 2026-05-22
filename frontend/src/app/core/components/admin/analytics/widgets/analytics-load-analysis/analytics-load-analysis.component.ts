@@ -71,7 +71,17 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
         }
       },
       y: {
-        ticks: { autoSkip: false }
+        ticks: {
+          autoSkip: false,
+          font: { size: 12 },
+          padding: 8
+        }
+      }
+    },
+    datasets: {
+      bar: {
+        barThickness: 28,   // Fixed bar height — prevents compression
+        maxBarThickness: 36
       }
     }
   };
@@ -145,6 +155,15 @@ export class AnalyticsLoadAnalysisComponent implements OnInit, OnDestroy {
   /** Expose hasData for the template to keep search bar visible */
   get hasData(): boolean {
     return this.allAnalysisData.length > 0;
+  }
+
+  /**
+   * Dynamic chart height — 48px per bar + 60px for axes/padding.
+   * Prevents bars from being compressed when there are many faculty.
+   */
+  get chartHeight(): number {
+    const barCount = this.barChartData.labels?.length ?? 0;
+    return Math.max(200, barCount * 48 + 60);
   }
 
   /** Filters and processes analysis data into chart-friendly format */
