@@ -226,7 +226,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       width: '95vw',
       height: 'auto',
       maxHeight: '95vh',
-      panelClass: 'pdf-fullscreen-dialog', // Ensure this class is here!
+      panelClass: 'pdf-fullscreen-dialog',
       autoFocus: true, 
       disableClose: true,
       data: {
@@ -236,6 +236,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         customTitle: `${faculty.faculty_name}`, 
         academicYear: this.academicYearLabel, 
         semester: this.semesterLabel,
+        showViewToggle: false,
         generatePdfFunction: () => this.generateAssignmentPdfBlob(faculty)
       },
     });
@@ -271,31 +272,145 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     });
   }
 
-  // --- HELPER LOGIC: REGULAR VS PART-TIME ---
+  // --- HELPER LOGIC: REGULAR VS PART-TIME & MERGING MULTIPLE DAYS ---
 
-  getSplitSchedules(faculty: any) {
+  private mergeSchedules(schedules: any[]): any[] {
+    if (!schedules || !Array.isArray(schedules)) return [];
+    
+    const dayOrder: Record<string, number> = { 'M': 1, 'T': 2, 'W': 3, 'TH': 4, 'F': 5, 'S': 6, 'SU': 7 };
+
+    // STEP 1: Group by Course + Section to aggregate all blocks for a single class instance
+    const sectionMap = new Map();
+
+    schedules.forEach(sched => {
+      const courseCode = sched.course_details?.course_code || 'UNKNOWN';
+      const cleanProgram = (sched.program_code || '').replace('-TG', '');
+      const sectionKey = `${courseCode}_${cleanProgram}_${sched.year_level}_${sched.section_name}`;
+
+      if (!sectionMap.has(sectionKey)) {
+        sectionMap.set(sectionKey, { ...sched, _rawSchedules: [sched] });
+      } else {
+        sectionMap.get(sectionKey)._rawSchedules.push(sched);
+      }
+    });
+
+    // STEP 2: Use Physical Schedule Signatures to definitively identify combined classes
+    const combinedMap = new Map();
+
+    sectionMap.forEach((sectionData, sectionKey) => {
+      
+      // Create a unique, order-independent signature of all physical schedule blocks for this section
+      const physicalBlocks = sectionData._rawSchedules.map((raw: any) => {
+          return `${this.mapDayCode(raw.day) || 'TBA'}_${raw.start_time || 'TBA'}_${raw.end_time || 'TBA'}`;
+      });
+      physicalBlocks.sort(); // Ensure order doesn't prevent matching
+      const scheduleSignature = physicalBlocks.join('|');
+
+      // The definitive grouping key: Same Course + Exact same times/days.
+      const combinedKey = `${sectionData.course_details?.course_code}_${scheduleSignature}`;
+
+      const cleanProgram = (sectionData.program_code || '').replace('-TG', '');
+      const isExplicitlyCombined = sectionData.combined_with_program_id != null || sectionData.is_combined || cleanProgram.includes('/');
+
+      if (!combinedMap.has(combinedKey)) {
+        sectionData.is_combined = isExplicitlyCombined;
+        combinedMap.set(combinedKey, sectionData);
+      } else {
+        // Dynamic match! Two different programs share the exact same course and physical schedules.
+        // Merge them and force the combined flag to render 1TGBRANCH correctly.
+        const existing = combinedMap.get(combinedKey);
+        existing.is_combined = true; 
+        existing._rawSchedules.push(...sectionData._rawSchedules);
+      }
+    });
+
+    // STEP 3: Format the time/day pairings properly for the PDF display
+    return Array.from(combinedMap.values()).map((mergedData: any) => {
+      
+      // Deduplicate the raw schedules internally so merged classes don't print double times
+      const uniquePhysicalSchedules = new Map();
+      mergedData._rawSchedules.forEach((raw: any) => {
+          const key = `${this.mapDayCode(raw.day)}_${raw.start_time}_${raw.end_time}_${raw.room_code}`;
+          if (!uniquePhysicalSchedules.has(key)) {
+              uniquePhysicalSchedules.set(key, raw);
+          }
+      });
+      
+      const uniqueSchedulesArray = Array.from(uniquePhysicalSchedules.values());
+
+      // Sort unique schedules by day first, then by start time
+      uniqueSchedulesArray.sort((a: any, b: any) => {
+        const dayA = dayOrder[this.mapDayCode(a.day)] || 99;
+        const dayB = dayOrder[this.mapDayCode(b.day)] || 99;
+        if (dayA !== dayB) return dayA - dayB;
+        return (a.start_time || '').localeCompare(b.start_time || '');
+      });
+
+      // Group exactly by Time + Room blocks
+      const timeBlocks = new Map();
+
+      uniqueSchedulesArray.forEach((raw: any) => {
+        const t = (raw.start_time && raw.end_time) ? `${this.formatTime(raw.start_time)}-${this.formatTime(raw.end_time)}` : 'TBA';
+        const d = this.mapDayCode(raw.day) || 'TBA';
+        const r = (raw.room_code || '').replace(/^TG/, '') || 'TBA';
+
+        const blockKey = `${t}_${r}`;
+
+        if (!timeBlocks.has(blockKey)) {
+          timeBlocks.set(blockKey, { time: t, room: r, days: [d] });
+        } else {
+          if (!timeBlocks.get(blockKey).days.includes(d)) {
+             timeBlocks.get(blockKey).days.push(d);
+          }
+        }
+      });
+
+      // Assemble the final display strings
+      const displayTimes: string[] = [];
+      const displayDays: string[] = [];
+      const displayRooms: string[] = [];
+
+      timeBlocks.forEach(block => {
+        displayTimes.push(block.time);
+        displayDays.push(block.days.join('')); // Combines MTW without slashes
+        displayRooms.push(block.room);
+      });
+
+      // Join different time blocks with a slash (/)
+      mergedData._displayTime = displayTimes.join('/');
+      mergedData._displayDay = displayDays.join('/');
+
+      // Check if every room mapped to these time slots is exactly the same. 
+      const allSameRoom = displayRooms.length > 0 && displayRooms.every(r => r === displayRooms[0]);
+      mergedData._displayRoom = allSameRoom ? (displayRooms[0] || 'TBA') : displayRooms.join('/');
+
+      return mergedData;
+    });
+  }
+
+  getSplitSchedules(facultyType: string, schedules: any[]) {
     const regular: any[] = [];
     const partTime: any[] = [];
     let currentUnits = 0;
     
-    const isPartTimeFaculty = (faculty.faculty_type || '').toLowerCase().includes('part-time');
+    const isSummerSemester = (this.semesterLabel || '').toLowerCase().includes('summer');
+    const isPartTimeFaculty = (facultyType || '').toLowerCase().includes('part-time') || isSummerSemester;
 
-    if (faculty.schedules) {
-      faculty.schedules.forEach((sched: any) => {
-        const units = Number(sched.course_details?.units) || 0;
+    schedules.forEach((sched: any) => {
+      const units = Number(sched.course_details?.units) || 0;
 
-        if (isPartTimeFaculty) {
-          partTime.push(sched);
+      if (isPartTimeFaculty) {
+        partTime.push(sched);
+      } else {
+        if (currentUnits + units <= 15) {
+          regular.push(sched);
+          currentUnits += units;
         } else {
-          if (currentUnits + units <= 15) {
-            regular.push(sched);
-            currentUnits += units;
-          } else {
-            partTime.push(sched);
-          }
+          partTime.push(sched);
         }
-      });
-    }
+      }
+    });
+    
     return { regular, partTime };
   }
 
@@ -303,7 +418,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     return schedules.reduce((acc, curr) => acc + (Number(curr.course_details?.units) || 0), 0);
   }
 
-  // --- HELPER LOGIC: TIME AND DAYS (FIXED MATH BUGS) ---
+  // --- HELPER LOGIC: TIME AND DAYS ---
 
   private formatDateString(dateString: string): string {
     if (!dateString) return '';
@@ -430,48 +545,66 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       }
     });
 
-    const splitSchedules = this.getSplitSchedules(faculty);
+    // Merge logic applied to faculty schedules
+    const mergedSchedules = this.mergeSchedules(faculty.schedules || []);
+    const splitSchedules = this.getSplitSchedules(faculty.faculty_type, mergedSchedules);
 
-    // Trackers: Added 'TBA' for missing days and 'TOTAL' for row sum calculation
+    // Trackers
     let regDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
     let ptDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
 
     const headers = [['SUBJECT\nCODE', 'SUBJECT DESCRIPTION', 'UNITS', 'YEAR &\nSECTION', 'SUBJ\nREF', 'TIME', 'TIME\nCODE', 'DAY/S', 'ROOM', 'EFFTVTY.']];
 
     const mapRowAndTrackHours = (row: any, tracker: any) => {
-      let col = this.mapDayToCol(row.day);
-      if (!col) col = 'TBA'; // Fallback for empty/invalid days
-
-      let diff = this.getHoursDiff(row.start_time, row.end_time);
       
-      // Fallback hours if time is missing or invalid
-      if (isNaN(diff) || diff <= 0) {
-        const tuition = Number(row.course_details?.tuition_hours);
-        const lecLab = Number(row.course_details?.lec || 0) + Number(row.course_details?.lab || 0);
-        const units = Number(row.course_details?.units || 0);
-        diff = tuition > 0 ? tuition : (lecLab > 0 ? lecLab : units);
-      }
+      // Calculate teaching load using unique physical blocks to avoid double counting combined classes
+      const uniquePhysicalSchedules = new Map();
+      row._rawSchedules.forEach((rawSched: any) => {
+        const physicalKey = `${rawSched.day}_${rawSched.start_time}_${rawSched.end_time}`;
+        if (!uniquePhysicalSchedules.has(physicalKey)) {
+          uniquePhysicalSchedules.set(physicalKey, rawSched);
+        }
+      });
 
-      // Add to tracking objects
-      if (tracker[col] !== undefined) {
-        tracker[col] += diff;
-        tracker['TOTAL'] += diff;
-      }
-      
+      uniquePhysicalSchedules.forEach((rawSched: any) => {
+        let col = this.mapDayToCol(rawSched.day);
+        if (!col) col = 'TBA'; 
+
+        let diff = this.getHoursDiff(rawSched.start_time, rawSched.end_time);
+        
+        if (isNaN(diff) || diff <= 0) {
+          const tuition = Number(rawSched.course_details?.tuition_hours);
+          const units = Number(rawSched.course_details?.units || 0);
+          diff = tuition > 0 ? tuition : units;
+        }
+
+        if (tracker[col] !== undefined) {
+          tracker[col] += diff;
+          tracker['TOTAL'] += diff;
+        }
+      });
+
+      // Prepare row formatting for the PDF table
       const cleanProgram = (row.program_code || '').replace('-TG', '');
-      const cleanRoom = (row.room_code || '').replace(/^TG/, '');
       const subjRef = (row.course_details?.offering_type === 'ITech' || cleanProgram.includes('DIT')) ? 'T' : 'C';
+
+      let yearSection = `${cleanProgram} ${row.year_level}-${row.section_name}`;
+      
+      if (row.is_combined) {
+        const courseCode = row.course_details?.course_code || '';
+        yearSection = `1TGBRANCH\n${courseCode}`; 
+      }
 
       return [
         row.course_details?.course_code || '',
         row.course_details?.course_title || '',
-        row.course_details?.units || 0,
-        `${cleanProgram} ${row.year_level}-${row.section_name}`,
+        row.course_details?.units || 0, // Counted once because the row is merged
+        yearSection,
         subjRef,
-        (row.start_time && row.end_time) ? `${this.formatTime(row.start_time)}-${this.formatTime(row.end_time)}` : 'TBA',
+        row._displayTime, 
         '', 
-        this.mapDayCode(row.day) || 'TBA',
-        cleanRoom || 'TBA',
+        row._displayDay, 
+        row._displayRoom, // Output condensed or mapped rooms
         this.effectivityDate
       ];
     };
@@ -537,15 +670,15 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('TEACHING LOAD PER DAY (HOURS)', 105, currentY, { align: 'center' });
 
     const formatHour = (val: number) => val > 0 ? parseFloat(val.toFixed(2)).toString() : '';
-    const daysWithTBA = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA'];
+    const days = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']; 
 
-    const regRow = ['REGULAR', ...daysWithTBA.map(d => formatHour(regDailyHours[d])), formatHour(regDailyHours.TOTAL)];
-    const ptRow = ['PART-TIME', ...daysWithTBA.map(d => formatHour(ptDailyHours[d])), formatHour(ptDailyHours.TOTAL)];
-    const totalRow = ['TOTAL', ...daysWithTBA.map(d => formatHour(regDailyHours[d] + ptDailyHours[d])), formatHour(regDailyHours.TOTAL + ptDailyHours.TOTAL)];
+    const regRow = ['REGULAR', ...days.map(d => formatHour(regDailyHours[d]))];
+    const ptRow = ['PART-TIME', ...days.map(d => formatHour(ptDailyHours[d]))];
+    const totalRow = ['TOTAL', ...days.map(d => formatHour(regDailyHours[d] + ptDailyHours[d]))];
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA', 'TOTAL']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
       body: [regRow, ptRow, totalRow],
       styles: { fontSize: 8, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
@@ -557,10 +690,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TBA', 'TOTAL']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
       body: [
-        ['OFFICIAL TIME', '', '', '', '', '', '', '', '', ''],
-        ['ADVISING TIME', '', '', '', '', '', '', '', '', '']
+        ['OFFICIAL TIME', '', '', '', '', '', '', ''],
+        ['ADVISING TIME', '', '', '', '', '', '', '']
       ],
       styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
@@ -570,12 +703,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     // 6. FOOTER
     currentY = (doc as any).lastAutoTable.finalY + 8;
     
-    // CRITICAL FIX: Check if we have enough space (approx 25mm) for the signature block.
-    // If we exceed the page height, create a new page and reset the Y coordinate.
     const pageHeight = doc.internal.pageSize.getHeight();
     if (currentY + 25 > pageHeight) {
       doc.addPage();
-      currentY = 20; // Start near the top of the new page
+      currentY = 20;
     }
     
     doc.setFontSize(9.5); doc.setFont('helvetica', 'bold');

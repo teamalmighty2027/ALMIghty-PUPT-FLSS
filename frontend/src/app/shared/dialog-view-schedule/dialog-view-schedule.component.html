@@ -31,28 +31,29 @@
   </div>
 
   @if (selectedView === 'table-view' && data.exportType !== 'all') {
-  @if (scheduleGroups && scheduleGroups.length > 0) {
-  <div class="multiple-schedules-container">
-    @for (group of scheduleGroups; track group) {
-    <div class="schedule-group">
-      <h3 class="group-title">{{ group.title }}</h3>
+    @if (scheduleGroups && scheduleGroups.length > 0) {
+    <div class="multiple-schedules-container">
+      @for (group of scheduleGroups; track group) {
+      <div class="schedule-group">
+        <h3 class="group-title">{{ group.title }}</h3>
+        <app-schedule-timeline
+          [scheduleData]="group.scheduleData"
+          [entity]="data.entity"
+          [@fadeAnimation]></app-schedule-timeline>
+      </div>
+      }
+    </div>
+    }
+
+    @if (!scheduleGroups) {
+    <div class="single-schedule-container">
       <app-schedule-timeline
-        [scheduleData]="group.scheduleData"
+        [scheduleData]="scheduleDataCopy"
         [entity]="data.entity"
         [@fadeAnimation]></app-schedule-timeline>
     </div>
     }
-  </div>
   }
-
-  @if (!scheduleGroups) {
-  <div class="single-schedule-container">
-    <app-schedule-timeline
-      [scheduleData]="scheduleData"
-      [entity]="data.entity"
-      [@fadeAnimation]></app-schedule-timeline>
-  </div>
-  } }
 
   @if (selectedView === 'pdf-view' || data.exportType === 'all') {
   <div class="dialog-pref-pdf-container">
@@ -82,7 +83,6 @@
     </button>
     
     @if (selectedView === 'pdf-view' || data.exportType === 'all') {
-      
       @if (data.generateExcelFunction) {
         <button mat-flat-button class="excel-button" (click)="downloadExcel()">
           <mat-icon>table_chart</mat-icon>

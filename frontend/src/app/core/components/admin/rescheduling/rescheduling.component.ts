@@ -372,7 +372,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
         const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
 
-        const mergedFaculties: FacultyArrangement[] = rawFaculties.map((fac: any) => {
+        rawFaculties.forEach((fac: any) => {
           const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
 
           const mergedSchedules = (fac.schedules || []).map((sched: any) => {
@@ -386,34 +386,48 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
                 room_code: matchingAppeal.room || 'TBA',
                 course_details: {
                   ...sched.course_details,
-                  course_title: `${sched.course_details.course_title} (Internal Arrangement)`
+                  course_title: sched.course_details.course_title.includes('(Internal Arrangement)')
+                    ? sched.course_details.course_title
+                    : `${sched.course_details.course_title} (Internal Arrangement)`
                 }
               };
             }
             return sched;
           });
 
-          return {
-            facultyId: fac.faculty_id,
-            facultyName: fac.faculty_name,
-            facultyCode: fac.faculty_code,
-            facultyType: fac.faculty_type,
-            facultyUnits: fac.assigned_units || fac.units || 0,
-            schedules: mergedSchedules,
-            academicYear: this.academicYear,
-            semester: this.semester,
-            isAppealEnabled: !!fac.is_appeal_enabled, 
-            hasAppealRequest: !!fac.has_appeal_request,
-            appealStartDate: fac.appeal_start_date,
-            appealEndDate: fac.appeal_end_date
-          };
+          // ── Find existing live object and PATCH it, don't replace ──
+          const existing = this.allFaculties.find(f => f.facultyId === fac.faculty_id);
+          if (existing) {
+            existing.schedules        = mergedSchedules;
+            existing.facultyUnits     = fac.assigned_units || fac.units || 0;
+            existing.isAppealEnabled  = !!fac.is_appeal_enabled;
+            existing.hasAppealRequest = !!fac.has_appeal_request;
+            existing.appealStartDate  = fac.appeal_start_date;
+            existing.appealEndDate    = fac.appeal_end_date;
+          } else {
+            // New faculty not yet in the list — add them
+            this.allFaculties.push({
+              facultyId:        fac.faculty_id,
+              facultyName:      fac.faculty_name,
+              facultyCode:      fac.faculty_code,
+              facultyType:      fac.faculty_type,
+              facultyUnits:     fac.assigned_units || fac.units || 0,
+              schedules:        mergedSchedules,
+              academicYear:     this.academicYear,
+              semester:         this.semester,
+              isAppealEnabled:  !!fac.is_appeal_enabled,
+              hasAppealRequest: !!fac.has_appeal_request,
+              appealStartDate:  fac.appeal_start_date,
+              appealEndDate:    fac.appeal_end_date
+            });
+          }
         });
 
-        this.allFaculties = mergedFaculties;
-        this.arrangementsDataSource.data = mergedFaculties;
-        this.updateMasterToggleState(); // Determine if master toggle should be on/off
+        // Spread to trigger table re-render, but allFaculties objects are the SAME references
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.updateMasterToggleState();
         this.cdr.detectChanges();
-        this.hasAnyArrangements = mergedFaculties.some(f => f.schedules.length > 0);
+        this.hasAnyArrangements = this.allFaculties.some(f => f.schedules.length > 0);
 
         this.isLoading = false;
         this.isInitLoading = false;
@@ -721,12 +735,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   viewFacultyArrangements(faculty: FacultyArrangement): void {
-    const generatePdfFunction = (): Blob | void => {
-      return this.createPdfBlob(faculty);
-    };
+    // ── Always grab the live object from allFaculties, never the table row ──
+    const liveFaculty = this.allFaculties.find(f => f.facultyId === faculty.facultyId) ?? faculty;
 
-    const formattedName = faculty.facultyName.replace(',', '').replace(/\s+/g, '_');
-    const baseFileName = `${formattedName}_Arrangements_${faculty.academicYear}_${faculty.semester?.replace(/\s+/g, '_')}`;
+    const formattedName = liveFaculty.facultyName.replace(',', '').replace(/\s+/g, '_');
+    const baseFileName = `${formattedName}_Arrangements_${liveFaculty.academicYear}_${liveFaculty.semester?.replace(/\s+/g, '_')}`;
 
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
@@ -734,13 +747,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       data: {
         exportType: 'single',
         entity: 'faculty',
-        entityData: faculty.schedules,
-        customTitle: `${faculty.facultyName}`,
-        academicYear: faculty.academicYear,
-        semester: faculty.semester,
-        generatePdfFunction: generatePdfFunction,
+        entityData: liveFaculty.schedules,  // ← live reference, not snapshot
+        customTitle: liveFaculty.facultyName,
+        academicYear: liveFaculty.academicYear,
+        semester: liveFaculty.semester,
+        generatePdfFunction: () => this.createPdfBlob(liveFaculty),
         generateExcelFunction: async () => {
-          const excelBlob = await this.generateArrangementExcelBlob(faculty);
+          const excelBlob = await this.generateArrangementExcelBlob(liveFaculty);
           saveAs(excelBlob, `${baseFileName}.xlsx`);
         },
         previewMode: true,
@@ -1116,8 +1129,35 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
         ].filter(line => line !== ''); 
 
-        let textY = yPos + startPadding; 
-        
+        const isBridging = item.course_details?.offering_type === 'bridging';
+
+        let textY = yPos + startPadding;
+
+        // Draw "Bridging" badge at top-right of block if applicable
+        if (isBridging) {
+          const badgeLabel = 'Bridging';
+          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
+          const badgePaddingX = 2.5;
+          const badgePaddingY = 1.5;
+          doc.setFontSize(badgeFontSize);
+          doc.setFont('helvetica', 'bold');
+          const badgeTextWidth = doc.getTextWidth(badgeLabel);
+          const badgeW = badgeTextWidth + badgePaddingX * 2;
+          const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
+          // Center the badge horizontally in the block
+          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
+          // Place it just below the course code (textY is already advanced past course code)
+          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          doc.setFillColor(128, 0, 0);
+          doc.setDrawColor(128, 0, 0);
+          doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+          doc.setTextColor(255, 255, 255);
+          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.setTextColor(0, 0, 0);
+          // Advance textY so subsequent lines don't overlap the badge
+          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
+        }
+
         content.forEach((line, idx) => {
           doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
           doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
@@ -1438,10 +1478,53 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.adminRemarks
     ).subscribe({
       next: () => {
-        this.updateLocalStatus(this.selectedAppeal!.id, 'Approved');
-        this.closeDialog();
-        this.loadData(); // Reload both APIs to update the arrangements tab immediately
         this.snackBar.open('Appeal approved successfully.', 'Close', { duration: 5000 });
+
+        this.reschedulingService.getAllAppeals().subscribe({
+          next: (appeals) => {
+            const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+            this.dataSource.data = mappedAppeals;
+            this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
+
+            const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
+
+            // ── Mutate in-place so the open dialog's array reference stays valid ──
+            this.allFaculties.forEach(liveFac => {
+              const facultyAppeals = approvedAppeals.filter(a => a.facultyName === liveFac.facultyName);
+              if (facultyAppeals.length === 0) return;
+
+              liveFac.schedules.forEach((sched, index) => {
+                const match = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
+                if (!match) return;
+
+                // Mutate the index in-place — do NOT replace the array itself
+                liveFac.schedules[index] = {
+                  ...sched,
+                  day: match.preferredDay,
+                  start_time: match.rawPreferredStartTime,
+                  end_time: match.rawPreferredEndTime,
+                  room_code: match.room || 'TBA',
+                  course_details: {
+                    ...sched.course_details,
+                    course_title: sched.course_details.course_title.includes('(Internal Arrangement)')
+                      ? sched.course_details.course_title
+                      : `${sched.course_details.course_title} (Internal Arrangement)`
+                  }
+                };
+              });
+            });
+
+            this.arrangementsDataSource.data = [...this.allFaculties];
+            this.cdr.detectChanges();
+
+            // Full server refresh in background
+            if (this.selectedTermId) {
+              this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+            }
+          }
+        });
+
+        this.closeDialog();
       },
       error: (err) => {
         const errorMessage = this.getErrorMessage(err, 'Failed to approve appeal');
