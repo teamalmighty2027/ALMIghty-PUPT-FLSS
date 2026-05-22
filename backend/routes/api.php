@@ -8,6 +8,7 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
@@ -182,6 +183,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addProgramToCurriculum', [CurriculumController::class, 'addProgramToCurriculum']);
 
     Route::get('/curricula-details/{curriculumYear}/', [CurriculumDetailsController::class, 'getCurriculumDetails']);
+
+    /**
+     * Electives
+     */
+    Route::get('/electives', [ElectiveController::class, 'index']);
+    Route::get('/electives/{slotName}', [ElectiveController::class, 'showBySlot']);
+    Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
+    Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
+    Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
+    Route::post('/academic-year-electives', [ElectiveController::class, 'storeAcademicYearElective']);
+    Route::get('/academic-year/{academicYearId}/electives', [ElectiveController::class, 'getAcademicYearElectives']);
 
     /**
      * Email
