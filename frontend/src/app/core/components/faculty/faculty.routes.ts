@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { AuthGuard } from '../../guards/auth.guard';
+import { unsavedPreferencesGuard } from '../../guards/unsaved-preferences.guard';
 
 export const FACULTY_ROUTES: Routes = [
   {
@@ -27,6 +28,7 @@ export const FACULTY_ROUTES: Routes = [
           import('./preferences/preferences.component').then(
             (m) => m.PreferencesComponent,
           ),
+        canDeactivate: [unsavedPreferencesGuard],
         data: { pageTitle: 'Set Preferences' },
       },
       {

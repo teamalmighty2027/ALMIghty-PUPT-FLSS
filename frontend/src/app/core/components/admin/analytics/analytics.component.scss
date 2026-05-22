@@ -1,6 +1,11 @@
 @use '../../../../../styles/mixins';
 @use '../../../../../styles/breakpoints' as bp;
 
+:host {
+  display: block;
+  height: 100%;
+}
+
 // ============================================================
 // PAGE WRAPPER & LOADING
 // ============================================================
@@ -13,9 +18,12 @@
 
 .analytics-loading {
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-md)
+  );
 }
 
 // ============================================================
@@ -271,7 +279,7 @@
   }
 
   &.tall-card    { min-height: 450px; }
-  &.heatmap-card { min-height: 320px; } // Shrinks to fit empty/loading state
+  &.heatmap-card { min-height: 690px; } // Stable height to prevent shifting when term changes
 
   // ── Widget header ──────────────────────────────────────────
   .widget-header {

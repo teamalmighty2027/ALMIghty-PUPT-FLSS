@@ -2,8 +2,13 @@
 
   <!-- Loading -->
   <div *ngIf="isLoading" class="state-overlay">
-    <mat-spinner diameter="36"></mat-spinner>
-    <span>Analyzing preferences...</span>
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Analyzing time-slot preferences...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Empty -->

@@ -5,7 +5,7 @@
   </div>
   } @else {
 
-  <!-- Table Header -->
+  <!-- Search + Add -->
   <div class="faculty-header-container" [@fadeAnimation]>
     <app-table-header
       [searchLabel]="'Search Faculty'"
@@ -13,10 +13,86 @@
       [inputFields]="headerInputFields"
       [showExportButton]="false"
       (inputChange)="onInputChange($event)"
-      (add)="openAddFacultyDialog()"></app-table-header>
+      (add)="openAddFacultyDialog()">
+    </app-table-header>
   </div>
 
-  <!-- Faculty Management Table -->
+  <!-- Compact Filter Bar -->
+  <div class="filter-bar" [@fadeAnimation]>
+
+    <!-- Status chips -->
+    <div class="filter-group">
+      <span class="filter-label">Status</span>
+      <div class="chip-row">
+        <button
+          *ngFor="let s of statusOptions"
+          class="filter-chip"
+          [class.active]="filterStatus === s"
+          [class.chip-active]="s === 'Active'"
+          [class.chip-inactive]="s === 'Inactive'"
+          [class.chip-retired]="s === 'Retired'"
+          (click)="toggleStatus(s)"
+          matRipple>
+          {{ s }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Faculty type chips -->
+    <div class="filter-group" *ngIf="facultyTypeOptions.length">
+      <span class="filter-label">Type</span>
+      <div class="chip-row">
+        <!-- All option -->
+        <button
+          class="filter-chip"
+          [class.active]="filterFacultyType === ''"
+          (click)="toggleFacultyType('')"
+          matRipple>
+          All
+        </button>
+        <button
+          *ngFor="let t of facultyTypeOptions"
+          class="filter-chip"
+          [class.active]="filterFacultyType === t"
+          (click)="toggleFacultyType(t)"
+          matRipple>
+          {{ t }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Sort compact select -->
+    <div class="filter-group sort-group">
+      <span class="filter-label">Sort</span>
+      <div class="sort-select-wrapper">
+        <span class="sort-icon material-symbols-rounded">sort</span>
+        <select class="sort-select" [(ngModel)]="sortBy" (ngModelChange)="onSortChange($event)">
+          <option value="">Default</option>
+          <option *ngFor="let opt of sortOptions" [value]="opt.key">{{ opt.label }}</option>
+        </select>
+        <span class="sort-arrow material-symbols-rounded">expand_more</span>
+      </div>
+    </div>
+
+    <!-- Clear all -->
+    <button
+      *ngIf="hasActiveFilters"
+      class="clear-btn"
+      (click)="clearAllFilters()"
+      matRipple
+      matTooltip="Clear all filters">
+      <span class="material-symbols-rounded">filter_alt_off</span>
+      Clear
+    </button>
+
+  </div>
+
+  <!-- Result count -->
+  <div class="result-count" [@fadeAnimation]>
+    <span>{{ filteredFaculty.length }} of {{ faculty.length }} faculty</span>
+  </div>
+
+  <!-- Table -->
   <div class="faculty-table-container" [@fadeAnimation]>
     <app-table-generic
       [columns]="columns"
@@ -25,7 +101,8 @@
       [displayedColumns]="displayedColumns"
       [showViewButton]="false"
       [showDeleteButton]="false"
-      (edit)="openEditFacultyDialog($event)"></app-table-generic>
+      (edit)="openEditFacultyDialog($event)">
+    </app-table-generic>
   </div>
 
   }
@@ -35,9 +112,7 @@
 <ng-template #facultyTypeTemplate let-element>
   <div
     class="faculty-type"
-    [ngClass]="
-      getFacultyTypeClass(element.faculty?.faculty_type?.faculty_type ?? 'N/A')
-    ">
+    [ngClass]="getFacultyTypeClass(element.faculty?.faculty_type?.faculty_type ?? 'N/A')">
     {{ element.faculty?.faculty_type?.faculty_type ?? 'N/A' }}
   </div>
 </ng-template>
@@ -45,9 +120,6 @@
 <!-- Faculty Units Template -->
 <ng-template #facultyUnitsTemplate let-element>
   <div class="faculty-units">
-    {{
-      (element.faculty?.faculty_type?.regular_units ?? 0) +
-        (element.faculty?.faculty_type?.additional_units ?? 0)
-    }}
+    {{ (element.faculty?.faculty_type?.regular_units ?? 0) + (element.faculty?.faculty_type?.additional_units ?? 0) }}
   </div>
 </ng-template>

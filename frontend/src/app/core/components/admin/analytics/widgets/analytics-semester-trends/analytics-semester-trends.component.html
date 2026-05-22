@@ -1,11 +1,16 @@
 <div class="widget-container">
   <div *ngIf="isLoading" class="loading-overlay">
-    <mat-spinner diameter="40"></mat-spinner>
-    <span>Fetching historical data...</span>
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Fetching historical trends...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
   <div *ngIf="!isLoading && isEmpty" class="empty-state">
-    <mat-icon>trending_flat</mat-icon>
+    <mat-icon fontSet="material-symbols-rounded">trending_flat</mat-icon>
     <p>No historical trends available yet.</p>
   </div>
 
