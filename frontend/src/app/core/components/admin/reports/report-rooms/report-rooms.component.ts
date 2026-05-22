@@ -373,6 +373,80 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  private groupRoomSchedules(schedules: any[]): any[] {
+    const mergedMap = new Map<string, any>();
+
+    for (const item of schedules) {
+      const courseCode = (item.course_details?.course_code || 'UNKNOWN').trim().toUpperCase();
+      const sectionStr = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+      const facultyName = (item.faculty_name || '').trim().toUpperCase() === 'N/A' || !(item.faculty_name || '').trim()
+        ? 'Faculty TBA'
+        : (item.faculty_name || '').trim();
+
+      // Group by course code + section + faculty — same course for same class merges days/times
+      const key = `${courseCode}|${sectionStr}|${facultyName}`;
+
+      if (mergedMap.has(key)) {
+        mergedMap.get(key)._rawSchedules.push(item);
+      } else {
+        mergedMap.set(key, { ...item, _rawSchedules: [item], _displayFaculty: facultyName });
+      }
+    }
+
+    return Array.from(mergedMap.values()).map(merged => {
+      // Unique day+time strings
+      const timeSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        let dayAbbr = 'TBA';
+        if (s.day) {
+          const d = s.day.toUpperCase();
+          if (d.startsWith('MO')) dayAbbr = 'M';
+          else if (d.startsWith('TU')) dayAbbr = 'TUE';
+          else if (d.startsWith('WE')) dayAbbr = 'W';
+          else if (d.startsWith('TH')) dayAbbr = 'TH';
+          else if (d.startsWith('FR')) dayAbbr = 'F';
+          else if (d.startsWith('SA')) dayAbbr = 'S';
+          else if (d.startsWith('SU')) dayAbbr = 'SU';
+          else dayAbbr = d.substring(0, 3);
+        }
+        const start = this.formatTimeTo12Hour(s.start_time || '').replace(/\s+/g, '') || 'TBA';
+        const end = this.formatTimeTo12Hour(s.end_time || '').replace(/\s+/g, '') || 'TBA';
+        timeSet.add(`${dayAbbr} ${start}-${end}`);
+      });
+
+      // Unique days
+      const daysSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        if (!s.day) { daysSet.add('TBA'); return; }
+        const d = s.day.toUpperCase();
+        if (d.startsWith('MO')) daysSet.add('M');
+        else if (d.startsWith('TU')) daysSet.add('TUE');
+        else if (d.startsWith('WE')) daysSet.add('W');
+        else if (d.startsWith('TH')) daysSet.add('TH');
+        else if (d.startsWith('FR')) daysSet.add('F');
+        else if (d.startsWith('SA')) daysSet.add('S');
+        else if (d.startsWith('SU')) daysSet.add('SU');
+        else daysSet.add(d.substring(0, 3));
+      });
+
+      // Section display
+      const sectionsSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        let sec = `${s.program_code || ''} ${s.year_level || ''}-${s.section_name || ''}`.trim();
+        if (sec === '-') sec = 'Section TBA';
+        sectionsSet.add(sec);
+      });
+
+      return {
+        ...merged,
+        displayDay: Array.from(daysSet).join('/'),
+        displayTime: Array.from(timeSet).join('\n'),
+        displaySection: Array.from(sectionsSet).sort().join(' / '),
+        displayFaculty: merged._displayFaculty,
+      };
+    });
+  }
+
   private applyRoomExcelLayout(worksheet: ExcelJS.Worksheet, room: Room) {
     worksheet.pageSetup = {
       orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
@@ -410,16 +484,19 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     });
 
     if (room.schedules && room.schedules.length > 0) {
-      room.schedules.forEach((schedule: any) => {
-        const dayShort = schedule.day.substring(0, 3).toUpperCase();
-        const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)} - ${this.formatTimeTo12Hour(schedule.end_time)}`;
-        
+      const groupedSchedules = this.groupRoomSchedules(room.schedules);
+
+      groupedSchedules.forEach((schedule: any) => {
+        const isBridging = schedule.course_details?.offering_type === 'bridging';
+        const courseCode = schedule.course_details?.course_code || '';
+        const displayCourseCode = isBridging ? `${courseCode}\n[Bridging]` : courseCode;
+
         const row = worksheet.addRow([
-          schedule.course_details?.course_code || '',
+          displayCourseCode,
           schedule.course_details?.course_title || '',
-          `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
-          schedule.faculty_name || '',
-          `${dayShort}\n${timeRange}`
+          schedule.displaySection,
+          schedule.displayFaculty,
+          `${schedule.displayDay}\n${schedule.displayTime}`
         ]);
 
         row.eachCell((cell, colNum) => {
