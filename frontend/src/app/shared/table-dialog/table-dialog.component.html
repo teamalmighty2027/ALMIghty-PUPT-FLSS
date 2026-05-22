@@ -207,6 +207,13 @@
                         [maxlength]="field.maxLength ?? null"
                       />
                     }
+                    @case ("password") {
+                      <input
+                        matInput
+                        type="password"
+                        [formControlName]="field.formControlName"
+                      />
+                    }
                     @case ("number") {
                       <input
                         matInput
