@@ -206,9 +206,13 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
     const type = facultyType.toLowerCase();
+
     return {
-      'full-time': type.includes('full-time'), designee: type.includes('designee'),
-      'part-time': type.includes('part-time'), temporary: type.includes('temporary'),
+      'Permanent': type.includes('designee'),
+      'Regular': type.includes('full-time'),
+      'Part-time': type.includes('part-time'), 
+      'Special Lecturer': type.includes('special lecturer'),
+      'Temporary': type.includes('temporary'),
     };
   }
 
@@ -670,7 +674,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('TEACHING LOAD PER DAY (HOURS)', 105, currentY, { align: 'center' });
 
     const formatHour = (val: number) => val > 0 ? parseFloat(val.toFixed(2)).toString() : '';
-    const days = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']; 
+    const days = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']; 
 
     const regRow = ['REGULAR', ...days.map(d => formatHour(regDailyHours[d]))];
     const ptRow = ['PART-TIME', ...days.map(d => formatHour(ptDailyHours[d]))];
@@ -678,7 +682,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']],
       body: [regRow, ptRow, totalRow],
       styles: { fontSize: 8, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
@@ -690,10 +694,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
-      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN']],
+      head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']],
       body: [
-        ['OFFICIAL TIME', '', '', '', '', '', '', ''],
-        ['ADVISING TIME', '', '', '', '', '', '', '']
+        ['OFFICIAL TIME', '', '', '', '', '', '', '', ''],
+        ['ADVISING TIME', '', '', '', '', '', '', '', '']
       ],
       styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
