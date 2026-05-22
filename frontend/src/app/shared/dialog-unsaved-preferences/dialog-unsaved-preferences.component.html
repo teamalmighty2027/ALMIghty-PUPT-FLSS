@@ -1,0 +1,46 @@
+<div class="unsaved-dialog-container">
+
+  <!-- Header banner -->
+  <div class="dialog-header">
+    <span mat-symbol class="header-icon">bookmark_add</span>
+    <div class="header-text">
+      <h2 class="dialog-title">Unsaved Preferences</h2>
+      <p class="dialog-subtitle">You have unsaved courses in your list</p>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="dialog-body">
+    <p class="dialog-message">
+      You have courses added to your preferences that have not been submitted yet.
+      What would you like to do before leaving?
+    </p>
+
+    <!-- Draft info card -->
+    <div class="dialog-hint">
+      <span mat-symbol class="hint-icon">info</span>
+      <span>
+        <strong>Save as Draft</strong> stores your current list locally so you
+        can continue later. Your draft will be restored the next time you open
+        Set Preferences.
+      </span>
+    </div>
+
+    <!-- Actions -->
+    <div class="dialog-actions">
+      <button mat-flat-button class="btn-stay" (click)="stay()">
+        <span mat-symbol>arrow_back</span>
+        Stay &amp; Submit
+      </button>
+      <button mat-stroked-button class="btn-draft" (click)="saveDraft()">
+        <span mat-symbol>bookmark_add</span>
+        Save as Draft &amp; Leave
+      </button>
+      <button mat-button class="btn-leave" (click)="leave()">
+        <span mat-symbol>delete_forever</span>
+        Discard &amp; Leave
+      </button>
+    </div>
+  </div>
+
+</div>
