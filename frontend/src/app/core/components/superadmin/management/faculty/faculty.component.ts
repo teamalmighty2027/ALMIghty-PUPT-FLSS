@@ -388,7 +388,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         type: 'text',
         maxLength: 12,
         required: true,
-        disabled: !!faculty,
+        // NOTE: Temporary enabled faculty code editing for corrections
+        // disabled: !!faculty,
       },
       {
         label: 'Last Name',
