@@ -638,11 +638,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  // Generates the PDF Blob of faculty preferences
   generateFacultyPDF(
     isAll: boolean,
     faculties: Faculty[],
     showPreview: boolean = false,
-  ): Blob | void {
+  ): Blob {
     const doc = new jsPDF('p', 'mm', 'legal') as any;
     const pageWidth = doc.internal.pageSize.width;
     let currentY = 15;
@@ -746,7 +747,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
             (doc as any).autoTable(tableConfig);
 
-            currentY = doc.autoTable.previous.finalY + 10;
+            currentY = (doc as any).lastAutoTable.finalY + 10;
             if (currentY > 270) {
               doc.addPage();
               this.reportHeaderService
@@ -764,32 +765,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           });
 
           this.reportHeaderService.addStandardFooter(doc);
-
-          const pdfBlob = doc.output('blob');
-          if (showPreview) {
-            return pdfBlob;
-          } else {
-            let fileName = 'faculty_preferences_report.pdf';
-
-            if (isAll) {
-              const firstFaculty = faculties[0];
-              const activeSemester = firstFaculty.active_semesters?.[0];
-              if (activeSemester) {
-                const academicYear = activeSemester.academic_year.replace(
-                  '/',
-                  '_',
-                );
-                const semester = activeSemester.semester_label.toLowerCase();
-                fileName = `${academicYear}_${semester}_faculty_preferences.pdf`;
-              }
-            } else {
-              fileName = `${this.sanitizeFileName(
-                faculties[0].facultyName,
-              )}_preferences_report.pdf`;
-            }
-
-            doc.save(fileName);
-          }
         });
 
       return doc.output('blob');

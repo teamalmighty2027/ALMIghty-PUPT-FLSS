@@ -23,12 +23,22 @@ class RescheduleController extends Controller
     //  FACULTY — Submit an appeal
     //  POST /api/rescheduling-appeals
     // ─────────────────────────────────────────────────────────
+    
+    /**
+     * Submit a rescheduling appeal for a faculty schedule.
+     *
+     * @param Request $request Contains scheduleId, reason, day,
+     *                          startTime, endTime, roomCode,
+     *                          and optional appealFile
+     * @return JsonResponse Appeal confirmation or validation error
+     */
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'scheduleId' => 'required|integer|exists:schedules,schedule_id',
             'reason'     => 'required|string',
-            'day'        => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+            'day'        => 'required|in:Monday,Tuesday,Wednesday,'
+                            . 'Thursday,Friday,Saturday,Sunday',
             'startTime'  => ['required', 'date_format:H:i'],
             'endTime'    => ['required', 'date_format:H:i'],
             'roomCode'   => 'nullable|string',
@@ -36,10 +46,31 @@ class RescheduleController extends Controller
         ]);
 
         if (strtotime($validated['endTime']) <= strtotime($validated['startTime'])) {
-            return response()->json(['message' => 'The end time must be after the start time.'], 422);
+            return response()->json(
+                ['message' => 'The end time must be after the start time.'],
+                422
+            );
+        }
+
+        $user = $request->user();
+        $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
+
+        if (!$faculty) {
+            return response()->json(
+                ['message' => 'Unauthorized. Faculty profile not found.'],
+                403
+            );
         }
 
         $schedule = Schedule::findOrFail($validated['scheduleId']);
+        
+        if ($schedule->faculty_id !== $faculty->id) {
+            return response()->json(
+                ['message' => 'Forbidden. You are not authorized to '
+                              . 'appeal this schedule.'],
+                403
+            );
+        }
 
         $filePath = null;
         $aiSummary = null;
@@ -51,8 +82,14 @@ class RescheduleController extends Controller
             $apiKey = config('services.cloudmersive.api_key');
             
             if ($apiKey) {
-                $scanResponse = Http::withHeaders(['Apikey' => $apiKey])
-                    ->attach('inputFile', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                $scanResponse = Http::withHeaders(
+                    ['Apikey' => $apiKey]
+                )
+                    ->attach(
+                        'inputFile',
+                        file_get_contents($file->getRealPath()),
+                        $file->getClientOriginalName()
+                    )
                     ->post('https://api.cloudmersive.com/virus/scan/file');
 
                 Log::info('Virus scan response: ' . $scanResponse->body());
@@ -60,21 +97,29 @@ class RescheduleController extends Controller
                 if ($scanResponse->successful()) {
                     $scanResult = $scanResponse->json();
                     
-                    if (isset($scanResult['CleanResult']) && $scanResult['CleanResult'] === false) {
+                    if (isset($scanResult['CleanResult'])
+                        && $scanResult['CleanResult'] === false) {
                         throw ValidationException::withMessages([
-                            'appealFile' => 'Security alert: Malicious content detected. Upload blocked.',
+                            'appealFile' => 'Security alert: Malicious '
+                                          . 'content detected. Upload blocked.',
                         ]);
                     }
                 } else {
-                    return response()->json(['message' => 'Security scan service unavailable. Try again later.'], 503);
+                    return response()->json(
+                        ['message' => 'Security scan service unavailable. '
+                                    . 'Try again later.'],
+                        503
+                    );
                 }
             }
             // --- VIRUS SCAN END ---
 
-            // File is clean, proceed with storage and AI summarization
+            // File is clean, proceed with storage
             $filePath = $file->store('appeals', 'public');
             $absolutePath = storage_path('app/public/' . $filePath);
-            $aiSummary = GeminiService::summarizeAppealDocument($absolutePath);
+            $aiSummary = GeminiService::summarizeAppealDocument(
+                $absolutePath
+            );
         }
         
         $roomId = null;
@@ -85,7 +130,19 @@ class RescheduleController extends Controller
 
         $finalReasoning = $validated['reason'];
         if ($aiSummary) {
-            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . trim($aiSummary);
+            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . 
+              trim($aiSummary);
+        }
+
+        $existing = Appeal::where('schedule_id', $validated['scheduleId'])
+            ->whereNull('is_approved')
+            ->first();
+
+        if ($existing) {
+            return response()->json(
+                ['message' => 'You already have a pending appeal for this schedule.'],
+                422
+            );
         }
 
         $appeal = Appeal::create([
@@ -103,13 +160,24 @@ class RescheduleController extends Controller
             'is_approved'         => null,
         ]);
 
-        return response()->json(['message' => 'Appeal submitted successfully.', 'appeal' => $appeal], 201);
+        return response()->json(
+            ['message' => 'Appeal submitted successfully.', 'appeal' => $appeal],
+            201
+        );
     }
 
     // ─────────────────────────────────────────────────────────
     //  FACULTY — Get my own appeals
     //  GET /api/my-appeals
     // ─────────────────────────────────────────────────────────
+    
+    /**
+     * Retrieve all appeals submitted by the authenticated faculty.
+     *
+     * @param Request $request The incoming HTTP request
+     * @return JsonResponse List of appeals with original and requested
+     *                       schedule details
+     */
     public function getMyAppeals(Request $request)
     {
         $user = $request->user();
@@ -121,9 +189,12 @@ class RescheduleController extends Controller
         }
 
         $appeals = DB::table('appeals')
-            ->join('schedules', 'appeals.schedule_id', '=', 'schedules.schedule_id')
-            ->leftJoin('rooms as orig_room', 'schedules.room_id', '=', 'orig_room.room_id')
-            ->leftJoin('rooms as appeal_room', 'appeals.room_id', '=', 'appeal_room.room_id')
+            ->join('schedules', 'appeals.schedule_id', '=',
+                   'schedules.schedule_id')
+            ->leftJoin('rooms as orig_room', 'schedules.room_id', '=',
+                       'orig_room.room_id')
+            ->leftJoin('rooms as appeal_room', 'appeals.room_id', '=',
+                       'appeal_room.room_id')
             ->where('schedules.faculty_id', $faculty->id)
             ->select(
                 'appeals.*',
@@ -141,7 +212,7 @@ class RescheduleController extends Controller
                 'appeal_id'           => $appeal->appeal_id,
                 'schedule_id'         => $appeal->schedule_id,
                 
-                // Dynamically pulled from the official schedules table
+                // Dynamically pulled from official schedules table
                 'original_day'        => $appeal->original_day,
                 'original_start_time' => $appeal->original_start_time,
                 'original_end_time'   => $appeal->original_end_time,
@@ -168,6 +239,14 @@ class RescheduleController extends Controller
     //  FACULTY — Cancel a pending appeal
     //  DELETE /api/my-appeals/{id}
     // ─────────────────────────────────────────────────────────
+    
+    /**
+     * Cancel a pending appeal submitted by the authenticated faculty.
+     *
+     * @param Request $request The incoming HTTP request
+     * @param int     $id      The appeal ID to cancel
+     * @return JsonResponse Success message or authorization error
+     */
     public function cancelAppeal(Request $request, int $id): JsonResponse
     {
         $user    = $request->user();
@@ -185,7 +264,9 @@ class RescheduleController extends Controller
         }
 
         if ($appeal->is_approved !== null) {
-            return response()->json(['message' => 'Only pending appeals can be cancelled.'], 422);
+            return response()->json([
+              'message' => 'Only pending appeals can be cancelled.'
+            ], 422);
         }
 
         $appeal->delete();
@@ -197,31 +278,45 @@ class RescheduleController extends Controller
     //  ADMIN — Fetch all appeals
     //  GET /api/rescheduling-appeals
     // ─────────────────────────────────────────────────────────
+    
+    /**
+     * Retrieve all rescheduling appeals with complete details.
+     *
+     * Fetches appeal records joined with schedule, course, section,
+     * program, and faculty information for admin review.
+     *
+     * @return JsonResponse List of all appeals with related data
+     */
     public function getAllAppeals(): JsonResponse
     {
         $appeals = DB::table('appeals as a')
-            ->join('schedules as s',          'a.schedule_id',                   '=', 's.schedule_id')
-            ->join('section_courses as sc',   's.section_course_id',             '=', 'sc.section_course_id')
-            ->join('course_assignments as ca','sc.course_assignment_id',         '=', 'ca.course_assignment_id')
-            ->join('courses as c',            'ca.course_id',                    '=', 'c.course_id')
-            ->join('sections_per_program_year as spy', 'sc.sections_per_program_year_id', '=', 'spy.sections_per_program_year_id')
-            ->join('programs as p',           'spy.program_id',                  '=', 'p.program_id')
-            ->join('faculty as f',            's.faculty_id',                    '=', 'f.id')
-            ->join('users as u',              'f.user_id',                       '=', 'u.id')
-            ->leftJoin('rooms as orig_r',     's.room_id',                       '=', 'orig_r.room_id') // Join original room
-            ->leftJoin('rooms as ar',         'a.room_id',                       '=', 'ar.room_id')     // Join appeal room
+            ->join('schedules as s', 'a.schedule_id', '=', 's.schedule_id')
+            ->join('section_courses as sc', 's.section_course_id', '=',
+                'sc.section_course_id')
+            ->leftJoin('course_assignments as ca',
+                'sc.course_assignment_id', '=',
+                'ca.course_assignment_id')
+            ->leftJoin('courses as c', 'ca.course_id', '=', 'c.course_id')
+            ->join('sections_per_program_year as spy',
+                'sc.sections_per_program_year_id', '=',
+                'spy.sections_per_program_year_id')
+            ->join('programs as p', 'spy.program_id', '=',
+                'p.program_id')
+            ->join('faculty as f', 's.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->leftJoin('rooms as orig_r', 's.room_id', '=', 'orig_r.room_id')
+            ->leftJoin('rooms as ar', 'a.room_id', '=', 'ar.room_id')
             ->select([
                 'a.appeal_id',
                 'a.schedule_id',
-                DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', COALESCE(u.middle_name, '')) AS faculty_name"),
+                DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', "
+                        . "COALESCE(u.middle_name, '')) AS faculty_name"),
                 'p.program_code',
                 'c.course_title',
-                // Original schedule data from schedules table
                 's.day              AS original_day',
                 's.start_time       AS original_start_time',
                 's.end_time         AS original_end_time',
                 'orig_r.room_code   AS original_room',
-                // Appeal data
                 'a.day              AS appeal_day',
                 'a.start_time       AS appeal_start_time',
                 'a.end_time         AS appeal_end_time',
@@ -317,7 +412,9 @@ class RescheduleController extends Controller
                 modelId: $schedule->schedule_id,
                 oldData: $oldScheduleData,
                 newData: $schedule->toArray(),
-                description: "Rescheduled via Appeal: Moved Schedule #{$schedule->schedule_id} to {$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
+                description: "Rescheduled via Appeal:" .
+                    "Moved Schedule #{$schedule->schedule_id} to " .
+                    "{$validated['day']} ({$validated['start_time']} - {$validated['end_time']})"
             );
 
             return response()->json([

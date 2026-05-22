@@ -1,0 +1,7 @@
+<div class="insight-container" [ngClass]="'type-' + type" *ngIf="text">
+  <div class="divider"></div>
+  <div class="insight-content">
+    <mat-icon>{{ resolvedIcon }}</mat-icon>
+    <p class="insight-text">{{ text }}</p>
+  </div>
+</div>

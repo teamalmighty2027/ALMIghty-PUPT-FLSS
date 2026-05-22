@@ -108,6 +108,17 @@ export const ADMIN_ROUTES: Routes = [
         ],
       },
       {
+        path: 'analytics',
+        loadComponent: () =>
+          import('./analytics/analytics.component').then(
+            (m) => m.AnalyticsComponent
+          ),
+        data: { 
+          pageTitle: 'Data Analytics',
+          requirePermission: 'view_reports'
+        },
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('../../../shared/profile-page/profile-page.component').then(

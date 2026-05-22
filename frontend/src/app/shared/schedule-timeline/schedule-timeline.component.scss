@@ -154,6 +154,19 @@ $day-colors: (
               font-weight: 600;
             }
 
+            // Step 5: Combined label styles for overlapping schedules.
+            .combined-label {
+              display: inline-block;
+              background-color: var(--secondary-hover);
+              color: var(--secondary-text);
+              border-radius: var(--border-radius-lg);
+              padding: var(--spacing-xs) var(--spacing-sm);
+              font-size: var(--font-size-xs);
+              font-weight: 700;
+              border: 1px solid var(--secondary-text);
+              margin: var(--spacing-xxs) 0;
+            }
+
             .temporary-badge {
               background-color: var(--secondary-hover);
               color: var(--secondary-text);

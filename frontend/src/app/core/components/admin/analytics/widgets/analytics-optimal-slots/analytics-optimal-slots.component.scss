@@ -1,0 +1,128 @@
+.widget-container {
+  width: 100%;
+  min-height: 300px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-overlay, .empty-state {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 2;
+
+  span, p {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.9rem;
+  }
+}
+
+.empty-state mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--mat-sys-primary);
+  opacity: 0.5;
+}
+
+.content {
+  display: flex;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.recommendations {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  h4 {
+    margin: 0 0 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--mat-sys-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.rec-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rec-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--mat-sys-surface-container-low);
+  border-radius: 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+
+  .rec-icon {
+    color: #FFC107;
+    margin-right: 0.75rem;
+    mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  }
+
+  .rec-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    .rec-slot { font-weight: 600; font-size: 0.9rem; }
+    .rec-desc { font-size: 0.75rem; color: var(--mat-sys-on-surface-variant); }
+  }
+
+  .rec-score {
+    font-weight: 700;
+    color: #4CAF50;
+    font-size: 1rem;
+  }
+}
+
+.heatmap-container {
+  flex: 1;
+  overflow: auto;
+}
+
+.heatmap-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.7rem;
+
+  th {
+    padding: 4px;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .time-label {
+    text-align: right;
+    padding-right: 8px;
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
+  }
+
+  .heat-cell {
+    width: 24px;
+    height: 18px;
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: transform 0.2s;
+
+    &:hover {
+      transform: scale(1.2);
+      z-index: 10;
+      border: 1px solid var(--mat-sys-primary);
+    }
+  }
+}

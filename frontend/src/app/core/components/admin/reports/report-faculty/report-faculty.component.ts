@@ -287,6 +287,13 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   onView(faculty: Faculty): void {
+    const sanitizedSchedules = (faculty.schedules || []).map((s: any) => ({
+      ...s,
+      day: s.day || 'TBA',
+      start_time: s.start_time || '07:00',
+      end_time: s.end_time || '08:00'
+    }));
+
     const generatePdfFunction = (): Blob | void => {
       return this.createPdfBlob(faculty);
     };
@@ -298,7 +305,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       data: {
         exportType: 'single',
         entity: 'faculty',
-        entityData: faculty.schedules,
+        entityData: sanitizedSchedules,
         customTitle: `${faculty.facultyName}`,
         academicYear: faculty.academicYear,
         semester: faculty.semester,
@@ -308,6 +315,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           const formattedName = faculty.facultyName.replace(',', '').replace(/\s+/g, '_');
           saveAs(excelBlob, `${formattedName}_Schedule.xlsx`);
         },
+        previewMode: true,
       },
       disableClose: true,
     });
@@ -323,6 +331,16 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     const semester = this.filteredData[0]?.semester || '';
     const baseFileName = `All_Faculty_Schedules_${academicYear}_${semester?.replace(/\s+/g, '_')}`;
 
+    const sanitizedSchedules = this.filteredData
+      .filter(f => f.schedules && f.schedules.length > 0)
+      .flatMap(f => f.schedules)
+      .map((s: any) => ({
+        ...s,
+        day: s.day || 'TBA',
+        start_time: s.start_time || '07:00',
+        end_time: s.end_time || '08:00'
+      }));
+
     this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
@@ -330,7 +348,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       data: {
         exportType: 'all',
         entity: 'faculty',
-        entityData: this.filteredData.filter(f => f.schedules && f.schedules.length > 0).map(f => f.schedules).flat(),
+        entityData: sanitizedSchedules,
         customTitle: 'All Faculty Schedules',
         fileName: baseFileName,
         academicYear: academicYear,
@@ -340,6 +358,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           const excelBlob = await this.generateExcelBlobAll();
           saveAs(excelBlob, `${baseFileName}.xlsx`);
         },
+        previewMode: true,
         showViewToggle: false,
       },
       disableClose: true,
@@ -372,12 +391,100 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   // --- EXCEL GENERATION METHODS ---
 
+  private getValidTabName(workbook: ExcelJS.Workbook, facultyName: string): string {
+    let safeName = facultyName.split(',')[0].replace(/[^\w\s-]/gi, '').trim() || 'Faculty';
+    safeName = safeName.substring(0, 25);
+    
+    let uniqueName = safeName;
+    let counter = 1;
+    
+    while (workbook.getWorksheet(uniqueName)) {
+      uniqueName = `${safeName}_${counter}`;
+      counter++;
+    }
+    return uniqueName;
+  }
+
+  // --- EXCEL MERGING HELPER (FACULTY) ---
+  private groupSchedulesByCourseCode(schedules: any[]): any[] {
+    const mergedMap = new Map<string, any>();
+    
+    for (const item of schedules) {
+      const courseCode = (item.course_details?.course_code || 'UNKNOWN').trim().toUpperCase();
+
+      // Group by Course Code ONLY — merge all sections and times under one row
+      const key = courseCode;
+      
+      if (mergedMap.has(key)) {
+        const existing = mergedMap.get(key);
+        existing._rawSchedules.push(item);
+      } else {
+        mergedMap.set(key, { ...item, _rawSchedules: [item] });
+      }
+    }
+    
+    return Array.from(mergedMap.values()).map(merged => {
+      // Collect unique section strings
+      const sectionsSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        let sec = `${s.program_code || ''} ${s.year_level || ''}-${s.section_name || ''}`.trim();
+        if (sec === '-') sec = 'Section TBA';
+        sectionsSet.add(sec);
+      });
+
+      // Build unique day+time strings, deduplicated
+      const timeSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        let dayAbbr = 'TBA';
+        if (s.day) {
+          const d = s.day.toUpperCase();
+          if (d.startsWith('MO')) dayAbbr = 'M';
+          else if (d.startsWith('TU')) dayAbbr = 'TUE';
+          else if (d.startsWith('WE')) dayAbbr = 'W';
+          else if (d.startsWith('TH')) dayAbbr = 'TH';
+          else if (d.startsWith('FR')) dayAbbr = 'F';
+          else if (d.startsWith('SA')) dayAbbr = 'S';
+          else if (d.startsWith('SU')) dayAbbr = 'SU';
+          else dayAbbr = d.substring(0, 3);
+        }
+        const start = this.formatTimeTo12Hour(s.start_time || '').replace(/\s+/g, '') || 'TBA';
+        const end = this.formatTimeTo12Hour(s.end_time || '').replace(/\s+/g, '') || 'TBA';
+        timeSet.add(`${dayAbbr} ${start}-${end}`);
+      });
+
+      // Unique days
+      const daysSet = new Set<string>();
+      merged._rawSchedules.forEach((s: any) => {
+        if (!s.day) { daysSet.add('TBA'); return; }
+        const d = s.day.toUpperCase();
+        if (d.startsWith('MO')) daysSet.add('M');
+        else if (d.startsWith('TU')) daysSet.add('TUE');
+        else if (d.startsWith('WE')) daysSet.add('W');
+        else if (d.startsWith('TH')) daysSet.add('TH');
+        else if (d.startsWith('FR')) daysSet.add('F');
+        else if (d.startsWith('SA')) daysSet.add('S');
+        else if (d.startsWith('SU')) daysSet.add('SU');
+        else daysSet.add(d.substring(0, 3));
+      });
+
+      const rooms = Array.from(new Set(merged._rawSchedules.map((s: any) => s.room_code || 'TBA')));
+
+      return {
+        ...merged,
+        displayDay: Array.from(daysSet).join('/'),
+        displayTime: Array.from(timeSet).join('\n'),
+        displaySection: Array.from(sectionsSet).sort().join(' / '),
+        displayRoom: rooms.join('\n')
+      };
+    });
+  }
+
   private async generateExcelBlobAll(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
     for (const faculty of this.filteredData) {
       if (faculty.schedules && faculty.schedules.length > 0) {
-        const tabName = faculty.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const tabName = this.getValidTabName(workbook, faculty.facultyName);
         const worksheet = workbook.addWorksheet(tabName);
         this.applyFacultyExcelLayout(worksheet, faculty);
       }
@@ -389,7 +496,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   private async generateExcelBlob(faculty: Faculty): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
-    const tabName = faculty.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
+    const tabName = this.getValidTabName(workbook, faculty.facultyName);
     const worksheet = workbook.addWorksheet(tabName);
     
     this.applyFacultyExcelLayout(worksheet, faculty);
@@ -405,7 +512,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     };
 
     worksheet.columns = [
-      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 18 }, { width: 35 }, { width: 8 }, { width: 8 }, 
       { width: 10 }, { width: 15 }, { width: 15 }, { width: 25 }
     ];
 
@@ -438,19 +545,22 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     });
 
     if (faculty.schedules && faculty.schedules.length > 0) {
-      faculty.schedules.forEach((schedule: any) => {
-        const dayShort = schedule.day.substring(0, 3).toUpperCase();
-        const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)} - ${this.formatTimeTo12Hour(schedule.end_time)}`;
+      const groupedSchedules = this.groupSchedulesByCourseCode(faculty.schedules);
+
+      groupedSchedules.forEach((schedule: any) => {
+        const isBridging = schedule.course_details?.offering_type === 'bridging';
+        const courseCode = schedule.course_details?.course_code || '';
+        const displayCourseCode = isBridging ? `${courseCode}\n[Bridging]` : courseCode;
         
         const row = worksheet.addRow([
-          schedule.course_details?.course_code || '',
+          displayCourseCode,
           schedule.course_details?.course_title || '',
           schedule.course_details?.lec || 0,
           schedule.course_details?.lab || 0,
           schedule.course_details?.units || 0,
-          `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
-          schedule.room_code || 'TBA',
-          `${dayShort}\n${timeRange}`
+          schedule.displaySection,
+          schedule.displayRoom,
+          `${schedule.displayDay}\n${schedule.displayTime}`
         ]);
 
         row.eachCell((cell, colNum) => {
@@ -594,6 +704,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     // Only process chunks that actually contain classes
     const activeChunks = chunks.filter(chunk => {
       return scheduleData.some(s => {
+        if (!s.start_time || !s.end_time || !s.day) return false; // ADD THIS SAFETY CHECK
         const sStart = this.timeToMinutes(s.start_time);
         const sEnd = this.timeToMinutes(s.end_time);
         return Math.max(sStart, chunk.start) < Math.min(sEnd, chunk.end);
@@ -688,7 +799,27 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       });
 
       // --- Draw the Blocks ---
-      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+      // Group same-slot bridging entries into one merged block
+      const mergedMap = new Map<string, any>();
+      for (const item of scheduleData) {
+        if (!item.start_time || !item.end_time || !item.day) continue; // ADD THIS SAFETY CHECK
+        const key = `${item.day}|${item.start_time}|${item.end_time}`;
+        if (mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          // Merge program codes into a combined display
+          if (!existing._mergedPrograms) {
+            existing._mergedPrograms = [existing.program_code];
+          }
+          if (!existing._mergedPrograms.includes(item.program_code)) {
+            existing._mergedPrograms.push(item.program_code);
+          }
+        } else {
+          mergedMap.set(key, { ...item });
+        }
+      }
+      const sortedScheduleData = [...mergedMap.values()].sort(
+        (a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time)
+      );
 
       sortedScheduleData.forEach(item => {
         const dayIndex = days.indexOf(item.day);
@@ -759,16 +890,53 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         doc.setFont('helvetica', 'normal');
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
-        // Block Content (Tailored for Faculty)
+        // Block Content - Show combined label if applicable
+        let programDisplay: string;
+        if (item._mergedPrograms && item._mergedPrograms.length > 1) {
+          programDisplay = item._mergedPrograms
+            .sort()
+            .reverse()
+            .join('/') + ` ${item.year_level} - ${item.section_name}`;
+        } else {
+          programDisplay = `${item.program_code} ${item.year_level} - ${item.section_name}`;
+        }
+
+        const isBridging = item.course_details?.offering_type === 'bridging';
+
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
+          programDisplay,
           item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
-        ].filter(line => line !== ''); 
+        ].filter(line => line !== '');
 
-        let textY = yPos + startPadding; 
-        
+        let textY = yPos + startPadding;
+
+        // Draw "Bridging" badge at top-right of block if applicable
+        if (isBridging) {
+          const badgeLabel = 'Bridging';
+          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
+          const badgePaddingX = 2.5;
+          const badgePaddingY = 1.5;
+          doc.setFontSize(badgeFontSize);
+          doc.setFont('helvetica', 'bold');
+          const badgeTextWidth = doc.getTextWidth(badgeLabel);
+          const badgeW = badgeTextWidth + badgePaddingX * 2;
+          const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
+          // Center the badge horizontally in the block
+          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
+          // Place it just below the course code (textY is already advanced past course code)
+          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          doc.setFillColor(128, 0, 0);
+          doc.setDrawColor(128, 0, 0);
+          doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
+          doc.setTextColor(255, 255, 255);
+          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.setTextColor(0, 0, 0);
+          // Advance textY so subsequent lines don't overlap the badge
+          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
+        }
+
         content.forEach((line, idx) => {
           doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
           doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
@@ -786,6 +954,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   private formatTime(time: string): string {
+    if (!time) return ''; // Safety check
     const [hours, minutes] = time.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
     const formattedHours = hours % 12 || 12;
@@ -793,6 +962,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   private timeToMinutes(time: string): number {
+    if (!time) return 0; // Safety check
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   }

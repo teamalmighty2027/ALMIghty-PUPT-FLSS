@@ -1,0 +1,19 @@
+<div class="chart-container">
+  <div class="chart-wrapper" *ngIf="!isLoading; else loading">
+    <canvas 
+      baseChart
+      [data]="doughnutChartData"
+      [options]="doughnutChartOptions"
+      [type]="doughnutChartType">
+    </canvas>
+  </div>
+
+  <ng-template #loading>
+    <div class="loading-overlay">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p>Analyzing faculty composition...</p>
+    </div>
+  </ng-template>
+
+  <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
+</div>

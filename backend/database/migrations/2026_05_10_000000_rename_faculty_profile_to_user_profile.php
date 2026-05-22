@@ -12,6 +12,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Check if migration already ran
+        if (Schema::hasTable('user_profile')) {
+            return;
+        }
+
         // 1. Rename the table
         Schema::rename('faculty_profile', 'user_profile');
 
@@ -59,6 +64,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Check if rollback is needed
+        if (!Schema::hasTable('user_profile')) {
+            return;
+        }
         Schema::table('faculty', function (Blueprint $table) {
             $table->unsignedBigInteger('faculty_profile_id')->nullable()->after('id');
         });

@@ -188,6 +188,39 @@
   /* Schedule Validator Styles */
   .schedule-validator {
     @include mixins.flex-layout;
+    width: 100%;
+
+    .combine-prompt-container {
+      @include mixins.flex-layout(
+        $direction: column,
+        $align: flex-start,
+        $gap: var(--spacing-xxs)
+      );
+      padding: var(--spacing-sm);
+      background-color: var(--neutral-light);
+      border: 1px solid var(--neutral-base);
+      border-radius: var(--border-radius-sm);
+      width: 100%;
+
+      .combine-checkbox {
+        font-size: var(--font-size-sm);
+        color: var(--primary-text);
+      }
+
+      .combine-warning-message {
+        @include mixins.flex-layout(
+          $align: center,
+          $gap: var(--spacing-xxs)
+        );
+        font-size: var(--font-size-xs);
+        color: var(--primary-warning);
+        margin-top: var(--spacing-xxs);
+
+        span {
+          font-size: 16px;
+        }
+      }
+    }
 
     .validation-message {
       @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));

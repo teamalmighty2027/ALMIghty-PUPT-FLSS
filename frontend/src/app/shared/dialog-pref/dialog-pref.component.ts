@@ -356,7 +356,15 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
    * Generates and automatically downloads the PDF format for the faculty preferences.
    */
   downloadPdf(): void {
-    this.generateFacultyPDF(false, [this.courses], false);
+    const pdfBlob = this.generateFacultyPDF(false, [this.courses], false);
+
+    if (pdfBlob instanceof Blob) {
+      const fileName = `${this.sanitizeFileName(
+        this.facultyName,
+      )}_preferences_report.pdf`;
+
+      saveAs(pdfBlob, fileName);
+    }
   }
 
   /**
@@ -489,11 +497,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   /**
    * Main constructor utilizing jsPDF to format the faculty preferences table into a printable layout.
    */
+  // Generates the PDF Blob of faculty preferences
   generateFacultyPDF(
     isAll: boolean,
     coursesArray: Course[][],
     showPreview: boolean = false,
-  ): Blob | void {
+  ): Blob {
     const doc = new jsPDF('p', 'mm', 'a4') as any;
     let currentY = 15;
 
@@ -588,7 +597,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
 
             (doc as any).autoTable(tableConfig);
 
-            currentY = doc.autoTable.previous.finalY + 10;
+            currentY = (doc as any).lastAutoTable.finalY + 10;
             if (currentY > 270) {
               doc.addPage();
               this.reportHeaderService
@@ -606,20 +615,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             }
           });
 
-          const pdfBlob = doc.output('blob');
-          if (showPreview) {
-            return pdfBlob;
-          } else {
-            let fileName = 'faculty_preferences_report.pdf';
-
-            if (isAll && coursesArray.length > 0) {
-              fileName = `${this.sanitizeFileName(
-                this.facultyName,
-              )}_preferences_report.pdf`;
-            }
-
-            doc.save(fileName);
-          }
+          this.reportHeaderService.addStandardFooter(doc);
         });
 
       return doc.output('blob');
