@@ -2,7 +2,9 @@
 
   <!-- Page-level loading — matches system pattern -->
   <div class="analytics-loading" *ngIf="isTermsLoading">
-    <app-loading></app-loading>
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
   </div>
 
   <!-- Dashboard content — fades in once terms are loaded -->

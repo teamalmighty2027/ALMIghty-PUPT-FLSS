@@ -1,10 +1,10 @@
 .heatmap-container {
   width: 100%;
+  min-height: 650px;
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  // Height is driven by content — no fixed min-height here
 
   // Only the actual grid gets the tall treatment
   .heatmap-grid {
@@ -14,6 +14,7 @@
 
 // ── Loading / Empty ───────────────────────────────────────────
 .loading-overlay {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
