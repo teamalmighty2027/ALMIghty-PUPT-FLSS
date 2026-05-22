@@ -117,6 +117,20 @@
               "assets": [
                 "src/assets"
               ]
+            },
+            "proxy": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.dev.ts",
+                  "with": "src/environments/environment.proxy.ts"
+                }
+              ],
+              "assets": [
+                "src/assets"
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -129,6 +143,10 @@
             },
             "development": {
               "buildTarget": "PUPT-FLSS:build:development"
+            },
+            "proxy" : {
+              "buildTarget": "PUPT-FLSS:build:proxy",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
