@@ -388,7 +388,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         type: 'text',
         maxLength: 12,
         required: true,
-        disabled: !!faculty,
+        // NOTE: Temporary enabled faculty code editing for corrections
+        // disabled: !!faculty,
       },
       {
         label: 'Last Name',
@@ -463,14 +464,14 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
           {
             label: 'Password',
             formControlName: 'password',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
           },
           {
             label: 'Confirm Password',
             formControlName: 'confirmPassword',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
             confirmPassword: true,
