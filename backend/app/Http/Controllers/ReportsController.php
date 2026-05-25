@@ -398,17 +398,15 @@ class ReportsController extends Controller
             }
 
             if ($schedule->schedule_id) {
-                $courseKey = $schedule->course_assignment_id
-                    ? 'ca_' . $schedule->course_assignment_id
-                    : 'to_' . $schedule->temporary_course_offering_id;
-
-                if ($schedule->bridging_course_id &&
-                    $schedule->combined_with_program_id
-                ) {
-                    $courseKey = 'bc_combined_' . min(
-                        $schedule->bridging_course_id,
-                        $schedule->combined_bridging_course_id
-                    );
+                // For bridging courses, key by course code
+                //  For regular courses, key by ID.
+                if ($schedule->bridging_course_id) {
+                    $courseKey = 'bc_' . $schedule->course_code;
+                } else {
+                    $courseKey = $schedule->course_assignment_id
+                        ? 'ca_' . $schedule->course_assignment_id
+                        : 'to_' . 
+                            $schedule->temporary_course_offering_id;
                 }
 
                 if (!in_array(
