@@ -1,5 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { 
+  HttpClient, 
+  HttpErrorResponse, 
+  HttpParams 
+} from '@angular/common/http';
 
 import { Observable, throwError, BehaviorSubject } from 'rxjs';
 import { catchError, shareReplay } from 'rxjs/operators';
@@ -33,22 +37,43 @@ export class ReportsService {
     facultyAcademicYearsHistory: {},
   };
 
+  /**
+   * Creates the ReportsService.
+   * @param http - Angular HttpClient used for HTTP requests.
+   */
   constructor(private http: HttpClient) {}
 
+  /**
+   * Set the currently selected term id in the service state.
+   * @param termId - The id of the selected term, or null to unset.
+   */
   setSelectedTerm(termId: number | null) {
     this.selectedTermSource.next(termId);
   }
 
+  /**
+   * Get the currently selected term id from the service state.
+   * @returns The selected term id or null if none is selected.
+   */
   getSelectedTerm(): number | null {
     return this.selectedTermSource.value;
   }
 
+  /**
+   * Fetch all academic terms for populating dropdowns.
+   * @returns An observable resolving to an array of term objects.
+   */
   getAllTermsForDropdown(): Observable<any[]> {
     return this.http
       .get<any[]>(`${this.baseUrl}/reports/terms`)
       .pipe(catchError(this.handleError));
   }
 
+  /**
+   * Get the faculty schedules report for a given term, with caching.
+   * @param termId - Optional term id to filter by; use null for default.
+   * @returns An observable resolving to the faculty schedules report.
+   */
   getFacultySchedulesReport(termId: number | null = null): Observable<any> {
     const cacheKey = termId ? termId.toString() : 'default';
 
@@ -64,6 +89,11 @@ export class ReportsService {
     return this.cache.facultySchedulesReport[cacheKey];
   }
 
+  /**
+   * Get the room schedules report for a given term, with caching.
+   * @param termId - Optional term id to filter by; use null for default.
+   * @returns An observable resolving to the room schedules report.
+   */
   getRoomSchedulesReport(termId: number | null = null): Observable<any> {
     const cacheKey = termId ? termId.toString() : 'default';
 
@@ -79,6 +109,11 @@ export class ReportsService {
     return this.cache.roomSchedulesReport[cacheKey];
   }
 
+  /**
+   * Get the program schedules report for a given term, with caching.
+   * @param termId - Optional term id to filter by; use null for default.
+   * @returns An observable resolving to the program schedules report.
+   */
   getProgramSchedulesReport(termId: number | null = null): Observable<any> {
     const cacheKey = termId ? termId.toString() : 'default';
 
@@ -94,6 +129,11 @@ export class ReportsService {
     return this.cache.programSchedulesReport[cacheKey];
   }
 
+  /**
+   * Get the schedule for a single faculty member, cached by faculty id.
+   * @param faculty_id - The id of the faculty whose schedule to fetch.
+   * @returns An observable resolving to the faculty's schedule.
+   */
   getSingleFacultySchedule(faculty_id: number): Observable<any> {
     if (!this.cache.singleFacultySchedule[faculty_id]) {
       const url = `${this.baseUrl}/single-faculty-schedule/${faculty_id}`;
@@ -104,12 +144,26 @@ export class ReportsService {
     return this.cache.singleFacultySchedule[faculty_id];
   }
 
-  getFacultyScheduleHistory(facultyId: number, activeSemesterId: number): Observable<any> {
+  /**
+   * Fetch the schedule history for a faculty for a specific semester.
+   * @param facultyId - The id of the faculty member.
+   * @param activeSemesterId - The semester id to filter history by.
+   * @returns An observable resolving to the schedule history data.
+   */
+  getFacultyScheduleHistory(
+    facultyId: number, 
+    activeSemesterId: number
+  ): Observable<any> {
     const url = `${this.baseUrl}/faculty-schedule-history/${facultyId}`;
     const params = { active_semester_id: activeSemesterId.toString() };
     return this.http.get(url, { params }).pipe(catchError(this.handleError));
   }
 
+  /**
+   * Get the academic years history for a faculty, cached by faculty id.
+   * @param faculty_id - The id of the faculty whose years history to fetch.
+   * @returns An observable resolving to an array of academic years.
+   */
   getFacultyAcademicYearsHistory(faculty_id: number): Observable<any[]> {
     if (!this.cache.facultyAcademicYearsHistory[faculty_id]) {
       const url = `${this.baseUrl}/faculty-academic-years-history/${faculty_id}`;
@@ -120,32 +174,66 @@ export class ReportsService {
     return this.cache.facultyAcademicYearsHistory[faculty_id];
   }
 
+  /**
+   * Toggle the published state for all schedules.
+   * @param is_published - Numeric flag indicating published (1) or not (0).
+   * @returns An observable resolving to the toggle result.
+   */
   togglePublishAllSchedules(is_published: number): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/toggle-all-schedule`, { is_published })
       .pipe(catchError(this.handleError));
   }
 
+  /**
+   * Trigger sending schedule emails to all faculty.
+   * @returns An observable resolving when the email job is queued/sent.
+   */
   sendAllSchedulesEmail(): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/email-all-faculty-schedule`, {})
       .pipe(catchError(this.handleError));
   }
 
-  togglePublishSingleSchedule(faculty_id: number, is_published: number): Observable<any> {
+  /**
+   * Toggle the published state for a single faculty's schedule.
+   * @param faculty_id - The id of the faculty to update.
+   * @param is_published - Numeric flag indicating published (1) or not (0).
+   * @returns An observable resolving to the toggle result.
+   */
+  togglePublishSingleSchedule(
+    faculty_id: number, 
+    is_published: number
+  ): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/toggle-single-schedule`, { faculty_id, is_published })
       .pipe(catchError(this.handleError));
   }
 
+  /**
+   * Send the schedule email to a single faculty member.
+   * @param faculty_id - The id of the faculty to email.
+   * @returns An observable resolving when the email job is queued/sent.
+   */
   sendSingleFacultyScheduleEmail(faculty_id: number): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/email-single-faculty-schedule`, { faculty_id })
       .pipe(catchError(this.handleError));
   }
 
+  /**
+   * Clear specific cached report data.
+   * @param cacheType - Which cache to clear ('faculty'|'room'|'program'|'singleFaculty'|
+   *                    'academicYears'|'facultyAcademicYears').
+   * @param faculty_id - Optional faculty id used when clearing per-faculty caches.
+   */
   clearCache(
-    cacheType: 'faculty' | 'room' | 'program' | 'singleFaculty' | 'academicYears' | 'facultyAcademicYears',
+    cacheType: 'faculty' | 
+        'room' | 
+        'program' | 
+        'singleFaculty' | 
+        'academicYears' | 
+        'facultyAcademicYears',
     faculty_id?: number
   ): void {
     switch (cacheType) {
@@ -158,6 +246,9 @@ export class ReportsService {
     }
   }
 
+  /**
+   * Clear all caches maintained by the service.
+   */
   clearAllCaches(): void {
     this.cache.facultySchedulesReport = {};
     this.cache.roomSchedulesReport = {};
@@ -167,8 +258,15 @@ export class ReportsService {
     this.cache.facultyAcademicYearsHistory = {};
   }
 
+  /**
+   * Centralized HTTP error handler that logs and returns a user-friendly error.
+   * @param error - The HttpErrorResponse received from HttpClient.
+   * @returns An observable that errors with a generic Error object.
+   */
   private handleError(error: HttpErrorResponse) {
     console.error('An error occurred:', error);
-    return throwError(() => new Error('Something went wrong. Please try again later.'));
+    return throwError(() => new Error(
+      'Something went wrong. Please try again later.'
+    ));
   }
 }
