@@ -1,4 +1,16 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
+import { 
+  Component, 
+  Input, 
+  Output, 
+  EventEmitter, 
+  OnInit, 
+  OnChanges, 
+  SimpleChanges, 
+  ViewChild, 
+  ElementRef, 
+  AfterViewInit, 
+  inject 
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -34,7 +46,13 @@ interface ScheduleBlock {
   isBridging: boolean;
 }
 
-type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+type Day = 'Monday' | 
+  'Tuesday' | 
+  'Wednesday' | 
+  'Thursday' | 
+  'Friday' | 
+  'Saturday' | 
+  'Sunday';
 
 @Component({
   selector: 'app-faculty-schedule-timetable',
@@ -65,7 +83,15 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
   @Output() appealClicked = new EventEmitter<any>();
   @Output() viewAppealsClicked = new EventEmitter<any>();
 
-  days: Day[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  days: Day[] = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
   timeSlots: TimeSlot[] = [];
   scheduleBlocks: ScheduleBlock[] = [];
 
@@ -77,6 +103,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     private reschedulingService: ReschedulingService,
   ) {}
 
+  /**
+   * Initialize component: generate time slots and process schedules.
+   * Called once when the component is instantiated.
+   */
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
@@ -88,6 +118,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
   /**
    * Detects changes to @Input properties and re-processes data.
    */
+  /**
+   * Respond to changes in @Input properties and re-process schedule data.
+   * @param changes - Angular SimpleChanges containing the changed inputs.
+   */
   ngOnChanges(changes: SimpleChanges) {
     if (changes['facultySchedule'] && !changes['facultySchedule'].firstChange) {
       this.scheduleBlocks = [];
@@ -95,6 +129,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * After view init: attach scroll listener 
+   * to the table wrapper to toggle label visibility.
+   */
   ngAfterViewInit() {
     const tableWrapperElement = this.tableWrapper.nativeElement;
     tableWrapperElement.addEventListener('scroll', () => {
@@ -106,6 +144,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     });
   }
 
+  /**
+   * Load the current user's appeals and populate `appealStatuses` map.
+   */
   loadMyAppeals(): void {
     this.reschedulingService.getMyAppeals().subscribe({
       next: (appeals) => {
@@ -122,12 +163,23 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     });
   }
 
+  /**
+   * Map numeric/boolean approval values to human-readable appeal status.
+   * @param is_approved - Approval value (true/false or 1/0)
+   * @returns 'Approved' | 'Denied' | 'Pending'
+   */
   private mapStatus(is_approved: any): string {
     if (is_approved === true  || is_approved === 1)  return 'Approved';
     if (is_approved === false || is_approved === 0)  return 'Denied';
     return 'Pending';
   }
 
+  /**
+   * Get CSS class for appeal status for a schedule block.
+   * @param day - Day of week for the block.
+   * @param slotIndex - Index of the time slot.
+   * @returns CSS class string for the appeal status, or empty string.
+   */
   getAppealStatusClass(day: string, slotIndex: number): string {
     const block = this.getScheduleBlock(day, slotIndex);
     if (!block) return '';
@@ -136,19 +188,34 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return `appeal-${status.toLowerCase()}`;
   }
 
+  /**
+   * Get tooltip text for appeal status.
+   * @param day - Day of week.
+   * @param slotIndex - Index of the slot.
+   * @returns Tooltip text.
+   */
   getAppealStatusTooltip(day: string, slotIndex: number): string {
     return 'Appeal History';
   }
 
+  /**
+   * Build the `timeSlots` array with 30-minute intervals from 07:00 to 21:00.
+   */
   private generateTimeSlots() {
     const startTime = 7 * 60;
     const endTime = 21 * 60;
     const interval = 30;
     for (let time = startTime; time <= endTime; time += interval) {
-      this.timeSlots.push({ time: this.formatMinutesTo12Hour(time), minutes: time });
+      this.timeSlots.push({
+        time: this.formatMinutesTo12Hour(time), minutes: time
+      });
     }
   }
 
+  /**
+   * Convert `facultySchedule.schedules` into `scheduleBlocks` for timeline rendering.
+   * Validates records and merges bridging entries.
+   */
   private processScheduleData() {
     if (this.facultySchedule && this.facultySchedule.schedules) {
       // Merge same-slot bridging entries first
@@ -211,6 +278,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * Convert a time string (HH:MM[:ss]) to minutes since midnight.
+   * Returns 0 on null/invalid input.
+   * @param time - Time string like '10:30:00' or null.
+   * @returns Minutes since midnight.
+   */
   private convertTimeToMinutes(time: string | null): number {
     if (!time) return 0;
     const parts = time.split(':').map(Number);
@@ -219,19 +292,42 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return hours * 60 + minutes;
   }
 
+  /**
+   * Find the index of the first `timeSlots` entry whose minutes >= provided minutes.
+   * @param minutes - Minutes since midnight to find.
+   * @returns Index into `timeSlots`, or -1 if none found.
+   */
   private findTimeSlotIndex(minutes: number): number {
     return this.timeSlots.findIndex(slot => slot.minutes >= minutes);
   }
 
+  /**
+   * Check whether a schedule block starts at the given day/slot.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns True if a block starts at this slot.
+   */
   isScheduleBlockStart(day: string, slotIndex: number): boolean {
     return this.scheduleBlocks.some(b => b.day === day && slotIndex === b.startSlot);
   }
 
+  /**
+   * Compute rendered block height in pixels for a schedule block.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns Block height in pixels (0 when none).
+   */
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
     return block ? block.duration * 40 - 2 : 0;
   }
 
+  /**
+   * Build inline style object for a schedule block.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns Style object for the block element.
+   */
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
@@ -251,13 +347,31 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return {};
   }
 
+  /**
+   * Return CSS class for a day column.
+   * @param day - Day of week.
+   * @returns Day class string.
+   */
   getDayClass(day: string): string { return `schedule-${day.toLowerCase()}`; }
 
+  /**
+   * Return a property value from a schedule block at the given day/slot.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @param property - Block property name to retrieve.
+   * @returns The property value or null.
+   */
   getBlockProperty(day: string, slotIndex: number, property: keyof ScheduleBlock): any {
     const block = this.getScheduleBlock(day, slotIndex);
     return block ? block[property] : null;
   }
 
+  /**
+   * Get formatted time range for the block shown at a specific slot.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns Formatted time string like '10:30 AM - 12:30 PM' or empty string.
+   */
   getFormattedTime(day: string, slotIndex: number): string {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
@@ -272,6 +386,11 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return '';
   }
 
+  /**
+   * Return color settings for a given day column.
+   * @param day - Day of week.
+   * @returns Object with `backgroundColor` and `borderColor`.
+   */
   private getBlockColors(day: Day) {
     const dayColors: Record<Day, { backgroundColor: string; borderColor: string }> = {
       Monday:    { backgroundColor: 'var(--primary-fade)',   borderColor: 'var(--primary-text)' },
@@ -285,6 +404,11 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return dayColors[day];
   }
 
+  /**
+   * Format minutes-since-midnight into 12-hour time label.
+   * @param minutes - Minutes since midnight.
+   * @returns Formatted time like '7:00 AM'.
+   */
   private formatMinutesTo12Hour(minutes: number): string {
     const hours = Math.floor(minutes / 60);
     const mins  = minutes % 60;
@@ -293,6 +417,11 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return `${h}:${mins.toString().padStart(2, '0')} ${ampm}`;
   }
 
+  /**
+   * Format a time string (HH:MM[:ss]) into 12-hour display.
+   * @param time - Time string like '10:30:00'.
+   * @returns Formatted time like '10:30 AM'.
+   */
   private formatTimeTo12Hour(time: string): string {
     let [hours, minutes] = time.split(':').map(Number);
     const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -300,6 +429,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
   }
 
+  /**
+   * Find a schedule block that contains the specified slot.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns The `ScheduleBlock` or undefined.
+   */
   private getScheduleBlock(
     day: string, slotIndex: number
   ): ScheduleBlock | undefined {
@@ -309,12 +444,24 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     );
   }
 
+  /**
+   * Retrieve the raw schedule object (original API entry) for a displayed block.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @returns Raw schedule object or null.
+   */
   getRawSchedule(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (!block) return null;
     return this.facultySchedule.schedules.find((s: any) => s.schedule_id === block.scheduleId);
   }
 
+  /**
+   * Emit edit/appeal event for a schedule block.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @param event - DOM event (click).
+   */
   onEditScheduleBlock(day: string, slotIndex: number, event: Event) {
     event.stopPropagation();
     const raw = this.getRawSchedule(day, slotIndex);
@@ -323,6 +470,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * Emit view-appeals event for a schedule block.
+   * @param day - Day of week.
+   * @param slotIndex - Slot index.
+   * @param event - DOM event.
+   */
   onViewMyAppeals(day: string, slotIndex: number, event: Event) {
     event.stopPropagation();
     const raw = this.getRawSchedule(day, slotIndex);
@@ -331,6 +484,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * Open export dialog to generate PDF of the current schedule view.
+   */
   onExportPdf() {
     if (!this.facultySchedule || !this.facultySchedule.schedules) return;
 
@@ -354,6 +510,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     });
   }
 
+  /**
+   * Generate a PDF Blob containing the schedule for the current faculty view.
+   * @returns Promise resolving to a PDF `Blob`.
+   */
   private async generatePdfBlob(): Promise<Blob> {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
@@ -372,13 +532,31 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     return doc.output('blob');
   }
 
+  /**
+   * Draw the schedule grid into the provided jsPDF document.
+   * @param doc - jsPDF document instance.
+   * @param scheduleData - Array of schedule items from API.
+   * @param title - Document title.
+   * @param subtitle - Document subtitle.
+   * @param startY - Starting Y position on the page.
+   * @param margin - Page margin in mm.
+   * @param pageWidth - Page width in mm.
+   */
   private drawScheduleGrid(
     doc: jsPDF, scheduleData: any[], title: string, subtitle: string,
     startY: number, margin: number, pageWidth: number
   ): void {
     if (!scheduleData || scheduleData.length === 0) return;
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
     const timeColWidth = 22;
     const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
     const rowHeight = 8.5;
@@ -388,7 +566,9 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
       const h = Math.floor(t / 60), m = t % 60;
       const ampm = h >= 12 ? 'PM' : 'AM';
       const hh = h % 12 || 12;
-      timeSlots.push({ time: `${hh}:${m.toString().padStart(2, '0')} ${ampm}`, minutes: t });
+      timeSlots.push({ 
+        time: `${hh}:${m.toString().padStart(2, '0')} ${ampm}`, minutes: t 
+      });
     }
 
     const chunks = [
@@ -407,7 +587,11 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     if (activeChunks.length === 0) {
       doc.setFontSize(20); doc.setFont('helvetica', 'italic');
       doc.setTextColor(128, 128, 128);
-      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
+      doc.text(
+        'No Assigned Schedule',
+        pageWidth / 2, startY + 50,
+        { align: 'center' }
+      );
       return;
     }
 
@@ -451,20 +635,32 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
       doc.rect(margin, currentY, timeColWidth, 10, 'F');
       doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.5);
       doc.rect(margin, currentY, timeColWidth, 10);
-      doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
+      doc.text(
+        'Time',
+        margin + timeColWidth / 2,
+        currentY + 6.5,
+        { align: 'center' }
+      );
 
       days.forEach((day, i) => {
         const xPos = margin + timeColWidth + i * dayColumnWidth;
         doc.setFillColor(128, 0, 0);
         doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
         doc.rect(xPos, currentY, dayColumnWidth, 10);
-        doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
+        doc.text(
+          day, 
+          xPos + dayColumnWidth / 2,
+          currentY + 6.5,
+          { align: 'center' }
+        );
       });
       currentY += 10;
 
       // --- Time Grid ---
       doc.setTextColor(0, 0, 0);
-      const chunkSlots = timeSlots.filter(s => s.minutes >= chunk.start && s.minutes < chunk.end);
+      const chunkSlots = timeSlots.filter(
+        s => s.minutes >= chunk.start && s.minutes < chunk.end
+      );
 
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
@@ -478,7 +674,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
             doc.line(margin, yPos, pageWidth - margin, yPos);
           }
           doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+          doc.text(
+            slot.time, 
+            margin + timeColWidth / 2,
+            yPos + 5, 
+            { align: 'center' }
+          );
         }
       });
 
@@ -501,8 +702,12 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
         const dayIndex = days.indexOf(item.day);
         if (dayIndex === -1) return;
 
-        const cappedStart = Math.max(this.convertTimeToMinutes(item.start_time), chunk.start);
-        const cappedEnd   = Math.min(this.convertTimeToMinutes(item.end_time), chunk.end);
+        const cappedStart = Math.max(
+          this.convertTimeToMinutes(item.start_time), chunk.start
+        );
+        const cappedEnd   = Math.min(
+          this.convertTimeToMinutes(item.end_time), chunk.end
+        );
         if (cappedStart >= cappedEnd) return;
 
         const startSlot = chunkSlots.findIndex(s => s.minutes === cappedStart);
@@ -553,7 +758,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
           programDisplay,
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA',
+          item.room_code && 
+            item.room_code.trim() !== '' ? item.room_code : 'Room TBA',
         ].filter(l => l !== '');
 
         let textY = yPos + startPadding;
@@ -564,20 +770,26 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
           const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
           const badgePaddingX = 2.5;
           const badgePaddingY = 1.5;
+
           doc.setFontSize(badgeFontSize);
           doc.setFont('helvetica', 'bold');
+
           const badgeTextWidth = doc.getTextWidth(badgeLabel);
           const badgeW = badgeTextWidth + badgePaddingX * 2;
           const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
           // Center the badge horizontally in the block
           const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
-          // Place it just below the course code (textY is already advanced past course code)
+          // Place it just below the course code
           const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+
           doc.setFillColor(128, 0, 0);
           doc.setDrawColor(128, 0, 0);
           doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
           doc.setTextColor(255, 255, 255);
-          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.text(badgeLabel, 
+            badgeX + badgePaddingX, 
+            badgeY + badgeH - badgePaddingY - 0.2
+          );
           doc.setTextColor(0, 0, 0);
           // Advance textY so subsequent lines don't overlap the badge
           textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
@@ -590,7 +802,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
           const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
           wrappedLines.forEach((wLine: string) => {
             if (textY < yPos + height - bottomBoundary) { 
-              doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
+              doc.text(wLine, xPos + dayColumnWidth / 2, 
+                textY, 
+                { align: 'center' }
+              );
               textY += lineSpacing; 
             }
           });
@@ -599,18 +814,34 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * Draw header asynchronously via `ReportHeaderService` 
+   * and return resolved Y coordinate.
+   * @param doc - jsPDF document instance.
+   * @param startY - Starting Y position.
+   * @param title - Header title.
+   * @param subtitle - Header subtitle.
+   * @returns Promise resolving to the new Y position after drawing header.
+   */
   private drawHeaderAsync(
     doc: jsPDF, startY: number, title: string, subtitle: string
   ): Promise<number> {
 
     return new Promise((resolve) => {
-      this.reportHeaderService.addHeader(doc, title, startY, subtitle).subscribe({
+      this.reportHeaderService.addHeader(
+        doc, title, startY, subtitle
+      ).subscribe({
         next: (newY) => resolve(newY),
         error: () => resolve(startY + 30)
       });
     });
   }
 
+  /**
+   * Format numeric semester into human readable string.
+   * @param semester - Semester number.
+   * @returns Formatted semester string (e.g. '1st Semester').
+   */
   private formatSemester(semester: number): string {
     switch (semester) { 
       case 1: return '1st Semester'; 
@@ -620,6 +851,10 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     }
   }
 
+  /**
+   * Generate default file name for exported schedule PDF.
+   * @returns Filename string.
+   */
   private generateFileName(): string {
     const formattedName  = this.facultySchedule.faculty_name.replace(',', '').replace(/\s+/g, '_');
     const academicYear   = `${this.facultySchedule.year_start}-${this.facultySchedule.year_end}`;
