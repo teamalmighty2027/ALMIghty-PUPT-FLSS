@@ -1322,6 +1322,15 @@ class ReportsController extends Controller
             return response()->json(['message' => 'Semester information not found'], 404);
         }
 
+        // Determine if requested semester is current or past
+        $activeSemester = DB::table('active_semesters')
+            ->where('is_active', 1)
+            ->first();
+
+        $isCurrent = $activeSemester && 
+            ($semesterInfo->academic_year_id == $activeSemester->academic_year_id) && 
+            ($semesterInfo->semester_id == $activeSemester->semester_id);
+
         // Step 3: Get faculty info
         $faculty = DB::table('faculty')
             ->join('users', 'users.id', '=', 'faculty.user_id')
@@ -1349,6 +1358,8 @@ class ReportsController extends Controller
             ->where('schedules.faculty_id', '=', $faculty_id)
             ->select(
                 'schedules.schedule_id',
+                'schedules.faculty_id',
+                'schedules.room_id',
                 'schedules.day',
                 'schedules.start_time',
                 'schedules.end_time',
@@ -1359,21 +1370,22 @@ class ReportsController extends Controller
                 'section_courses.temporary_course_offering_id'
             );
 
-        $schedules = DB::table('rooms')
-            ->leftJoinSub($schedulesSub, 'sched', function ($join) {
-                $join->on('sched.room_id', '=', 'rooms.room_id');
+        // Build base query with all joins
+        $query = DB::table('rooms')
+            ->leftJoinSub($schedulesSub, 'schedules', function ($join) {
+                $join->on('schedules.room_id', '=', 'rooms.room_id');
             })
             ->leftJoin(
                 'course_assignments',
                 'course_assignments.course_assignment_id',
                 '=',
-                'sched.course_assignment_id'
+                'schedules.course_assignment_id'
             )
             ->leftJoin(
                 'temporary_course_offerings',
                 'temporary_course_offerings.temporary_course_offering_id',
                 '=',
-                'sched.temporary_course_offering_id'
+                'schedules.temporary_course_offering_id'
             )
             ->leftJoin(
                 'bridging_courses',
@@ -1410,7 +1422,7 @@ class ReportsController extends Controller
                 'programs',
                 'programs.program_id',
                 '=',
-                'sched.program_id'
+                'schedules.program_id'
             )
             ->leftJoin(
                 'courses as ca_courses',
@@ -1423,14 +1435,17 @@ class ReportsController extends Controller
                 'to_courses.course_id',
                 '=',
                 'temporary_course_offerings.course_id'
-            )
-            ->join(
+            );
+
+        // Apply conditional join on faculty_schedule_publication
+        if ($isCurrent) {
+            $schedules = $query->join(
                 'faculty_schedule_publication',
                 function ($join) use ($faculty_id, $semesterInfo) {
                     $join->on(
                         'faculty_schedule_publication.faculty_id',
                         '=',
-                        'sched.faculty_id'
+                        'schedules.faculty_id'
                     )
                         ->where(
                             'faculty_schedule_publication.faculty_id',
@@ -1453,15 +1468,45 @@ class ReportsController extends Controller
                             1
                         );
                 }
-            )
+            );
+        } else {
+            // Past semester: show all schedules (LEFT JOIN, no pub check)
+            $schedules = $query->leftJoin(
+                'faculty_schedule_publication',
+                function ($join) use ($faculty_id, $semesterInfo) {
+                    $join->on(
+                        'faculty_schedule_publication.faculty_id',
+                        '=',
+                        'schedules.faculty_id'
+                    )
+                        ->where(
+                            'faculty_schedule_publication.faculty_id',
+                            '=',
+                            $faculty_id
+                        )
+                        ->where(
+                            'faculty_schedule_publication.academic_year_id',
+                            '=',
+                            $semesterInfo->academic_year_id
+                        )
+                        ->where(
+                            'faculty_schedule_publication.semester_id',
+                            '=',
+                            $semesterInfo->semester_id
+                        );
+                }
+            );
+        }
+
+        $schedules = $schedules
             ->select(
-                'sched.schedule_id',
-                'sched.day',
-                'sched.start_time',
-                'sched.end_time',
+                'schedules.schedule_id',
+                'schedules.day',
+                'schedules.start_time',
+                'schedules.end_time',
                 'rooms.room_code',
-                'sched.course_assignment_id',
-                'sched.temporary_course_offering_id',
+                'schedules.course_assignment_id',
+                'schedules.temporary_course_offering_id',
                 'bridging_courses.bridging_course_id',
                 'bridging_courses.combined_with_program_id',
                 'peer_bc.bridging_course_id as combined_bridging_course_id',
@@ -1491,8 +1536,8 @@ class ReportsController extends Controller
                 ),
                 'programs.program_code',
                 'programs.program_title',
-                'sched.year_level',
-                'sched.section_name',
+                'schedules.year_level',
+                'schedules.section_name',
                 'temporary_course_offerings.type as offering_type'
             )
             ->get();
@@ -1587,10 +1632,14 @@ class ReportsController extends Controller
         // Security check to user authorization
         $user = $request->user();
         $isAdmin = $user && in_array($user->role, ['admin', 'superadmin']);
-        $isOwner = $user && $user->role === 'faculty' && $user->faculty && $user->faculty->id == $faculty_id;
+        $isOwner = $user && $user->role === 'faculty' && 
+            $user->faculty && 
+            $user->faculty->id == $faculty_id;
 
         if (!$isAdmin && !$isOwner) {
-            return response()->json(['message' => 'Forbidden. You are not authorized to view this data.'], 403);
+            return response()->json([
+              'message' => 'Forbidden. You are not authorized to view this data.'
+            ], 403);
         }
         
         $validator = Validator::make(['faculty_id' => $faculty_id], [
@@ -1610,7 +1659,9 @@ class ReportsController extends Controller
             ->first();
 
         if (!$activeSemester) {
-            return response()->json([]);
+            return response()->json([
+              'message' => 'No active semester configured'
+            ], 404);
         }
 
         $currentSemester = DB::table('semesters')
@@ -1618,7 +1669,9 @@ class ReportsController extends Controller
             ->first();
             
         if (!$currentSemester) {
-            return response()->json([]);
+            return response()->json([
+              'message' => 'Active semester points to missing semester record'
+            ], 404);
         }
 
         // Query to get all academic years and semesters 
@@ -1641,23 +1694,74 @@ class ReportsController extends Controller
             ])
             ->join('academic_years as ay', 'ay.academic_year_id', '=', 'as.academic_year_id')
             ->join('semesters as s', 's.semester_id', '=', 'as.semester_id')
-            ->whereExists(function ($query) use ($faculty_id) {
+            ->whereExists(function ($query) use (
+                $faculty_id,
+                $activeSemester,
+                $currentSemester
+            ) {
                 $query->select(DB::raw(1))
                     ->from('faculty_schedule_publication as fsp')
                     ->where('fsp.faculty_id', $faculty_id)
-                    ->where('fsp.is_published', 1)
                     ->whereColumn('fsp.academic_year_id', 'as.academic_year_id')
-                    ->whereColumn('fsp.semester_id', 'as.semester_id');
+                    ->whereColumn('fsp.semester_id', 'as.semester_id')
+                    ->where(function($statusFilter) use (
+                        $activeSemester,
+                        $currentSemester
+                    ) {
+                        // Past semesters: no publish requirement
+                        $statusFilter->where(function($past) use (
+                            $activeSemester,
+                            $currentSemester
+                        ) {
+                            $past->where(
+                                'as.academic_year_id',
+                                '<',
+                                $activeSemester->academic_year_id
+                            )
+                                ->orWhere(function($sameYear) use (
+                                    $activeSemester,
+                                    $currentSemester
+                                ) {
+                                    $sameYear->where(
+                                        'as.academic_year_id',
+                                        '=',
+                                        $activeSemester->academic_year_id
+                                    )
+                                        ->where(
+                                            's.semester',
+                                            '<',
+                                            $currentSemester->semester
+                                        );
+                                });
+                        })
+                        // Current semester: must be published
+                        ->orWhere(function($current) use (
+                            $activeSemester,
+                            $currentSemester
+                        ) {
+                            $current->where(
+                                'as.academic_year_id',
+                                '=',
+                                $activeSemester->academic_year_id
+                            )
+                                ->where(
+                                    's.semester',
+                                    '=',
+                                    $currentSemester->semester
+                                )
+                                ->where('fsp.is_published', '=', 1);
+                        });
+                    });
             })
             ->where(function($query) use ($activeSemester, $currentSemester) {
                 $query->where('as.academic_year_id', '<', $activeSemester->academic_year_id)
                     ->orWhere(function($q) use ($activeSemester, $currentSemester) {
                         $q->where('as.academic_year_id', '=', $activeSemester->academic_year_id)
-                            ->where('s.semester', '<', $currentSemester->semester);
+                            ->where('s.semester', '<=', $currentSemester->semester);
                     });
             })
             ->orderBy('ay.year_start', 'desc')
-            ->orderBy('s.semester', 'asc')
+            ->orderBy('s.semester', 'desc')
             ->get();
 
         // Transform and group the flat results into the nested structure 

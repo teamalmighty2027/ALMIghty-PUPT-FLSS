@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatButtonModule } from '@angular/material/button';
@@ -49,7 +49,7 @@ type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturda
   styleUrls: ['./faculty-schedule-timetable.component.scss'],
   animations: [fadeAnimation, fabAnimation],
 })
-export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit {
+export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, AfterViewInit {
   @ViewChild('tableWrapper') tableWrapper!: ElementRef;
 
   isLabelVisible = true;
@@ -82,6 +82,16 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
     this.processScheduleData();
     if (this.showAppealButtons) {
       this.loadMyAppeals();
+    }
+  }
+
+  /**
+   * Detects changes to @Input properties and re-processes data.
+   */
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['facultySchedule'] && !changes['facultySchedule'].firstChange) {
+      this.scheduleBlocks = [];
+      this.processScheduleData();
     }
   }
 
@@ -157,19 +167,30 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
       }
 
       this.scheduleBlocks = [...mergedMap.values()].map((schedule: any) => {
+        // Validate required fields exist
+        if (!schedule.start_time || !schedule.end_time || 
+            !schedule.course_details) {
+          console.warn('Incomplete schedule data:', schedule);
+          return null;
+        }
+
         const startTime = this.convertTimeToMinutes(schedule.start_time);
         const endTime   = this.convertTimeToMinutes(schedule.end_time);
         const startSlot = this.findTimeSlotIndex(startTime);
         const duration  = Math.ceil((endTime - startTime) / 30);
-        const adjustedDuration = (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
+        const adjustedDuration = (endTime - startTime) % 30 === 0 ? 
+          duration + 1 : duration;
 
         // Build program display
         let programDisplay: string;
-        if (schedule._mergedPrograms && schedule._mergedPrograms.length > 1) {
-          programDisplay = schedule._mergedPrograms.sort().reverse().join('/') +
+        if (schedule._mergedPrograms && 
+            schedule._mergedPrograms.length > 1) {
+          programDisplay = schedule._mergedPrograms
+            .sort().reverse().join('/') +
             ` ${schedule.year_level}-${schedule.section_name}`;
         } else {
-          programDisplay = `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`;
+          programDisplay = `${schedule.program_code} ` +
+            `${schedule.year_level}-${schedule.section_name}`;
         }
 
         return {
@@ -183,14 +204,18 @@ export class FacultyScheduleTimetableComponent implements OnInit, AfterViewInit 
           program:        programDisplay,
           yearLevel:      schedule.year_level,
           section:        schedule.section_name,
-          isBridging:     schedule.course_details?.offering_type === 'bridging',
+          isBridging:     schedule.course_details?.offering_type === 
+            'bridging',
         };
-      });
+      }).filter((block): block is ScheduleBlock => block !== null);
     }
   }
 
-  private convertTimeToMinutes(time: string): number {
-    const [hours, minutes] = time.split(':').map(Number);
+  private convertTimeToMinutes(time: string | null): number {
+    if (!time) return 0;
+    const parts = time.split(':').map(Number);
+    if (parts.length < 2) return 0;
+    const [hours, minutes] = parts;
     return hours * 60 + minutes;
   }
 
