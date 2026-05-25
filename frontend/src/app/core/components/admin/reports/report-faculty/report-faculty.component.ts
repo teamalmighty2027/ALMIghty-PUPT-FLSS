@@ -238,9 +238,18 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
 
-        this.hasSchedulesForToggleAll = facultyData.length > 0 && facultyData.every((faculty: { schedules: string | any[] }) => faculty.schedules && faculty.schedules.length > 0);
-        this.hasAnySchedules = facultyData.some((faculty: { schedules: string | any[] }) => faculty.schedules && faculty.schedules.length > 0);
-        this.isToggleAllChecked = this.dataSource.data.length > 0 && this.dataSource.data.every((faculty) => faculty.isEnabled);
+        this.hasSchedulesForToggleAll = 
+          facultyData.length > 0 && 
+          facultyData.every((
+            faculty: { schedules: string | any[] }
+          ) => faculty.schedules && faculty.schedules.length > 0);
+
+        this.hasAnySchedules = facultyData.some((
+          faculty: { schedules: string | any[] }
+        ) => faculty.schedules && faculty.schedules.length > 0);
+
+        this.isToggleAllChecked = this.dataSource.data.length > 0 && 
+          this.dataSource.data.every((faculty) => faculty.isEnabled);
       },
       error: (error) => {
         this.isLoading = false;
@@ -282,8 +291,11 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       );
     }
 
-    this.hasSchedulesForToggleAll = this.dataSource.data.length > 0 && this.dataSource.data.every((faculty) => faculty.schedules && faculty.schedules.length > 0);
-    this.isToggleAllChecked = this.dataSource.data.length > 0 && this.dataSource.data.every((faculty) => faculty.isEnabled);
+    this.hasSchedulesForToggleAll = this.dataSource.data.length > 0 && 
+      this.dataSource.data.every((faculty) => faculty.schedules && 
+        faculty.schedules.length > 0);
+    this.isToggleAllChecked = this.dataSource.data.length > 0 && 
+      this.dataSource.data.every((faculty) => faculty.isEnabled);
   }
 
   onView(faculty: Faculty): void {
@@ -576,15 +588,26 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   onToggleAllSchedules(event: any) {
     event.source.checked = this.isToggleAllChecked;
     const intendedState = !this.isToggleAllChecked;
+
+    // Check if all displayed faculty have schedules
+    const allHaveSchedules = this.dataSource.data.every(
+      (faculty) =>
+        faculty.schedules && faculty.schedules.length > 0
+    );
+
     const dialogRef = this.dialog.open(DialogActionComponent, {
       data: {
-        type: 'all_publish', currentState: !intendedState,
+        type: 'all_publish',
+        currentState: !intendedState,
         academicYear: this.filteredData[0]?.academicYear || '',
         semester: this.filteredData[0]?.semester || '',
-        hasSecondaryText: false, sendEmail: this.sendEmail,
+        hasSecondaryText: false,
+        sendEmail: this.sendEmail,
         isMismatchedSemester: this.isMismatchedSemester,
+        incompleteScheduleWarning: !allHaveSchedules && intendedState,
       },
-      disableClose: true, autoFocus: true,
+      disableClose: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -594,7 +617,9 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           if (faculty.schedules && faculty.schedules.length > 0) faculty.isEnabled = intendedState;
         });
         this.filteredData = [...this.dataSource.data];
-        this.hasSchedulesForToggleAll = this.dataSource.data.length > 0 && this.dataSource.data.every((faculty) => faculty.schedules && faculty.schedules.length > 0);
+        this.hasSchedulesForToggleAll = this.dataSource.data.length > 0 && 
+          this.dataSource.data.every((faculty) => faculty.schedules && 
+            faculty.schedules.length > 0);
       }
       event.source.checked = this.isToggleAllChecked;
     });
@@ -981,7 +1006,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   getAllToggleTooltip(isEnabled: boolean): string {
-    if (!this.hasSchedulesForToggleAll) return 'Cannot be toggled unless all faculty has schedule';
+    if (!this.hasSchedulesForToggleAll) return 'Must not be toggled unless all faculty has schedule';
     return `${isEnabled ? 'Unpublish' : 'Publish'} schedules for all applicable faculty`;
   }
 
