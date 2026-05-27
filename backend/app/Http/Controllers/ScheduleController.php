@@ -533,6 +533,7 @@ class ScheduleController extends Controller
             'day' => 'nullable|string',
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
+            'elective_id' => 'nullable|exists:electives,elective_id',
         ]);
 
         if ($validator->fails()) {
@@ -575,6 +576,7 @@ class ScheduleController extends Controller
             $schedule->day = $request->input('day');
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
+            $schedule->elective_id = $request->input('elective_id');
             
             // 3. TRACK HUMAN READABLE CHANGES
             $changes = [];
@@ -712,7 +714,6 @@ class ScheduleController extends Controller
                     )
                     ->first() : null;
 
-                // If faculty exists, fetch the user and use the formatted_name
                 if ($faculty) {
                     $user = \App\Models\User::find($faculty->user_id);
                     $faculty->professor = $user->formatted_name;
@@ -744,6 +745,35 @@ class ScheduleController extends Controller
                 ->where('section_course_id', $section_course->section_course_id)
                 ->first();
 
+            $electiveTitle = null;
+            $electiveCode = null;
+
+            // Check current schedule first, then fall back to any sibling with elective_id
+            $electiveId = $schedule->elective_id ?? null;
+
+            if (!$electiveId) {
+                // Look for elective_id on any schedule sharing the same course_assignment_id
+                $sibling = DB::table('schedules')
+                    ->join('section_courses as sc', 'schedules.section_course_id', '=', 'sc.section_course_id')
+                    ->where('sc.course_assignment_id', $row->course_assignment_id)
+                    ->where('sc.sections_per_program_year_id', $section->sections_per_program_year_id)
+                    ->whereNotNull('schedules.elective_id')
+                    ->select('schedules.elective_id')
+                    ->first();
+                $electiveId = $sibling->elective_id ?? null;
+            }
+
+            if ($electiveId) {
+                $elective = DB::table('electives')
+                    ->where('elective_id', $electiveId)
+                    ->select('course_title', 'course_code')
+                    ->first();
+                if ($elective) {
+                    $electiveTitle = $elective->course_title;
+                    $electiveCode  = $elective->course_code;
+                }
+            }
+
             if (!isset($sections[$sectionIndex]['courses'])) {
                 $sections[$sectionIndex]['courses'] = [];
             }
@@ -751,8 +781,8 @@ class ScheduleController extends Controller
             $sections[$sectionIndex]['courses'][] = [
                 'course_assignment_id' => $row->course_assignment_id,
                 'course_id' => $row->course_id,
-                'course_code' => $row->course_code,
-                'course_title' => $row->course_title,
+                'course_code' => $electiveCode  ?? $row->course_code,
+                'course_title' => $electiveTitle ?? $row->course_title,
                 'lec_hours' => $row->lec_hours,
                 'lab_hours' => $row->lab_hours,
                 'units' => $row->units,

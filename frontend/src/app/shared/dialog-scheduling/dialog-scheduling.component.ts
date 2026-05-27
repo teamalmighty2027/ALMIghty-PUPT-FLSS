@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 
 import { Observable, Subject, of } from 'rxjs';
 import { map, takeUntil, debounceTime, distinctUntilChanged, switchMap, shareReplay, catchError, tap, startWith } from 'rxjs/operators';
@@ -20,7 +20,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
-import { Faculty, Room, ConflictingScheduleDetail } from '../../core/models/scheduling.model';
+import { Faculty, Room, ConflictingScheduleDetail, Elective } from '../../core/models/scheduling.model';
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
 
@@ -144,6 +144,11 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  // --- Elective State ---
+  isElectiveSlot = false;
+  electiveSlotName = '';
+  availableElectives: Elective[] = [];
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
     private dialogRef: MatDialogRef<DialogSchedulingComponent>,
@@ -159,10 +164,30 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       endTime: [''],
       professor: [''],
       room: [''],
+      elective: [''],
     });
   }
 
   ngOnInit(): void {
+    // --- Elective Detection ---
+    if (this.data.selectedCourseInfo.toLowerCase().includes('elective')) {
+      this.isElectiveSlot = true;
+      
+      // Extract the slot name (e.g. "ELEC IT-FE1 - BSIT Free Elective 1" -> "BSIT Free Elective 1")
+      const parts = this.data.selectedCourseInfo.split(' - ');
+      this.electiveSlotName = parts.length > 1 ? parts[1].trim() : this.data.selectedCourseInfo.trim();
+
+      // Require the admin to pick an elective
+      this.scheduleForm.get('elective')?.setValidators([Validators.required]);
+      this.scheduleForm.get('elective')?.updateValueAndValidity();
+
+      // Fetch the available options for this specific slot
+      this.schedulingService.getElectives().pipe(takeUntil(this.destroy$)).subscribe(variants => {
+        this.availableElectives = variants[this.electiveSlotName] || [];
+        this.cdr.markForCheck();
+      });
+    }
+
     this.setupDayButtons();
     this.setupCustomValidators();
     this.populateExistingSchedule();
@@ -638,6 +663,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Grab the selected elective ID (will be null if it's a regular course)
+    const selectedElectiveId = this.isElectiveSlot ? formValues.elective : null;
+
     combineObservable
       .pipe(
         switchMap(() => {
@@ -650,7 +678,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             formattedEndTime,
             this.data.program.id,
             this.data.academic.year_level,
-            this.data.academic.section_id
+            this.data.academic.section_id,
+            selectedElectiveId
           );
         }),
         tap(() => {

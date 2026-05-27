@@ -34,21 +34,12 @@ import {
   YearLevel,
   PopulateSchedulesResponse,
   CourseResponse,
-  Elective,
-  AcademicYearElective,
-  AcademicYearElectivesResponse,
   ProgramOption,
   SectionOption,
   YearLevelOption,
   TemporaryCourseOfferingPayload,
   DraftEntry
 } from '../../../models/scheduling.model';
-
-interface ElectiveOverrideSlot {
-  slotName: string;
-  options: Elective[];
-  selectedElectiveId: number | null;
-}
 
 @Component({
   selector: 'app-scheduling',
@@ -119,13 +110,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   isHistoricalLoading: boolean = false;
 
   hasBridgingCourses: boolean = false;
-
-  isLoadingElectiveOverrides: boolean = false;
-  electiveOverrideSlots: ElectiveOverrideSlot[] = [];
-
-  private electiveVariants: Record<string, Elective[]> = {};
-  private electiveOverrideMap = new Map<string, AcademicYearElective>();
-  private hasLoadedElectiveVariants: boolean = false;
 
   isMlPredicting: boolean = false;
   
@@ -955,7 +939,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     if (!selectedProgram) {
       this.schedules = [];
-      this.electiveOverrideSlots = [];
       return;
     }
 
@@ -989,7 +972,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     if (!selectedYearLevelObj) {
       this.schedules = [];
-      this.electiveOverrideSlots = [];
       return;
     }
 
@@ -1038,7 +1020,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     if (!selectedSection) {
       this.schedules = [];
-      this.electiveOverrideSlots = [];
       return;
     }
 
@@ -1110,7 +1091,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         );
         if (!program) {
           this.schedules = [];
-          this.electiveOverrideSlots = [];
           return;
         }
 
@@ -1119,7 +1099,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         );
         if (!yearLevelData) {
           this.schedules = [];
-          this.electiveOverrideSlots = [];
           return;
         }
 
@@ -1128,7 +1107,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         );
         if (!semesterData) {
           this.schedules = [];
-          this.electiveOverrideSlots = [];
           return;
         }
 
@@ -1137,7 +1115,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         );
         if (!sectionData) {
           this.schedules = [];
-          this.electiveOverrideSlots = [];
           return;
         }
 
@@ -1146,49 +1123,40 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.activeSemesterId = response.semester_id;
         this.activeSemesterRecordId = response.active_semester_id;
 
-        this.schedules = sectionData.courses.map(
-          (course: CourseResponse, index, array) => {
-            const isLastInGroup =
-              index === array.length - 1 ||
-              course.course_code !== array[index + 1].course_code;
+        this.schedules = sectionData.courses.map((course: CourseResponse) => ({
+          schedule_id: course.schedule?.schedule_id,
+          section_course_id: course.section_course_id,
+          course_id: course.course_id,
+          course_code: course.course_code,
+          course_title: course.course_title,
+          lec_hours: course.lec_hours,
+          lab_hours: course.lab_hours,
+          units: course.units,
+          tuition_hours: course.tuition_hours,
+          day: course.schedule?.day || 'Not set',
+          time: this.getFormattedTime(
+            course.schedule?.start_time,
+            course.schedule?.end_time
+          ),
+          start_time: course.schedule?.start_time || null,
+          end_time: course.schedule?.end_time || null,
+          professor: course.professor || 'Not set',
+          room: course.room?.room_code || 'Not set',
+          program: program.program_title,
+          program_code: program.program_code,
+          year: yearLevelData.year_level,
+          curriculum: yearLevelData.curriculum_year,
+          section: sectionData.section_name,
+          is_copy: course.is_copy || 0,
+          is_temporary: !!course.is_temporary,
+          temporary_type: course.temporary_type ?? null,
+          temporary_status: course.temporary_status ?? null,
+          petition_required: !!course.petition_required,
+          temporary_course_offering_id:
+            course.temporary_course_offering_id ?? null,
+          isLastInGroup: false, // placeholder, stamped correctly after sort
+        }));
 
-            return {
-              schedule_id: course.schedule?.schedule_id,
-              section_course_id: course.section_course_id,
-              course_id: course.course_id,
-              course_code: course.course_code,
-              course_title: course.course_title,
-              lec_hours: course.lec_hours,
-              lab_hours: course.lab_hours,
-              units: course.units,
-              tuition_hours: course.tuition_hours,
-              day: course.schedule?.day || 'Not set',
-              time: this.getFormattedTime(
-                course.schedule?.start_time,
-                course.schedule?.end_time
-              ),
-              start_time: course.schedule?.start_time || null,
-              end_time: course.schedule?.end_time || null,
-              professor: course.professor || 'Not set',
-              room: course.room?.room_code || 'Not set',
-              program: program.program_title,
-              program_code: program.program_code,
-              year: yearLevelData.year_level,
-              curriculum: yearLevelData.curriculum_year,
-              section: sectionData.section_name,
-              is_copy: course.is_copy || 0,
-              is_temporary: !!course.is_temporary,
-              temporary_type: course.temporary_type ?? null,
-              temporary_status: course.temporary_status ?? null,
-              petition_required: !!course.petition_required,
-              temporary_course_offering_id:
-                course.temporary_course_offering_id ?? null,
-              isLastInGroup,
-            };
-          }
-        );
-
-        // Sort schedules for a consistent display order
         this.schedules.sort((a, b) => {
           if (a.course_code === b.course_code) {
             return a.is_copy - b.is_copy;
@@ -1196,23 +1164,11 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           return a.course_code.localeCompare(b.course_code);
         });
 
-        const selectedOption = this.programOptions.find(
-          (p) => p.id === programId
-        );
-        const selectedYearLevel = selectedOption?.year_levels.find(
-          (y) => y.year_level === yearLevel
-        );
-
-        if (selectedYearLevel?.semester_id) {
-          this.loadElectiveOverrides(
-            sectionData.courses,
-            programId,
-            yearLevel,
-            selectedYearLevel.semester_id
-          );
-        } else {
-          this.electiveOverrideSlots = [];
-        }
+        this.schedules.forEach((schedule, index, array) => {
+          schedule.isLastInGroup =
+            index === array.length - 1 ||
+            schedule.course_code !== array[index + 1].course_code;
+        });
 
         this.cdr.detectChanges();
       }),
@@ -1222,220 +1178,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         return of([]);
       })
     );
-  }
-
-  /**
-   * Load elective overrides and options for the active term.
-   */
-  private loadElectiveOverrides(
-    courses: CourseResponse[],
-    programId: number,
-    yearLevel: number,
-    semesterId: number
-  ): void {
-    if (!this.activeAcademicYearId) {
-      this.electiveOverrideSlots = [];
-      return;
-    }
-
-    this.isLoadingElectiveOverrides = true;
-
-    const variants$ = this.hasLoadedElectiveVariants
-      ? of(this.electiveVariants)
-      : this.schedulingService.getElectives();
-
-    forkJoin({
-      variants: variants$,
-      overrides: this.schedulingService.getAcademicYearElectives(
-        this.activeAcademicYearId
-      ),
-    })
-      .pipe(
-        takeUntil(this.destroy$),
-        finalize(() => {
-          this.isLoadingElectiveOverrides = false;
-          this.cdr.detectChanges();
-        })
-      )
-      .subscribe({
-        next: ({ variants, overrides }) => {
-          this.electiveVariants = variants;
-          this.hasLoadedElectiveVariants = true;
-          this.applyAcademicYearElectives(overrides);
-          this.electiveOverrideSlots = this.buildElectiveOverrideSlots(
-            courses,
-            programId,
-            yearLevel,
-            semesterId
-          );
-        },
-        error: () => {
-          this.electiveOverrideSlots = [];
-          this.snackBar.open(
-            'Failed to load elective overrides.',
-            'Close',
-            { duration: 3000 }
-          );
-        },
-      });
-  }
-
-  /**
-   * Apply academic year elective overrides to the lookup map.
-   */
-  private applyAcademicYearElectives(
-    response: AcademicYearElectivesResponse
-  ): void {
-    this.electiveOverrideMap.clear();
-
-    response.electives?.forEach((override) => {
-      const key = this.buildElectiveOverrideKey(
-        override.program_id,
-        override.year_level,
-        override.semester_id,
-        override.elective_slot_name
-      );
-      this.electiveOverrideMap.set(key, override);
-    });
-  }
-
-  /**
-   * Build override slot data for the selected scope.
-   */
-  private buildElectiveOverrideSlots(
-    courses: CourseResponse[],
-    programId: number,
-    yearLevel: number,
-    semesterId: number
-  ): ElectiveOverrideSlot[] {
-    const slotNames = this.getElectiveSlotsFromCourses(courses);
-
-    return slotNames.map((slotName) => {
-      const key = this.buildElectiveOverrideKey(
-        programId,
-        yearLevel,
-        semesterId,
-        slotName
-      );
-      const override = this.electiveOverrideMap.get(key);
-
-      return {
-        slotName,
-        options: this.electiveVariants[slotName] || [],
-        selectedElectiveId: override?.selected_elective_id ?? null,
-      };
-    });
-  }
-
-  /**
-   * Build the unique key for elective overrides.
-   */
-  private buildElectiveOverrideKey(
-    programId: number,
-    yearLevel: number,
-    semesterId: number,
-    slotName: string
-  ): string {
-    return `${programId}-${yearLevel}-${semesterId}-${slotName}`;
-  }
-
-  /**
-   * Extract elective slot names from a set of courses.
-   */
-  private getElectiveSlotsFromCourses(
-    courses: CourseResponse[]
-  ): string[] {
-    const slotPattern = /elective\s*\d+/i;
-    const slotNames = new Set<string>();
-
-    courses.forEach((course) => {
-      const titleMatch = course.course_title.match(slotPattern);
-      const codeMatch = course.course_code.match(slotPattern);
-      const match = titleMatch || codeMatch;
-
-      if (match?.[0]) {
-        slotNames.add(match[0].replace(/\s+/g, ' ').trim());
-      }
-    });
-
-    return Array.from(slotNames.values()).sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }
-
-  /**
-   * Persist an academic year elective override selection.
-   */
-  protected onElectiveOverrideChange(
-    slot: ElectiveOverrideSlot,
-    event: Event
-  ): void {
-    const target = event.target as HTMLSelectElement | null;
-    const selectedValue = target?.value || '';
-    const selectedElectiveId = selectedValue
-      ? Number(selectedValue)
-      : null;
-
-    const academicYearId = this.activeAcademicYearId;
-
-    if (!selectedElectiveId || !academicYearId) {
-      return;
-    }
-
-    const selectedProgram = this.programOptions.find(
-      (p) => p.display === this.selectedProgram
-    );
-    const selectedYearLevel = selectedProgram?.year_levels.find(
-      (y) => y.year_level === this.selectedYear
-    );
-
-    const semesterId = selectedYearLevel?.semester_id;
-
-    if (!selectedProgram || !semesterId) {
-      return;
-    }
-
-    this.schedulingService
-      .saveAcademicYearElective({
-        academic_year_id: academicYearId,
-        semester_id: semesterId,
-        program_id: selectedProgram.id,
-        year_level: this.selectedYear,
-        elective_slot_name: slot.slotName,
-        selected_elective_id: selectedElectiveId,
-      })
-      .subscribe({
-        next: () => {
-          slot.selectedElectiveId = selectedElectiveId;
-          const key = this.buildElectiveOverrideKey(
-            selectedProgram.id,
-            this.selectedYear,
-            semesterId,
-            slot.slotName
-          );
-          this.electiveOverrideMap.set(key, {
-            academic_year_elective_id: 0,
-            academic_year_id: academicYearId,
-            semester_id: semesterId,
-            program_id: selectedProgram.id,
-            year_level: this.selectedYear,
-            elective_slot_name: slot.slotName,
-            selected_elective_id: selectedElectiveId,
-          });
-          this.snackBar.open(
-            'Elective override saved.',
-            'Close',
-            { duration: 3000 }
-          );
-        },
-        error: () => {
-          this.snackBar.open(
-            'Failed to save elective override.',
-            'Close',
-            { duration: 3000 }
-          );
-        },
-      });
   }
 
   // ====================
@@ -1747,8 +1489,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             },
             options: {
               dayOptions: this.dayOptions,
-              timeOptions: this.timeOptions,
-              endTimeOptions: this.timeOptions,
+              timeOptions: [...this.timeOptions],
+              endTimeOptions: [...this.timeOptions],
               professorOptions: professorOptions,
               roomOptions: roomOptions,
             },
@@ -2093,14 +1835,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   protected get activeSemesterLabel(): string {
     return this.mapSemesterNumberToLabel(this.activeSemester);
-  }
-
-  protected get canManageElectiveOverrides(): boolean {
-    return (
-      !!this.selectedProgram &&
-      !!this.selectedYear &&
-      !!this.selectedSection
-    );
   }
 
   protected hasCopies(element: Schedule): boolean {

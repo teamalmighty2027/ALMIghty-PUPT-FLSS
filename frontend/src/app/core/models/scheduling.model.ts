@@ -57,6 +57,7 @@ export interface Schedule {
   temporary_course_offering_id?: number | null;
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
+  isLastInGroup: boolean;
 }
 
 export interface Semester {

@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('academic_year_electives', function (Blueprint $table) {
-            $table->increments('academic_year_elective_id');
+            $table->id('academic_year_elective_id');
             $table->unsignedInteger('academic_year_id');
             $table->unsignedInteger('semester_id');
             $table->unsignedInteger('program_id');
             $table->integer('year_level');
             $table->string('elective_slot_name', 50);
-            $table->unsignedInteger('selected_elective_id');
+            $table->unsignedBigInteger('selected_elective_id');
             $table->timestamps();
 
             $table->foreign('academic_year_id')
