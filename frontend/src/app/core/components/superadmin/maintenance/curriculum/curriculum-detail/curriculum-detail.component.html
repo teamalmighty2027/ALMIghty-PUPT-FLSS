@@ -38,22 +38,27 @@
             <div class="elective-grid">
               @for (slot of electiveSlots; track slot.slotName) {
                 <div class="elective-card">
-                  <div class="elective-title">{{ slot.slotName }}</div>
-                  <div class="elective-select">
-                    <select
-                      [attr.aria-label]="'Curriculum elective for ' + slot.slotName"
-                      [attr.title]="'Curriculum elective for ' + slot.slotName"
-                      [value]="slot.selectedElectiveId || ''"
-                      [disabled]="slot.options.length === 0"
-                      (change)="onElectiveSelectionChange(slot, $event)"
-                    >
-                      <option value="">Select elective</option>
+                  <div class="elective-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="elective-title" style="font-weight: bold; color: #800000;">{{ slot.slotName }}</div>
+                    <button mat-button class="add-elective-btn" (click)="openManageElectiveDialog(slot.slotName)" style="background: none; border: 1px solid #800000; color: #800000; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px;">
+                      + Add Option
+                    </button>
+                  </div>
+                  
+                  <div class="elective-list" style="display: flex; flex-direction: column; gap: 8px;">
+                    @if (slot.options.length === 0) {
+                      <div style="font-size: 12px; color: #666; font-style: italic;">No electives added for this slot yet.</div>
+                    } @else {
                       @for (option of slot.options; track option.elective_id) {
-                        <option [value]="option.elective_id">
-                          {{ option.course_code }} - {{ option.course_title }}
-                        </option>
+                        <div class="elective-item" style="display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 13px;">
+                          <span><strong>{{ option.course_code }}</strong> - {{ option.course_title }}</span>
+                          <div style="display: flex; gap: 12px; align-items: center;">
+                            <button (click)="openEditElectiveDialog(slot.slotName, option)" style="background: none; border: none; color: #1976d2; cursor: pointer; font-size: 12px; font-weight: 500; text-transform: uppercase;">EDIT</button>
+                            <button (click)="deleteElectiveOption(option.elective_id)" style="background: none; border: none; color: #d32f2f; cursor: pointer; font-size: 16px;">&times;</button>
+                          </div>
+                        </div>
                       }
-                    </select>
+                    }
                   </div>
                 </div>
               }

@@ -188,12 +188,17 @@ Route::middleware('auth:sanctum')->group(function () {
      * Electives
      */
     Route::get('/electives', [ElectiveController::class, 'index']);
+    Route::post('/electives', [ElectiveController::class, 'storeElective']);           
+    Route::put('/electives/{id}', [ElectiveController::class, 'updateElective']);
+    Route::delete('/electives/{id}', [ElectiveController::class, 'destroyElective']);  
     Route::get('/electives/{slotName}', [ElectiveController::class, 'showBySlot']);
     Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
     Route::post('/academic-year-electives', [ElectiveController::class, 'storeAcademicYearElective']);
     Route::get('/academic-year/{academicYearId}/electives', [ElectiveController::class, 'getAcademicYearElectives']);
+
+    
 
     /**
      * Email

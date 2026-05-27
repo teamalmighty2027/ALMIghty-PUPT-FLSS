@@ -339,6 +339,22 @@ export class CurriculumService {
     return this.http.post(`${this.baseUrl}/curriculum-electives`, payload);
   }
 
+  // Add a new elective to the pool
+  addElectiveOption(payload: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}/electives`, payload);
+  }
+
+  // Update an elective in the pool
+  updateElectiveOption(electiveId: number, payload: any): Observable<any> {
+    return this.http.put(`${this.baseUrl}/electives/${electiveId}`, payload);
+  }
+
+  // Delete an elective from the pool
+  deleteElectiveOption(electiveId: number): Observable<any> {
+    // You will need to make a quick Route::delete in api.php and destroy() method in ElectiveController for this!
+    return this.http.delete(`${this.baseUrl}/electives/${electiveId}`);
+  }
+
   // Update course
   updateCourse(courseId: number, courseData: any): Observable<any> {
     return this.http.put(`${this.baseUrl}/courses/${courseId}`, courseData);

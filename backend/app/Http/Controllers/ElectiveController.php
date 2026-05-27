@@ -131,6 +131,66 @@ class ElectiveController extends Controller
     }
 
     /**
+     * Add a new elective variant to the pool.
+     */
+    public function storeElective(Request $request)
+    {
+        $validated = $request->validate([
+            'elective_slot_name' => 'required|string|max:191',
+            'course_code' => 'required|string|max:191',
+            'course_title' => 'required|string|max:191',
+            'lec_hours' => 'required|integer|min:0',
+            'lab_hours' => 'required|integer|min:0',
+            'units' => 'required|integer|min:0',
+            'tuition_hours' => 'required|integer|min:0',
+        ]);
+
+        // Create it and default it to active
+        $elective = Elective::create(array_merge($validated, ['is_active' => true]));
+
+        return response()->json([
+            'message' => 'Elective option added successfully.',
+            'elective' => $elective
+        ], 201);
+    }
+
+    /**
+     * Delete an elective variant from the pool.
+     */
+    public function destroyElective($id)
+    {
+        $elective = Elective::findOrFail($id);
+        $elective->delete();
+
+        return response()->json([
+            'message' => 'Elective option removed successfully.'
+        ]);
+    }
+
+    /**
+     * Update an existing elective variant in the pool.
+     */
+    public function updateElective(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'course_code' => 'required|string|max:191',
+            'course_title' => 'required|string|max:191',
+            'lec_hours' => 'required|integer|min:0',
+            'lab_hours' => 'required|integer|min:0',
+            'units' => 'required|integer|min:0',
+            'tuition_hours' => 'required|integer|min:0',
+        ]);
+
+        $elective = Elective::findOrFail($id);
+        $elective->update($validated);
+
+        return response()->json([
+            'message' => 'Elective option updated successfully.',
+            'elective' => $elective
+        ]);
+    }
+
+    /**
      * Get elective assignments for a curriculum year.
      */
     public function getCurriculumElectives(string $curriculumYear)
