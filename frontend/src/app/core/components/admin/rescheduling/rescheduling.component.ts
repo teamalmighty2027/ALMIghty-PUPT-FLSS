@@ -596,9 +596,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   toggleAllAppeals(event: any): void {
     const isEnabled = event.checked;
-    
-    // Instantly revert the toggle visually. It only stays changed if they hit 'Confirm'.
-    event.source.checked = !isEnabled;
 
     // Grab existing dates from an enabled faculty member to show in the dialog if disabling
     const activeFaculty = this.allFaculties.find(f => f.isAppealEnabled);
@@ -675,7 +672,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
      */
   toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
     const isEnabled = event.checked;
-    event.source.checked = !isEnabled;
 
     // Helper function to safely parse SQL dates across all browsers
     const parseSqlDate = (dateStr: string | null | undefined) => 
@@ -724,7 +720,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             },
             error: () => {
               faculty.isAppealEnabled = !isEnabled;
-              event.source.checked = !isEnabled;
               this.updateMasterToggleState();
               this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
             }
