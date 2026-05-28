@@ -21,6 +21,12 @@ class TemporaryCourseOfferingController extends Controller
     ];
     private const PETITION_STORAGE_DIR = 'temporary-course-offerings';
 
+    /**
+     * Returns temporary course offerings filtered by the provided query
+     * parameters.
+     *
+     * @param Request $request Incoming request with optional filters.
+     */
     public function index(Request $request)
     {
         $validated = $request->validate([
@@ -79,6 +85,11 @@ class TemporaryCourseOfferingController extends Controller
         return response()->json($query->orderByDesc('created_at')->get());
     }
 
+    /**
+     * Returns a single temporary course offering with related data.
+     *
+     * @param int $id Temporary course offering identifier.
+     */
     public function show(int $id)
     {
         $offering = TemporaryCourseOffering::with(['course', 'program', 'section'])->findOrFail($id);
@@ -88,6 +99,12 @@ class TemporaryCourseOfferingController extends Controller
         ]);
     }
 
+    /**
+     * Creates a new temporary course offering and stores its petition file.
+     *
+     * @param Request $request Incoming request containing offering data.
+     * @param FileService $fileService File storage service for uploads.
+     */
     public function store(Request $request, FileService $fileService)
     {
         $validated = $request->validate([
@@ -197,6 +214,14 @@ class TemporaryCourseOfferingController extends Controller
         ], 201);
     }
 
+    /**
+     * Updates an existing temporary course offering and replaces its file if
+     * a new petition attachment is provided.
+     *
+     * @param Request $request Incoming request containing update data.
+     * @param int $id Temporary course offering identifier.
+     * @param FileService $fileService File storage service for uploads.
+     */
     public function update(Request $request, int $id, FileService $fileService)
     {
         $offering = TemporaryCourseOffering::findOrFail($id);
@@ -331,6 +356,13 @@ class TemporaryCourseOfferingController extends Controller
         ]);
     }
 
+    /**
+     * Archives or unarchives a temporary course offering and clears linked
+     * schedules when archiving.
+     *
+     * @param Request $request Incoming request with the archive flag.
+     * @param int $id Temporary course offering identifier.
+     */
     public function archive(Request $request, int $id)
     {
         $offering = TemporaryCourseOffering::findOrFail($id);
@@ -340,30 +372,92 @@ class TemporaryCourseOfferingController extends Controller
             'is_archived' => 'nullable|boolean',
         ]);
 
-        $offering->is_archived = $validated['is_archived'] ?? true;
+        $targetArchived = array_key_exists('is_archived', $validated)
+            ? (bool) $validated['is_archived']
+            : true;
 
-        if (! $offering->isDirty()) {
+        return DB::transaction(function () use (
+            $offering,
+            $oldData,
+            $targetArchived
+        ) {
+            $scheduleResetCount = 0;
+
+            if ($targetArchived) {
+                $scheduleResetCount =
+                    $this->clearSchedulesForTemporaryOffering($offering);
+            }
+
+            $offering->is_archived = $targetArchived;
+
+            if (! $offering->isDirty() && $scheduleResetCount === 0) {
+                return response()->json([
+                    'message' => 'No changes detected.',
+                ], 422);
+            }
+
+            if ($offering->isDirty()) {
+                $offering->save();
+            }
+
+            AuditLogger::logUpdate(
+                model: 'TemporaryCourseOffering',
+                modelId: $offering->temporary_course_offering_id,
+                oldData: $oldData,
+                newData: $offering->toArray(),
+                description: $targetArchived
+                    ? 'Archived temporary course offering.'
+                    : 'Unarchived temporary course offering.'
+            );
+
             return response()->json([
-                'message' => 'No changes detected.',
-            ], 422);
-        }
-
-        $offering->save();
-
-        AuditLogger::logUpdate(
-            model: 'TemporaryCourseOffering',
-            modelId: $offering->temporary_course_offering_id,
-            oldData: $oldData,
-            newData: $offering->toArray(),
-            description: 'Archived temporary course offering.'
-        );
-
-        return response()->json([
-            'message' => 'Temporary course offering archived successfully.',
-            'data' => $offering,
-        ]);
+                'message' => $targetArchived
+                    ? 'Temporary course offering archived successfully.'
+                    : 'Temporary course offering unarchived successfully.',
+                'data' => $offering,
+            ]);
+        });
     }
 
+    /**
+     * Clears schedule assignments for all section courses linked to an
+     * offering.
+     *
+     * @param TemporaryCourseOffering $offering Offering whose schedules should
+     *     be cleared.
+     * @return int Number of schedule rows updated.
+     */
+    private function clearSchedulesForTemporaryOffering(
+        TemporaryCourseOffering $offering
+    ): int {
+        $sectionCourseIds = $offering->sectionCourses()
+            ->pluck('section_course_id');
+
+        if ($sectionCourseIds->isEmpty()) {
+            return 0;
+        }
+
+        return DB::table('schedules')
+            ->whereIn('section_course_id', $sectionCourseIds)
+            ->update([
+                'day' => null,
+                'start_time' => null,
+                'end_time' => null,
+                'faculty_id' => null,
+                'room_id' => null,
+                'updated_at' => now(),
+            ]);
+    }
+
+    /**
+     * Checks whether a section belongs to the expected academic scope.
+     *
+     * @param ?int $sectionId Section identifier to verify.
+     * @param int $academicYearId Academic year identifier.
+     * @param int $programId Program identifier.
+     * @param int $yearLevel Year level value.
+     * @return bool True when the section matches the requested scope.
+     */
     private function sectionMatchesScope(?int $sectionId, int $academicYearId, int $programId, int $yearLevel): bool
     {
         if (! $sectionId) {
@@ -378,6 +472,14 @@ class TemporaryCourseOfferingController extends Controller
             ->exists();
     }
 
+    /**
+     * Determines whether any sections exist for the requested academic scope.
+     *
+     * @param int $academicYearId Academic year identifier.
+     * @param int $programId Program identifier.
+     * @param int $yearLevel Year level value.
+     * @return bool True when at least one matching section exists.
+     */
     private function hasSectionsInScope(int $academicYearId, int $programId, int $yearLevel): bool
     {
         return DB::table('sections_per_program_year')

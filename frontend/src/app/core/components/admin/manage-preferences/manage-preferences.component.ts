@@ -333,22 +333,26 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       event.source.checked = this.isToggleAllChecked;
     }
 
-    const existingDeadline = this.allData[0]?.active_semesters?.[0]
-      ?.global_deadline
-      ? new Date(this.allData[0].active_semesters[0].global_deadline)
+    const activeSemesterFaculty = this.allData.find(
+      (faculty) => faculty.active_semesters?.length,
+    );
+
+    const activeSemester = activeSemesterFaculty?.active_semesters?.[0];
+
+    const existingDeadline = activeSemester?.global_deadline
+      ? new Date(activeSemester.global_deadline)
       : null;
 
-    const existingStartDate = this.allData[0]?.active_semesters?.[0]
-      ?.global_start_date
-      ? new Date(this.allData[0].active_semesters[0].global_start_date)
+    const existingStartDate = activeSemester?.global_start_date
+      ? new Date(activeSemester.global_start_date)
       : null;
 
     const hasIndividualDeadlines = this.hasIndividualDeadlines;
 
     const dialogData: DialogTogglePreferencesData = {
       type: 'all_preferences',
-      academicYear: this.allData[0]?.active_semesters?.[0]?.academic_year || '',
-      semester: this.allData[0]?.active_semesters?.[0]?.semester_label || '',
+      academicYear: activeSemester?.academic_year || '',
+      semester: activeSemester?.semester_label || '',
       currentState: this.isToggleAllChecked,
       global_deadline: existingDeadline,
       global_start_date: existingStartDate,

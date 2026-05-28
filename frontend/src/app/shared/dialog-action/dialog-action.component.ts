@@ -25,6 +25,7 @@ export interface DialogActionData {
   facultyName?: string;
   faculty_id?: number;
   isMismatchedSemester?: boolean;
+  incompleteScheduleWarning?: boolean;
 }
 
 @Component({

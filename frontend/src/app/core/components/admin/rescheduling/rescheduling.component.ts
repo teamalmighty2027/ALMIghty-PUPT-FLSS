@@ -175,6 +175,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   private speechSession$ = new Subject<void>();
   private validationTimeout: any;
 
+  /**
+   * Initializes the component dependencies and speech-recognition state.
+   */
   constructor(
     private reschedulingService: ReschedulingService,
     private reportsService: ReportsService,
@@ -188,6 +191,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.speechSupported = this.speechRecognitionService.isSupported();
   }
 
+  /**
+   * Loads the active term, appeals, and arrangement data for the page.
+   */
   ngOnInit(): void {
     this.reportsService.clearAllCaches();
     this.isInitLoading = true;
@@ -243,11 +249,36 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Attaches the table paginators after the view is ready.
+   */
   ngAfterViewInit(): void {
     this.dataSource.paginator = this.paginator;
     this.arrangementsDataSource.paginator = this.arrangementsPaginator;
   }
 
+  /**
+   * Cleans up pending timers, subscriptions, and speech-recognition state.
+   */
+  ngOnDestroy(): void {
+    if (this.validationTimeout) {
+      clearTimeout(this.validationTimeout);
+    }
+
+    this.destroy$.next();
+    this.destroy$.complete();
+    
+    if (this.isListening) {
+      this.speechSession$.next();
+      this.speechSession$.complete();
+      this.speechRecognitionService.abort();
+      this.isListening = false;
+    }
+  }
+
+  /**
+   * Builds the half-hour time slot list from 7:00 AM through 9:00 PM.
+   */
   private generateTimeSlots() {
     const startTime = 7 * 60; // 7:00 AM
     const endTime = 21 * 60;  // 9:00 PM
@@ -263,6 +294,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Converts a semester number into a user-friendly display label.
+   *
+   * @param semester The numeric semester value from the backend.
+   */
   getSemesterDisplay(semester: number): string {
     switch (semester) {
       case 1: return '1st Semester';
@@ -272,6 +308,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Updates the selected term metadata and reloads the arrangement data.
+   */
   onTermChange() {
     const selected = this.availableTerms.find(t => t.active_semester_id === this.selectedTermId);
     if (selected) {
@@ -281,6 +320,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Reloads the current term data and refreshes the local caches.
+   */
   loadData(): void {
     if (!this.selectedTermId) return;
 
@@ -290,6 +332,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
   }
 
+  /**
+   * Populates the cached schedule and room data used for validation.
+   *
+   * @param mappedAppeals The mapped appeal rows currently shown in the table.
+   */
   private loadValidationCaches(mappedAppeals: ReschedulingAppeal[]): void {
     this.cachedArrangements = this.buildArrangementOverrides(mappedAppeals);
 
@@ -309,6 +356,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Builds schedule override objects for the approved appeal rows.
+   *
+   * @param mappedAppeals The mapped appeal rows currently shown in the table.
+   */
   private buildArrangementOverrides(
     mappedAppeals: ReschedulingAppeal[]
   ): ScheduleArrangementOverride[] {
@@ -323,6 +375,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       }));
   }
 
+  /**
+   * Finds the schedule context needed to validate an approval.
+   *
+   * @param scheduleId The schedule identifier to locate in the cached tree.
+   */
   private getScheduleContext(scheduleId: number): {
     schedule_id: number;
     program_id: number;
@@ -355,6 +412,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return null;
   }
 
+  /**
+   * Resolves a room code to its numeric room ID from the cached room list.
+   *
+   * @param roomCode The room code entered by the admin.
+   */
   private getRoomIdByCode(roomCode: string | null | undefined): number | null {
     if (!roomCode || !this.cachedRooms) return null;
     const normalized = roomCode.trim().toLowerCase();
@@ -366,6 +428,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return match?.room_id ?? null;
   }
 
+  /**
+   * Reloads the faculty arrangements for a term and merges approved appeals.
+   *
+   * @param termId The active semester identifier to load.
+   * @param mappedAppeals The mapped appeal rows used for merging.
+   */
   private loadArrangementsForTerm(termId: number, mappedAppeals: ReschedulingAppeal[]): void {
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (facultiesReq) => {
@@ -373,7 +441,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
 
         rawFaculties.forEach((fac: any) => {
-          const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
+          const facultyAppeals = approvedAppeals.filter(a => 
+            this.normalizeString(a.facultyName) === this.normalizeString(fac.faculty_name));
 
           const mergedSchedules = (fac.schedules || []).map((sched: any) => {
             const matchingAppeal = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
@@ -440,11 +509,21 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Filters the appeals table using the current search term.
+   *
+   * @param event The search payload emitted by the header component.
+   */
   onInputChange(event: any): void {
     const searchTerm = (event?.search || event?.value || '').trim().toLowerCase();
     this.dataSource.filter = searchTerm;
   }
 
+  /**
+   * Filters the arrangements table using the current search term.
+   *
+   * @param event The search payload emitted by the header component.
+   */
   onArrangementsInputChange(event: any): void {
     const searchTerm = (event?.search || event?.value || '').trim().toLowerCase();
 
@@ -459,18 +538,33 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Returns the visible index for a row in the appeals table.
+   *
+   * @param i The row index within the current page.
+   */
   getRowIndex(i: number): number {
     const pageIndex = this.paginator ? this.paginator.pageIndex : 0;
     const pageSize  = this.paginator ? this.paginator.pageSize  : 25;
     return i + 1 + pageIndex * pageSize;
   }
 
+  /**
+   * Returns the visible index for a row in the arrangements table.
+   *
+   * @param i The row index within the current page.
+   */
   getArrangementRowIndex(i: number): number {
     const pageIndex = this.arrangementsPaginator ? this.arrangementsPaginator.pageIndex : 0;
     const pageSize  = this.arrangementsPaginator ? this.arrangementsPaginator.pageSize  : 25;
     return i + 1 + pageIndex * pageSize;
   }
 
+  /**
+   * Builds CSS class flags for the faculty type chip.
+   *
+   * @param facultyType The faculty type label from the report.
+   */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
     const type = (facultyType || '').toLowerCase();
     return {
@@ -483,6 +577,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Toggle Methods ──────────────────────────────────────────────
 
+  /**
+   * Synchronizes the master appeals toggle with the current faculty list.
+   */
   updateMasterToggleState(): void {
     if (this.allFaculties.length === 0) {
       this.isAllAppealsEnabled = false;
@@ -492,11 +589,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isAllAppealsEnabled = this.allFaculties.every(f => f.isAppealEnabled);
   }
 
+  /**
+   * Opens the confirmation dialog for enabling or disabling all appeals.
+   *
+   * @param event The toggle event from the master switch.
+   */
   toggleAllAppeals(event: any): void {
     const isEnabled = event.checked;
-    
-    // Instantly revert the toggle visually. It only stays changed if they hit 'Confirm'.
-    event.source.checked = !isEnabled;
 
     // Grab existing dates from an enabled faculty member to show in the dialog if disabling
     const activeFaculty = this.allFaculties.find(f => f.isAppealEnabled);
@@ -565,9 +664,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+    /**
+     * Opens the confirmation dialog for a single faculty appeal toggle.
+     *
+     * @param faculty The faculty row being updated.
+     * @param event The toggle event from the row switch.
+     */
   toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
     const isEnabled = event.checked;
-    event.source.checked = !isEnabled;
 
     // Helper function to safely parse SQL dates across all browsers
     const parseSqlDate = (dateStr: string | null | undefined) => 
@@ -616,7 +720,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             },
             error: () => {
               faculty.isAppealEnabled = !isEnabled;
-              event.source.checked = !isEnabled;
               this.updateMasterToggleState();
               this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
             }
@@ -625,6 +728,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+    /**
+     * Handles tab changes and refreshes the active tab's data silently.
+     *
+     * @param event The tab-change event from the Material tab group.
+     */
   onTabChange(event: any): void {
     const newIndex = event.index;
     
@@ -672,6 +780,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             });
 
             return {
+            /**
+             * Opens the export dialog for all internal arrangements.
+             */
               facultyId: fac.faculty_id,
               facultyName: fac.faculty_name,
               facultyCode: fac.faculty_code,
@@ -734,6 +845,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the schedule preview dialog for one faculty's arrangements.
+   *
+   * @param faculty The faculty row to preview.
+   */
   viewFacultyArrangements(faculty: FacultyArrangement): void {
     // ── Always grab the live object from allFaculties, never the table row ──
     const liveFaculty = this.allFaculties.find(f => f.facultyId === faculty.facultyId) ?? faculty;
@@ -763,6 +879,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the export dialog for a single faculty's arrangements.
+   *
+   * @param faculty The faculty row to export.
+   */
   downloadFacultyArrangements(faculty: FacultyArrangement): void {
     const academicYear = faculty.academicYear || '';
     const semester = faculty.semester || '';
@@ -789,6 +910,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── ExcelJS Rendering Logic ────────────────────────────────────
 
+  /**
+   * Builds one Excel workbook containing every faculty arrangement sheet.
+   */
   private async generateArrangementsExcelBlobAll(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     for (const faculty of this.allFaculties) {
@@ -802,6 +926,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /**
+   * Builds one Excel workbook for a single faculty arrangement sheet.
+   *
+   * @param faculty The faculty arrangement to export.
+   */
   private async generateArrangementExcelBlob(faculty: FacultyArrangement): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const tabName = faculty.facultyName.split(',')[0].substring(0, 31).replace(/[^\w\s-]/gi, '');
@@ -811,6 +940,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /**
+   * Applies the shared Excel layout for a faculty arrangement sheet.
+   *
+   * @param worksheet The worksheet being formatted.
+   * @param faculty The faculty arrangement data to render.
+   */
   private applyArrangementExcelLayout(worksheet: ExcelJS.Worksheet, faculty: FacultyArrangement) {
     worksheet.pageSetup = {
       orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
@@ -876,6 +1011,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── jsPDF Rendering Logic ────────────────────────────────────
 
+  /**
+   * Builds one PDF document containing all internal arrangement pages.
+   */
   generateAllSchedulesPdfBlob(): Blob {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
@@ -902,6 +1040,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return doc.output('blob');
   }
 
+  /**
+   * Builds one PDF document for a single faculty arrangement.
+   *
+   * @param faculty The faculty arrangement to render in the PDF.
+   */
   createPdfBlob(faculty: FacultyArrangement): Blob {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
@@ -921,6 +1064,17 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return doc.output('blob');
   }
 
+  /**
+   * Renders the shared PDF header and returns the next Y position.
+   *
+   * @param doc The PDF document being generated.
+   * @param startY The top offset where the header should start.
+   * @param pageWidth The printable page width.
+   * @param margin The left and right page margin.
+   * @param logoSize The logo size reserved by the layout.
+   * @param title The title text shown in the header.
+   * @param subtitle The subtitle text shown in the header.
+   */
   private drawHeader(doc: jsPDF, startY: number, pageWidth: number, margin: number, logoSize: number, title: string, subtitle: string): number {
     let currentY = startY;
     this.reportHeaderService.addHeader(doc, title, currentY, subtitle).subscribe((newY) => {
@@ -929,6 +1083,17 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return currentY;
   }
 
+  /**
+   * Draws the schedule grid and schedule blocks for one PDF section.
+   *
+   * @param doc The PDF document being generated.
+   * @param scheduleData The schedules to render.
+   * @param title The title text used in the section.
+   * @param subtitle The subtitle text used in the section.
+   * @param startY The starting Y position for the table.
+   * @param margin The left and right page margin.
+   * @param pageWidth The printable page width.
+   */
   private drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
     const hasSchedules = scheduleData && scheduleData.length > 0;
 
@@ -1174,6 +1339,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Formats a 24-hour time string into a 12-hour display label.
+   *
+   * @param time The time value to format.
+   */
   private formatTime(time: string): string {
     const [hours, minutes] = time.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
@@ -1181,20 +1351,38 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${formattedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   }
 
+  /**
+   * Converts a time string into minutes since midnight.
+   *
+   * @param time The time value to convert.
+   */
   private timeToMinutes(time: string): number {
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   }
 
+  /**
+   * Formats a time value for the PDF schedule grid.
+   *
+   * @param time The time value to format.
+   */
   private formatTimeTo12Hour(time: string): string {
     return this.formatTime(time);
   }
 
+  /**
+   * Builds the academic-year subtitle used in PDF exports.
+   *
+   * @param faculty The faculty metadata used in the subtitle.
+   */
   private getAcademicYearSubtitle(faculty: { academicYear?: string, semester?: string }): string {
     return `For Academic Year ${faculty.academicYear}, ${faculty.semester}`;
   }
 
   // ── Original Data mapping ──────────────────────────────────────────────────
+  /**
+   * Generates the selectable time options used by the edit dialog.
+   */
   generateTimeOptions(): void {
     for (let hour = 7; hour <= 21; hour++) {
       for (let minute = 0; minute < 60; minute += 30) {
@@ -1206,6 +1394,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Loads the available room options for the appeal editor.
+   */
   private loadRoomOptions(): void {
     this.schedulingService.getAllRooms().subscribe({
       next: (response: any) => {
@@ -1223,10 +1414,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Handles a generic schedule-field change and revalidates conflicts.
+   */
   onScheduleFieldChange(): void {
     this.debounceValidation();
   }
 
+  /**
+   * Updates the allowed end times when the start time changes.
+   */
   onStartTimeChange(): void {
     if (this.newSchedule?.preferredStartTime) {
       this.updateAvailableEndTimes(this.newSchedule.preferredStartTime);
@@ -1242,6 +1439,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.debounceValidation();
   }
 
+  /**
+   * Validates the selected end time and then rechecks conflicts.
+   */
   onEndTimeChange(): void {
     // Validate that end time is after start time
     if (this.newSchedule?.preferredStartTime && this.newSchedule?.preferredEndTime) {
@@ -1255,6 +1455,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.debounceValidation();
   }
 
+  /**
+   * Debounces conflict validation so the dialog does not revalidate too often.
+   */
   private debounceValidation(): void {
     // Clear previous timeout
     if (this.validationTimeout) {
@@ -1267,6 +1470,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }, 500);
   }
 
+  /**
+   * Validates the proposed appeal schedule against cached conflicts.
+   */
   private validateConflicts(): void {
     // Only validate if all required fields are filled
     if (!this.newSchedule?.preferredDay || 
@@ -1301,6 +1507,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.conflictMessages = validation.hasConflicts ? validation.messages : [];
   }
 
+  /**
+   * Updates the available end-time list for the selected start time.
+   *
+   * @param startTime The selected start time from the dialog.
+   */
   private updateAvailableEndTimes(startTime: string): void {
     const startIndex = this.timeOptions.indexOf(startTime);
     if (startIndex >= 0 && startIndex < this.timeOptions.length - 1) {
@@ -1310,6 +1521,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Converts a raw time value into a 12-hour display string.
+   *
+   * @param time The time value to convert.
+   */
   private to12Hour(time: string | null | undefined): string {
     if (!time) return '—';
     if (time.includes('AM') || time.includes('PM')) return time;
@@ -1322,6 +1538,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${hours}:${minutes} ${period}`;
   }
 
+  /**
+   * Maps a backend appeal record into the table view model.
+   *
+   * @param a The raw appeal record from the API.
+   */
   private mapAppeal(a: any): ReschedulingAppeal {
     const approved: any = a.is_approved;
     let status = 'Pending';
@@ -1358,6 +1579,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ── Dialog methods ────────────────────────────────────────────
+  /**
+   * Opens the read-only appeal details dialog.
+   *
+   * @param appeal The appeal row to display.
+   */
   openViewDialog(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
     this.dialog.open(this.viewDialog, {
@@ -1368,6 +1594,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the approval dialog and prepares the editable schedule data.
+   *
+   * @param appeal The appeal row to edit.
+   */
   openEditDialog(appeal: ReschedulingAppeal): void {
     this.selectedAppeal = { ...appeal };
     this.newSchedule = this.selectedAppeal.appealVerification !== 'Pending'
@@ -1394,6 +1625,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Closes the active dialog and clears the temporary edit state.
+   */
   closeDialog(): void {
     if (this.validationTimeout) {
       clearTimeout(this.validationTimeout);
@@ -1405,6 +1639,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.conflictMessages = [];
   }
 
+  /**
+   * Resets the editable fields in the approval dialog.
+   */
   clearAll(): void {
     if (!this.newSchedule) return;
     this.newSchedule.preferredDay       = undefined;
@@ -1416,6 +1653,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.conflictMessages = [];
   }
 
+  /**
+   * Normalizes an API error into a user-facing message.
+   *
+   * @param error The error object returned by the request.
+   * @param defaultMessage The fallback message to use when the error is unclear.
+   */
   private getErrorMessage(error: any, defaultMessage: string): string {
     // Handle different error response structures
     if (error?.status && error?.statusText) {
@@ -1465,6 +1708,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (validation.hasConflicts) {
       this.conflictMessages = validation.messages;
       return;
+  /**
+   * Approves the selected appeal after validating the proposed schedule.
+   */
     }
 
     this.reschedulingService.approveAppeal(
@@ -1490,7 +1736,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
             // ── Mutate in-place so the open dialog's array reference stays valid ──
             this.allFaculties.forEach(liveFac => {
-              const facultyAppeals = approvedAppeals.filter(a => a.facultyName === liveFac.facultyName);
+              const facultyAppeals = approvedAppeals.filter(
+                a => this.normalizeString(a.facultyName) === this.normalizeString(liveFac.facultyName));
               if (facultyAppeals.length === 0) return;
 
               liveFac.schedules.forEach((sched, index) => {
@@ -1534,6 +1781,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Denies the selected appeal and records the admin remarks.
+   */
   denyAppeal(): void {
     if (!this.selectedAppeal) return;
     
@@ -1555,12 +1805,21 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+  /**
+   * Updates the local table row status after an appeal action completes.
+   *
+   * @param id The appeal row identifier.
+   * @param status The new appeal status label.
+   */
   private updateLocalStatus(id: number, status: string): void {
     this.dataSource.data = this.dataSource.data.map(row =>
       row.id === id ? { ...row, appealVerification: status } : row
     );
   }
 
+  /**
+   * Starts or stops speech recognition for the admin remarks field.
+   */
   onSpeechRecognition(): void {
     if (!this.speechRecognitionService.isSupported()) {
       this.snackBar.open('Speech Recognition is not supported.', 'Close', { duration: 5000 });
@@ -1607,8 +1866,17 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+    /**
+     * Emits a placeholder export action for the appeals table.
+     */
   onExportAll(): void { console.log('Export all appeals', this.dataSource.data); }
 
+    /**
+     * Downloads the appeal document for the selected appeal.
+     *
+     * @param appealId The appeal identifier to download.
+     * @param facultyName The faculty name used in the downloaded file name.
+     */
   downloadAppealDocument(appealId: number | undefined, facultyName: string): void {
     if (!appealId) {
       this.snackBar.open('No valid appeal selected.', 'Close', { duration: 3000 });
@@ -1630,19 +1898,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ngOnDestroy(): void {
-    if (this.validationTimeout) {
-      clearTimeout(this.validationTimeout);
-    }
-
-    this.destroy$.next();
-    this.destroy$.complete();
-    
-    if (this.isListening) {
-      this.speechSession$.next();
-      this.speechSession$.complete();
-      this.speechRecognitionService.abort();
-      this.isListening = false;
-    }
+  /** 
+   * Normalizes a string by trimming whitespace and converting to lowercase.
+   *
+   * @param str The string value to normalize.
+   */
+  private normalizeString(str: string): string {
+    return str?.trim().toLowerCase() || '';
   }
 }
