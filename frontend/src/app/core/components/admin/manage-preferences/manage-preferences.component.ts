@@ -170,7 +170,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   onTermChange(termId: number | null): void {
-    if (termId !== null && this.selectedTermId !== termId) {
+    // Force the reload even if angular's two-way binding beat us to it
+    if (termId !== null) {
       this.selectedTermId = termId;
       this.preferencesService.clearPreferencesCache();
       this.loadFacultyPreferences(termId);
@@ -242,6 +243,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.allData = [];
     this.filteredData = [];
     this.dataSource.data = [];
+    this.checkToggleAllState();
+    this.updateHasAnyPreferences();
     this.isLoading.next(false);
   }
 
@@ -320,13 +323,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   hasSubmittedPreferences(faculty: Faculty): boolean {
-    return !!(
-      faculty.active_semesters &&
-      faculty.active_semesters.length > 0 &&
-      faculty.active_semesters.some(
-        (semester) => semester.courses && semester.courses.length > 0,
-      )
+    if (!faculty || !faculty.active_semesters || faculty.active_semesters.length === 0) return false;
+    
+    const activeSemester = faculty.active_semesters[0];
+    if (!activeSemester.courses || !Array.isArray(activeSemester.courses)) return false;
+
+    // Filter out completely empty rows/objects that might get returned by the database
+    const validCourses = activeSemester.courses.filter((c: any) => 
+        (c.course_details && c.course_details.course_code) || 
+        c.course_assignment_id || 
+        c.temporary_course_offering_id
     );
+
+    return validCourses.length > 0;
   }
 
   updateIndividualDeadlinesState(): void {
@@ -498,7 +507,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
         termId: this.selectedTermId,
-        generatePdfFunction: generatePdfFunction,
         isAdmin: true,
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
@@ -548,6 +556,63 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  // --- EXPORT BY PROGRAM ---
+  onExportByProgram(): void {
+    if (!this.allData.length) {
+      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const firstActiveSemesterFaculty = this.allData.find(
+      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
+    );
+
+    if (!firstActiveSemesterFaculty) {
+      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
+    const programsData = this.getGroupedProgramData();
+
+    if (programsData.length === 0) {
+      this.snackBar.open('No valid program data to export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    this.dialog.open(DialogExportComponent, {
+      maxWidth: '70rem',
+      width: '100%',
+      autoFocus: true,
+      data: {
+        exportType: 'all',
+        entity: 'program',
+        customTitle: 'Export Preferences by Program',
+        subtitle: `For Academic Year ${academic_year}, ${semester_label}`,
+        // Using an async Promise wrapper so it yields to the UI thread, ensuring the loading spinner shows
+        generatePdfFunction: async (preview: boolean): Promise<Blob> => {
+           return new Promise((resolve, reject) => {
+             setTimeout(() => {
+               try {
+                 const blob = this.generateProgramPreferencesPDF(programsData, academic_year, semester_label);
+                 resolve(blob);
+               } catch (error) {
+                 reject(error);
+               }
+             }, 50); 
+           });
+        },
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateProgramPreferencesExcelBlob(programsData, academic_year, semester_label);
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.xlsx`;
+          saveAs(excelBlob, fileName);
+        },
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.pdf`,
+      },
+      disableClose: true,
+    });
+  }
+
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -580,6 +645,414 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       },
       disableClose: true,
     });
+  }
+
+  private getGroupedProgramData(): any[] {
+    const programsMap = new Map<string, any>();
+    
+    // Dictionary to expand program titles if the backend only provided abbreviations
+    const PROGRAM_NAMES: { [key: string]: string } = {
+      'BSECE': 'Bachelor of Science in Electronics Engineering',
+      'BSIT': 'Bachelor of Science in Information Technology',
+      'BSME': 'Bachelor of Science in Mechanical Engineering',
+      'BSIE': 'Bachelor of Science in Industrial Engineering',
+      'BSBA-HRM': 'Bachelor of Science in Business Administration Major in Human Resource Management',
+      'BSBA-MM': 'Bachelor of Science in Business Administration Major in Marketing Management',
+      'BSOA': 'Bachelor of Science in Office Administration',
+      'BSED-EN': 'Bachelor of Secondary Education Major in English',
+      'BSED-MA': 'Bachelor of Secondary Education Major in Mathematics',
+      'BSED-SC': 'Bachelor of Secondary Education Major in Science',
+      'DOMT': 'Diploma in Office Management Technology',
+      'DICT': 'Diploma in Information Communication Technology',
+      'BSCS': 'Bachelor of Science in Computer Science',
+      'BSCE': 'Bachelor of Science in Civil Engineering',
+      'BSA': 'Bachelor of Science in Accountancy',
+      'BSAIS': 'Bachelor of Science in Accounting Information System',
+      'BSBA-FM': 'Bachelor of Science in Business Administration Major in Financial Management',
+      'BSENT': 'Bachelor of Science in Entrepreneurship',
+    };
+
+    this.allData.forEach((faculty) => {
+      const activeSemester = faculty.active_semesters?.[0];
+      if (!activeSemester || !activeSemester.courses) return;
+
+      activeSemester.courses.forEach((course: any) => {
+        if (course.is_ignored) return;
+
+        const progCode = course.course_details?.program_code || course.program_details?.program_code || 'UNKNOWN PROGRAM';
+        let progTitle = course.course_details?.program_title || course.program_details?.program_title;
+        
+        // Auto-expand program title if it's missing or matches the short code
+        if (!progTitle || progTitle === progCode) {
+            progTitle = PROGRAM_NAMES[progCode.toUpperCase()] || progCode;
+        }
+
+        const yearLevel = course.course_details?.year_level || course.section_details?.year_level || 'N/A';
+        const sectionName = course.section_details?.section_name || course.course_details?.section_name || 'N/A';
+        const teacherName = faculty.facultyName;
+        
+        const preferredDays = course.preferred_days || [];
+        
+        const dayMap: { [key: string]: string } = {
+          'Monday': 'M', 'Tuesday': 'TUE', 'Wednesday': 'W', 'Thursday': 'TH', 'Friday': 'F', 'Saturday': 'S', 'Sunday': 'SU'
+        };
+        
+        // Group the days by identical time blocks so they get their own rows instead of merging confusingly
+        const timeGroups = new Map<string, string[]>();
+        preferredDays.forEach((d: any) => {
+            const start = this.formatTimeTo12Hour(d.start_time).replace(/\s+/g, '');
+            const end = this.formatTimeTo12Hour(d.end_time).replace(/\s+/g, '');
+            const timeStr = `${start}-${end}`;
+            const dayAbbr = dayMap[d.day] || d.day.substring(0,3);
+            
+            if (!timeGroups.has(timeStr)) {
+                timeGroups.set(timeStr, []);
+            }
+            timeGroups.get(timeStr)!.push(dayAbbr);
+        });
+
+        const scheduleBlocks: {day: string, time: string}[] = [];
+        timeGroups.forEach((daysArr, timeStr) => {
+            scheduleBlocks.push({ day: daysArr.join(''), time: timeStr });
+        });
+
+        if (scheduleBlocks.length === 0) {
+            scheduleBlocks.push({ day: 'TBA', time: 'TBA' });
+        }
+
+        const courseCode = course.course_details?.course_code || 'N/A';
+        const courseTitle = course.course_details?.course_title || 'N/A';
+        const lec = course.lec_hours || 0;
+        const lab = course.lab_hours || 0;
+
+        if (!programsMap.has(progCode)) {
+            programsMap.set(progCode, {
+                program_code: progCode,
+                program_title: progTitle,
+                year_levels: new Map<string, any>()
+            });
+        }
+
+        const prog = programsMap.get(progCode);
+        if (!prog.year_levels.has(yearLevel)) {
+            prog.year_levels.set(yearLevel, {
+                year_level: yearLevel,
+                sections: new Map<string, any>()
+            });
+        }
+
+        const yl = prog.year_levels.get(yearLevel);
+        if (!yl.sections.has(sectionName)) {
+            yl.sections.set(sectionName, {
+                section_name: sectionName,
+                courses: new Map<string, any>()
+            });
+        }
+
+        const sec = yl.sections.get(sectionName);
+
+        // Group by course so that multiple teachers selecting the same course appear in the same section
+        if (!sec.courses.has(courseCode)) {
+             sec.courses.set(courseCode, {
+                subject_code: courseCode,
+                description: courseTitle,
+                lec: lec,
+                lab: lab,
+                teachers: new Map<string, any>() // Group by individual teacher next
+             });
+        }
+        
+        const c = sec.courses.get(courseCode);
+        if (!c.teachers.has(teacherName)) {
+            c.teachers.set(teacherName, []);
+        }
+
+        // Add all distinct day/time blocks for this specific teacher
+        scheduleBlocks.forEach(block => {
+            c.teachers.get(teacherName).push(block);
+        });
+      });
+    });
+
+    const programsArray = Array.from(programsMap.values()).map(prog => {
+      prog.year_levels = Array.from(prog.year_levels.values()).map((yl: any) => {
+        yl.sections = Array.from(yl.sections.values()).map((sec: any) => {
+            sec.courses = Array.from(sec.courses.values()).map((c: any) => {
+                return {
+                    subject_code: c.subject_code,
+                    description: c.description,
+                    lec: c.lec,
+                    lab: c.lab,
+                    // Safe mapping over map entries without tuple destructuring
+                    teachers: Array.from(c.teachers.entries()).map((entry: any) => ({
+                        teacherName: entry[0],
+                        blocks: entry[1]
+                    })).sort((a: any, b: any) => a.teacherName.localeCompare(b.teacherName)) 
+                };
+            }).sort((a,b) => a.subject_code.localeCompare(b.subject_code));
+            return sec;
+        }).sort((a: any, b: any) => String(a.section_name).localeCompare(String(b.section_name)));
+        return yl;
+      }).sort((a: any, b: any) => String(a.year_level).localeCompare(String(b.year_level)));
+      return prog;
+    }).sort((a, b) => a.program_code.localeCompare(b.program_code));
+
+    return programsArray;
+  }
+
+  private generateProgramPreferencesPDF(programsData: any[], academicYear: string, semesterLabel: string): Blob {
+    const doc = new jsPDF('p', 'mm', 'legal') as any;
+    let isFirstPage = true;
+
+    programsData.forEach((program: any) => {
+      program.year_levels.forEach((yl: any) => {
+        yl.sections.forEach((sec: any) => {
+          if (!isFirstPage) {
+            doc.addPage();
+          }
+          isFirstPage = false;
+
+          let currentY = 20;
+
+          doc.setFontSize(14);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${semesterLabel.toUpperCase()} SY ${academicYear}`, 105, currentY, { align: 'center' });
+          currentY += 10;
+          
+          doc.setFontSize(12);
+          doc.text('SECTION OFFERING', 105, currentY, { align: 'center' });
+          currentY += 8;
+
+          doc.setFontSize(14); 
+          const fullTitle = `${program.program_title.toUpperCase()} (TAGUIG)`;
+          const splitTitle = doc.splitTextToSize(fullTitle, 180);
+          doc.text(splitTitle, 105, currentY, { align: 'center' });
+          currentY += (splitTitle.length * 6) + 6; 
+
+          const yearStr = yl.year_level.toString();
+          let yearDisplay = '';
+          
+          if (yearStr === 'N/A' || yearStr === 'null' || !yearStr) {
+              yearDisplay = 'Unassigned Year';
+          } else {
+              let suffix = 'TH';
+              if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
+              else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
+              else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
+              yearDisplay = `${yearStr}${suffix} Year`;
+          }
+
+          let secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null' 
+              ? ` - Section ${sec.section_name}` 
+              : '';
+
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`${yearDisplay}${secDisplay}`, 15, currentY);
+          currentY += 5;
+
+          const tableBody: any[] = [];
+          
+          sec.courses.forEach((c: any) => {
+            let totalCourseRows = 0;
+            c.teachers.forEach((t: any) => {
+                totalCourseRows += t.blocks.length;
+            });
+
+            if (totalCourseRows === 0) return;
+
+            let isFirstCourseRow = true;
+
+            c.teachers.forEach((t: any) => {
+                const teacherRows = t.blocks.length;
+                let isFirstTeacherRow = true;
+
+                t.blocks.forEach((b: any) => {
+                    const row: any[] = [];
+
+                    // Apply rowSpan to the primary course details so they merge beautifully
+                    if (isFirstCourseRow) {
+                        row.push({ content: c.subject_code, rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                        row.push({ content: c.description, rowSpan: totalCourseRows, styles: { valign: 'middle' } });
+                        row.push({ content: c.lec.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                        row.push({ content: c.lab.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                        isFirstCourseRow = false;
+                    }
+
+                    // Apply rowSpan to the teacher so horizontal lines appear correctly between their individual schedules
+                    if (isFirstTeacherRow) {
+                        row.push({ content: t.teacherName, rowSpan: teacherRows, styles: { valign: 'middle' } });
+                        isFirstTeacherRow = false;
+                    }
+
+                    row.push({ content: b.day, styles: { valign: 'middle', halign: 'center' } });
+                    row.push({ content: b.time, styles: { valign: 'middle', halign: 'center' } });
+
+                    tableBody.push(row);
+                });
+            });
+          });
+
+          (doc as any).autoTable({
+            startY: currentY,
+            head: [['SUBJECT CODE', 'DESCRIPTION', 'LEC', 'LAB', 'TEACHER', 'DAY', 'TIME']],
+            body: tableBody,
+            theme: 'grid',
+            headStyles: {
+              fillColor: [255, 255, 255],
+              textColor: [0, 0, 0],
+              lineColor: [0, 0, 0],
+              lineWidth: 0.3,
+              fontStyle: 'bold',
+              halign: 'center',
+              valign: 'middle'
+            },
+            bodyStyles: {
+              textColor: [0, 0, 0],
+              lineColor: [0, 0, 0],
+              lineWidth: 0.3,
+            },
+            styles: {
+              font: 'helvetica',
+              fontSize: 9,
+              cellPadding: 3,
+              overflow: 'linebreak',
+            },
+            columnStyles: {
+              0: { cellWidth: 24, halign: 'center' },
+              1: { cellWidth: 53 },
+              2: { cellWidth: 13, halign: 'center' },
+              3: { cellWidth: 13, halign: 'center' },
+              4: { cellWidth: 40 },
+              5: { cellWidth: 16, halign: 'center' },
+              6: { cellWidth: 27, halign: 'center' },
+            },
+            margin: { left: 15, right: 15 }
+          });
+        });
+      });
+    });
+
+    return doc.output('blob');
+  }
+
+  private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+
+    programsData.forEach((program: any) => {
+      program.year_levels.forEach((yl: any) => {
+        yl.sections.forEach((sec: any) => {
+          const sheetName = `${program.program_code} Y${yl.year_level} S${sec.section_name}`.replace(/[^\w\s-]/gi, '').substring(0, 31);
+          
+          let uniqueSheetName = sheetName;
+          let counter = 1;
+          while (workbook.getWorksheet(uniqueSheetName)) {
+              uniqueSheetName = `${sheetName.substring(0, 27)}_${counter}`;
+              counter++;
+          }
+          const worksheet = workbook.addWorksheet(uniqueSheetName);
+
+          worksheet.pageSetup = {
+            orientation: 'portrait', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+            margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+          };
+
+          worksheet.columns = [
+            { width: 15 }, 
+            { width: 40 }, 
+            { width: 8 },  
+            { width: 8 },  
+            { width: 25 }, 
+            { width: 10 }, 
+            { width: 20 }, 
+          ];
+
+          worksheet.mergeCells('A1:G1');
+          const header1 = worksheet.getCell('A1');
+          header1.value = `${semesterLabel.toUpperCase()} SY ${academicYear}`;
+          header1.font = { bold: true, size: 12 };
+          header1.alignment = { horizontal: 'center' };
+
+          worksheet.mergeCells('A2:G2');
+          const header2 = worksheet.getCell('A2');
+          header2.value = 'SECTION OFFERING';
+          header2.font = { bold: true, size: 11 };
+          header2.alignment = { horizontal: 'center' };
+
+          worksheet.mergeCells('A3:G3');
+          const header3 = worksheet.getCell('A3');
+          header3.value = `${program.program_title.toUpperCase()} (TAGUIG)`;
+          header3.font = { bold: true, size: 14 };
+          header3.alignment = { horizontal: 'center', wrapText: true };
+          worksheet.getRow(3).height = 30;
+
+          worksheet.addRow([]);
+
+          const yearStr = yl.year_level.toString();
+          let yearDisplay = '';
+          
+          if (yearStr === 'N/A' || yearStr === 'null' || !yearStr) {
+              yearDisplay = 'Unassigned Year';
+          } else {
+              let suffix = 'TH';
+              if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
+              else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
+              else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
+              yearDisplay = `${yearStr}${suffix} Year`;
+          }
+
+          let secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null' 
+              ? ` - Section ${sec.section_name}` 
+              : '';
+
+          const ylRow = worksheet.addRow([`${yearDisplay}${secDisplay}`]);
+          ylRow.font = { bold: true };
+          
+          const tableHeader = worksheet.addRow(['SUBJECT CODE', 'DESCRIPTION', 'LEC', 'LAB', 'TEACHER', 'DAY', 'TIME']);
+          tableHeader.eachCell(cell => {
+            cell.font = { bold: true };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          });
+
+          sec.courses.forEach((c: any) => {
+            const courseStartRow = worksheet.rowCount + 1;
+            let totalRows = 0;
+
+            c.teachers.forEach((t: any) => {
+                const teacherStartRow = worksheet.rowCount + 1;
+                
+                t.blocks.forEach((b: any) => {
+                    const row = worksheet.addRow([
+                        c.subject_code, c.description, c.lec, c.lab, t.teacherName, b.day, b.time
+                    ]);
+                    row.eachCell((cell, colNum) => {
+                        cell.alignment = { vertical: 'middle', horizontal: (colNum === 3 || colNum === 4 || colNum === 6 || colNum === 7) ? 'center' : 'left', wrapText: true };
+                        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                    });
+                    totalRows++;
+                });
+
+                if (t.blocks.length > 1) {
+                    const teacherEndRow = worksheet.rowCount;
+                    worksheet.mergeCells(`E${teacherStartRow}:E${teacherEndRow}`);
+                }
+            });
+
+            if (totalRows > 1) {
+                const courseEndRow = worksheet.rowCount;
+                worksheet.mergeCells(`A${courseStartRow}:A${courseEndRow}`);
+                worksheet.mergeCells(`B${courseStartRow}:B${courseEndRow}`);
+                worksheet.mergeCells(`C${courseStartRow}:C${courseEndRow}`);
+                worksheet.mergeCells(`D${courseStartRow}:D${courseEndRow}`);
+            }
+          });
+        });
+      });
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {

@@ -54,6 +54,10 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   @Input() selectedTermId: number | null = null;
   @Input() showTermFilter = true;
 
+  // NEW: Controls for Export By Program Button
+  @Input() showExportByProgramButton = false;
+  @Output() exportByProgram = new EventEmitter<void>();
+
   @Output() add = new EventEmitter<void>();
   @Output() inputChange = new EventEmitter<{ [key: string]: any }>();
   @Output() export = new EventEmitter<'all' | 'current' | undefined>();
@@ -137,6 +141,10 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
     }
   }
 
+  onExportByProgram(): void {
+    this.exportByProgram.emit();
+  }
+
   onActiveYearSemClick(): void {
     this.activeYearSemClick.emit();
   }
@@ -203,20 +211,17 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   }
 
   trackByField(index: number, field: any): string {
-    return field.key; // Use a unique identifier (e.g., field.key)
+    return field.key;
   }
 
   trackByOption(index: number, option: string): string {
-    return option; // If options are simple strings, use the string itself
+    return option; 
   }
 
   trackByKey(index: number, item: any): any {
-    // If the item is an object with a key, return the key
     if (item && typeof item === 'object' && 'key' in item) {
       return item.key;
     }
-
-    // If the item is a primitive, return the item itself
     return item;
   }
 }

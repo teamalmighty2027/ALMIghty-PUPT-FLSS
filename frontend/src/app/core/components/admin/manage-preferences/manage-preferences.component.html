@@ -6,10 +6,11 @@
   } @else {
   <div class="faculty-pref-header-container" [@fadeAnimation]>
     <app-reports-header
-      [selectedTermId]="selectedTermId"
+      [(selectedTermId)]="selectedTermId"
       (termChange)="onTermChange($event)"
       [inputFields]="inputFields"
       [showExportButton]="true"
+      [showExportByProgramButton]="true" 
       [showAddButton]="false"
       [showActiveYearAndSem]="false"
       [buttonDisabled]="
@@ -22,6 +23,7 @@
           ? 'Preferences submission is open; export disabled'
           : ''
       "
+      (exportByProgram)="onExportByProgram()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">
     </app-reports-header>
