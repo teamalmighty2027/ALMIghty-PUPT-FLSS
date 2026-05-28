@@ -10,7 +10,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { TableGenericComponent } from '../../../../../../shared/table-generic/table-generic.component';
 import { TableHeaderComponent, InputField } from '../../../../../../shared/table-header/table-header.component';
-import { ConfirmDialogComponent } from '../../../../../../shared/confirm-dialog/confirm-dialog.component';
+import { DialogGenericComponent } from '../../../../../../shared/dialog-generic/dialog-generic.component';
 import {
   TableDialogComponent,
   DialogConfig,
@@ -58,8 +58,7 @@ interface ElectiveSlotSelection {
     CommonModule,
     TableGenericComponent,
     TableHeaderComponent,
-    LoadingComponent,
-    ConfirmDialogComponent,
+    LoadingComponent
   ],
   templateUrl: './curriculum-detail.component.html',
   styleUrls: ['./curriculum-detail.component.scss'],
@@ -667,14 +666,17 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
    * Delete an Option from the Pool (Using Material Dialog)
    */
   deleteElectiveOption(electiveId: number) {
-    const dialogRef = this.dialog.open(ConfirmDialogComponent, {
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
       width: '400px',
       disableClose: true,
       data: {
         title: 'Remove Elective Option',
-        message: 'Are you sure you want to remove this elective from the pool? It will no longer be available for scheduling.',
-        confirmText: 'Remove'
-      }
+        content: 'Are you sure you want to remove this elective from the pool? It will no longer be available for scheduling.',
+        actionText: 'Remove',
+        cancelText: 'Cancel',
+        action: 'Remove',
+      },
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
