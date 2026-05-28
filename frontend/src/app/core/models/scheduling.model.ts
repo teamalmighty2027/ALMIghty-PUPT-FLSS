@@ -43,6 +43,7 @@ export interface Schedule {
   section: string;
   start_time?: string | null;
   end_time?: string | null;
+  elective_id?: number | null;
 
   schedule_id?: number;
   faculty_id?: number;
@@ -136,6 +137,7 @@ export interface CourseResponse {
     start_time: string;
     end_time: string;
     room_id?: number;
+    elective_id?: number | null;
   };
   professor: string;
   faculty_id: number;

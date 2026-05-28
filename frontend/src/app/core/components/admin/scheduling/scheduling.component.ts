@@ -675,7 +675,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             program: this.selectedProgram,
             yearLevel: this.selectedYear,
             section: this.selectedSection,
-          });
+          }, true);
           this.snackBar.open('Draft changes saved successfully.', 
             'Close', { duration: 3000 }
           );
@@ -921,7 +921,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected onInputChange(values: { [key: string]: any }): void {
+  protected onInputChange(values: { [key: string]: any }, forceRefresh: boolean = false): void {
     if (this.isDraftMode) {
       this.exitDraftInternal();
     }
@@ -1026,7 +1026,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.fetchCourses(
       selectedProgram.id,
       this.selectedYear,
-      selectedSection.section_id
+      selectedSection.section_id,
+      forceRefresh
     ).subscribe({
       next: () => {},
       error: this.handleError('Failed to fetch courses'),
@@ -1082,9 +1083,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   private fetchCourses(
     programId: number,
     yearLevel: number,
-    sectionId: number
+    sectionId: number,
+    forceRefresh: boolean = false
   ): Observable<Schedule[]> {
-    return this.schedulingService.populateSchedules().pipe(
+    return this.schedulingService.populateSchedules(forceRefresh).pipe(
       tap((response: PopulateSchedulesResponse) => {
         const program = response.programs.find(
           (p) => p.program_id === programId
@@ -1154,6 +1156,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           petition_required: !!course.petition_required,
           temporary_course_offering_id:
             course.temporary_course_offering_id ?? null,
+          elective_id: course.schedule?.elective_id ?? null,
           isLastInGroup: false, // placeholder, stamped correctly after sort
         }));
 
@@ -1333,7 +1336,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                   return this.fetchCourses(
                     program.id,
                     this.selectedYear,
-                    section.section_id
+                    section.section_id,
+                    true
                   );
                 })
               )
@@ -1514,6 +1518,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
+            selectedElectiveId: schedule.elective_id ?? null,
+            isElectiveSlot: !!(schedule.elective_id) || (schedule.course_code || '').toLowerCase().includes('elective'),
           },
         });
 
@@ -1545,7 +1551,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               program: this.selectedProgram,
               yearLevel: this.selectedYear,
               section: this.selectedSection,
-            });
+            }, true);
         });
       },
       error: (error) => {
@@ -1599,7 +1605,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               ? this.fetchCourses(
                   program.id,
                   this.selectedYear,
-                  section.section_id
+                  section.section_id,
+                  true
                 )
               : of([]);
           })
@@ -1634,7 +1641,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             this.selectedYear,
             this.sectionOptions.find(
               (s) => s.section_name === this.selectedSection
-            )?.section_id || 0
+            )?.section_id || 0,
+            true
           );
         }),
         finalize(() => {
@@ -1701,7 +1709,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 ? this.fetchCourses(
                     program.id,
                     this.selectedYear,
-                    section.section_id
+                    section.section_id,
+                    true
                   )
                 : of([]);
             }),

@@ -99,7 +99,11 @@ export class SchedulingService {
    * Retrieves and caches all schedules. 
    * Subsequent calls return the cached data unless reset.
    */
-  populateSchedules(): Observable<PopulateSchedulesResponse> {
+  populateSchedules(forceRefresh: boolean = false): Observable<PopulateSchedulesResponse> {
+    if (forceRefresh) {
+      this.schedulesCache$ = undefined;
+    }
+
     if (!this.schedulesCache$) {
       this.schedulesCache$ = this.http
         .get<PopulateSchedulesResponse>(`${this.baseUrl}/populate-schedules`)

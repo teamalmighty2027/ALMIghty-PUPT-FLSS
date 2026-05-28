@@ -88,6 +88,8 @@ interface DialogData {
   };
   schedule_id: number;
   course_id: number;
+  selectedElectiveId?: number;
+  isElectiveSlot?: boolean;
   isDraftMode?: boolean;
   isTemporaryCourse?: boolean;
   isBridgingCourse?: boolean;
@@ -170,9 +172,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // --- Elective Detection ---
-    if (this.data.selectedCourseInfo.toLowerCase().includes('elective')) {
-      this.isElectiveSlot = true;
-      
+    this.isElectiveSlot = !!this.data.isElectiveSlot || !!this.data.selectedElectiveId || this.data.selectedCourseInfo.toLowerCase().includes('elective');
+    if (this.isElectiveSlot) {
       // Extract the slot name (e.g. "ELEC IT-FE1 - BSIT Free Elective 1" -> "BSIT Free Elective 1")
       const parts = this.data.selectedCourseInfo.split(' - ');
       this.electiveSlotName = parts.length > 1 ? parts[1].trim() : this.data.selectedCourseInfo.trim();
@@ -184,6 +185,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       // Fetch the available options for this specific slot
       this.schedulingService.getElectives().pipe(takeUntil(this.destroy$)).subscribe(variants => {
         this.availableElectives = variants[this.electiveSlotName] || [];
+        // If a selectedElectiveId was provided, prefill it so it isn't lost
+        if (this.data.selectedElectiveId) {
+          this.scheduleForm.patchValue({ elective: this.data.selectedElectiveId });
+        }
         this.cdr.markForCheck();
       });
     }
