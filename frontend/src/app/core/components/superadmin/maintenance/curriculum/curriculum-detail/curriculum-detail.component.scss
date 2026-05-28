@@ -38,6 +38,58 @@
     @include mixins.hide-scrollbar;
   }
 
+  .elective-section {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: none
+    );
+    border-radius: var(--border-radius-md);
+  }
+
+  .elective-note {
+    padding: var(--spacing-md);
+    background-color: var(--neutral-space);
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-md);
+    color: var(--secondary-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .elective-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .elective-card {
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    background-color: var(--neutral-space);
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: none,
+      $gap: var(--spacing-sm)
+    );
+  }
+
+  .elective-title {
+    font-weight: 600;
+    color: var(--primary-text);
+  }
+
+  .elective-select select {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--neutral-fade);
+    background-color: var(--neutral-space);
+    color: var(--primary-text);
+    font-size: var(--font-size-sm);
+  }
+
   .bridging-section {
     @include mixins.flex-layout($direction: column, $align: stretch, $justify: none);
     border-radius: var(--border-radius-md);

@@ -20,6 +20,81 @@
   height: 100%;
 }
 
+.elective-override-section {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: none,
+    $gap: var(--spacing-sm)
+  );
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  background-color: var(--neutral-light);
+  box-shadow: var(--shadow-level-1);
+
+  .elective-override-header {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: flex-start,
+      $justify: none,
+      $gap: var(--spacing-xxs)
+    );
+
+    .title {
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    .subtitle {
+      font-size: var(--font-size-xs);
+      color: var(--secondary-text);
+    }
+  }
+
+  .elective-override-note {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--neutral-space);
+    border: 1px solid var(--neutral-fade);
+    color: var(--secondary-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .elective-override-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .elective-override-card {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: none,
+      $gap: var(--spacing-xs)
+    );
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm);
+    background-color: var(--neutral-space);
+
+    .slot-title {
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--neutral-fade);
+      background-color: var(--neutral-light);
+      color: var(--primary-text);
+      font-size: var(--font-size-sm);
+    }
+  }
+}
+
 .scheduling-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;
