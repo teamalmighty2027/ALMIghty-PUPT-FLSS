@@ -48,6 +48,7 @@ interface Course {
 interface DialogPrefData {
   facultyName: string;
   faculty_id: number;
+  termId?: number | null;
   isViewOnlyTable?: boolean;
   isViewHistory?: boolean;
   isAdmin?: boolean;
@@ -143,14 +144,21 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       this.selectedView = 'history-view'; 
     }
 
+    // Use the termId passed from the parent dialog data
+    const termId = this.data.termId || null;
+
     this.preferencesService
-      .getPreferencesByFacultyId(this.data.faculty_id.toString(), true)
-      .subscribe(
-        (response) => {
+      .getPreferencesByFacultyId(this.data.faculty_id.toString(), true, termId)
+      .subscribe({
+        next: (response) => {
+          // Check if response.preferences is an object (single faculty) or array
           const faculty = response.preferences;
 
           if (faculty) {
+            // If the response structure returned an array, find the right active semester
+            // or just grab the first one if it's already filtered by termId
             const activeSemester = faculty.active_semesters[0];
+            
             this.academicYear = activeSemester.academic_year;
             this.selectedYear = activeSemester.academic_year;
             this.semesterLabel = activeSemester.semester_label;
@@ -174,16 +182,13 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           }
 
           this.isLoading = false;
-          if (!this.data.isViewOnlyTable && this.selectedView === 'pdf-view') {
-            this.generateAndDisplayPdf();
-          }
         },
-        (error) => {
+        error: (error) => {
           console.error('Error loading faculty preferences:', error);
-          this.showSnackbar('Failed to load faculty preferences. Please try again later.');
+          this.showSnackbar('Failed to load faculty preferences.');
           this.isLoading = false;
         }
-      );
+      });
   }
 
   /**

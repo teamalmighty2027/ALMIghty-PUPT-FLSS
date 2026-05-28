@@ -2,8 +2,8 @@ import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-import { BehaviorSubject, Subject } from 'rxjs';
-import { filter, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { BehaviorSubject, Subject, Subscription } from 'rxjs';
+import { filter, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSlideToggleModule, MatSlideToggleChange } from '@angular/material/slide-toggle';
@@ -15,7 +15,8 @@ import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 
-import { TableHeaderComponent, InputField } from '../../../../shared/table-header/table-header.component';
+import { InputField } from '../../../../shared/table-header/table-header.component';
+import { ReportsHeaderComponent } from '../../../../shared/reports-header/reports-header.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { DialogPrefComponent } from '../../../../shared/dialog-pref/dialog-pref.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
@@ -23,6 +24,7 @@ import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '.
 
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
+import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
@@ -54,7 +56,7 @@ interface ToggleState {
   selector: 'app-manage-preferences',
   imports: [
     CommonModule,
-    TableHeaderComponent,
+    ReportsHeaderComponent,
     LoadingComponent,
     FormsModule,
     MatTableModule,
@@ -102,6 +104,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   isLoading = new BehaviorSubject<boolean>(true);
 
+  selectedTermId: number | null = null;
+  private prefsSub?: Subscription;
+
   hasAnyPreferences = false;
   hasIndividualDeadlines = false;
   facultyScheduledState = new Map<number, boolean>();
@@ -125,15 +130,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
     private reportHeaderService: ReportHeaderService,
+    private reportsService: ReportsService
   ) {}
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
 
-    this.loadFacultyPreferences();
+    this.loadTerms(); 
     this.setupFilterPredicate();
+    
     this.searchSubject
-      .pipe(debounceTime(300), distinctUntilChanged())
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchValue) => {
         this.applyFilter(searchValue);
       });
@@ -142,6 +149,32 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  loadTerms(): void {
+    this.reportsService.getAllTermsForDropdown().subscribe({
+      next: (data) => {
+        if (this.selectedTermId === null) {
+          const activeTerm = data.find((term: any) => term.is_active === 1);
+          if (activeTerm) {
+            this.selectedTermId = activeTerm.active_semester_id;
+          }
+        }
+        
+        this.loadFacultyPreferences(this.selectedTermId);
+      },
+      error: (error) => {
+        console.error('Error loading terms:', error);
+      }
+    });
+  }
+
+  onTermChange(termId: number | null): void {
+    if (termId !== null && this.selectedTermId !== termId) {
+      this.selectedTermId = termId;
+      this.preferencesService.clearPreferencesCache();
+      this.loadFacultyPreferences(termId);
+    }
   }
 
   private setupFilterPredicate(): void {
@@ -154,13 +187,23 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     };
   }
 
-  loadFacultyPreferences(): void {
+  loadFacultyPreferences(termId?: number | null): void {
     this.isLoading.next(true);
-    this.preferencesService
-      .getPreferences()
-      .pipe(filter((response) => !!response))
-      .subscribe(
-        (response) => {
+
+    if (this.prefsSub) {
+      this.prefsSub.unsubscribe();
+    }
+
+    this.prefsSub = this.preferencesService
+      .getPreferences(termId, true)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          if (!response || !response.preferences) {
+            this.handleEmptyData();
+            return;
+          }
+
           const faculties = response.preferences.map((faculty: any) => ({
             faculty_id: faculty.faculty_id,
             facultyName: faculty.faculty_name,
@@ -183,16 +226,23 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           this.initializeScheduledFacultyState();
           this.isLoading.next(false);
         },
-        (error) => {
+        error: (error) => {
           console.error('Error loading faculty preferences:', error);
           this.snackBar.open(
             'Error loading faculty preferences. Please try again.',
             'Close',
             { duration: 3000 },
           );
-          this.isLoading.next(false);
-        },
-      );
+          this.handleEmptyData();
+        }
+      });
+  }
+
+  private handleEmptyData(): void {
+    this.allData = [];
+    this.filteredData = [];
+    this.dataSource.data = [];
+    this.isLoading.next(false);
   }
 
   applyFilter(filterValue: string): void {
@@ -439,7 +489,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       return this.generateFacultyPDF(false, [faculty], preview);
     };
 
-    // Helper for file name
     const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
     this.dialog.open(DialogPrefComponent, {
@@ -448,9 +497,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       data: {
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
+        termId: this.selectedTermId,
         generatePdfFunction: generatePdfFunction,
         isAdmin: true,
-        // Pass the Excel generation function to the View dialog
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
@@ -461,9 +510,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Export all event listener passed to dialogExportComponent
-   */
   onExportAll(): void {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
@@ -502,9 +548,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Export single event listener passed to dialogExportComponent
-   */
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -539,9 +582,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Generate Excel blob for faculty preferences
-   */
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
@@ -551,7 +591,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
       let tabName = faculty.facultyName.split(',')[0].substring(0, 30).replace(/[^\w\s-]/gi, '');
       
-      // Ensure tab names are unique
       let uniqueTabName = tabName;
       let counter = 1;
       while (workbook.getWorksheet(uniqueTabName)) {
@@ -567,15 +606,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       };
 
       worksheet.columns = [
-        { width: 5 },  // #
-        { width: 15 }, // Program Code
-        { width: 20 }, // Year & Section
-        { width: 15 }, // Course Code
-        { width: 35 }, // Course Title
-        { width: 8 },  // Lec
-        { width: 8 },  // Lab
-        { width: 8 },  // Units
-        { width: 30 }  // Preferred Day & Time
+        { width: 5 },
+        { width: 15 },
+        { width: 20 },
+        { width: 15 },
+        { width: 35 },
+        { width: 8 },
+        { width: 8 },
+        { width: 8 },
+        { width: 30 }
       ];
 
       worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:I1');
@@ -642,7 +681,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
-  // Generates the PDF Blob of faculty preferences
   generateFacultyPDF(
     isAll: boolean,
     faculties: Faculty[],
@@ -796,11 +834,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return `${formattedHour}:${minutesFormatted} ${period}`;
   }
 
-  /**
-   * Detects if the course preferences contain modifiers for "Any Day" or "Any Time".
-   * @param preferredDays The array of preferred days.
-   * @returns An object indicating boolean presence of any_day and any_time modifiers.
-   */
   private detectAnyModifiers(preferredDays: any[]): { has_any_day: boolean; has_any_time: boolean } {
     const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const ANY_DAY_START = '07:00:00';
@@ -816,10 +849,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return { has_any_day, has_any_time };
   }
 
-  /**
-   * Formats the preferred days and times for display, accounting for "Any Day" and "Any Time" logic.
-   * @param preferredDays The array of preferred days.
-   */
   private formatPreferredDaysAndTime(preferredDays: any[]): string {
     const { has_any_day, has_any_time } = this.detectAnyModifiers(preferredDays);
 

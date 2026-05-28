@@ -1,13 +1,13 @@
-<!-- manage-preferences.component.html -->
 <div class="faculty-pref-container">
   @if (isLoading | async) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
   </div>
   } @else {
-  <!-- Faculty Preferences Header Container -->
   <div class="faculty-pref-header-container" [@fadeAnimation]>
-    <app-table-header
+    <app-reports-header
+      [selectedTermId]="selectedTermId"
+      (termChange)="onTermChange($event)"
       [inputFields]="inputFields"
       [showExportButton]="true"
       [showAddButton]="false"
@@ -24,14 +24,12 @@
       "
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">
-    </app-table-header>
+    </app-reports-header>
   </div>
 
-  <!-- Faculty Preferences Table -->
   <div class="faculty-pref-table-container" [@fadeAnimation]>
     <div class="table-container">
       <table mat-table [dataSource]="dataSource" class="custom-table">
-        <!-- Index Column -->
         <ng-container matColumnDef="index">
           <th mat-header-cell *matHeaderCellDef class="custom-header index">
             #
@@ -47,7 +45,6 @@
           </td>
         </ng-container>
 
-        <!-- Faculty Name Column -->
         <ng-container matColumnDef="facultyName">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Faculty Name
@@ -57,7 +54,6 @@
           </td>
         </ng-container>
 
-        <!-- Faculty Code Column -->
         <ng-container matColumnDef="facultyCode">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Faculty Code
@@ -67,7 +63,6 @@
           </td>
         </ng-container>
 
-        <!-- Faculty Type Column -->
         <ng-container matColumnDef="facultyType">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Faculty Type
@@ -81,13 +76,11 @@
           </td>
         </ng-container>
 
-        <!-- Action Column -->
         <ng-container matColumnDef="action">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Action
           </th>
           <td mat-cell *matCellDef="let element" class="custom-cell action">
-            <!-- View Preferences Button -->
             <span
               [matTooltip]="
                 element.is_enabled || isToggleAllChecked
@@ -116,7 +109,6 @@
               </button>
             </span>
 
-            <!-- Download Button -->
             <span
               [matTooltip]="
                 element.is_enabled || isToggleAllChecked
@@ -147,7 +139,6 @@
           </td>
         </ng-container>
 
-        <!-- Requests Column -->
         <ng-container matColumnDef="requests">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             <div class="help-request-container">
@@ -175,13 +166,10 @@
           </td>
         </ng-container>
 
-        <!-- Toggle Column -->
         <ng-container matColumnDef="toggle">
-          <!-- Global Toggle -->
           @if (allData.length) {
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             <div class="help-toggle-container">
-              <!-- Check if scheduled and not enabled globally -->
               @if (isGloballyScheduled() && !isToggleAllChecked) {
               <button
                 class="scheduled-button global pop"
@@ -190,7 +178,6 @@
                 Scheduled
               </button>
               } @else {
-              <!-- Existing Toggle -->
               <mat-slide-toggle
                 class="header-toggle"
                 [checked]="isToggleAllChecked"
@@ -230,10 +217,8 @@
           </th>
           }
 
-          <!-- Individual Toggle -->
           <td mat-cell *matCellDef="let element" class="custom-cell">
             <div class="help-toggle-container">
-              <!-- Check if scheduled and not enabled individually -->
               @if (isIndividuallyScheduled(element) && !element.is_enabled) {
               <button
                 class="scheduled-button individual pop"
@@ -242,7 +227,6 @@
                 Scheduled
               </button>
               } @else {
-              <!-- Existing Toggle -->
               <mat-slide-toggle
                 class="single-toggle"
                 [checked]="element.is_enabled"
@@ -258,7 +242,6 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
 
-        <!-- No Data Row -->
         <tr *matNoDataRow>
           <td class="no-data-cell" [attr.colspan]="displayedColumns.length">
             <div class="flex-cell">
@@ -271,7 +254,6 @@
         </tr>
       </table>
 
-      <!-- Table Paginator -->
       <mat-paginator
         class="custom-paginator"
         [length]="filteredData.length"
