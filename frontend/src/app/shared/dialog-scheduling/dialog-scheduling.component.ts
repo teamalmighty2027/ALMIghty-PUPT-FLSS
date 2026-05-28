@@ -89,6 +89,7 @@ interface DialogData {
   schedule_id: number;
   course_id: number;
   selectedElectiveId?: number;
+  selectedElectiveSlotName?: string | null;
   isElectiveSlot?: boolean;
   isDraftMode?: boolean;
   isTemporaryCourse?: boolean;
@@ -172,11 +173,16 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // --- Elective Detection ---
-    this.isElectiveSlot = !!this.data.isElectiveSlot || !!this.data.selectedElectiveId || this.data.selectedCourseInfo.toLowerCase().includes('elective');
+    this.isElectiveSlot =
+      !!this.data.isElectiveSlot ||
+      !!this.data.selectedElectiveId ||
+      this.data.selectedCourseInfo.toLowerCase().includes('elective');
     if (this.isElectiveSlot) {
-      // Extract the slot name (e.g. "ELEC IT-FE1 - BSIT Free Elective 1" -> "BSIT Free Elective 1")
+      // Prefer the stable slot name from the backend, then fall back to the label.
       const parts = this.data.selectedCourseInfo.split(' - ');
-      this.electiveSlotName = parts.length > 1 ? parts[1].trim() : this.data.selectedCourseInfo.trim();
+      this.electiveSlotName =
+        this.data.selectedElectiveSlotName?.trim() ||
+        (parts.length > 1 ? parts[1].trim() : this.data.selectedCourseInfo.trim());
 
       // Require the admin to pick an elective
       this.scheduleForm.get('elective')?.setValidators([Validators.required]);
@@ -187,7 +193,9 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.availableElectives = variants[this.electiveSlotName] || [];
         // If a selectedElectiveId was provided, prefill it so it isn't lost
         if (this.data.selectedElectiveId) {
-          this.scheduleForm.patchValue({ elective: this.data.selectedElectiveId });
+          this.scheduleForm.patchValue({
+            elective: this.data.selectedElectiveId,
+          });
         }
         this.cdr.markForCheck();
       });

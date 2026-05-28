@@ -59,6 +59,7 @@ export interface Schedule {
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
   isLastInGroup: boolean;
+  elective_slot_name?: string | null;
 }
 
 export interface Semester {
@@ -138,6 +139,7 @@ export interface CourseResponse {
     end_time: string;
     room_id?: number;
     elective_id?: number | null;
+     elective_slot_name?: string | null;
   };
   professor: string;
   faculty_id: number;

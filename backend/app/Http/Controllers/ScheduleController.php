@@ -570,6 +570,7 @@ class ScheduleController extends Controller
                 'day'        => $schedule->day,
                 'start_time' => $schedule->start_time,
                 'end_time'   => $schedule->end_time,
+                'elective_id' => $schedule->elective_id,
             ];
 
             // 2. APPLY UPDATES
@@ -609,6 +610,30 @@ class ScheduleController extends Controller
                 $oldTime = ($oldData['start_time'] && $oldData['end_time']) ? "{$oldData['start_time']} - {$oldData['end_time']}" : "None";
                 $newTime = ($schedule->start_time && $schedule->end_time) ? "{$schedule->start_time} - {$schedule->end_time}" : "None";
                 $changes[] = "Time: {$oldTime} → {$newTime}";
+            }
+
+            if ($oldData['elective_id'] != $schedule->elective_id) {
+                $oldElective = $oldData['elective_id']
+                    ? DB::table('electives')
+                        ->where('elective_id', $oldData['elective_id'])
+                        ->select('course_code', 'course_title')
+                        ->first()
+                    : null;
+                $newElective = $schedule->elective_id
+                    ? DB::table('electives')
+                        ->where('elective_id', $schedule->elective_id)
+                        ->select('course_code', 'course_title')
+                        ->first()
+                    : null;
+
+                $oldElectiveLabel = $oldElective
+                    ? "{$oldElective->course_code} - {$oldElective->course_title}"
+                    : 'None';
+                $newElectiveLabel = $newElective
+                    ? "{$newElective->course_code} - {$newElective->course_title}"
+                    : 'None';
+
+                $changes[] = "Elective: {$oldElectiveLabel} → {$newElectiveLabel}";
             }
 
             if (empty($changes)) {
@@ -749,6 +774,7 @@ class ScheduleController extends Controller
 
             $electiveTitle = null;
             $electiveCode = null;
+            $electiveSlotName = null;
 
             // Check current schedule first, then fall back to any sibling with elective_id
             $electiveId = $schedule->elective_id ?? null;
@@ -768,9 +794,10 @@ class ScheduleController extends Controller
             if ($electiveId) {
                 $elective = DB::table('electives')
                     ->where('elective_id', $electiveId)
-                    ->select('course_title', 'course_code')
+                    ->select('elective_slot_name', 'course_title', 'course_code')
                     ->first();
                 if ($elective) {
+                    $electiveSlotName = $elective->elective_slot_name;
                     $electiveTitle = $elective->course_title;
                     $electiveCode  = $elective->course_code;
                 }
@@ -795,6 +822,7 @@ class ScheduleController extends Controller
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
                     'elective_id' => $schedule->elective_id ?? null,
+                    'elective_slot_name' => $electiveSlotName,
                 ],
                 'professor' => $faculty ? $faculty->professor : 'Not set',
                 'faculty_id' => $faculty ? $faculty->id : null,

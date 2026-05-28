@@ -1157,7 +1157,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           temporary_course_offering_id:
             course.temporary_course_offering_id ?? null,
           elective_id: course.schedule?.elective_id ?? null,
-          isLastInGroup: false, // placeholder, stamped correctly after sort
+          elective_slot_name: course.schedule?.elective_slot_name ?? null,
+          // placeholder, stamped correctly after sort
+          isLastInGroup: false, 
         }));
 
         this.schedules.sort((a, b) => {
@@ -1519,6 +1521,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
             selectedElectiveId: schedule.elective_id ?? null,
+            selectedElectiveSlotName: schedule.elective_slot_name ?? null,
             isElectiveSlot: !!(schedule.elective_id) || (schedule.course_code || '').toLowerCase().includes('elective'),
           },
         });
