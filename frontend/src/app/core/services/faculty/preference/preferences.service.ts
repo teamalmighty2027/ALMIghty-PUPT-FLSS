@@ -222,7 +222,6 @@ export class PreferencesService {
       })
       .pipe(
         tap(() => {
-          // Instead of fetchPreferences(), we call getPreferences with forceRefresh = true
           this.getPreferences(null, true).subscribe();
         }),
         catchError((error) => {
@@ -253,7 +252,6 @@ export class PreferencesService {
       })
       .pipe(
         tap(() => {
-          // Instead of fetchPreferences(), we call getPreferences with forceRefresh = true
           this.getPreferences(null, true).subscribe();
         }),
         catchError((error) => {

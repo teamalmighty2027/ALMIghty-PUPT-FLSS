@@ -38,7 +38,7 @@ class Faculty extends Authenticatable
     }
 
     // ==========================================
-    // NEW: Profile Relationship
+    // Profile Relationship
     // ==========================================
     public function profile()
     {

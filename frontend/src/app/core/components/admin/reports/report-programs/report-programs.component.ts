@@ -407,7 +407,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       let facultyName = item.faculty_name || '';
       facultyName = facultyName.trim().toUpperCase() === 'N/A' || facultyName.trim() === '' ? 'Faculty TBA' : facultyName.trim();
       
-      // NEW: Group by BOTH Course Code AND Faculty Name
       const key = `${courseCode}|${facultyName}`;
       
       if (mergedMap.has(key)) {

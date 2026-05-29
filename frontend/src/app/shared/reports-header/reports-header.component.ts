@@ -54,7 +54,6 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   @Input() selectedTermId: number | null = null;
   @Input() showTermFilter = true;
 
-  // NEW: Controls for Export By Program Button
   @Input() showExportByProgramButton = false;
   @Output() exportByProgram = new EventEmitter<void>();
 

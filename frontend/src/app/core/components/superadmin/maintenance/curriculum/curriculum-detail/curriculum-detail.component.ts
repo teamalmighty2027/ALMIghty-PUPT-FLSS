@@ -1109,7 +1109,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           return `${base}${cat}_${this.curriculum?.curriculum_year}.pdf`;
         },
 
-        // NEW: Excel Function 
         generateExcelFunction: async () => {
           const excelBlob = await this.generateExcel(exportAll);
           const base = exportAll ? 'All_Programs' : 'Curriculum';
