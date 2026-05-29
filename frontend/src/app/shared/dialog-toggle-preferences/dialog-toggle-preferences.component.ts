@@ -135,7 +135,6 @@ export class DialogTogglePreferencesComponent {
       this.showStartDatePicker = true;
       this.calculateRemainingDaysStart();
     } else if (this.data.type === 'single_appeal') {
-      // NEW LOGIC: Support single appeals
       this.submissionDeadline = this.data.global_deadline || null;
       this.startDate = this.data.global_start_date || null;
       this.facultyName = this.data.facultyName || '';

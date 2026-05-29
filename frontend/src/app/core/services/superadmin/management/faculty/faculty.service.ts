@@ -131,7 +131,7 @@ export class FacultyService {
   }
 
   // ==========================================
-  // NEW PERSONAL PROFILE METHODS
+  // PERSONAL PROFILE METHODS
   // ==========================================
 
   /**

@@ -182,12 +182,19 @@ class PreferenceController extends Controller
      * In this context, 'unique' means it returns only one instance of a course,
      * a.k.a. the actual selected preference of the faculty
      */
-    public function getUniqueFacultyPreferences()
+    public function getUniqueFacultyPreferences(Request $request)
     {
-        // ... Keep exactly as is ...
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_faculty_view', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
@@ -228,8 +235,8 @@ class PreferenceController extends Controller
         }
 
         $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
-            $faculty           = $facultyGroup->first();
-            $facultyUser       = $faculty->user;
+            $faculty            = $facultyGroup->first();
+            $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
             $courses = $facultyGroup->map(function ($preference) use ($temporaryOfferingsById) {
@@ -377,12 +384,19 @@ class PreferenceController extends Controller
      * This returns ALL the instances of a selected course across all programs
      * in all active curricula.
      */
-    public function getAllFacultyPreferences()
+    public function getAllFacultyPreferences(Request $request)
     {
-        // ... Keep exactly as is ...
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_faculty_view', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
@@ -419,8 +433,8 @@ class PreferenceController extends Controller
         }
 
         $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
-            $faculty           = $facultyGroup->first();
-            $facultyUser       = $faculty->user;
+            $faculty            = $facultyGroup->first();
+            $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
             $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester, $temporaryOfferingsById) {
@@ -572,11 +586,19 @@ class PreferenceController extends Controller
     /**
      * Retrieves preferences for a specific faculty based on their faculty_id.
      */
-    public function getFacultyPreferencesById($faculty_id)
+    public function getFacultyPreferencesById(Request $request, $faculty_id)
     {
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_faculty_view', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
