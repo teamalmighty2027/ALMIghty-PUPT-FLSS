@@ -11,13 +11,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 
 import { PreferencesService } from '../../core/services/faculty/preference/preferences.service';
-import { Course } from '../../core/models/preferences.model';
+import { Course, Program } from '../../core/models/preferences.model';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { fadeAnimation } from '../../core/animations/animations';
 
 interface ImportHistoryDialogData {
   facultyId: number;
-  availableCourses: Course[];
+  programs: Program[];
   existingKeys: string[];
   currentSemesterId: number;
   currentActiveSemesterId: number;
@@ -53,21 +53,62 @@ export class DialogImportHistoryComponent implements OnInit {
   historyPreferences = signal<any[]>([]);
   selectedCourses = new Set<string>();
 
-  // Filtered courses from history that can be imported
+  // Filtered courses from history that can be imported.
+  // Matches by program_code + course_code to avoid cross-program collisions
   importableCourses = computed(() => {
     const prefs = this.historyPreferences();
-    const available = this.data.availableCourses;
+    const programs = this.data.programs;
     const existingKeys = this.data.existingKeys;
 
     return prefs.map(pref => {
-      // Find matching course in current offerings
       // Temporary courses are excluded as per plan
       if (pref.is_temporary) return null;
 
-      const match = available.find(c => c.course_code === pref.course_details.course_code);
+      const histProgramCode = pref.course_details?.program_code;
+      const histCourseCode = pref.course_details?.course_code;
+
+      // Find the program that matches the history entry's program
+      const matchedProgram = programs.find(
+        p => p.program_code === histProgramCode
+      );
+
+      // Search for the course within the matched program's year levels
+      let match: Course | undefined;
+
+      if (matchedProgram) {
+        for (const yl of matchedProgram.year_levels) {
+          const found = yl.semester.courses.find(
+            c => c.course_code === histCourseCode
+          );
+
+          if (found) {
+            match = found;
+            break;
+          }
+        }
+      }
+
+      // Fallback: search all programs if no program-specific match was found
+      if (!match) {
+        outer: for (const prog of programs) {
+          for (const yl of prog.year_levels) {
+            const found = yl.semester.courses.find(
+              c => c.course_code === histCourseCode
+            );
+
+            if (found) {
+              match = found;
+              break outer;
+            }
+          }
+        }
+      }
+
       if (!match) return null;
 
-      const key = this.getSelectionKey(match);
+      // Build a program-aware key so courses from different programs
+      // that share the same course_code get distinct identifiers
+      const key = this.getSelectionKey(match, histProgramCode);
       const isAlreadyAdded = existingKeys.includes(key);
 
       return {
@@ -195,13 +236,18 @@ export class DialogImportHistoryComponent implements OnInit {
   }
 
   /**
-   * Generates a unique key for a course
+   * Generates a unique key for a course, optionally scoped by program_code
+   * to prevent cross-program collisions for shared course codes.
    */
-  private getSelectionKey(course: Course): string {
+  private getSelectionKey(
+    course: Course,
+    programCode?: string | null
+  ): string {
     const base = course.temporary_course_offering_id
       ? `temp-${course.temporary_course_offering_id}`
       : `course-${course.course_id}`;
     const sectionId = course.section?.section_id ?? 'none';
-    return `${base}-section-${sectionId}`;
+    const programPart = programCode ? `-program-${programCode}` : '';
+    return `${base}${programPart}-section-${sectionId}`;
   }
 }
