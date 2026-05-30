@@ -831,7 +831,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
-      width: 'min(600px, 90vw)',
+      width: 'min(400px, 50vw)',
       data: { 
         sections: targetYear.sections,
         programCode: this.selectedProgram()?.program_code ?? '',
