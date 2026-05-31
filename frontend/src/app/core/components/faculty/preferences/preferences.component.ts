@@ -970,69 +970,140 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
     for (const course of courses) {
       sectionToAutoSelect = undefined;
+
       // Try to find the program from previous data
       let program: Program | undefined;
       if (course.previousProgramCode) {
-        program = this.programs().find(p => p.program_code === course.previousProgramCode);
+        program = this.programs().find(
+          (p) => p.program_code === course.previousProgramCode
+        );
       }
 
-      // Fallback: If no match by code, but only one program offers this course, use it
+      // Fallback: If only one program offers this course, use it
       if (!program) {
-        const possible = this.programs().filter(p => 
-          p.year_levels.some(yl => yl.semester.courses.some(c => this.isSameCourseOffering(c, course)))
+        const possible = this.programs().filter((p) =>
+          p.year_levels.some((yl) =>
+            yl.semester.courses.some((c) =>
+              this.isSameCourseOffering(c, course)
+            )
+          )
         );
+
         if (possible.length === 1) {
           program = possible[0];
         }
       }
 
-      // If program found, set it and try to pre-select the section from previous data
+      // Pre-select the section from previous data if available
       if (program) {
         this.selectedProgram.set(program);
-        
+
         if (course.previousSectionName) {
-          const targetYear = program.year_levels.find(yl => yl.year_level === course.year_level);
-          sectionToAutoSelect = targetYear?.sections.find(s => s.section_name === course.previousSectionName);
+          const targetYear = program.year_levels.find(
+            (yl) => yl.year_level === course.year_level
+          );
+
+          sectionToAutoSelect = targetYear?.sections.find(
+            (s) => s.section_name === course.previousSectionName
+          );
+
           if (sectionToAutoSelect) {
             this.selectedSection.set(sectionToAutoSelect);
+          } else if (targetYear) {
+            const fallbackSection = targetYear.sections?.[0];
+            const hasSingleFallback =
+              (targetYear.sections?.length ?? 0) <= 1;
+
+            if (hasSingleFallback && fallbackSection) {
+              this.showSnackBar(
+                `${course.course_code}: Section ` +
+                `${course.previousSectionName} does not exist. ` +
+                `Defaulted to ${fallbackSection.section_name}.`
+              );
+            } else {
+              this.showSnackBar(
+                `${course.course_code}: Section ` +
+                `${course.previousSectionName} does not exist. ` +
+                `Please select a section.`
+              );
+            }
           }
         }
       }
 
+      const beforeCount = this.allSelectedCourses().length;
       await this.addCourseToTable(course);
+      const wasAdded = this.allSelectedCourses().length > beforeCount;
 
-      // 4. Auto-submit to backend if it has preferred days and section
-      if (course.preferred_days && course.preferred_days.length > 0 && sectionToAutoSelect) {
-        const preferenceData: any = {
-          faculty_id: parseInt(this.facultyId()),
-          active_semester_id: this.activeSemesterId(),
-          sections_per_program_year_id: sectionToAutoSelect.section_id,
-          preferred_days: course.preferred_days.map((d: any) => ({
-            day: d.day,
-            start_time: d.start_time,
-            end_time: d.end_time,
-          })),
-        };
+      if (wasAdded) {
+        let autoSubmitted = false;
 
-        if (course.temporary_course_offering_id != null) {
-          preferenceData.temporary_course_offering_id = course.temporary_course_offering_id;
-        } else if (course.course_assignment_id != null) {
-          preferenceData.course_assignment_id = course.course_assignment_id;
-        }
+        // Auto-submit to backend if it has preferred days and a section
+        if (
+          course.preferred_days &&
+          course.preferred_days.length > 0 &&
+          course.section
+        ) {
+          const preferenceData: any = {
+            faculty_id: parseInt(this.facultyId()),
+            active_semester_id: this.activeSemesterId(),
+            sections_per_program_year_id: course.section.section_id,
+            preferred_days: course.preferred_days.map((d: any) => ({
+              day: d.day,
+              start_time: d.start_time,
+              end_time: d.end_time,
+            })),
+          };
 
-        if (preferenceData.faculty_id && preferenceData.active_semester_id && preferenceData.sections_per_program_year_id) {
-          try {
-            await firstValueFrom(this.preferencesService.submitSinglePreference(preferenceData).pipe(
-              catchError(err => {
-                console.error('Error auto-submitting imported preference:', err);
-                this.showSnackBar(`Failed to save ${course.course_code} to backend.`);
-                return throwError(() => err);
-              })
-            ));
-          } catch (e) {
-            console.error(`Skipping ${course.course_code} due to error:`, e);
+          if (course.temporary_course_offering_id != null) {
+            preferenceData.temporary_course_offering_id =
+              course.temporary_course_offering_id;
+          } else if (course.course_assignment_id != null) {
+            preferenceData.course_assignment_id =
+              course.course_assignment_id;
+          }
+
+          if (
+            preferenceData.faculty_id &&
+            preferenceData.active_semester_id &&
+            preferenceData.sections_per_program_year_id
+          ) {
+            try {
+              await firstValueFrom(
+                this.preferencesService
+                  .submitSinglePreference(preferenceData)
+                  .pipe(
+                    catchError((err) => {
+                      console.error(
+                        'Error auto-submitting imported preference:',
+                        err
+                      );
+                      this.showSnackBar(
+                        `Failed to save ${course.course_code} to backend.`
+                      );
+                      return throwError(() => err);
+                    })
+                  )
+              );
+              autoSubmitted = true;
+            } catch (e) {
+              console.error(
+                `Skipping ${course.course_code} due to error:`,
+                e
+              );
+            }
           }
         }
+
+        // Sync the submission status in the UI table
+        this.allSelectedCourses.update((coursesList) =>
+          coursesList.map((c) => {
+            if (this.getSelectionKey(c) === this.getSelectionKey(course)) {
+              return { ...c, isSubmitted: autoSubmitted };
+            }
+            return c;
+          })
+        );
       }
     }
   }
