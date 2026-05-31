@@ -378,6 +378,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Reloads the current term after a successful bulk toggle.
+   * Clears cached preferences first so the table reflects server state.
+   */
+  private refreshPreferencesTable(): void {
+    const termId = this.selectedTermId ?? this.activeTermId;
+
+    if (termId === null) {
+      return;
+    }
+
+    this.preferencesService.clearPreferencesCache();
+    this.loadFacultyPreferences(termId);
+  }
+
+  /**
    * Receives input changes from the header component and forwards
    * the search text into the debounced search subject.
    * @param inputValues Object map of input keys to values.
@@ -576,15 +591,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
-      if (confirmed && !isScheduledClick) {
-        const newStatus = this.isToggleAllChecked;
-        this.filteredData.forEach(
-          (faculty) => (faculty.is_enabled = newStatus),
-        );
-        this.isToggleAllChecked = newStatus;
-        this.updateDisplayedData();
-        this.updateExportButtonState();
-        this.cdr.markForCheck();
+      if (confirmed) {
+        this.refreshPreferencesTable();
       }
     });
   }
@@ -1626,10 +1634,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     const isGlobalDisabled =
-      (this.hasIndividualDeadlines &&
-        !this.isToggleAllChecked &&
-        this.isEnabled) ||
-      this.isIndividualStartDateSet;
+      !this.isToggleAllChecked &&
+      ((this.hasIndividualDeadlines && this.isEnabled) ||
+        this.isIndividualStartDateSet);
 
     const isIndividualDisabled =
       this.isToggleAllChecked || this.isGlobalStartDateSet;
