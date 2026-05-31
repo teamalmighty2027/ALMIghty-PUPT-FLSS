@@ -151,11 +151,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Lifecycle hook called when the component is destroyed.
+   * Cleans up the internal destroy subject to avoid memory leaks
+   * and allow observables to complete.
+   */
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Loads academic terms for the term dropdown and initializes the
+   * selected term. Sets the active term id and triggers loading
+   * of faculty preferences for the chosen term.
+   */
   loadTerms(): void {
     this.reportsService.getAllTermsForDropdown().subscribe({
       next: (data) => {
@@ -177,6 +187,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Handler invoked when the user selects a different term.
+   * Forces a reload of faculty preferences for the provided term.
+   * @param termId The newly selected term id, or null.
+   */
   onTermChange(termId: number | null): void {
     // Force the reload even if angular's two-way binding beat us to it
     if (termId !== null) {
@@ -186,6 +201,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Synchronizes internal component state with the provided term id.
+   * Updates visibility of the preference toggle column and export
+   * button state accordingly.
+   * @param termId The term id to sync into component state.
+   */
   private syncSelectedTermState(termId: number | null): void {
     this.selectedTermId = termId;
     this.showPreferenceToggleColumn =
@@ -194,12 +215,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.updateExportButtonState();
   }
 
+  /**
+   * Recomputes the `displayedColumns` array based on whether the
+   * preference toggle column should be visible.
+   */
   private updateDisplayedColumns(): void {
     this.displayedColumns = this.showPreferenceToggleColumn
       ? [...this.baseDisplayedColumns, 'toggle']
       : [...this.baseDisplayedColumns];
   }
 
+  /**
+   * Updates export button enabled/disabled state and tooltip message.
+   * Disables export when there are no preferences or when submission
+   * is currently open (global or individual toggles active).
+   */
   private updateExportButtonState(): void {
     const exportBlockedBySubmission =
       this.showPreferenceToggleColumn &&
@@ -218,6 +248,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       : '';
   }
 
+  /**
+   * Sets the table filter predicate used to match faculty rows
+   * against the user's search text.
+   */
   private setupFilterPredicate(): void {
     this.dataSource.filterPredicate = (data: Faculty, filter: string) => {
       return (
@@ -228,6 +262,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Loads faculty preferences for the specified term and updates
+   * the component's data structures and UI state.
+   * @param termId Optional term id to scope the preferences request.
+   */
   loadFacultyPreferences(termId?: number | null): void {
     this.isLoading.next(true);
 
@@ -280,6 +319,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Normalizes component state when no preference data is available.
+   * Clears data arrays, updates derived states, and stops the loader.
+   */
   private handleEmptyData(): void {
     this.allData = [];
     this.filteredData = [];
@@ -290,6 +333,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.isLoading.next(false);
   }
 
+  /**
+   * Applies a text filter to the faculty list and updates the table.
+   * @param filterValue Raw filter string entered by the user.
+   */
   applyFilter(filterValue: string): void {
     this.currentFilter = filterValue.trim().toLowerCase();
 
@@ -310,6 +357,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Predicate to determine whether a faculty row matches the filter.
+   * @param data Faculty row to test.
+   * @param filter Normalized filter string.
+   */
   filterPredicate(data: Faculty, filter: string): boolean {
     return (
       data.facultyName.toLowerCase().includes(filter) ||
@@ -318,15 +370,27 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Updates the table data source with the current filtered data.
+   */
   updateDisplayedData(): void {
     this.dataSource.data = [...this.filteredData];
   }
 
+  /**
+   * Receives input changes from the header component and forwards
+   * the search text into the debounced search subject.
+   * @param inputValues Object map of input keys to values.
+   */
   onInputChange(inputValues: { [key: string]: any }): void {
     const searchValue = inputValues['searchFaculty'] || '';
     this.searchSubject.next(searchValue);
   }
 
+  /**
+   * Computes the state of the global "toggle all" control and
+   * whether any individual toggles are active in the filtered set.
+   */
   checkToggleAllState(): void {
     const allEnabled = this.filteredData.every((faculty) => faculty.is_enabled);
     const isGlobalDeadlineSet = this.allData.some((faculty) =>
@@ -344,6 +408,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.isEnabled = allEnabled;
   }
 
+  /**
+   * Detects whether a global start date has been set for any faculty.
+   */
   checkGlobalStartDate(): void {
     this.isGlobalStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -352,6 +419,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Detects whether any individual start dates have been configured.
+   */
   checkIndividualStartDate(): void {
     this.isIndividualStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -360,12 +430,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Updates `hasAnyPreferences` to indicate whether any faculty
+   * have submitted preferences in the loaded data.
+   */
   updateHasAnyPreferences(): void {
     this.hasAnyPreferences = this.allData.some((faculty) =>
       this.hasSubmittedPreferences(faculty),
     );
   }
 
+  /**
+   * Returns true if the given faculty has any valid submitted
+   * preference courses for their active semester.
+   * @param faculty Faculty object to inspect.
+   */
   hasSubmittedPreferences(faculty: Faculty): boolean {
     if (!faculty || !faculty.active_semesters || faculty.active_semesters.length === 0) return false;
     
@@ -382,6 +461,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return validCourses.length > 0;
   }
 
+  /**
+   * Updates `hasIndividualDeadlines` based on whether any faculty
+   * have individual deadlines that differ from global deadlines.
+   */
   updateIndividualDeadlinesState(): void {
     this.hasIndividualDeadlines = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -394,6 +477,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Returns true if any faculty have a global start date or deadline
+   * configured for their active semester.
+   */
   isGloballyScheduled(): boolean {
     return this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -404,11 +491,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Returns whether the provided faculty is individually scheduled.
+   * @param faculty Optional faculty to check; returns false when omitted.
+   */
   isIndividuallyScheduled(faculty?: Faculty): boolean {
     if (!faculty) return false;
     return this.facultyScheduledState.get(faculty.faculty_id) ?? false;
   }
 
+  /**
+   * Initializes the internal map that tracks whether each faculty
+   * is individually scheduled based on their active semester data.
+   */
   initializeScheduledFacultyState(): void {
     this.allData.forEach((faculty: Faculty) => {
       this.facultyScheduledState.set(
@@ -418,6 +513,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Determines whether the given faculty has any individual start
+   * date or deadline configured.
+   * @param faculty Faculty to check.
+   */
   calculateIsIndividuallyScheduled(faculty: Faculty): boolean {
     return (
       faculty.active_semesters?.some(
@@ -428,6 +528,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Handles the global "toggle all" preferences action.
+   * Opens a confirmation dialog and applies the new enabled/disabled
+   * state to the filtered faculties when confirmed.
+   * @param event The originating toggle change event or MouseEvent.
+   * @param isScheduledClick True when invoked programmatically by a scheduler.
+   */
   onToggleAllPreferences(
     event: MatSlideToggleChange | MouseEvent,
     isScheduledClick = false,
@@ -482,6 +589,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Handles toggling preferences for a single faculty.
+   * Opens a confirmation dialog and refreshes the faculty data
+   * from the server when the action is confirmed.
+   * @param faculty The faculty being toggled.
+   * @param event The originating slide toggle or mouse event.
+   * @param isScheduledClick True when invoked programmatically.
+   */
   onToggleSinglePreferences(
     faculty: Faculty,
     event: MatSlideToggleChange | MouseEvent,
@@ -539,6 +654,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the preview dialog for the given faculty's preferences.
+   * @param faculty Faculty to preview.
+   */
   onView(faculty: Faculty): void {
     const generatePdfFunction = (preview: boolean): Blob | void => {
       return this.generateFacultyPDF(false, [faculty], preview);
@@ -564,6 +683,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the dialog for exporting all faculty preferences.
+   * Validates that there is data available before opening the dialog.
+   */
   onExportAll(): void {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
@@ -603,6 +726,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   // --- EXPORT BY PROGRAM ---
+  /**
+   * Opens the export dialog to generate program-grouped export files.
+   * Validates grouped program data before allowing the export.
+   */
   onExportByProgram(): void {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
@@ -659,6 +786,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the export dialog for exporting a single faculty's preferences.
+   * @param faculty The faculty whose preferences are to be exported.
+   */
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -693,6 +824,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Groups faculty preference course data by program, year level and
+   * section to produce a structure suitable for program-based exports.
+   * @returns An array of program group objects prepared for export.
+   */
   private getGroupedProgramData(): any[] {
     const programsMap = new Map<string, any>();
     
@@ -846,6 +982,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return programsArray;
   }
 
+  /**
+   * Generates a PDF blob for program-grouped preference data.
+   * @param programsData Grouped program data as returned by getGroupedProgramData().
+   * @param academicYear Academic year string for headers.
+   * @param semesterLabel Semester label for headers.
+   * @returns A Blob containing the generated PDF document.
+   */
   private generateProgramPreferencesPDF(programsData: any[], academicYear: string, semesterLabel: string): Blob {
     const doc = new jsPDF('p', 'mm', 'legal') as any;
     let isFirstPage = true;
@@ -982,6 +1125,16 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return doc.output('blob');
   }
 
+  /**
+   * Creates an Excel workbook blob containing program-grouped
+   * preference data suitable for download.
+   * @param programsData Grouped program data as returned by getGroupedProgramData().
+   * @param academicYear Academic year string for headers and filenames.
+   * @param semesterLabel Semester label for headers and filenames.
+   * @returns Promise resolving to an Excel Blob.
+   */
+  private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
+
   private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
@@ -1101,6 +1254,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /**
+   * Generates an Excel workbook blob containing one sheet per faculty
+   * with their preference details.
+   * @param isAll Whether the export is for all faculties.
+   * @param faculties Array of faculties to include in the workbook.
+   * @returns Promise resolving to an Excel Blob.
+   */
+  private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
+
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
@@ -1199,6 +1361,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const buffer = await workbook.xlsx.writeBuffer();
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
+
+  /**
+   * Generates a PDF document blob for provided faculty preferences.
+   * @param isAll True when generating a combined report for all faculties.
+   * @param faculties Array of faculty objects to render.
+   * @param showPreview If true, the caller intends to display a preview.
+   * @returns Blob representing the generated PDF.
+   */
+  generateFacultyPDF(
+    isAll: boolean,
+    faculties: Faculty[],
+    showPreview: boolean = false,
+  ): Blob {
 
   generateFacultyPDF(
     isAll: boolean,
@@ -1335,6 +1510,169 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
       throw error;
     }
+  }
+
+  /**
+   * Sanitizes a string to produce a safe filename.
+   * @param fileName Original filename or label.
+   * @returns Sanitized string containing only lowercase letters and digits/underscores.
+   */
+  sanitizeFileName(fileName: string): string {
+    return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  }
+
+  /**
+   * Converts a 24-hour time string (HH:MM(:SS) format) into 12-hour format.
+   * @param time Time string in 24-hour format, or undefined.
+   * @returns Formatted time in 12-hour notation or 'N/A' when missing.
+   */
+  formatTimeTo12Hour(time: string | undefined): string {
+    if (!time) {
+      return 'N/A';
+    }
+    const [hour, minute] = time.split(':');
+    const hours = parseInt(hour, 10);
+    const minutesFormatted = minute.length === 2 ? minute : `0${minute}`;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const formattedHour = hours % 12 || 12;
+    return `${formattedHour}:${minutesFormatted} ${period}`;
+  }
+
+  /**
+   * Detects whether the preferredDays array indicates "any day" or
+   * "any time" modifiers.
+   * @param preferredDays Array of preferred day/time objects.
+   * @returns Object with flags `has_any_day` and `has_any_time`.
+   */
+  private detectAnyModifiers(preferredDays: any[]): { has_any_day: boolean; has_any_time: boolean } {
+    const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const ANY_DAY_START = '07:00:00';
+    const ANY_DAY_END = '21:00:00';
+
+    const presentDays = preferredDays.map(pref => pref.day);
+    const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
+
+    const has_any_time = preferredDays.length > 0 && preferredDays.every(
+      pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
+    );
+
+    return { has_any_day, has_any_time };
+  }
+
+  /**
+   * Formats the preferredDays array into a readable string used in
+   * exports and PDF tables.
+   * @param preferredDays Array of preferred day/time objects.
+   * @returns Formatted string describing days and time ranges.
+   */
+  private formatPreferredDaysAndTime(preferredDays: any[]): string {
+    const { has_any_day, has_any_time } = this.detectAnyModifiers(preferredDays);
+
+    if (has_any_day && has_any_time) {
+      return 'Any Day, Any Time';
+    }
+
+    if (has_any_day && preferredDays.length > 0) {
+      const firstDay = preferredDays[0];
+      const timeRange = `${this.formatTimeTo12Hour(
+        firstDay.start_time,
+      )} - ${this.formatTimeTo12Hour(firstDay.end_time)}`;
+      return `Any Day, ${timeRange}`;
+    }
+
+    if (has_any_time) {
+      const daysString = preferredDays.map(pref => pref.day).join(', ');
+      return `${daysString}, Any Time`;
+    }
+
+    return preferredDays
+      .map((pref) => {
+        const time = `${this.formatTimeTo12Hour(
+          pref.start_time,
+        )} - ${this.formatTimeTo12Hour(pref.end_time)}`;
+        return `${pref.day} (${time})`;
+      })
+      .join('\n');
+  }
+
+  /**
+   * Computes CSS class flags derived from the faculty type string.
+   * @param facultyType Raw faculty type label.
+   * @returns Record of CSS class booleans.
+   */
+  getFacultyTypeClass(facultyType: string): Record<string, boolean> {
+    const type = facultyType.toLowerCase();
+    return {
+      'full-time': type.includes('full-time'),
+      designee: type.includes('designee'),
+      'part-time': type.includes('part-time'),
+      temporary: type.includes('temporary'),
+    };
+  }
+
+  /**
+   * Returns the tooltip text for a given toggle type and faculty.
+   * @param type Either 'global' or 'individual'.
+   * @param faculty Optional faculty to derive the tooltip from.
+   */
+  public getTooltip(type: 'global' | 'individual', faculty?: Faculty): string {
+    const state = this.getToggleState(faculty || this.allData[0]);
+    return type === 'global' ? state.globalTooltip : state.individualTooltip;
+  }
+
+  /**
+   * Computes the toggle enable/disable state and associated tooltips
+   * for the provided faculty.
+   * @param faculty Optional faculty to compute state for.
+   */
+  public getToggleState(faculty?: Faculty): ToggleState {
+    if (!faculty || !this.allData.length) {
+      return {
+        isGlobalDisabled: true,
+        isIndividualDisabled: true,
+        globalTooltip: 'No faculty data available',
+        individualTooltip: 'No faculty data available',
+      };
+    }
+
+    const isGlobalDisabled =
+      (this.hasIndividualDeadlines &&
+        !this.isToggleAllChecked &&
+        this.isEnabled) ||
+      this.isIndividualStartDateSet;
+
+    const isIndividualDisabled =
+      this.isToggleAllChecked || this.isGlobalStartDateSet;
+
+    const isGloballyScheduled = this.isGloballyScheduled();
+    const isIndividuallyScheduled = this.isIndividuallyScheduled(faculty);
+
+    const globalTooltip =
+      isGloballyScheduled && !this.isToggleAllChecked
+        ? 'Preferences submission is scheduled'
+        : this.hasIndividualDeadlines && !this.isToggleAllChecked
+        ? 'Global preferences toggle is disabled because individual preferences settings are set'
+        : `${
+            this.isToggleAllChecked ? 'Disable' : 'Enable'
+          } preferences submission for ALL faculty`;
+
+    const individualTooltip =
+      isIndividuallyScheduled && !faculty.is_enabled
+        ? 'Preferences submission is scheduled'
+        : this.isGlobalStartDateSet
+        ? 'Global submission start date has been set – individual changes disabled'
+        : this.isToggleAllChecked
+        ? 'Global preferences submission is active – individual changes disabled'
+        : `${
+            faculty.is_enabled ? 'Disable' : 'Enable'
+          } preferences submission for ${faculty.facultyName} only`;
+
+    return {
+      isGlobalDisabled,
+      isIndividualDisabled,
+      globalTooltip,
+      individualTooltip,
+    };
   }
 
   sanitizeFileName(fileName: string): string {
