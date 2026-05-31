@@ -104,9 +104,31 @@
       font-size: var(--font-size-lg);
     }
   }
+  
+  .export-program {
+    margin-right: 12px;
+    color: var(--primary-one);
+    border: 1px solid var(--primary-one);
+
+    &:hover:not(:disabled) {
+      background-color: var(--primary-one-hover);
+      color: white;
+    }
+
+    &.disabled-button {
+      background-color: var(--neutral-button);
+      color: var(--neutral-text);
+      border-color: var(--neutral-button);
+      cursor: not-allowed;
+    }
+  }
 
   .export-button {
     background-color: var(--neutral-button);
+
+    &:hover:not(:disabled) {
+      background-color: var(--neutral-hover);
+    }
 
     span {
       text-wrap: nowrap;

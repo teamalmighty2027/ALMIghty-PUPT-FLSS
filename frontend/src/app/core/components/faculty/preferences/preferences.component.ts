@@ -831,7 +831,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
-      width: 'min(600px, 90vw)',
+      width: 'min(400px, 50vw)',
       data: { 
         sections: targetYear.sections,
         programCode: this.selectedProgram()?.program_code ?? '',
@@ -930,14 +930,20 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    * Opens the import-from-history dialog and processes selected courses.
    */
   public openImportHistoryDialog(): void {
-    const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
+    const existingKeys = this.allSelectedCourses().map(c => {
+      const base = this.getCourseIdentityKey(c);
+      const sectionId = c.section?.section_id ?? 'none';
+      const programCode = (c as any).program_details?.program_code ?? null;
+      const programPart = programCode ? `-program-${programCode}` : '';
+      return `${base}${programPart}-section-${sectionId}`;
+    });
 
     this.dialog.open(DialogImportHistoryComponent, {
       maxWidth: '95vw',
       width: 'auto',
       data: {
         facultyId: parseInt(this.facultyId()!, 10),
-        availableCourses: this.courses(),
+        programs: this.programs(),
         existingKeys: existingKeys,
         currentSemesterId: this.semesterId(),
         currentActiveSemesterId: this.activeSemesterId()

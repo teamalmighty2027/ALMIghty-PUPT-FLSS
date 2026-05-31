@@ -197,6 +197,10 @@
         @include mixins.default-transition;
         box-shadow: var(--shadow-sm);
 
+        ::ng-deep .mdc-button__label {
+          @include mixins.flex-layout($gap: var(--spacing-xs));
+        }
+
         span[mat-symbol] {
           font-size: var(--font-size-lg);
         }
