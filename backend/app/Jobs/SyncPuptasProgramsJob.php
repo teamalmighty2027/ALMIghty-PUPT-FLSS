@@ -261,6 +261,8 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
         $updatedCount = 0;
         $deactivatedCount = 0;
         $skippedCount = 0;
+        $confirmedEmptyProgramList = isset($payload['total_count'])
+            && (int) $payload['total_count'] === 0;
 
         DB::transaction(function () use (
             $programs,
@@ -269,7 +271,8 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
             &$createdCount,
             &$updatedCount,
             &$deactivatedCount,
-            &$skippedCount
+            &$skippedCount,
+            $confirmedEmptyProgramList
         ) {
             foreach ($programs as $programData) {
                 $rawCode = trim((string) (
@@ -306,10 +309,6 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     ?? $programData['info']
                     ?? ($incomingDepartment !== '' ? $incomingDepartment : null);
 
-                $numberOfYears = $programData['number_of_years'] 
-                    ?? $programData['years'] 
-                    ?? 1;
-
                 $existing = Program::where('program_code', $normalizedCode)
                     ->first();
 
@@ -338,11 +337,13 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     ?? $existing?->program_info 
                     ?? $programTitle;
 
-                $numberOfYears = $numberOfYears 
-                    ?: ($existing?->number_of_years ?? 1);
+                $numberOfYears = $this->resolveProgramYears(
+                    $programData,
+                    $existing
+                );
 
                 if ($existing) {
-                    $seenCodes[] = $existing->program_code;
+                    $seenCodes[$existing->program_code] = true;
                     $existing->update([
                         'program_title' => $incomingTitle !== '' 
                             ? $programTitle 
@@ -356,7 +357,7 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                     continue;
                 }
 
-                $seenCodes[] = $normalizedCode;
+                $seenCodes[$normalizedCode] = true;
                 Program::create([
                     'program_code' => $normalizedCode,
                     'program_title' => $programTitle,
@@ -368,9 +369,16 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
                 $createdCount++;
             }
 
-            if (count($seenCodes) > 0) {
-                $deactivatedCount = Program::whereNotIn('program_code', $seenCodes)
-                    ->where('status', '!=', 'Inactive')
+            $seenCodes = array_keys($seenCodes);
+
+            if ($confirmedEmptyProgramList) {
+                $deactivatedCount = Program::whereNotNull('last_synced_at')
+                    ->where('status', 'Active')
+                    ->update(['status' => 'Inactive']);
+            } elseif (count($seenCodes) > 0) {
+                $deactivatedCount = Program::whereNotNull('last_synced_at')
+                    ->whereNotIn('program_code', $seenCodes)
+                    ->where('status', 'Active')
                     ->update(['status' => 'Inactive']);
             }
         });
@@ -433,6 +441,45 @@ class SyncPuptasProgramsJob implements ShouldQueue, ShouldBeUnique
         }
 
         return substr($trimmed, 0, 10);
+    }
+
+    /**
+     * Resolve the number of years for a program.
+     *
+     * Keep the existing value when the API omits the field or sends an
+     * invalid value, and only fall back to 1 for brand-new programs.
+     *
+     * @param array<string, mixed> $programData
+     */
+    private function resolveProgramYears(
+        array $programData,
+        ?Program $existing
+    ): int {
+        foreach (['number_of_years', 'years'] as $key) {
+            if (! array_key_exists($key, $programData)) {
+                continue;
+            }
+
+            $rawYears = $programData[$key];
+
+            if (is_string($rawYears)) {
+                $rawYears = trim($rawYears);
+            }
+
+            if ($rawYears === '' || $rawYears === null) {
+                continue;
+            }
+
+            if (is_numeric($rawYears)) {
+                $years = (int) $rawYears;
+
+                if ($years > 0) {
+                    return $years;
+                }
+            }
+        }
+
+        return $existing?->number_of_years ?? 1;
     }
 
     /**
