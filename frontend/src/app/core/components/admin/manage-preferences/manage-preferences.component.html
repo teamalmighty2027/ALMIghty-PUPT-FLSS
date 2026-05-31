@@ -13,16 +13,8 @@
       [showExportByProgramButton]="true" 
       [showAddButton]="false"
       [showActiveYearAndSem]="false"
-      [buttonDisabled]="
-        !hasAnyPreferences || isToggleAllChecked || isAnyIndividualToggleOn
-      "
-      [tooltipMessage]="
-        !hasAnyPreferences
-          ? 'No faculty preferences available for export'
-          : isToggleAllChecked || isAnyIndividualToggleOn
-          ? 'Preferences submission is open; export disabled'
-          : ''
-      "
+      [buttonDisabled]="exportButtonsDisabled"
+      [tooltipMessage]="exportTooltipMessage"
       (exportByProgram)="onExportByProgram()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">
@@ -168,78 +160,80 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="toggle">
-          @if (allData.length) {
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            <div class="help-toggle-container">
-              @if (isGloballyScheduled() && !isToggleAllChecked) {
-              <button
-                class="scheduled-button global pop"
-                (click)="onToggleAllPreferences($event, true)"
-                [matTooltip]="getTooltip('global')">
-                Scheduled
-              </button>
-              } @else {
-              <mat-slide-toggle
-                class="header-toggle"
-                [checked]="isToggleAllChecked"
-                [disabled]="getToggleState(allData[0]).isGlobalDisabled"
-                [matTooltip]="getTooltip('global')"
-                (change)="onToggleAllPreferences($event)">
-              </mat-slide-toggle>
-              }
-              <span
-                mat-symbol="help"
-                [fill]="false"
-                class="help-button"
-                [matTooltip]="
-                  'This button allows you to toggle faculty preferences\n
-                   submission and set submission period'
-                "></span>
-            </div>
-          </th>
-          } @else {
-          <th mat-header-cell *matHeaderCellDef class="custom-header">
-            <div class="help-toggle-container">
-              <mat-slide-toggle
-                class="header-toggle"
-                [checked]="false"
-                [disabled]="true"
-                matTooltip="No faculty data available">
-              </mat-slide-toggle>
-              <span
-                mat-symbol="help"
-                [fill]="false"
-                class="help-button"
-                [matTooltip]="
-                  'This button allows you to toggle faculty preferences\n
-                   submission and set submission period'
-                "></span>
-            </div>
-          </th>
-          }
+        @if (showPreferenceToggleColumn) {
+          <ng-container matColumnDef="toggle">
+            @if (allData.length) {
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              <div class="help-toggle-container">
+                @if (isGloballyScheduled() && !isToggleAllChecked) {
+                <button
+                  class="scheduled-button global pop"
+                  (click)="onToggleAllPreferences($event, true)"
+                  [matTooltip]="getTooltip('global')">
+                  Scheduled
+                </button>
+                } @else {
+                <mat-slide-toggle
+                  class="header-toggle"
+                  [checked]="isToggleAllChecked"
+                  [disabled]="getToggleState(allData[0]).isGlobalDisabled"
+                  [matTooltip]="getTooltip('global')"
+                  (change)="onToggleAllPreferences($event)">
+                </mat-slide-toggle>
+                }
+                <span
+                  mat-symbol="help"
+                  [fill]="false"
+                  class="help-button"
+                  [matTooltip]="
+                    'This button allows you to toggle faculty preferences\n
+                     submission and set submission period'
+                  "></span>
+              </div>
+            </th>
+            } @else {
+            <th mat-header-cell *matHeaderCellDef class="custom-header">
+              <div class="help-toggle-container">
+                <mat-slide-toggle
+                  class="header-toggle"
+                  [checked]="false"
+                  [disabled]="true"
+                  matTooltip="No faculty data available">
+                </mat-slide-toggle>
+                <span
+                  mat-symbol="help"
+                  [fill]="false"
+                  class="help-button"
+                  [matTooltip]="
+                    'This button allows you to toggle faculty preferences\n
+                     submission and set submission period'
+                  "></span>
+              </div>
+            </th>
+            }
 
-          <td mat-cell *matCellDef="let element" class="custom-cell">
-            <div class="help-toggle-container">
-              @if (isIndividuallyScheduled(element) && !element.is_enabled) {
-              <button
-                class="scheduled-button individual pop"
-                (click)="onToggleSinglePreferences(element, $event, true)"
-                [matTooltip]="getTooltip('individual', element)">
-                Scheduled
-              </button>
-              } @else {
-              <mat-slide-toggle
-                class="single-toggle"
-                [checked]="element.is_enabled"
-                [disabled]="getToggleState(element).isIndividualDisabled"
-                [matTooltip]="getTooltip('individual', element)"
-                (change)="onToggleSinglePreferences(element, $event)">
-              </mat-slide-toggle>
-              }
-            </div>
-          </td>
-        </ng-container>
+            <td mat-cell *matCellDef="let element" class="custom-cell">
+              <div class="help-toggle-container">
+                @if (isIndividuallyScheduled(element) && !element.is_enabled) {
+                <button
+                  class="scheduled-button individual pop"
+                  (click)="onToggleSinglePreferences(element, $event, true)"
+                  [matTooltip]="getTooltip('individual', element)">
+                  Scheduled
+                </button>
+                } @else {
+                <mat-slide-toggle
+                  class="single-toggle"
+                  [checked]="element.is_enabled"
+                  [disabled]="getToggleState(element).isIndividualDisabled"
+                  [matTooltip]="getTooltip('individual', element)"
+                  (change)="onToggleSinglePreferences(element, $event)">
+                </mat-slide-toggle>
+                }
+              </div>
+            </td>
+          </ng-container>
+        }
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>

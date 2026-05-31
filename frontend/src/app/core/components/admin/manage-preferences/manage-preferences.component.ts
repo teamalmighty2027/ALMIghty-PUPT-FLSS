@@ -73,6 +73,15 @@ interface ToggleState {
   animations: [fadeAnimation],
 })
 export class ManagePreferencesComponent implements OnInit, OnDestroy {
+  private readonly baseDisplayedColumns: string[] = [
+    'index',
+    'facultyName',
+    'facultyCode',
+    'facultyType',
+    'action',
+    'requests',
+  ];
+
   inputFields: InputField[] = [
     {
       type: 'text',
@@ -81,15 +90,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     },
   ];
 
-  displayedColumns: string[] = [
-    'index',
-    'facultyName',
-    'facultyCode',
-    'facultyType',
-    'action',
-    'requests',
-    'toggle',
-  ];
+  displayedColumns: string[] = [...this.baseDisplayedColumns, 'toggle'];
 
   dataSource = new MatTableDataSource<Faculty>([]);
   allData: Faculty[] = [];
@@ -105,6 +106,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   isLoading = new BehaviorSubject<boolean>(true);
 
   selectedTermId: number | null = null;
+  private activeTermId: number | null = null;
+  showPreferenceToggleColumn = true;
+  exportButtonsDisabled = true;
+  exportTooltipMessage = '';
   private prefsSub?: Subscription;
 
   hasAnyPreferences = false;
@@ -154,12 +159,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   loadTerms(): void {
     this.reportsService.getAllTermsForDropdown().subscribe({
       next: (data) => {
+        const activeTerm = data.find((term: any) => term.is_active === 1);
+
+        this.activeTermId = activeTerm?.active_semester_id ?? null;
+
         if (this.selectedTermId === null) {
-          const activeTerm = data.find((term: any) => term.is_active === 1);
-          if (activeTerm) {
-            this.selectedTermId = activeTerm.active_semester_id;
-          }
+          this.selectedTermId = this.activeTermId;
         }
+
+        this.syncSelectedTermState(this.selectedTermId);
         
         this.loadFacultyPreferences(this.selectedTermId);
       },
@@ -172,10 +180,42 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   onTermChange(termId: number | null): void {
     // Force the reload even if angular's two-way binding beat us to it
     if (termId !== null) {
-      this.selectedTermId = termId;
+      this.syncSelectedTermState(termId);
       this.preferencesService.clearPreferencesCache();
       this.loadFacultyPreferences(termId);
     }
+  }
+
+  private syncSelectedTermState(termId: number | null): void {
+    this.selectedTermId = termId;
+    this.showPreferenceToggleColumn =
+      termId !== null && termId === this.activeTermId;
+    this.updateDisplayedColumns();
+    this.updateExportButtonState();
+  }
+
+  private updateDisplayedColumns(): void {
+    this.displayedColumns = this.showPreferenceToggleColumn
+      ? [...this.baseDisplayedColumns, 'toggle']
+      : [...this.baseDisplayedColumns];
+  }
+
+  private updateExportButtonState(): void {
+    const exportBlockedBySubmission =
+      this.showPreferenceToggleColumn &&
+      (this.isToggleAllChecked || this.isAnyIndividualToggleOn);
+
+    this.exportButtonsDisabled =
+      !this.hasAnyPreferences || exportBlockedBySubmission;
+
+    if (!this.hasAnyPreferences) {
+      this.exportTooltipMessage = 'No faculty preferences available for export';
+      return;
+    }
+
+    this.exportTooltipMessage = exportBlockedBySubmission
+      ? 'Preferences submission is open; export disabled'
+      : '';
   }
 
   private setupFilterPredicate(): void {
@@ -225,6 +265,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           this.checkGlobalStartDate();
           this.checkIndividualStartDate();
           this.initializeScheduledFacultyState();
+          this.updateExportButtonState();
           this.isLoading.next(false);
         },
         error: (error) => {
@@ -245,6 +286,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.dataSource.data = [];
     this.checkToggleAllState();
     this.updateHasAnyPreferences();
+    this.updateExportButtonState();
     this.isLoading.next(false);
   }
 
@@ -260,6 +302,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     this.dataSource.data = this.filteredData;
+    this.checkToggleAllState();
+    this.updateExportButtonState();
 
     if (this.paginator) {
       this.paginator.firstPage();
@@ -432,6 +476,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         );
         this.isToggleAllChecked = newStatus;
         this.updateDisplayedData();
+        this.updateExportButtonState();
         this.cdr.markForCheck();
       }
     });
@@ -486,6 +531,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
             this.updateDisplayedData();
             this.checkToggleAllState();
+            this.updateExportButtonState();
             this.cdr.detectChanges();
           }
         });
