@@ -1134,8 +1134,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * @returns Promise resolving to an Excel Blob.
    */
   private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
-
-  private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
     programsData.forEach((program: any) => {
@@ -1262,8 +1260,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * @returns Promise resolving to an Excel Blob.
    */
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
-
-  private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
     for (const faculty of faculties) {
@@ -1369,12 +1365,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * @param showPreview If true, the caller intends to display a preview.
    * @returns Blob representing the generated PDF.
    */
-  generateFacultyPDF(
-    isAll: boolean,
-    faculties: Faculty[],
-    showPreview: boolean = false,
-  ): Blob {
-
   generateFacultyPDF(
     isAll: boolean,
     faculties: Faculty[],
@@ -1625,132 +1615,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * for the provided faculty.
    * @param faculty Optional faculty to compute state for.
    */
-  public getToggleState(faculty?: Faculty): ToggleState {
-    if (!faculty || !this.allData.length) {
-      return {
-        isGlobalDisabled: true,
-        isIndividualDisabled: true,
-        globalTooltip: 'No faculty data available',
-        individualTooltip: 'No faculty data available',
-      };
-    }
-
-    const isGlobalDisabled =
-      (this.hasIndividualDeadlines &&
-        !this.isToggleAllChecked &&
-        this.isEnabled) ||
-      this.isIndividualStartDateSet;
-
-    const isIndividualDisabled =
-      this.isToggleAllChecked || this.isGlobalStartDateSet;
-
-    const isGloballyScheduled = this.isGloballyScheduled();
-    const isIndividuallyScheduled = this.isIndividuallyScheduled(faculty);
-
-    const globalTooltip =
-      isGloballyScheduled && !this.isToggleAllChecked
-        ? 'Preferences submission is scheduled'
-        : this.hasIndividualDeadlines && !this.isToggleAllChecked
-        ? 'Global preferences toggle is disabled because individual preferences settings are set'
-        : `${
-            this.isToggleAllChecked ? 'Disable' : 'Enable'
-          } preferences submission for ALL faculty`;
-
-    const individualTooltip =
-      isIndividuallyScheduled && !faculty.is_enabled
-        ? 'Preferences submission is scheduled'
-        : this.isGlobalStartDateSet
-        ? 'Global submission start date has been set – individual changes disabled'
-        : this.isToggleAllChecked
-        ? 'Global preferences submission is active – individual changes disabled'
-        : `${
-            faculty.is_enabled ? 'Disable' : 'Enable'
-          } preferences submission for ${faculty.facultyName} only`;
-
-    return {
-      isGlobalDisabled,
-      isIndividualDisabled,
-      globalTooltip,
-      individualTooltip,
-    };
-  }
-
-  sanitizeFileName(fileName: string): string {
-    return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-  }
-
-  formatTimeTo12Hour(time: string | undefined): string {
-    if (!time) {
-      return 'N/A';
-    }
-    const [hour, minute] = time.split(':');
-    const hours = parseInt(hour, 10);
-    const minutesFormatted = minute.length === 2 ? minute : `0${minute}`;
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const formattedHour = hours % 12 || 12;
-    return `${formattedHour}:${minutesFormatted} ${period}`;
-  }
-
-  private detectAnyModifiers(preferredDays: any[]): { has_any_day: boolean; has_any_time: boolean } {
-    const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const ANY_DAY_START = '07:00:00';
-    const ANY_DAY_END = '21:00:00';
-
-    const presentDays = preferredDays.map(pref => pref.day);
-    const has_any_day = REQUIRED_DAYS.every(day => presentDays.includes(day));
-
-    const has_any_time = preferredDays.length > 0 && preferredDays.every(
-      pref => pref.start_time === ANY_DAY_START && pref.end_time === ANY_DAY_END
-    );
-
-    return { has_any_day, has_any_time };
-  }
-
-  private formatPreferredDaysAndTime(preferredDays: any[]): string {
-    const { has_any_day, has_any_time } = this.detectAnyModifiers(preferredDays);
-
-    if (has_any_day && has_any_time) {
-      return 'Any Day, Any Time';
-    }
-
-    if (has_any_day && preferredDays.length > 0) {
-      const firstDay = preferredDays[0];
-      const timeRange = `${this.formatTimeTo12Hour(
-        firstDay.start_time,
-      )} - ${this.formatTimeTo12Hour(firstDay.end_time)}`;
-      return `Any Day, ${timeRange}`;
-    }
-
-    if (has_any_time) {
-      const daysString = preferredDays.map(pref => pref.day).join(', ');
-      return `${daysString}, Any Time`;
-    }
-
-    return preferredDays
-      .map((pref) => {
-        const time = `${this.formatTimeTo12Hour(
-          pref.start_time,
-        )} - ${this.formatTimeTo12Hour(pref.end_time)}`;
-        return `${pref.day} (${time})`;
-      })
-      .join('\n');
-  }
-
-  getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
-  }
-
-  public getTooltip(type: 'global' | 'individual', faculty?: Faculty): string {
-    const state = this.getToggleState(faculty || this.allData[0]);
-    return type === 'global' ? state.globalTooltip : state.individualTooltip;
-  }
-
   public getToggleState(faculty?: Faculty): ToggleState {
     if (!faculty || !this.allData.length) {
       return {
