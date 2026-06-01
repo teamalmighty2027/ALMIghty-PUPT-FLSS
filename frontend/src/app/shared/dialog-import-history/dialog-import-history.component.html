@@ -44,7 +44,7 @@
                 (click)="$event.stopPropagation()"
                 (change)="$event ? toggleSelection(row.key) : null"
                 [checked]="selectedCourses.has(row.key)"
-                [disabled]="row.isAlreadyAdded">
+                [disabled]="row.isAlreadyAdded || row.isSectionMissing">
               </mat-checkbox>
             </td>
           </ng-container>
@@ -54,6 +54,30 @@
             <th mat-header-cell *matHeaderCellDef>Program</th>
             <td mat-cell *matCellDef="let row">
               {{ row.course_details.program_code || '—' }}
+            </td>
+          </ng-container>
+
+          <!-- Year Level Column -->
+          <ng-container matColumnDef="yearLevel">
+            <th mat-header-cell *matHeaderCellDef>Year Level</th>
+            <td mat-cell *matCellDef="let row">
+              {{ row.course_details.year_level || '—' }}
+            </td>
+          </ng-container>
+
+          <!-- Section Column -->
+          <ng-container matColumnDef="section">
+            <th mat-header-cell *matHeaderCellDef>Section</th>
+            <td mat-cell *matCellDef="let row">
+              {{ row.section_details.section_name || '—' }}
+              @if (row.isSectionMissing) {
+                <br />
+                <span 
+                  class="warning-tag" 
+                  title="Section not found in current semester">
+                  (Not Found)
+                </span>
+              }
             </td>
           </ng-container>
 
@@ -76,11 +100,14 @@
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="['select', 'program', 'courseCode', 'courseTitle']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['select', 'program', 'courseCode', 'courseTitle'];"
-              (click)="!row.isAlreadyAdded && toggleSelection(row.key)"
+          <tr mat-header-row *matHeaderRowDef="['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle'];"
+              (click)="
+                !(row.isAlreadyAdded || row.isSectionMissing) && 
+                toggleSelection(row.key)
+              "
               [class.row-selected]="selectedCourses.has(row.key)"
-              [class.row-disabled]="row.isAlreadyAdded">
+              [class.row-disabled]="row.isAlreadyAdded || row.isSectionMissing">
           </tr>
         </table>
 

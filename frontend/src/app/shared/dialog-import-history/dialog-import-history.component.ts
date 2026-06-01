@@ -66,6 +66,7 @@ export class DialogImportHistoryComponent implements OnInit {
 
       const histProgramCode = pref.course_details?.program_code;
       const histCourseCode = pref.course_details?.course_code;
+      const histSectionName = pref.section_details?.section_name;
 
       // Find the program that matches the history entry's program
       const matchedProgram = programs.find(
@@ -74,31 +75,86 @@ export class DialogImportHistoryComponent implements OnInit {
 
       // Search for the course within the matched program's year levels
       let match: Course | undefined;
+      let isSectionMissing = false;
 
       if (matchedProgram) {
+        // 1. Try exact course_code + section_name match
         for (const yl of matchedProgram.year_levels) {
           const found = yl.semester.courses.find(
             c => c.course_code === histCourseCode
           );
 
           if (found) {
-            match = found;
-            break;
+            const matchedSection = yl.sections?.find(
+              s => s.section_name === histSectionName
+            );
+
+            if (matchedSection) {
+              match = {
+                ...found,
+                year_level: yl.year_level,
+                section: matchedSection
+              };
+              break;
+            }
+          }
+        }
+
+        // 2. Fallback to course_code only
+        if (!match) {
+          for (const yl of matchedProgram.year_levels) {
+            const found = yl.semester.courses.find(
+              c => c.course_code === histCourseCode
+            );
+
+            if (found) {
+              match = { ...found, year_level: yl.year_level };
+              isSectionMissing = true;
+              break;
+            }
           }
         }
       }
 
-      // Fallback: search all programs if no program-specific match was found
+      // Fallback: search all programs if no program-specific match found
       if (!match) {
-        outer: for (const prog of programs) {
+        // 1. Try exact course_code + section_name match across programs
+        outer1: for (const prog of programs) {
           for (const yl of prog.year_levels) {
             const found = yl.semester.courses.find(
               c => c.course_code === histCourseCode
             );
 
             if (found) {
-              match = found;
-              break outer;
+              const matchedSection = yl.sections?.find(
+                s => s.section_name === histSectionName
+              );
+
+              if (matchedSection) {
+                match = {
+                  ...found,
+                  year_level: yl.year_level,
+                  section: matchedSection
+                };
+                break outer1;
+              }
+            }
+          }
+        }
+
+        // 2. Fallback to course_code only across all programs
+        if (!match) {
+          outer2: for (const prog of programs) {
+            for (const yl of prog.year_levels) {
+              const found = yl.semester.courses.find(
+                c => c.course_code === histCourseCode
+              );
+
+              if (found) {
+                match = { ...found, year_level: yl.year_level };
+                isSectionMissing = true;
+                break outer2;
+              }
             }
           }
         }
@@ -115,7 +171,8 @@ export class DialogImportHistoryComponent implements OnInit {
         ...pref,
         currentMatch: match,
         isAlreadyAdded,
-        key
+        key,
+        isSectionMissing
       };
     }).filter(item => item !== null) as any[];
   });
@@ -202,8 +259,13 @@ export class DialogImportHistoryComponent implements OnInit {
    * Checks if all courses are selected
    */
   isAllSelected(): boolean {
-    const importable = this.importableCourses().filter(c => !c.isAlreadyAdded);
-    return importable.length > 0 && importable.every(c => this.selectedCourses.has(c.key));
+    const importable = this.importableCourses().filter(
+      c => !c.isAlreadyAdded && !c.isSectionMissing
+    );
+    return (
+      importable.length > 0 &&
+      importable.every((c) => this.selectedCourses.has(c.key))
+    );
   }
 
   /**
@@ -213,8 +275,10 @@ export class DialogImportHistoryComponent implements OnInit {
     if (this.isAllSelected()) {
       this.selectedCourses.clear();
     } else {
-      this.importableCourses().forEach(c => {
-        if (!c.isAlreadyAdded) this.selectedCourses.add(c.key);
+      this.importableCourses().forEach((c) => {
+        if (!c.isAlreadyAdded && !c.isSectionMissing) {
+          this.selectedCourses.add(c.key);
+        }
       });
     }
   }
@@ -245,7 +309,7 @@ export class DialogImportHistoryComponent implements OnInit {
   ): string {
     const base = course.temporary_course_offering_id
       ? `temp-${course.temporary_course_offering_id}`
-      : `course-${course.course_id}`;
+      : `course-${course.course_code.toLowerCase()}`;
     const sectionId = course.section?.section_id ?? 'none';
     const programPart = programCode ? `-program-${programCode}` : '';
     return `${base}${programPart}-section-${sectionId}`;
