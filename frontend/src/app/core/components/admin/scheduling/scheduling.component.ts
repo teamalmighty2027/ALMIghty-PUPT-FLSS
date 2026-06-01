@@ -675,7 +675,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             program: this.selectedProgram,
             yearLevel: this.selectedYear,
             section: this.selectedSection,
-          });
+          }, true);
           this.snackBar.open('Draft changes saved successfully.', 
             'Close', { duration: 3000 }
           );
@@ -921,7 +921,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected onInputChange(values: { [key: string]: any }): void {
+  protected onInputChange(values: { [key: string]: any }, forceRefresh: boolean = false): void {
     if (this.isDraftMode) {
       this.exitDraftInternal();
     }
@@ -1026,7 +1026,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.fetchCourses(
       selectedProgram.id,
       this.selectedYear,
-      selectedSection.section_id
+      selectedSection.section_id,
+      forceRefresh
     ).subscribe({
       next: () => {},
       error: this.handleError('Failed to fetch courses'),
@@ -1082,9 +1083,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   private fetchCourses(
     programId: number,
     yearLevel: number,
-    sectionId: number
+    sectionId: number,
+    forceRefresh: boolean = false
   ): Observable<Schedule[]> {
-    return this.schedulingService.populateSchedules().pipe(
+    return this.schedulingService.populateSchedules(forceRefresh).pipe(
       tap((response: PopulateSchedulesResponse) => {
         const program = response.programs.find(
           (p) => p.program_id === programId
@@ -1123,54 +1125,54 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         this.activeSemesterId = response.semester_id;
         this.activeSemesterRecordId = response.active_semester_id;
 
-        this.schedules = sectionData.courses.map(
-          (course: CourseResponse, index, array) => {
-            const isLastInGroup =
-              index === array.length - 1 ||
-              course.course_code !== array[index + 1].course_code;
+        this.schedules = sectionData.courses.map((course: CourseResponse) => ({
+          schedule_id: course.schedule?.schedule_id,
+          section_course_id: course.section_course_id,
+          course_id: course.course_id,
+          course_code: course.course_code,
+          course_title: course.course_title,
+          lec_hours: course.lec_hours,
+          lab_hours: course.lab_hours,
+          units: course.units,
+          tuition_hours: course.tuition_hours,
+          day: course.schedule?.day || 'Not set',
+          time: this.getFormattedTime(
+            course.schedule?.start_time,
+            course.schedule?.end_time
+          ),
+          start_time: course.schedule?.start_time || null,
+          end_time: course.schedule?.end_time || null,
+          professor: course.professor || 'Not set',
+          room: course.room?.room_code || 'Not set',
+          program: program.program_title,
+          program_code: program.program_code,
+          year: yearLevelData.year_level,
+          curriculum: yearLevelData.curriculum_year,
+          section: sectionData.section_name,
+          is_copy: course.is_copy || 0,
+          is_temporary: !!course.is_temporary,
+          temporary_type: course.temporary_type ?? null,
+          temporary_status: course.temporary_status ?? null,
+          petition_required: !!course.petition_required,
+          temporary_course_offering_id:
+            course.temporary_course_offering_id ?? null,
+          elective_id: course.schedule?.elective_id ?? null,
+          elective_slot_name: course.schedule?.elective_slot_name ?? null,
+          // placeholder, stamped correctly after sort
+          isLastInGroup: false, 
+        }));
 
-            return {
-              schedule_id: course.schedule?.schedule_id,
-              section_course_id: course.section_course_id,
-              course_id: course.course_id,
-              course_code: course.course_code,
-              course_title: course.course_title,
-              lec_hours: course.lec_hours,
-              lab_hours: course.lab_hours,
-              units: course.units,
-              tuition_hours: course.tuition_hours,
-              day: course.schedule?.day || 'Not set',
-              time: this.getFormattedTime(
-                course.schedule?.start_time,
-                course.schedule?.end_time
-              ),
-              start_time: course.schedule?.start_time || null,
-              end_time: course.schedule?.end_time || null,
-              professor: course.professor || 'Not set',
-              room: course.room?.room_code || 'Not set',
-              program: program.program_title,
-              program_code: program.program_code,
-              year: yearLevelData.year_level,
-              curriculum: yearLevelData.curriculum_year,
-              section: sectionData.section_name,
-              is_copy: course.is_copy || 0,
-              is_temporary: !!course.is_temporary,
-              temporary_type: course.temporary_type ?? null,
-              temporary_status: course.temporary_status ?? null,
-              petition_required: !!course.petition_required,
-              temporary_course_offering_id:
-                course.temporary_course_offering_id ?? null,
-              isLastInGroup,
-            };
-          }
-        );
-
-        // Sort schedules for a consistent display order
         this.schedules.sort((a, b) => {
           if (a.course_code === b.course_code) {
             return a.is_copy - b.is_copy;
           }
           return a.course_code.localeCompare(b.course_code);
+        });
+
+        this.schedules.forEach((schedule, index, array) => {
+          schedule.isLastInGroup =
+            index === array.length - 1 ||
+            schedule.course_code !== array[index + 1].course_code;
         });
 
         this.cdr.detectChanges();
@@ -1336,7 +1338,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                   return this.fetchCourses(
                     program.id,
                     this.selectedYear,
-                    section.section_id
+                    section.section_id,
+                    true
                   );
                 })
               )
@@ -1492,8 +1495,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             },
             options: {
               dayOptions: this.dayOptions,
-              timeOptions: this.timeOptions,
-              endTimeOptions: this.timeOptions,
+              timeOptions: [...this.timeOptions],
+              endTimeOptions: [...this.timeOptions],
               professorOptions: professorOptions,
               roomOptions: roomOptions,
             },
@@ -1517,6 +1520,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
+            selectedElectiveId: schedule.elective_id ?? null,
+            selectedElectiveSlotName: schedule.elective_slot_name ?? null,
+            isElectiveSlot: !!(schedule.elective_id) || (schedule.course_code || '').toLowerCase().includes('elective'),
           },
         });
 
@@ -1548,7 +1554,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               program: this.selectedProgram,
               yearLevel: this.selectedYear,
               section: this.selectedSection,
-            });
+            }, true);
         });
       },
       error: (error) => {
@@ -1602,7 +1608,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
               ? this.fetchCourses(
                   program.id,
                   this.selectedYear,
-                  section.section_id
+                  section.section_id,
+                  true
                 )
               : of([]);
           })
@@ -1637,7 +1644,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             this.selectedYear,
             this.sectionOptions.find(
               (s) => s.section_name === this.selectedSection
-            )?.section_id || 0
+            )?.section_id || 0,
+            true
           );
         }),
         finalize(() => {
@@ -1704,7 +1712,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 ? this.fetchCourses(
                     program.id,
                     this.selectedYear,
-                    section.section_id
+                    section.section_id,
+                    true
                   )
                 : of([]);
             }),

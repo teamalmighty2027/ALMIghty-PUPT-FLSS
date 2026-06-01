@@ -153,6 +153,22 @@
 
     <mat-dialog-content class="content forms-list">
       <form [formGroup]="scheduleForm" class="scheduling-form-group">
+        @if (isElectiveSlot) {
+          <mat-form-field class="scheduling-forms">
+            <mat-label>Select Elective Subject</mat-label>
+            <mat-icon matPrefix>library_books</mat-icon>
+            <mat-select formControlName="elective">
+              @for (elective of availableElectives; track elective.elective_id) {
+                <mat-option [value]="elective.elective_id">
+                  {{ elective.course_code }} - {{ elective.course_title }}
+                </mat-option>
+              }
+            </mat-select>
+            @if (scheduleForm.get('elective')?.errors?.['required'] && scheduleForm.touched) {
+              <mat-error>You must select a specific subject for this elective slot.</mat-error>
+            }
+          </mat-form-field>
+        }
         <!-- Day Picker -->
         <div class="day-buttons-container">
           @for (day of dayButtons; track day.name) {

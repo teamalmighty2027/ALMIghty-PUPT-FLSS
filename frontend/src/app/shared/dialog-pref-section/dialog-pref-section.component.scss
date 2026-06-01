@@ -9,7 +9,7 @@
   );
   padding: var(--spacing-lg);
   width: fit-content;
-  min-width: 500px;
+  min-width: 200px;
 
   .dialog-title {
     margin: 0;
@@ -110,7 +110,7 @@
         color: white;
         
         &:hover:not(:disabled) {
-          background-color: var(--primary-one-hover);
+          background-color: var(--primary-hover);
           transform: translateY(-2px);
           box-shadow: var(--shadow-md);
         }

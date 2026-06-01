@@ -87,6 +87,7 @@ class AdminProfileController extends Controller
                 ['user_id' => $user->id],
                 $profileData
             );
+
             DB::commit();
 
             $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);

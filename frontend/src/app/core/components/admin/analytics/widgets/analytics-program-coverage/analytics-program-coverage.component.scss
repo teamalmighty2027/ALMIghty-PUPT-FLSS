@@ -10,6 +10,7 @@
 .chart-wrapper {
   flex: 1;
   width: 100%;
+  min-height: 0;
   position: relative;
 }
 
@@ -19,13 +20,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  color: var(--mat-sys-on-surface-variant);
-  
-  p {
-    font-style: italic;
-    font-size: 0.9rem;
-  }
+  gap: var(--spacing-md);
+  color: var(--neutral-base);
+  opacity: 0.7;
+  p { font-style: italic; font-size: var(--font-size-sm); margin: 0; }
 }
 
 .empty-state {
@@ -34,30 +32,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: var(--spacing-xl) var(--spacing-lg);
   text-align: center;
-  color: var(--mat-sys-on-surface-variant);
-  border: 1px dashed var(--mat-sys-outline-variant);
-  border-radius: 8px;
-  background: var(--mat-sys-surface-container-low);
+  color: var(--neutral-base);
+  background: var(--neutral-option);
+  border-radius: var(--border-radius-md);
+  border: 1px dashed rgba(128, 0, 0, 0.2);
+  opacity: 0.75;
 
-  mat-icon {
-    font-size: 40px;
-    width: 40px;
-    height: 40px;
-    margin-bottom: 0.75rem;
-    opacity: 0.5;
-  }
-
-  p {
-    font-weight: 600;
-    margin: 0;
-    font-size: 1rem;
-  }
-
-  span {
-    font-size: 0.8rem;
-    margin-top: 0.5rem;
-    opacity: 0.7;
-  }
+  mat-icon { font-size: 44px; width: 44px; height: 44px; margin-bottom: var(--spacing-md); color: #800000; opacity: 0.35; }
+  p { font-weight: 600; margin: 0; font-size: var(--font-size-md); }
+  span { font-size: var(--font-size-sm); margin-top: var(--spacing-xs); opacity: 0.65; }
 }

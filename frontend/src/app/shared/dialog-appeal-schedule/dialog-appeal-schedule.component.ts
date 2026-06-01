@@ -315,12 +315,14 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       return;
     }
 
-    // Show submitting message and close dialog immediately
+    // Show submitting message
     this.snackBar.open(
       'Submitting appeal...', 
       'Close', { duration: 5000 }
     );
-    this.dialogRef.close(false);
+
+    // Disable submit button
+    this.appealForm.disable();
 
     // Submit in background
     this.reschedulingService.submitReschedulingAppeal(
@@ -341,6 +343,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
           response.message || 'Appeal submitted successfully.', 
           'Close', { duration: 3000 }
         );
+        this.dialogRef.close(true);
       },
       error: (error) => {
         console.error('Appeal error:', error);
@@ -348,6 +351,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
           error?.error?.message || 'Failed to submit appeal. Please try again.', 
           'Close', { duration: 3000 }
         );
+        this.appealForm.enable();
       }
     });
   }

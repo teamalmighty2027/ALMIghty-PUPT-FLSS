@@ -22,6 +22,8 @@ import {
   BridgingCourseOption,
   TemporaryCourseOfferingPayload,
   SmartSuggestion,
+  Elective,
+  AcademicYearElectivesResponse,
 } from '../../../models/scheduling.model';
 
 import { environment } from '../../../../../environments/environment.dev';
@@ -97,13 +99,68 @@ export class SchedulingService {
    * Retrieves and caches all schedules. 
    * Subsequent calls return the cached data unless reset.
    */
-  populateSchedules(): Observable<PopulateSchedulesResponse> {
+  populateSchedules(forceRefresh: boolean = false): Observable<PopulateSchedulesResponse> {
+    if (forceRefresh) {
+      this.schedulesCache$ = undefined;
+    }
+
     if (!this.schedulesCache$) {
       this.schedulesCache$ = this.http
         .get<PopulateSchedulesResponse>(`${this.baseUrl}/populate-schedules`)
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.schedulesCache$;
+  }
+
+  /**
+   * Fetch elective variants grouped by slot name.
+   */
+  getElectives(
+    includeInactive: boolean = false
+  ): Observable<Record<string, Elective[]>> {
+    let params = new HttpParams();
+
+    if (includeInactive) {
+      params = params.set('include_inactive', 'true');
+    }
+
+    return this.http
+      .get<Record<string, Elective[]>>(`${this.baseUrl}/electives`, {
+        params,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Fetch elective overrides for an academic year.
+   */
+  getAcademicYearElectives(
+    academicYearId: number
+  ): Observable<AcademicYearElectivesResponse> {
+    return this.http
+      .get<AcademicYearElectivesResponse>(
+        `${this.baseUrl}/academic-year/${academicYearId}/electives`
+      )
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Save an academic year elective override.
+   */
+  saveAcademicYearElective(payload: {
+    academic_year_id: number;
+    semester_id: number;
+    program_id: number;
+    year_level: number;
+    elective_slot_name: string;
+    selected_elective_id: number;
+  }): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/academic-year-electives`, payload)
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
   }
 
   /**
@@ -319,7 +376,8 @@ export class SchedulingService {
     end_time: string | null,
     program_id: number,
     year_level: number,
-    section_id: number
+    section_id: number,
+    elective_id: number | null = null
   ): Observable<any> {
     const payload = {
       schedule_id,
@@ -328,6 +386,7 @@ export class SchedulingService {
       day,
       start_time,
       end_time,
+      elective_id,
     };
     return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),

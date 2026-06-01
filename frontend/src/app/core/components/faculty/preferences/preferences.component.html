@@ -40,7 +40,7 @@
       <!-- Courses List -->
       <div id="courses_container" [@fadeAnimation]>
         <div id="courses_search">
-          <mat-form-field appearance="fill" class="custom-mat-search">
+          <mat-form-field appearance="fill" class="custom-mat-search" subscriptSizing="dynamic">
             <mat-label>Search Courses</mat-label>
             <input
               matInput
@@ -68,7 +68,7 @@
           </mat-form-field>
 
           <button
-            mat-stroked-button
+            mat-flat-button
             class="import-history-btn"
             (click)="openImportHistoryDialog()"
             matTooltip="Import courses from your history">

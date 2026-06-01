@@ -16,3 +16,219 @@
   position: relative;
   border-radius: var(--border-radius-md);
 }
+
+// ── Compact Filter Bar ────────────────────────────────────────
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--neutral-option);
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(128, 0, 0, 0.07);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--neutral-base);
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+// ── Filter chips ──────────────────────────────────────────────
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(128, 0, 0, 0.15);
+  background: var(--main-bg);
+  color: var(--neutral-base);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-base);
+  @include mixins.default-transition;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--primary-one);
+    background: var(--primary-one-fade, rgba(128, 0, 0, 0.06));
+    color: var(--primary-text);
+  }
+
+  // Default active — maroon (system primary)
+  &.active {
+    background: var(--primary-one);
+    color: #ffffff;
+    border-color: var(--primary-one);
+  }
+
+  // Status-specific active colors — all use system maroon family
+  &.chip-active.active {
+    background: #2e7d32;   // green — faculty is active/available
+    border-color: #2e7d32;
+  }
+
+  &.chip-inactive.active {
+    background: var(--primary-one); // maroon — matches system theme
+    border-color: var(--primary-one);
+  }
+
+  &.chip-retired.active {
+    background: #546e7a;   // blue-gray — neutral/retired
+    border-color: #546e7a;
+  }
+}
+
+// ── Sort select ───────────────────────────────────────────────
+.sort-group { flex-shrink: 0; }
+
+.sort-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--main-bg);
+  border: 1.5px solid rgba(128, 0, 0, 0.15);
+  border-radius: 9999px;
+  padding: 3px 8px 3px 10px;
+  cursor: pointer;
+  @include mixins.default-transition;
+
+  &:hover {
+    border-color: rgba(128, 0, 0, 0.35);
+  }
+
+  &:focus-within {
+    border-color: #800000;
+    box-shadow: 0 0 0 2px rgba(128, 0, 0, 0.1);
+  }
+
+  .sort-icon {
+    font-size: 15px;
+    color: #800000;
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .sort-arrow {
+    font-size: 16px;
+    color: var(--neutral-base);
+    opacity: 0.5;
+    flex-shrink: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+}
+
+.sort-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  font-family: var(--font-base);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--neutral-base);
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  min-width: 100px;
+  max-width: 140px;
+  text-align: center;
+  text-align-last: center; // Centers selected value in the box
+
+  option {
+    text-align: center;
+    font-family: var(--font-base);
+    background: var(--main-bg);
+    color: var(--neutral-base);
+  }
+}
+
+// ── Clear button ──────────────────────────────────────────────
+.clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(198, 40, 40, 0.25);
+  background: rgba(198, 40, 40, 0.05);
+  color: #c62828;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-base);
+  @include mixins.default-transition;
+  white-space: nowrap;
+  margin-left: auto;
+
+  .material-symbols-rounded {
+    font-size: 15px;
+  }
+
+  &:hover {
+    background: rgba(198, 40, 40, 0.1);
+    border-color: rgba(198, 40, 40, 0.4);
+  }
+}
+
+// ── Result count ──────────────────────────────────────────────
+.result-count {
+  font-size: var(--font-size-xs);
+  color: var(--neutral-base);
+  opacity: 0.55;
+  padding: 0 var(--spacing-xs);
+
+  span { font-weight: 500; }
+}
+
+// ── Dark theme ────────────────────────────────────────────────
+:host-context(.dark-theme) {
+  .filter-bar {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(229, 115, 115, 0.1);
+  }
+
+  .filter-chip {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(229, 115, 115, 0.15);
+    color: #cccccc;
+
+    &:hover { background: rgba(229, 115, 115, 0.08); }
+    &.active { background: #9b2335; border-color: #9b2335; color: #fff; }
+  }
+
+  .sort-select-wrapper {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(229, 115, 115, 0.15);
+    .sort-icon { color: #e57373; }
+  }
+
+  .sort-select { color: #cccccc; }
+
+  .clear-btn {
+    border-color: rgba(229, 115, 115, 0.25);
+    background: rgba(229, 115, 115, 0.06);
+    color: #ef9a9a;
+  }
+}

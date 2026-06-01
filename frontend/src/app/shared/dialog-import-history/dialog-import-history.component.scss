@@ -4,7 +4,7 @@
   @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
   padding: var(--spacing-md);
   max-height: 85vh;
-  width: min(580px, 95vw);
+  width: min(640px, 95vw);
 
   .dialog-header {
     @include mixins.flex-layout($align: center, $justify: space-between);
@@ -111,9 +111,28 @@
           border-radius: 4px;
         }
 
+        .warning-tag {
+          display: inline-block;
+          font-size: var(--font-size-xs);
+          color: var(--secondary-text);
+          margin-top: 4px;
+          font-style: italic;
+          background: var(--secondary-fade);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
         .mat-column-select {
           width: 40px;
           padding-right: 0;
+        }
+
+        .mat-column-program,
+        .mat-column-yearLevel,
+        .mat-column-section,
+        .mat-column-courseCode {
+          text-align: center;
+          justify-content: center;
         }
       }
 

@@ -9,7 +9,7 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import {
@@ -25,6 +25,10 @@ import {
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatRippleModule } from '@angular/material/core';
 
 import {
   TableDialogComponent,
@@ -59,11 +63,16 @@ interface Column {
   selector: 'app-faculty',
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     TableGenericComponent,
     TableHeaderComponent,
     LoadingComponent,
     MatProgressSpinnerModule,
+    MatSelectModule,
+    MatFormFieldModule,
+    MatTooltipModule,
+    MatRippleModule,
   ],
   templateUrl: './faculty.component.html',
   styleUrls: ['./faculty.component.scss'],
@@ -83,6 +92,32 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   isLoading = true;
 
   searchControl = new FormControl('');
+  private activeFilters: { search: string; facultyType: string; status: string; sortBy: string } = {
+    search: '',
+    facultyType: '',
+    status: '',
+    sortBy: '',
+  };
+
+  // Filter bar state — bound directly in the template
+  filterStatus = '';
+  filterFacultyType = '';
+  sortBy = '';
+
+  readonly statusOptions = ['Active', 'Inactive', 'Retired'];
+  facultyTypeOptions: string[] = [];
+
+  readonly sortOptions = [
+    { key: 'name_asc',    label: 'Name A → Z' },
+    { key: 'name_desc',   label: 'Name Z → A' },
+    { key: 'code_asc',    label: 'Code A → Z' },
+    { key: 'code_desc',   label: 'Code Z → A' },
+    { key: 'status_asc',  label: 'Active First' },
+    { key: 'status_desc', label: 'Inactive First' },
+    { key: 'type_asc',    label: 'Type A → Z' },
+    { key: 'units_asc',   label: 'Units ↑' },
+    { key: 'units_desc',  label: 'Units ↓' },
+  ];
   private destroy$ = new Subject<void>();
 
   columns: Column[] = [
@@ -175,44 +210,130 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   /**
-   * Handles the search input and filters the faculty accordingly
-   * @param searchTerm The term entered by the user in the search field.
+   * Handles input changes from the table header — search only now.
    */
-  onSearch(searchTerm: string) {
-    const lowerSearch = searchTerm.toLowerCase();
-
-    if (!lowerSearch) {
-      this.filteredFaculty = [...this.faculty];
-    } else {
-      this.filteredFaculty = this.faculty.filter(
-        (faculty) =>
-          faculty.code.toLowerCase().includes(lowerSearch) ||
-          faculty.name.toLowerCase().includes(lowerSearch) ||
-          faculty.email.toLowerCase().includes(lowerSearch) ||
-          faculty.faculty?.faculty_type?.faculty_type
-            ?.toLowerCase()
-            .includes(lowerSearch) ||
-          faculty.status.toLowerCase().includes(lowerSearch) ||
-          (
-            (faculty.faculty?.faculty_type?.regular_units ?? 0) +
-            (faculty.faculty?.faculty_type?.additional_units ?? 0)
-          )
-            .toString()
-            .includes(lowerSearch)
-      );
+  onInputChange(values: { [key: string]: any }) {
+    if (values['search'] !== undefined) {
+      this.activeFilters.search = values['search'] ?? '';
+      this.applyFiltersAndSort();
     }
+  }
 
+  /** Toggle status filter chip */
+  toggleStatus(status: string): void {
+    this.filterStatus = this.filterStatus === status ? '' : status;
+    this.activeFilters.status = this.filterStatus;
+    this.applyFiltersAndSort();
+  }
+
+  /** Toggle faculty type filter chip */
+  toggleFacultyType(type: string): void {
+    // Clicking "All" always clears the type filter
+    this.filterFacultyType = type === '' ? '' : (this.filterFacultyType === type ? '' : type);
+    this.activeFilters.facultyType = this.filterFacultyType;
+    this.applyFiltersAndSort();
+  }
+
+  /** Handle sort dropdown change */
+  onSortChange(value: string): void {
+    this.sortBy = value;
+    this.activeFilters.sortBy = value;
+    this.applyFiltersAndSort();
+  }
+
+  /** Clear all filters and sort */
+  clearAllFilters(): void {
+    this.filterStatus = '';
+    this.filterFacultyType = '';
+    this.sortBy = '';
+    this.activeFilters = { search: this.activeFilters.search, facultyType: '', status: '', sortBy: '' };
+    this.applyFiltersAndSort();
+  }
+
+  get hasActiveFilters(): boolean {
+    return !!(this.filterStatus || this.filterFacultyType || this.sortBy);
+  }
+
+  /**
+   * Applies all active filters and the selected sort order.
+   */
+  private applyFiltersAndSort(): void {
+    const { search, facultyType, status, sortBy } = this.activeFilters;
+    const lowerSearch = search.toLowerCase().trim();
+
+    let result = this.faculty.filter((f) => {
+      // Text search across name, code, email
+      const matchesSearch = !lowerSearch ||
+        f.code.toLowerCase().includes(lowerSearch) ||
+        f.name.toLowerCase().includes(lowerSearch) ||
+        f.email.toLowerCase().includes(lowerSearch);
+
+      // Faculty type filter
+      const matchesType = !facultyType ||
+        (f.faculty?.faculty_type?.faculty_type ?? '').toLowerCase() === facultyType.toLowerCase();
+
+      // Status filter
+      const matchesStatus = !status ||
+        f.status.toLowerCase() === status.toLowerCase();
+
+      return matchesSearch && matchesType && matchesStatus;
+    });
+
+    // Sort
+    result = this.sortFaculty(result, sortBy);
+
+    this.filteredFaculty = result;
     this.cdr.markForCheck();
   }
 
   /**
-   * Handles input changes from the table header.
-   * @param values The key-value pairs of input changes.
+   * Sorts the faculty array based on the selected sort key.
    */
-  onInputChange(values: { [key: string]: any }) {
-    if (values['search'] !== undefined) {
-      this.searchControl.setValue(values['search']);
+  private sortFaculty(list: Faculty[], sortBy: string): Faculty[] {
+    const sorted = [...list];
+
+    switch (sortBy) {
+      case 'name_asc':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'name_desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case 'code_asc':
+        return sorted.sort((a, b) => a.code.localeCompare(b.code));
+      case 'code_desc':
+        return sorted.sort((a, b) => b.code.localeCompare(a.code));
+      case 'status_asc':
+        return sorted.sort((a, b) => a.status.localeCompare(b.status));
+      case 'status_desc':
+        return sorted.sort((a, b) => b.status.localeCompare(a.status));
+      case 'type_asc':
+        return sorted.sort((a, b) =>
+          (a.faculty?.faculty_type?.faculty_type ?? '').localeCompare(
+            b.faculty?.faculty_type?.faculty_type ?? ''
+          )
+        );
+      case 'units_asc':
+        return sorted.sort((a, b) => {
+          const ua = (a.faculty?.faculty_type?.regular_units ?? 0) + (a.faculty?.faculty_type?.additional_units ?? 0);
+          const ub = (b.faculty?.faculty_type?.regular_units ?? 0) + (b.faculty?.faculty_type?.additional_units ?? 0);
+          return ua - ub;
+        });
+      case 'units_desc':
+        return sorted.sort((a, b) => {
+          const ua = (a.faculty?.faculty_type?.regular_units ?? 0) + (a.faculty?.faculty_type?.additional_units ?? 0);
+          const ub = (b.faculty?.faculty_type?.regular_units ?? 0) + (b.faculty?.faculty_type?.additional_units ?? 0);
+          return ub - ua;
+        });
+      default:
+        return sorted;
     }
+  }
+
+  /**
+   * Legacy search handler kept for searchControl compatibility.
+   */
+  onSearch(searchTerm: string) {
+    this.activeFilters.search = searchTerm;
+    this.applyFiltersAndSort();
   }
 
   /**
@@ -242,6 +363,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       .subscribe((faculty) => {
         this.faculty = faculty;
         this.filteredFaculty = [...this.faculty];
+        // Re-apply any active filters after reload
+        this.applyFiltersAndSort();
         this.isLoading = false;
         this.cdr.markForCheck();
       });
@@ -265,7 +388,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         type: 'text',
         maxLength: 12,
         required: true,
-        disabled: !!faculty,
+        // NOTE: Temporary enabled faculty code editing for corrections
+        // disabled: !!faculty,
       },
       {
         label: 'Last Name',
@@ -340,14 +464,14 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
           {
             label: 'Password',
             formControlName: 'password',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
           },
           {
             label: 'Confirm Password',
             formControlName: 'confirmPassword',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
             confirmPassword: true,
@@ -569,6 +693,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       this.facultyTypes = await firstValueFrom(
         this.facultyTypeService.getFacultyTypes()
       );
+      this.facultyTypeOptions = this.facultyTypes.map(t => t.faculty_type);
+      this.cdr.markForCheck();
     } catch (error) {
       this.snackBar.open('Error loading faculty types', 'Close', {
         duration: 3000,

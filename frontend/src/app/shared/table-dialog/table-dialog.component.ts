@@ -95,6 +95,7 @@ export interface DialogFieldConfig {
   formControlName: string;
   type:
     | 'text'
+    | 'password'
     | 'number'
     | 'select'
     | 'multiselect'

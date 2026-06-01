@@ -142,9 +142,9 @@ export class ReschedulingService {
   facultyId: number, 
   isEnabled: boolean, 
   activeSemesterId: number,
-  startDate?: string,  // New parameter
-  endDate?: string,    // New parameter
-  sendEmail?: boolean  // New parameter
+  startDate?: string,
+  endDate?: string,
+  sendEmail?: boolean
 ): Observable<any> {
   return this.http
     .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {

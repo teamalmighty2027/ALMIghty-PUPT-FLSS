@@ -354,6 +354,17 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Add this block right before this.dialog.open
+    const sanitizedGroups = scheduleGroups.map(group => ({
+      title: group.title,
+      scheduleData: group.scheduleData.map((s: any) => ({
+        ...s,
+        day: s.day || 'TBA',
+        start_time: s.start_time || '07:00',
+        end_time: s.end_time || '08:00'
+      }))
+    }));
+
     const generatePdfFunction = (preview: boolean): Blob | void => {
       const doc = this.createCombinedPdf();
       return doc.output('blob');
@@ -366,7 +377,9 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       data: {
         exportType: 'all',
         entity: 'program',
-        scheduleGroups: scheduleGroups,
+        // USE THE SANITIZED GROUPS HERE
+        scheduleGroups: sanitizedGroups,
+        entityData: sanitizedGroups.reduce((acc: any[], group) => acc.concat(group.scheduleData), []),
         customTitle: 'All Program Schedules',
         fileName: `All_Program_Schedules_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`,
         academicYear: this.academicYear,
@@ -377,8 +390,62 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
           saveAs(excelBlob, `All_Program_Schedules_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}.xlsx`);
         },
         previewMode: true,
+        showViewToggle: false
       },
       disableClose: true,
+    });
+  }
+
+  // --- EXCEL MERGING HELPER ---
+  private groupSchedulesByCourseCode(schedules: Schedule[]): any[] {
+    const mergedMap = new Map<string, any>();
+    
+    for (const item of schedules) {
+      const courseCode = (item.course_details?.course_code || 'UNKNOWN').trim().toUpperCase();
+      
+      // Clean up the faculty name so it groups perfectly
+      let facultyName = item.faculty_name || '';
+      facultyName = facultyName.trim().toUpperCase() === 'N/A' || facultyName.trim() === '' ? 'Faculty TBA' : facultyName.trim();
+      
+      const key = `${courseCode}|${facultyName}`;
+      
+      if (mergedMap.has(key)) {
+        mergedMap.get(key)._rawSchedules.push(item);
+      } else {
+        mergedMap.set(key, { ...item, _rawSchedules: [item], _displayProf: facultyName });
+      }
+    }
+    
+    return Array.from(mergedMap.values()).map(merged => {
+      const days = merged._rawSchedules.map((s: any) => {
+        if (!s.day) return 'TBA';
+        const d = s.day.toUpperCase();
+        if (d.startsWith('MO')) return 'M';
+        if (d.startsWith('TU')) return 'TUE'; 
+        if (d.startsWith('WE')) return 'W';
+        if (d.startsWith('TH')) return 'TH';
+        if (d.startsWith('FR')) return 'F';
+        if (d.startsWith('SA')) return 'S';
+        if (d.startsWith('SU')) return 'SU';
+        return d.substring(0, 3);
+      });
+      
+      const times = merged._rawSchedules.map((s: any) => {
+        if (!s.start_time || !s.end_time) return 'TBA';
+        const start = this.formatTimeTo12Hour(s.start_time).replace(/\s+/g, '');
+        const end = this.formatTimeTo12Hour(s.end_time).replace(/\s+/g, '');
+        return `${start}-${end}`;
+      });
+      
+      const rooms = Array.from(new Set(merged._rawSchedules.map((s: any) => s.room_code || 'TBA')));
+
+      return {
+         ...merged,
+         displayDay: days.join('/'),
+         displayTime: times.join('/'),
+         displayProf: merged._displayProf, // Uses the exact grouped professor
+         displayRoom: rooms.join('\n')
+      };
     });
   }
 
@@ -441,22 +508,25 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         });
 
         if (section.schedules && section.schedules.length > 0) {
-          section.schedules.forEach(schedule => {
-            const dayShort = schedule.day.substring(0, 3).toUpperCase();
-            const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)}-${this.formatTimeTo12Hour(schedule.end_time)}`;
+          const groupedSchedules = this.groupSchedulesByCourseCode(section.schedules);
+
+          groupedSchedules.forEach(schedule => {
+            const isBridging = schedule.course_details?.offering_type === 'bridging';
+            const courseCode = schedule.course_details?.course_code || '';
+            const displayCourseCode = isBridging ? `${courseCode}\n[Bridging]` : courseCode;
             
             const row = worksheet.addRow([
-              schedule.course_details.course_code,
-              schedule.course_details.course_title,
-              schedule.course_details.lec,
-              schedule.course_details.lab,
-              schedule.course_details.tuition_hours,
-              schedule.course_details.units,
+              displayCourseCode,
+              schedule.course_details?.course_title || '',
+              schedule.course_details?.lec || 0,
+              schedule.course_details?.lab || 0,
+              schedule.course_details?.tuition_hours || 0,
+              schedule.course_details?.units || 0,
               section.section_name,
-              schedule.room_code || 'TBA',
-              schedule.faculty_name,
-              '', // Leaving slots empty
-              `${dayShort}\n${timeRange}`
+              schedule.displayRoom,
+              schedule.displayProf,
+              '60', // Using 60 for slots based on your screenshot
+              `${schedule.displayDay}\n${schedule.displayTime}`
             ]);
 
             row.eachCell((cell, colNumber) => {
@@ -546,22 +616,25 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     });
 
     if (section.schedules && section.schedules.length > 0) {
-      section.schedules.forEach((schedule: any) => {
-        const dayShort = schedule.day.substring(0, 3).toUpperCase();
-        const timeRange = `${this.formatTimeTo12Hour(schedule.start_time)}-${this.formatTimeTo12Hour(schedule.end_time)}`;
+      const groupedSchedules = this.groupSchedulesByCourseCode(section.schedules);
+
+      groupedSchedules.forEach((schedule: any) => {
+        const isBridging = schedule.course_details?.offering_type === 'bridging';
+        const courseCode = schedule.course_details?.course_code || '';
+        const displayCourseCode = isBridging ? `${courseCode}\n[Bridging]` : courseCode;
         
         const row = worksheet.addRow([
-          schedule.course_details.course_code,
-          schedule.course_details.course_title,
-          schedule.course_details.lec,
-          schedule.course_details.lab,
-          schedule.course_details.tuition_hours,
-          schedule.course_details.units,
+          displayCourseCode,
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.tuition_hours || 0,
+          schedule.course_details?.units || 0,
           section.section_name,
-          schedule.room_code || 'TBA',
-          schedule.faculty_name,
+          schedule.displayRoom,
+          schedule.displayProf,
           '60', 
-          `${dayShort}\n${timeRange}`
+          `${schedule.displayDay}\n${schedule.displayTime}`
         ]);
 
         row.eachCell((cell, colNumber) => {
@@ -719,6 +792,17 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       }
     }
 
+    // Add this block right before this.dialog.open
+    const sanitizedGroups = scheduleGroups.map(group => ({
+      title: group.title,
+      scheduleData: group.scheduleData.map((s: any) => ({
+        ...s,
+        day: s.day || 'TBA',
+        start_time: s.start_time || '07:00',
+        end_time: s.end_time || '08:00'
+      }))
+    }));
+
     const generatePdfFunction = (preview: boolean): Blob | void => {
       return this.createPdfBlob(element);
     };
@@ -729,7 +813,9 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       autoFocus: true,
       data: {
         entity: 'program',
-        scheduleGroups: scheduleGroups,
+        // USE THE SANITIZED GROUPS HERE
+        scheduleGroups: sanitizedGroups,
+        entityData: sanitizedGroups.reduce((acc: any[], group) => acc.concat(group.scheduleData), []),
         customTitle: `${element.program_title} (${element.program_code})`,
         academicYear: this.academicYear,
         semester: this.semester,
@@ -1162,6 +1248,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   private formatTime(time: string): string {
+    if (!time) return ''; // <-- THIS SAFETY CHECK PREVENTS THE CRASH
     const [hours, minutes] = time.split(':').map(Number);
     const period = hours >= 12 ? 'PM' : 'AM';
     const formattedHours = hours % 12 || 12;
@@ -1169,6 +1256,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   private timeToMinutes(time: string): number {
+    if (!time) return 0; // <-- THIS SAFETY CHECK PREVENTS THE CRASH
     const [hours, minutes] = time.split(':').map(Number);
     return hours * 60 + minutes;
   }

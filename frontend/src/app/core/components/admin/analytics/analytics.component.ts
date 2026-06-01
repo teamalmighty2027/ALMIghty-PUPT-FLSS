@@ -8,6 +8,7 @@ import { AnalyticsService } from '../../../services/admin/analytics/analytics.se
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { 
   AnalyticsHeatmapComponent 
 } from './widgets/analytics-heatmap/analytics-heatmap.component';
@@ -46,6 +47,7 @@ import { fadeAnimation } from '../../../animations/animations';
     MatSelectModule,
     MatFormFieldModule,
     MatIconModule,
+    LoadingComponent,
     AnalyticsHeatmapComponent,
     AnalyticsFacultyTypeComponent,
     AnalyticsRoomUtilizationComponent,

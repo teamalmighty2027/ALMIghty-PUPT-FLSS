@@ -34,6 +34,10 @@ class RescheduleController extends Controller
      */
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
+        while (ob_get_level() > 0) { @ob_end_clean(); }
+        @ini_set('display_errors', '0');
+        error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+
         $validated = $request->validate([
             'scheduleId' => 'required|integer|exists:schedules,schedule_id',
             'reason'     => 'required|string',

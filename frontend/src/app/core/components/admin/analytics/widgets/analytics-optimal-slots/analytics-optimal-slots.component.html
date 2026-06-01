@@ -1,53 +1,97 @@
-<div class="widget-container">
-  <div *ngIf="isLoading" class="loading-overlay">
-    <mat-spinner diameter="40"></mat-spinner>
-    <span>Analyzing preferences...</span>
+<div class="optimal-container">
+
+  <!-- Loading -->
+  <div *ngIf="isLoading" class="state-overlay">
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Analyzing time-slot preferences...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
   </div>
 
-  <div *ngIf="!isLoading && isEmpty" class="empty-state">
-    <mat-icon>calendar_today</mat-icon>
-    <p>No preference data available for this term.</p>
+  <!-- Empty -->
+  <div *ngIf="!isLoading && isEmpty" class="state-overlay empty">
+    <mat-icon fontSet="material-symbols-rounded">calendar_today</mat-icon>
+    <p>No preference data available for this term</p>
+    <span>Preference data is needed to generate time-slot recommendations.</span>
   </div>
 
-  <div *ngIf="!isLoading && !isEmpty" class="content">
-    <div class="recommendations">
-      <h4>Top Opportunities</h4>
+  <!-- Content -->
+  <div *ngIf="!isLoading && !isEmpty" class="optimal-content">
+
+    <!-- ── Left: Top 5 ranked slots ── -->
+    <div class="panel panel-left">
+      <div class="panel-header">
+        <mat-icon fontSet="material-symbols-rounded">emoji_events</mat-icon>
+        <span>Top Opportunities</span>
+      </div>
+
       <div class="rec-list">
-        <div *ngFor="let rec of recommendations" class="rec-item">
-          <div class="rec-icon">
-            <mat-icon>star</mat-icon>
+        <div *ngFor="let rec of recommendations; let i = index" class="rec-card">
+          <div class="rec-rank" [class.rank-1]="i === 0" [class.rank-2]="i === 1" [class.rank-3]="i === 2">
+            {{ i + 1 }}
           </div>
-          <div class="rec-info">
-            <span class="rec-slot">{{ rec.day }} {{ rec.time }}</span>
-            <span class="rec-desc">{{ rec.pref }} requests vs {{ rec.sched }} used</span>
+          <div class="rec-body">
+            <div class="rec-slot">
+              <mat-icon fontSet="material-symbols-rounded">schedule</mat-icon>
+              <span>{{ rec.day }}, {{ rec.time }}</span>
+            </div>
+            <div class="rec-meta">
+              <span class="meta-pref">
+                <mat-icon fontSet="material-symbols-rounded">person</mat-icon>
+                {{ rec.pref }} preferences
+              </span>
+              <span class="meta-sep">·</span>
+              <span class="meta-sched">
+                <mat-icon fontSet="material-symbols-rounded">event_available</mat-icon>
+                {{ rec.sched }} scheduled
+              </span>
+            </div>
           </div>
           <div class="rec-score">
-            +{{ rec.score }}
+            <span class="score-value">+{{ rec.score }}</span>
+            <span class="score-label">gap</span>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="heatmap-container">
-      <table class="heatmap-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th *ngFor="let day of days">{{ day.substring(0, 3) }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let time of timeSlots">
-            <td class="time-label">{{ time.substring(0, 5) }}</td>
-            <td *ngFor="let day of days" 
-                [style.background-color]="getScoreColor(gridData[day + '-' + time].score || 0)"
-                [matTooltip]="(gridData[day + '-' + time].pref || 0) + ' Prefs / ' + (gridData[day + '-' + time].sched || 0) + ' Sched'"
-                class="heat-cell">
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- ── Right: Opportunity grid ── -->
+    <div class="panel panel-right">
+      <div class="panel-header">
+        <mat-icon fontSet="material-symbols-rounded">grid_on</mat-icon>
+        <span>Opportunity Grid</span>
+        <span class="grid-legend">
+          <span class="legend-dot"></span>
+          <span>Higher = more unfulfilled preferences</span>
+        </span>
+      </div>
+
+      <div class="grid-scroll">
+        <table class="opp-grid">
+          <thead>
+            <tr>
+              <th class="th-time"></th>
+              <th *ngFor="let day of days" class="th-day">{{ day.substring(0, 3) }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let time of timeSlots">
+              <td class="td-time">{{ time.substring(0, 5) }}</td>
+              <td *ngFor="let day of days"
+                  class="td-cell"
+                  [style.background-color]="getScoreColor(gridData[day + '-' + time].score || 0)"
+                  [matTooltip]="day + ' ' + time.substring(0,5) + ' — ' + (gridData[day + '-' + time].pref || 0) + ' prefs / ' + (gridData[day + '-' + time].sched || 0) + ' scheduled'"
+                  matTooltipPosition="above">
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
+
   </div>
 
   <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
