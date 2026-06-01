@@ -94,10 +94,22 @@ export class ScheduleValidationService {
   }
 
   /**
-   * Checks if a schedule has an exact match from another program.
-   * For bridging courses, matches are allowed (returns undefined).
-   * For non-bridging courses, matches are conflicts (returns details).
-   * @returns Conflict details if a conflict exists, otherwise undefined
+   * Checks if a bridging-course schedule has an exact match in another
+   * program. Only courses with temporary_type === 'bridging' are
+   * considered — non-bridging matches are intentionally ignored to
+   * prevent false-positive combine prompts.
+   *
+   * A combine match requires ALL four conditions to be fulfilled:
+   * same day, overlapping time, same faculty, and same room.
+   * If faculty or room are not yet set (null), no match is returned
+   * and the normal conflict path runs instead.
+   *
+   * NOTE: For temporary/bridging courses the backend places room_id
+   * inside course.room.room_id, NOT inside course.schedule.room_id,
+   * so we read from the correct location here.
+   *
+   * @returns ConflictingScheduleDetail if a bridging match is found,
+   * otherwise undefined
    */
   public checkMatchingSchedule(
     schedules: PopulateSchedulesResponse,
@@ -113,29 +125,19 @@ export class ScheduleValidationService {
       room_id: number | null;
     }
   ): ConflictingScheduleDetail | undefined {
-    let targetCourse: CourseResponse | undefined;
-    
-    // TODO: Optimize searching
-    for (const program of schedules.programs) {
-      for (const yearLevel of program.year_levels) {
-        for (const semester of yearLevel.semesters) {
-          for (const section of semester.sections) {
-            const course = section.courses.find(
-              (c) => c.schedule?.schedule_id === params.schedule_id
-            );
-            if (course) {
-              targetCourse = course;
-              break;
-            }
-          }
-        }
-      }
+    // Require both faculty and room to be set — a partial match must
+    // not trigger the combine prompt (falls through to conflict check).
+    if (!params.faculty_id || !params.room_id) {
+      return undefined;
     }
 
-    // Find matching schedule in OTHER programs
-    const matchingDetail = this.findConflictingScheduleForPredicate(
+    // NOTE: Currently scoped to bridging courses only.
+    // To extend to other temporary types, adjust the
+    // temporary_type guard in the predicate below.
+    return this.findConflictingScheduleForPredicate(
       schedules,
       (course) =>
+        course.temporary_type === 'bridging' &&
         course.schedule?.day === params.day &&
         course.schedule?.schedule_id !== params.schedule_id &&
         this.doTimesOverlap(
@@ -144,17 +146,11 @@ export class ScheduleValidationService {
           course.schedule?.start_time,
           course.schedule?.end_time
         ) &&
-        (params.faculty_id ? course.faculty_id === params.faculty_id : true) &&
-        (params.room_id ? course.schedule?.room_id === params.room_id : true)
+        course.faculty_id === params.faculty_id &&
+        // Room is stored in course.room for temporary courses,
+        // not in course.schedule (the backend never puts it there).
+        course.room?.room_id === params.room_id
     );
-
-    // If no match found, return undefined
-    if (!matchingDetail) {
-      return undefined;
-    }
-
-    // For non-bridging courses, return the conflict details
-    return matchingDetail;
   }
 
   /**
@@ -395,34 +391,49 @@ export class ScheduleValidationService {
   }
 
   /**
-   * Finds conflicting schedules based on a provided predicate function.
-   * @returns A ConflictingScheduleDetail object if a conflict is found,
-   * otherwise undefined.
+   * Finds the first course entry that satisfies the given predicate.
+   * Delegates to flattenCourses() for a single-pass search instead
+   * of manually nesting five for-loops.
+   * @returns A ConflictingScheduleDetail if found, otherwise undefined.
    */
   private findConflictingScheduleForPredicate(
     schedules: PopulateSchedulesResponse,
     predicate: (course: CourseResponse) => boolean
   ): ConflictingScheduleDetail | undefined {
+    return this.flattenCourses(schedules).find(
+      ({ course }) => predicate(course)
+    );
+  }
+
+  /**
+   * Flattens the nested program/year-level/semester/section/course
+   * tree into a single array so that callers can use a single
+   * Array.find() or Array.filter() pass instead of nested loops.
+   */
+  private flattenCourses(
+    schedules: PopulateSchedulesResponse
+  ): ConflictingScheduleDetail[] {
+    const result: ConflictingScheduleDetail[] = [];
+
     for (const program of schedules.programs) {
       for (const yearLevel of program.year_levels) {
         for (const semester of yearLevel.semesters) {
           for (const section of semester.sections) {
             for (const course of section.courses) {
-              if (predicate(course)) {
-                return {
-                  course,
-                  programCode: program.program_code,
-                  programId: program.program_id,
-                  yearLevel: yearLevel.year_level,
-                  sectionName: section.section_name,
-                };
-              }
+              result.push({
+                course,
+                programCode: program.program_code,
+                programId: program.program_id,
+                yearLevel: yearLevel.year_level,
+                sectionName: section.section_name,
+              });
             }
           }
         }
       }
     }
-    return undefined;
+
+    return result;
   }
 
   /**

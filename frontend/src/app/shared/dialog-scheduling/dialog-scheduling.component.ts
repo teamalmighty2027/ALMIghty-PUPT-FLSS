@@ -24,20 +24,6 @@ import { Faculty, Room, ConflictingScheduleDetail, Elective } from '../../core/m
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
 
-/**
- * Validator to ensure the control's value matches one of the valid options.
- * @param validOptions Array of valid string options.
- * @returns Validator function.
- */
-function mustMatchOption(validOptions: string[]): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    if (!control.value) return null;
-    return validOptions.includes(control.value)
-      ? null
-      : { invalidOption: true };
-  };
-}
-
 interface Preference {
   day: string;
   time: string;
@@ -173,10 +159,13 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // --- Elective Detection ---
+    console.log('Selected course info:', this.data);
+
     this.isElectiveSlot =
       !!this.data.isElectiveSlot ||
       !!this.data.selectedElectiveId ||
       this.data.selectedCourseInfo.toLowerCase().includes('elective');
+
     if (this.isElectiveSlot) {
       // Prefer the stable slot name from the backend, then fall back to the label.
       const parts = this.data.selectedCourseInfo.split(' - ');
@@ -464,13 +453,27 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /**
+   * Validator to ensure the control's value matches one of the valid options.
+   * @param validOptions Array of valid string options.
+   * @returns Validator function.
+   */
+  private mustMatchOption(validOptions: string[]): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      return validOptions.includes(control.value)
+        ? null
+        : { invalidOption: true };
+    };
+  }
+
   private setupCustomValidators(): void {
     this.scheduleForm
       .get('professor')
-      ?.setValidators(mustMatchOption(this.data.options.professorOptions));
+      ?.setValidators(this.mustMatchOption(this.data.options.professorOptions));
     this.scheduleForm
       .get('room')
-      ?.setValidators(mustMatchOption(this.data.options.roomOptions));
+      ?.setValidators(this.mustMatchOption(this.data.options.roomOptions));
     this.scheduleForm.get('professor')?.updateValueAndValidity();
     this.scheduleForm.get('room')?.updateValueAndValidity();
   }
