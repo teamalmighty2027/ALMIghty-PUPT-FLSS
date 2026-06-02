@@ -133,6 +133,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   originalDay: string = '';
 
   selectedFaculty: SuggestedFaculty | null = null;
+  historyCardSelected = false;
 
   hasConflicts = false;
   conflictMessage: string = '';
@@ -733,6 +734,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     preference: Preference
   ): void {
     this.selectedFaculty = faculty;
+    this.historyCardSelected = false;
     const [startTime, endTime] = preference.time
       .split(' - ')
       .map((t) => t.trim());
@@ -745,6 +747,31 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     });
 
     this.selectedDay = preference.day;
+    this.scheduleForm.markAllAsTouched();
+    this.cdr.markForCheck();
+  }
+
+  public selectHistoryEntry(): void {
+    const schedule = this.data.existingSchedule;
+    if (!schedule || schedule.professor === 'Not set') return;
+
+    this.selectedFaculty = null;
+    this.historyCardSelected = true;
+
+    // Parse "8:00 AM - 9:00 AM" → startTime / endTime
+    const parts = schedule.time?.split(' - ').map((t) => t.trim()) ?? [];
+    const startTime = parts[0] || '';
+    const endTime   = parts[1] || '';
+
+    this.scheduleForm.patchValue({
+      day: schedule.day !== 'Not set' ? schedule.day : '',
+      startTime,
+      endTime,
+      professor: schedule.professor,
+      room: schedule.room !== 'Not set' ? schedule.room : '',
+    });
+
+    this.selectedDay = schedule.day !== 'Not set' ? schedule.day : '';
     this.scheduleForm.markAllAsTouched();
     this.cdr.markForCheck();
   }
@@ -793,6 +820,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.selectedDay = '';
     this.originalDay = '';
     this.selectedFaculty = null;
+    this.historyCardSelected = false;
     this.cdr.markForCheck();
   }
 

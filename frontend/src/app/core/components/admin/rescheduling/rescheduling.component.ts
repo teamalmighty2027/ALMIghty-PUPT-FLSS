@@ -637,6 +637,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         });
         
         this.arrangementsDataSource.data = [...this.allFaculties];
+        this.updateMasterToggleState();
         this.cdr.detectChanges();
 
         this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
@@ -660,6 +661,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
               this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
             }
           });
+      } else {
+        // User cancelled the dialog — revert the toggle visual state immediately
+        this.isAllAppealsEnabled = !isEnabled;
+        this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.updateMasterToggleState();
+        this.cdr.detectChanges();
       }
     });
   }
@@ -711,6 +719,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           faculty.appealEndDate = null;
         }
 
+        // Immediately reflect the change in the table without waiting for the API
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.updateMasterToggleState();
+        this.cdr.detectChanges();
+
         this.reschedulingService.toggleFacultyAppealAccess(faculty.facultyId, isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
           .subscribe({
             next: () => {
@@ -719,11 +732,22 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
               this.updateMasterToggleState();
             },
             error: () => {
+              // Revert on API failure
               faculty.isAppealEnabled = !isEnabled;
+              faculty.appealStartDate = null;
+              faculty.appealEndDate = null;
+              this.arrangementsDataSource.data = [...this.allFaculties];
               this.updateMasterToggleState();
+              this.cdr.detectChanges();
               this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
             }
           });
+      } else {
+        // User cancelled the dialog — revert the toggle visual state immediately
+        faculty.isAppealEnabled = !isEnabled;
+        this.arrangementsDataSource.data = [...this.allFaculties];
+        this.updateMasterToggleState();
+        this.cdr.detectChanges();
       }
     });
   }
