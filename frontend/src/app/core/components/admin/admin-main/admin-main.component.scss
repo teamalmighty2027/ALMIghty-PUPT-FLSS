@@ -131,7 +131,7 @@
         margin: var(--spacing-xs) var(--spacing-xs) var(--spacing-sm);
 
         .profile-dropdown {
-          @include mixins.flex-layout;
+          @include mixins.flex-layout($gap: var(--spacing-xs));
           flex-shrink: 0;
 
           .profile-icon {
