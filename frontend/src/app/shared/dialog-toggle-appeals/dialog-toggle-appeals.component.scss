@@ -5,10 +5,14 @@
   display: block;
   width: 100%;
   overflow: hidden;
+  @include mixins.custom-spinner;
 }
 
 :host ::ng-deep {
-  .mat-mdc-form-field-subscript-wrapper { display: none !important; }
+  // Hide the hint-wrapper height reservation when there is no hint
+  .mat-mdc-form-field:not(.has-hint) {
+    .mat-mdc-form-field-subscript-wrapper { display: none !important; }
+  }
   .mat-mdc-dialog-content { padding: 0 !important; max-height: none !important; overflow: visible !important; }
   .mat-mdc-dialog-actions { padding: 0 !important; min-height: unset !important; }
   .mat-mdc-checkbox .mat-internal-form-field { display: flex; flex-direction: row-reverse; }
@@ -22,14 +26,10 @@
   overflow: hidden;
 }
 
-// ── Header ────────────────────────────────────────────────────
+// ── Header — unified gradient, same for enable and disable ────
 .dialog-header {
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, #800000 0%, #a83232 100%);
-
-  &.header-disable {
-    background: linear-gradient(135deg, #4a0000 0%, #800000 100%);
-  }
+  background: linear-gradient(135deg, var(--primary-one) 0%, var(--primary-two) 100%);
 
   .dialog-title {
     margin: 0 0 2px;
@@ -47,7 +47,7 @@
   }
 }
 
-// ── Body ──────────────────────────────────────────────────────
+// ── Body — matches toggle-preferences layout ──────────────────
 .dialog-body {
   padding: var(--spacing-lg) !important;
   display: flex !important;
@@ -56,7 +56,25 @@
   overflow: visible !important;
 }
 
-// ── Date fields stacked ───────────────────────────────────────
+// ── Main text (status / description lines) ────────────────────
+.main-text {
+  margin: 0;
+  line-height: var(--line-height-md);
+  font-size: var(--font-size-sm);
+  color: var(--neutral-base);
+}
+
+// ── Disable warning — matches toggle-preferences confirm-disable ──
+.confirm-disable {
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  background-color: var(--primary-fade);
+  color: var(--primary-text);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-sm);
+}
+
+// ── Date fields ───────────────────────────────────────────────
 .field-section { display: flex; flex-direction: column; }
 
 .date-stack {
@@ -82,26 +100,12 @@
 
 .full-width { width: 100%; }
 
-// ── Warning banner ────────────────────────────────────────────
-.info-banner {
-  padding: var(--spacing-sm);
-  border-radius: var(--border-radius-sm);
-  background-color: var(--primary-fade);
-  color: var(--primary-text);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-sm);
-  @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-xs));
-  border-left: 3px solid var(--primary-text);
-
-  span[mat-symbol] { font-size: var(--font-size-lg); }
-}
-
-// ── Email checkbox ────────────────────────────────────────────
+// ── Email checkbox — matches toggle-preferences style ─────────
 .checkbox-container {
   .email-checkbox {
     width: 100%;
     background-color: var(--neutral-light);
-    border-radius: var(--border-radius-sm);
+    border-radius: var(--spacing-xs);
     padding: var(--spacing-xxxs);
 
     .checkbox-content {
@@ -109,6 +113,7 @@
       font-size: var(--font-size-md);
 
       span[mat-symbol] {
+        @include mixins.flex-layout;
         font-size: var(--font-size-lg);
         padding-left: var(--spacing-xxs);
       }
@@ -116,18 +121,24 @@
   }
 }
 
-// ── Footer ────────────────────────────────────────────────────
+// ── Footer — space-between: cancel left, confirm right ────────
 .dialog-buttons {
-  @include mixins.flex-layout($align: stretch, $justify: flex-end, $gap: var(--spacing-sm));
+  @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-sm));
   padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md) !important;
-  border-top: 1px solid rgba(128, 0, 0, 0.08);
+  border-top: 1px solid var(--neutral-fade);
 
   .action-button {
     @include mixins.gradient-primary(315deg);
     color: white !important;
+
+    &:disabled {
+      background: var(--neutral-fade) !important;
+      color: var(--neutral-base) !important;
+      opacity: var(--opacity-semi-opaque);
+    }
   }
 
   .close-button {
-    color: var(--neutral-button);
+    color: var(--primary-text);
   }
 }

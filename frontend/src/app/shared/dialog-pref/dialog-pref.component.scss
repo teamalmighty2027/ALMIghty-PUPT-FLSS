@@ -186,9 +186,15 @@
 }
 
 .dialog-actions {
-  @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+  @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-sm));
   padding-top: var(--spacing-md);
   flex-shrink: 0;
+
+  // Close sits on the left — matches rescheduling cancel/close position
+  button:first-child {
+    margin-right: auto;
+    color: var(--primary-text);
+  }
 
   button {
     color: var(--primary-text);
@@ -198,5 +204,4 @@
 .excel-button {
   background-color: #1d6f42 !important;
   color: white !important;
-  margin-right: 8px;
 }
