@@ -92,10 +92,7 @@ export class ProfilePageComponent implements OnInit {
       zipcode: ['', [Validators.pattern('^[0-9]{4}$')]],
     };
 
-    // Only add faculty_profile_id for faculty users
-    if (!this.isAdmin) {
-      formConfig.faculty_profile_id = [{ value: '', disabled: true }];
-    }
+
 
     this.profileForm = this.fb.group(formConfig);
     this.patchInitialValuesFromAuth();
@@ -222,9 +219,6 @@ export class ProfilePageComponent implements OnInit {
         // Re-disable read-only fields
         this.profileForm.get('email')?.disable();
         this.profileForm.get('code')?.disable();
-        if (!this.isAdmin) {
-          this.profileForm.get('faculty_profile_id')?.disable();
-        }
 
         this.isLoading = false;
       },
@@ -241,9 +235,6 @@ export class ProfilePageComponent implements OnInit {
     this.profileForm.enable();
     this.profileForm.get('email')?.disable();
     this.profileForm.get('code')?.disable();
-    if (!this.isAdmin) {
-      this.profileForm.get('faculty_profile_id')?.disable();
-    }
   }
 
   /**

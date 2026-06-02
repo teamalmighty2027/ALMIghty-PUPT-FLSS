@@ -60,7 +60,7 @@ export interface FacultyProfileData {
   suffix_name?: string;
   email?: string;
   code?: string;
-  faculty_profile_id?: number;
+  user_profile_id?: number;
   department?: string;
   profile_picture?: string;
   profile_picture_url?: string;
