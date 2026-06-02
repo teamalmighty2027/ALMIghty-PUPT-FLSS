@@ -1,60 +1,57 @@
-<div class="dialog-action-container">
-  <!-- Dialog Title -->
-  <h2 mat-dialog-title class="dialog-title">
-    <span mat-symbol="{{ data.currentState ? 'block' : 'event_available' }}"></span>
-    {{ data.currentState ? 'Disable Appeals Submission' : 'Enable Appeals Submission' }}
-  </h2>
+<div class="appeals-dialog">
 
-  <!-- Dialog Content -->
-  <div mat-dialog-content class="dialog-content">
-    <div class="date-fields-container">
-      <mat-form-field appearance="fill">
-        <mat-label>Start Date</mat-label>
-        <input
-          matInput
-          [matDatepicker]="startPicker"
-          [min]="minDate"
-          [(ngModel)]="startDate"
-          [disabled]="data.currentState"
-          (dateChange)="onStartDateChange($event)"
-          readonly
-          required
-          (click)="!data.currentState && startPicker.open()"
-        />
-        <mat-datepicker-toggle matIconSuffix [for]="startPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
-        <mat-datepicker #startPicker></mat-datepicker>
-      </mat-form-field>
+  <!-- Header -->
+  <div class="dialog-header" [class.header-disable]="data.currentState">
+    <h2 class="dialog-title">
+      {{ data.currentState ? 'Disable Appeals Submission' : 'Enable Appeals Submission' }}
+    </h2>
+    <p class="dialog-subtitle">
+      {{ data.type === 'all_appeals'
+        ? 'Applies to all faculty members this term'
+        : 'For ' + (data.facultyName ?? 'this faculty member') }}
+    </p>
+  </div>
 
-      <mat-form-field appearance="fill">
-        <mat-label>End Date</mat-label>
-        <input
-          matInput
-          [matDatepicker]="endPicker"
-          [min]="startDate || minDate"
-          [(ngModel)]="endDate"
-          [disabled]="data.currentState"
-          readonly
-          required
-          (click)="!data.currentState && endPicker.open()"
-        />
-        <mat-datepicker-toggle matIconSuffix [for]="endPicker" [disabled]="data.currentState"></mat-datepicker-toggle>
-        <mat-datepicker #endPicker></mat-datepicker>
-      </mat-form-field>
+  <!-- Body -->
+  <mat-dialog-content class="dialog-body">
+
+    <!-- Date fields — stacked vertically -->
+    <div class="field-section" *ngIf="!data.currentState">
+      <div class="date-stack">
+        <div class="date-field">
+          <label class="field-label">Start Date</label>
+          <mat-form-field appearance="outline" class="full-width">
+            <input matInput [matDatepicker]="startPicker" [min]="minDate"
+              [(ngModel)]="startDate" (dateChange)="onStartDateChange($event)"
+              readonly required (click)="startPicker.open()" placeholder="Select start date" />
+            <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+            <mat-datepicker #startPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="date-field">
+          <label class="field-label">End Date</label>
+          <mat-form-field appearance="outline" class="full-width">
+            <input matInput [matDatepicker]="endPicker" [min]="startDate || minDate"
+              [(ngModel)]="endDate" readonly required
+              (click)="endPicker.open()" placeholder="Select end date" />
+            <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+            <mat-datepicker #endPicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+      </div>
     </div>
 
-    <!-- Alert banner for disabling -->
-    @if (data.currentState) {
-    <div class="info-banner">
+    <!-- Warning banner for disable -->
+    <div class="info-banner" *ngIf="data.currentState">
       <span mat-symbol="warning"></span>
       <span>
         This will <strong>immediately</strong> disable appeals submission and bypass the currently set deadline.
       </span>
     </div>
-    }
 
-    <!-- Email Notification checkbox -->
-    @if (!data.currentState) {
-    <div class="checkbox-container">
+    <!-- Email notification -->
+    <div class="checkbox-container" *ngIf="!data.currentState">
       <mat-checkbox [(ngModel)]="sendEmail" color="primary" class="email-checkbox">
         <div class="checkbox-content">
           <span mat-symbol="email"></span>
@@ -65,19 +62,16 @@
         </div>
       </mat-checkbox>
     </div>
-    }
-  </div>
 
-  <!-- Dialog Actions -->
-  <div mat-dialog-actions class="dialog-buttons">
-    <button mat-button (click)="close()" class="close-button">Cancel</button>
-    <button
-      mat-flat-button
-      class="action-button"
-      (click)="confirm()"
-      [disabled]="!data.currentState && (!startDate || !endDate)"
-    >
+  </mat-dialog-content>
+
+  <!-- Footer -->
+  <mat-dialog-actions class="dialog-buttons">
+    <button mat-button class="close-button" (click)="close()">Cancel</button>
+    <button mat-flat-button class="action-button" (click)="confirm()"
+      [disabled]="!data.currentState && (!startDate || !endDate)">
       Confirm
     </button>
-  </div>
+  </mat-dialog-actions>
+
 </div>
