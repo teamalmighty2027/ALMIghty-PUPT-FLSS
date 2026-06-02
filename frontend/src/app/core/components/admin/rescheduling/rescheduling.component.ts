@@ -1618,9 +1618,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadValidationCaches(this.dataSource.data);
 
     this.dialog.open(this.appealDialog, {
-      width: '55%', maxWidth: '1000px', maxHeight: '90vh',
+      width: '72%', maxWidth: '900px', maxHeight: '90vh',
       height: 'auto', disableClose: true,
-      panelClass: 'custom-dialog-container',
+      panelClass: 'no-padding-dialog',
       autoFocus: true,
     });
   }

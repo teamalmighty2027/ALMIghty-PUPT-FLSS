@@ -7,19 +7,21 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatRippleModule } from '@angular/material/core';
 
 @Component({
   selector: 'app-dialog-rescheduling',
   standalone: true,
   imports: [
-    CommonModule, 
-    FormsModule, 
-    MatDialogModule, 
-    MatFormFieldModule, 
-    MatSelectModule, 
-    MatInputModule, 
-    MatButtonModule, 
-    MatIconModule
+    CommonModule,
+    FormsModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatSelectModule,
+    MatInputModule,
+    MatButtonModule,
+    MatIconModule,
+    MatRippleModule,
   ],
   templateUrl: './dialog-rescheduling.component.html',
   styleUrl: './dialog-rescheduling.component.scss'

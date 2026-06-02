@@ -755,3 +755,398 @@
     padding: var(--spacing-sm);
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════
+//  REDESIGNED APPEAL REVIEW DIALOG
+// ═══════════════════════════════════════════════════════════════
+
+.appeal-dialog-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 90vh;
+  background: var(--neutral-light);
+  overflow: hidden;
+  border-radius: var(--border-radius-md);
+}
+
+// ── Header ────────────────────────────────────────────────────
+.appeal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(135deg, #800000 0%, #a83232 100%);
+  flex-shrink: 0;
+}
+
+.appeal-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.appeal-header-icon {
+  font-family: 'Material Icons' !important;
+  font-size: 26px;
+  color: rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
+}
+
+.appeal-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.appeal-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.appeal-subtitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.appeal-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: #ffffff;
+  }
+
+  &:hover { background: rgba(255, 255, 255, 0.28); }
+}
+
+// ── Scrollable body ───────────────────────────────────────────
+.appeal-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  @include mixins.hide-scrollbar;
+}
+
+// ── Current Schedule Banner ───────────────────────────────────
+.appeal-banner {
+  background: var(--neutral-extra);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-left: 3px solid #800000;
+  flex-shrink: 0;
+}
+
+.appeal-banner-label {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-md);
+  color: #800000;
+  margin-bottom: var(--spacing-sm);
+}
+
+.appeal-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+
+  @media (max-width: 580px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.appeal-banner-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.appeal-banner-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  color: #800000;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.appeal-banner-item-label {
+  font-size: var(--font-size-xs);
+  color: var(--neutral-base);
+  opacity: 0.6;
+  line-height: 1.2;
+}
+
+.appeal-banner-item-value {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--neutral-base);
+  line-height: 1.4;
+}
+
+// ── Two-column layout ─────────────────────────────────────────
+.appeal-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  align-items: start;
+
+  @media (max-width: 620px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Info column ───────────────────────────────────────────────
+.appeal-info-col,
+.appeal-editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+// ── Card ──────────────────────────────────────────────────────
+.appeal-card {
+  background: var(--neutral-extra);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.appeal-editor-card {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.appeal-card-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-md);
+  color: var(--neutral-base);
+  opacity: 0.65;
+}
+
+.appeal-card-label-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #800000;
+  opacity: 1;
+}
+
+.appeal-optional {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--neutral-base);
+  opacity: 0.5;
+  font-style: italic;
+}
+
+// ── Info rows ─────────────────────────────────────────────────
+.appeal-info-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.appeal-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xxs) 0;
+  border-bottom: 1px solid var(--neutral-option);
+
+  &:last-child { border-bottom: none; }
+}
+
+.appeal-info-key {
+  font-size: var(--font-size-sm);
+  color: var(--neutral-base);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.appeal-info-val {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--neutral-base);
+  text-align: right;
+}
+
+.appeal-reason-text {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--neutral-base);
+  line-height: var(--line-height-md);
+  font-style: italic;
+  opacity: 0.8;
+}
+
+// ── Editor form fields ────────────────────────────────────────
+.appeal-full-width { width: 100%; }
+
+.appeal-time-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.appeal-half-width { width: 100%; }
+
+// ── Conflict banner ───────────────────────────────────────────
+.appeal-conflict-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--primary-fade);
+  border-radius: var(--border-radius-sm);
+  border-left: 3px solid var(--primary-text);
+}
+
+.appeal-conflict-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--primary-text);
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
+
+.appeal-conflict-list {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  font-size: var(--font-size-xs);
+  color: var(--primary-text);
+}
+
+// ── Footer ────────────────────────────────────────────────────
+.appeal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  border-top: 1px solid rgba(128, 0, 0, 0.1);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.appeal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.appeal-btn-clear {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-xxs) !important;
+  font-size: var(--font-size-sm) !important;
+  color: var(--neutral-base) !important;
+  opacity: 0.6;
+
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &:hover { opacity: 1; }
+}
+
+.appeal-btn-cancel {
+  color: var(--neutral-base) !important;
+}
+
+.appeal-btn-deny {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-xxs) !important;
+  background: linear-gradient(135deg, #8b1a1a 0%, #c0392b 100%) !important;
+  color: white !important;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.appeal-btn-approve {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--spacing-xxs) !important;
+  background: linear-gradient(135deg, #800000 0%, #a83232 100%) !important;
+  color: white !important;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+  &.disabled-button {
+    background: var(--neutral-fade) !important;
+    color: var(--neutral-base) !important;
+    opacity: var(--opacity-semi-opaque);
+  }
+}
+
+// ── Responsive ────────────────────────────────────────────────
+@media (max-width: 620px) {
+  .appeal-body {
+    padding: var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+
+  .appeal-banner-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-xs);
+  }
+
+  .appeal-time-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .appeal-footer {
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-sm);
+
+    .appeal-footer-right {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+
+      .appeal-btn-deny,
+      .appeal-btn-approve {
+        flex: 1 1 auto;
+      }
+    }
+  }
+}

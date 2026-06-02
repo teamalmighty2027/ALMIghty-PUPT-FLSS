@@ -714,3 +714,19 @@ html body div.asw-container .asw-menu * {
   60%  { left: 107%; right: -8%; }
   100% { left: 107%; right: -8%; }
 }
+
+
+/* ============================================================
+   no-padding-dialog — removes Material's default dialog surface padding
+   so custom-styled dialogs can control their own spacing
+   ============================================================ */
+.no-padding-dialog {
+  .mat-mdc-dialog-surface {
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  .mat-mdc-dialog-container .mdc-dialog__surface {
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+}

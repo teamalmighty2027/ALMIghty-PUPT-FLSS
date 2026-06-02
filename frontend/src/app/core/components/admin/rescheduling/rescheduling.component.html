@@ -510,144 +510,217 @@
 </ng-template>
 
 <ng-template #appealDialog>
-  <div class="dialog-content-wrapper">
-    <div class="modal-header">
-      <h2 class="modal-title">Review Appeal</h2>
-      <button class="modal-close-btn" (click)="closeDialog()">
+  <div class="appeal-dialog-shell">
+
+    <!-- ── Header ── -->
+    <div class="appeal-header">
+      <div class="appeal-header-left">
+        <span mat-symbol class="appeal-header-icon">rate_review</span>
+        <div class="appeal-header-text">
+          <h2 class="appeal-title">Review Appeal</h2>
+          <p class="appeal-subtitle">
+            {{ selectedAppeal?.facultyName }} &mdash; {{ selectedAppeal?.programCode }}
+          </p>
+        </div>
+      </div>
+      <button class="appeal-close-btn" (click)="closeDialog()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
-    <div class="modal-scrollable-content">
-      <div class="modal-body">
-        <div class="schedule-summary requested-schedule">
-          <div class="section-label">REQUESTED SCHEDULE</div>
-          <div class="info-row">
-            <span class="label">Day:</span>
-            <span class="value">{{ selectedAppeal?.preferredDay || "—" }}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Time:</span>
-            <span class="value">
-              {{ selectedAppeal?.preferredStartTime || "—" }}
-              <ng-container *ngIf="selectedAppeal?.preferredEndTime">
-                – {{ selectedAppeal?.preferredEndTime }}
-              </ng-container>
-            </span>
-          </div>
-          <div class="info-row">
-            <span class="label">Room:</span>
-            <span class="value">{{ selectedAppeal?.room || "—" }}</span>
-          </div>
-        </div>
-        <div class="reason-section">
-          <div class="section-label reason-title">ADMIN REMARKS (Optional)</div>
-          <mat-form-field appearance="outline" class="full-width">
-            <textarea
-              matInput
-              [(ngModel)]="adminRemarks"
-              placeholder="Add remarks for the faculty member (optional)..."
-              rows="3"
-            ></textarea>
-            <button
-              mat-icon-button
-              matSuffix
-              type="button"
-              (click)="onSpeechRecognition()"
-              [title]="isListening ? 'Stop recording' : 'Click to speak'"
-              [color]="isListening ? 'warn' : null"
-            >
-              <mat-icon>{{ isListening ? "mic" : "mic_none" }}</mat-icon>
-            </button>
-          </mat-form-field>
-        </div>
 
-        <div class="edit-mode-section">
-          <div class="suggested-label"><span>NEW SCHEDULE</span></div>
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Day</mat-label>
-            <mat-select
-              [(ngModel)]="newSchedule!.preferredDay"
-              (selectionChange)="onScheduleFieldChange()"
-            >
-              <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{
-                day
-              }}</mat-option>
-            </mat-select>
-            <mat-icon matPrefix>today</mat-icon>
-          </mat-form-field>
-          <div class="time-row">
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>Start Time</mat-label>
-              <mat-select
-                [(ngModel)]="newSchedule!.preferredStartTime"
-                (selectionChange)="onStartTimeChange()"
-              >
-                <mat-option *ngFor="let time of timeOptions" [value]="time">{{
-                  time
-                }}</mat-option>
-              </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
-            </mat-form-field>
-            <mat-form-field appearance="outline" class="time-field">
-              <mat-label>End Time</mat-label>
-              <mat-select
-                [(ngModel)]="newSchedule!.preferredEndTime"
-                (selectionChange)="onEndTimeChange()"
-              >
-                <mat-option
-                  *ngFor="let time of availableEndTimes"
-                  [value]="time"
-                  >{{ time }}</mat-option
-                >
-              </mat-select>
-              <mat-icon matPrefix>schedule</mat-icon>
-            </mat-form-field>
-          </div>
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Room</mat-label>
-            <mat-select
-              [(ngModel)]="newSchedule!.room"
-              (selectionChange)="onScheduleFieldChange()"
-            >
-              <mat-option *ngFor="let room of roomOptions" [value]="room">{{
-                room
-              }}</mat-option>
-            </mat-select>
-            <mat-icon matPrefix>meeting_room</mat-icon>
-          </mat-form-field>
-          @if (conflictMessages.length > 0) {
-            <div class="validation-message conflict">
-              <div class="validation-message-header">
-                <mat-icon>report_problem</mat-icon>
-                <span>Schedule conflicts detected</span>
-              </div>
-              <ul class="validation-message-list">
-                <li *ngFor="let message of conflictMessages">{{ message }}</li>
-              </ul>
+    <!-- ── Scrollable body ── -->
+    <div class="appeal-body">
+
+      <!-- Current Schedule Banner -->
+      <div class="appeal-banner">
+        <div class="appeal-banner-label">Current Schedule</div>
+        <div class="appeal-banner-grid">
+          <div class="appeal-banner-item">
+            <mat-icon class="appeal-banner-icon">book</mat-icon>
+            <div>
+              <div class="appeal-banner-item-label">Course</div>
+              <div class="appeal-banner-item-value">{{ selectedAppeal?.courseTitle }}</div>
             </div>
-          }
+          </div>
+          <div class="appeal-banner-item">
+            <mat-icon class="appeal-banner-icon">schedule</mat-icon>
+            <div>
+              <div class="appeal-banner-item-label">Original Time</div>
+              <div class="appeal-banner-item-value">
+                {{ selectedAppeal?.originalDay }} &bull;
+                {{ selectedAppeal?.originalStartTime }}&ndash;{{ selectedAppeal?.originalEndTime }}
+              </div>
+            </div>
+          </div>
+          <div class="appeal-banner-item">
+            <mat-icon class="appeal-banner-icon">meeting_room</mat-icon>
+            <div>
+              <div class="appeal-banner-item-label">Room</div>
+              <div class="appeal-banner-item-value">{{ selectedAppeal?.room || '—' }}</div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <!-- Two columns: Left = Requested info + Remarks | Right = New Schedule editor -->
+      <div class="appeal-two-col">
+
+        <!-- LEFT: Requested schedule + Reason + Admin Remarks -->
+        <div class="appeal-info-col">
+
+          <!-- Requested Schedule -->
+          <div class="appeal-card">
+            <div class="appeal-card-label">
+              <mat-icon class="appeal-card-label-icon">event_available</mat-icon>
+              Requested Schedule
+            </div>
+            <div class="appeal-info-rows">
+              <div class="appeal-info-row">
+                <span class="appeal-info-key">Day</span>
+                <span class="appeal-info-val">{{ selectedAppeal?.preferredDay || '—' }}</span>
+              </div>
+              <div class="appeal-info-row">
+                <span class="appeal-info-key">Time</span>
+                <span class="appeal-info-val">
+                  {{ selectedAppeal?.preferredStartTime || '—' }}
+                  <ng-container *ngIf="selectedAppeal?.preferredEndTime">
+                    &ndash; {{ selectedAppeal?.preferredEndTime }}
+                  </ng-container>
+                </span>
+              </div>
+              <div class="appeal-info-row">
+                <span class="appeal-info-key">Room</span>
+                <span class="appeal-info-val">{{ selectedAppeal?.room || '—' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Reason -->
+          <div class="appeal-card">
+            <div class="appeal-card-label">
+              <mat-icon class="appeal-card-label-icon">comment</mat-icon>
+              Faculty Reason
+            </div>
+            <p class="appeal-reason-text">{{ selectedAppeal?.reasoning || 'No reason provided.' }}</p>
+          </div>
+
+          <!-- Admin Remarks -->
+          <div class="appeal-card">
+            <div class="appeal-card-label">
+              <mat-icon class="appeal-card-label-icon">edit_note</mat-icon>
+              Admin Remarks
+              <span class="appeal-optional">optional</span>
+            </div>
+            <mat-form-field appearance="outline" class="appeal-full-width">
+              <textarea
+                matInput
+                [(ngModel)]="adminRemarks"
+                placeholder="Add remarks for the faculty member..."
+                rows="3"
+              ></textarea>
+              <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="onSpeechRecognition()"
+                [title]="isListening ? 'Stop recording' : 'Click to speak'"
+                [color]="isListening ? 'warn' : null"
+              >
+                <mat-icon>{{ isListening ? 'mic' : 'mic_none' }}</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+
+        </div>
+
+        <!-- RIGHT: New Schedule editor -->
+        <div class="appeal-editor-col">
+          <div class="appeal-card appeal-editor-card">
+            <div class="appeal-card-label">
+              <mat-icon class="appeal-card-label-icon">tune</mat-icon>
+              New Schedule
+            </div>
+
+            <mat-form-field appearance="outline" class="appeal-full-width">
+              <mat-label>Day</mat-label>
+              <mat-icon matPrefix>calendar_today</mat-icon>
+              <mat-select
+                [(ngModel)]="newSchedule!.preferredDay"
+                (selectionChange)="onScheduleFieldChange()"
+              >
+                <mat-option *ngFor="let day of daysOfWeek" [value]="day">{{ day }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <div class="appeal-time-row">
+              <mat-form-field appearance="outline" class="appeal-half-width">
+                <mat-label>Start Time</mat-label>
+                <mat-icon matPrefix>access_time</mat-icon>
+                <mat-select
+                  [(ngModel)]="newSchedule!.preferredStartTime"
+                  (selectionChange)="onStartTimeChange()"
+                >
+                  <mat-option *ngFor="let time of timeOptions" [value]="time">{{ time }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="appeal-half-width">
+                <mat-label>End Time</mat-label>
+                <mat-icon matPrefix>access_time</mat-icon>
+                <mat-select
+                  [(ngModel)]="newSchedule!.preferredEndTime"
+                  (selectionChange)="onEndTimeChange()"
+                >
+                  <mat-option *ngFor="let time of availableEndTimes" [value]="time">{{ time }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="appeal-full-width">
+              <mat-label>Room</mat-label>
+              <mat-icon matPrefix>meeting_room</mat-icon>
+              <mat-select
+                [(ngModel)]="newSchedule!.room"
+                (selectionChange)="onScheduleFieldChange()"
+              >
+                <mat-option *ngFor="let room of roomOptions" [value]="room">{{ room }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            @if (conflictMessages.length > 0) {
+              <div class="appeal-conflict-banner">
+                <div class="appeal-conflict-header">
+                  <mat-icon>report_problem</mat-icon>
+                  <span>Schedule conflicts detected</span>
+                </div>
+                <ul class="appeal-conflict-list">
+                  <li *ngFor="let message of conflictMessages">{{ message }}</li>
+                </ul>
+              </div>
+            }
+          </div>
+        </div>
+
+      </div>
     </div>
-    <div class="modal-footer">
-      <div class="modal-actions">
-        @if (selectedAppeal?.appealVerification === "Pending") {
-          <button mat-button class="btn-clear" (click)="clearAll()">
-            Clear All
-          </button>
-        }
-        <button mat-button class="btn-cancel" (click)="closeDialog()">
-          Cancel
+
+    <!-- ── Footer ── -->
+    <div class="appeal-footer">
+      @if (selectedAppeal?.appealVerification === 'Pending') {
+        <button mat-button class="appeal-btn-clear" (click)="clearAll()">
+          <mat-icon>restart_alt</mat-icon> Clear
         </button>
-        @if (selectedAppeal?.appealVerification === "Pending") {
-          <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
-            Deny
+      }
+      <div class="appeal-footer-right">
+        <button mat-button class="appeal-btn-cancel" (click)="closeDialog()">Cancel</button>
+        @if (selectedAppeal?.appealVerification === 'Pending') {
+          <button mat-flat-button class="appeal-btn-deny" (click)="denyAppeal()">
+            <mat-icon>cancel</mat-icon> Deny
           </button>
           <button
             mat-flat-button
-            class="btn-approve"
+            class="appeal-btn-approve"
             (click)="approveAppeal()"
-             [disabled]="
+            [disabled]="
               conflictMessages.length > 0 ||
               !newSchedule?.preferredDay ||
               !newSchedule?.preferredStartTime ||
@@ -656,10 +729,11 @@
             "
             [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
           >
-            Approve
+            <mat-icon>check_circle</mat-icon> Approve
           </button>
         }
       </div>
     </div>
+
   </div>
 </ng-template>
