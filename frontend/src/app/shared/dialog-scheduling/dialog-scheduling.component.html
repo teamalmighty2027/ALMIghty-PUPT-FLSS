@@ -1,7 +1,8 @@
 <div class="scheduling-dialog-container">
 
   <!-- ═══════════════════════════════════════════════
-       LEFT PANEL — AI Suggestion + Faculty Preferences
+       LEFT PANEL — Faculty Preferences, AI Suggestions,
+       and Course History
        ═══════════════════════════════════════════════ -->
   <section class="section suggested-faculty">
 
@@ -14,7 +15,90 @@
 
     <mat-dialog-content class="content faculty-list">
 
-      <!-- ── AI Suggestion (top-priority, always visible) ── -->
+      <!-- ════════════════════════════════════════
+           FACULTY PREFERENCES — Faculty who selected
+           this course as their preference
+           ════════════════════════════════════════ -->
+      <div class="faculty-preferences-wrapper">
+        <div class="section-block-header">
+          <span mat-symbol="how_to_reg" class="section-block-icon"></span>
+          <span class="section-block-label">Faculty Preferences</span>
+          <span class="section-block-sublabel">Faculty who selected this course as their preference</span>
+        </div>
+
+        @if (data.suggestedFaculty.length === 0) {
+          <p class="empty-state-text">No faculty has selected this course as their preference.</p>
+        } @else {
+          @for (faculty of data.suggestedFaculty; track faculty.faculty_id) {
+            <div class="faculty-card-wrapper">
+
+              @if (faculty.preferences.length > 1) {
+                <div class="faculty-pref-nav">
+                  <span class="preference-count">
+                    {{ faculty.prefIndex + 1 }} of {{ faculty.preferences.length }} Preferences
+                  </span>
+                  <div class="nav-button-container">
+                    <button
+                      class="nav-button"
+                      (click)="showPreviousFacultyPreference(faculty)"
+                      matRipple
+                      [matRippleColor]="'rgba(255,255,255,0.1)'"
+                    >
+                      <span mat-symbol="chevron_left"></span>
+                    </button>
+                    <button
+                      class="nav-button"
+                      (click)="showNextFacultyPreference(faculty)"
+                      matRipple
+                      [matRippleColor]="'rgba(255,255,255,0.1)'"
+                    >
+                      <span mat-symbol="chevron_right"></span>
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <div
+                class="faculty-card"
+                (click)="populateFormWithFacultyPreference(
+                  faculty,
+                  faculty.preferences[faculty.prefIndex]
+                )"
+                [class.selected-faculty]="
+                  selectedFaculty?.faculty_id === faculty.faculty_id &&
+                  doesPreferenceMatchForm(faculty.preferences[faculty.prefIndex])
+                "
+                [@cardSwipeAnimation]="faculty.prefIndex"
+                matRipple
+              >
+                <div class="card-row-top">
+                  <span class="faculty-type" [ngClass]="getFacultyTypeClass(faculty.type)">
+                    {{ faculty.type }}
+                  </span>
+                </div>
+                <div class="faculty-name">{{ faculty.name }}</div>
+                <div class="faculty-pref">
+                  <span mat-symbol="calendar_today" class="pref-icon"></span>
+                  {{ faculty.preferences[faculty.prefIndex].day }},
+                  {{ faculty.preferences[faculty.prefIndex].time }}
+                </div>
+              </div>
+
+            </div>
+          }
+        }
+      </div>
+
+      <!-- FACULTY PREFERENCES — end marker -->
+      <div class="formal-end-marker">
+        <div class="end-marker-line"></div>
+        <span class="end-marker-text">— Nothing Follows —</span>
+        <div class="end-marker-line"></div>
+      </div>
+
+      <!-- ════════════════════════════════════════
+           AI SUGGESTIONS — AI-generated recommendation
+           ════════════════════════════════════════ -->
       <div class="ai-block">
         <div class="ai-block-header">
           <span mat-symbol="auto_awesome" class="ai-star-icon"></span>
@@ -50,9 +134,7 @@
         }
       </div>
 
-      <!-- ════════════════════════════════════════
-           AI SUGGESTIONS — end marker
-           ════════════════════════════════════════ -->
+      <!-- AI SUGGESTIONS — end marker -->
       <div class="formal-end-marker">
         <div class="end-marker-line"></div>
         <span class="end-marker-text">— Nothing Follows —</span>

@@ -82,6 +82,89 @@
   }
 }
 
+// ── Faculty Preferences block ─────────────────────────────────────────────────
+.faculty-preferences-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+
+  background: var(--neutral-extra-dark);
+  border: 1.5px solid var(--neutral-bar);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+// ── Section block header (Faculty Preferences header) ─────────────────────────
+.section-block-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+
+  .section-block-icon {
+    font-size: 18px;
+    color: var(--primary-text);
+    flex-shrink: 0;
+  }
+
+  .section-block-label {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--primary-text);
+  }
+
+  .section-block-sublabel {
+    font-size: var(--font-size-xs);
+    color: var(--secondary-text);
+    opacity: 0.75;
+  }
+}
+
+// ── Per-faculty card wrapper (holds nav + card) ───────────────────────────────
+.faculty-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+// ── Preference navigator (prev / next arrows) ─────────────────────────────────
+.faculty-pref-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-xxs);
+
+  .preference-count {
+    font-size: var(--font-size-xs);
+    color: var(--secondary-text);
+    opacity: 0.75;
+  }
+
+  .nav-button-container {
+    display: flex;
+    gap: var(--spacing-xxs);
+  }
+
+  .nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-light);
+    border: 1px solid var(--neutral-bar);
+    border-radius: var(--border-radius-sm);
+    padding: 2px;
+    cursor: pointer;
+    color: var(--secondary-text);
+    transition: background 0.15s ease;
+    overflow: hidden;
+
+    &:hover { background: var(--neutral-fade); }
+    &:active { transform: scale(0.9); }
+  }
+}
+
 // ── AI Suggestion block ──────────────────────────────────────────────────────
 .ai-block {
   flex-shrink: 0;
