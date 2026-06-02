@@ -1480,8 +1480,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         }
 
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
-          maxWidth: '50rem',
-          width: '100%',
+          maxWidth: '80rem',
+          width: '95vw',
+          height: 'auto',
+          maxHeight: '90vh',
           disableClose: true,
           autoFocus: true,
           data: {
