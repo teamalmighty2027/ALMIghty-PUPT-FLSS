@@ -435,9 +435,19 @@ Route::prefix('v1')->group(function () {
     /**
      * Rooms endpoint, shared by multiple systems
      */
-      Route::middleware(['check.hmac:fas,frrs'])->group(function () {
-          Route::get('/rooms', [ExternalController::class, 'roomsList']);
-      });
+    Route::middleware(['check.hmac:fas,frrs'])->group(function () {
+        Route::get('/rooms', [ExternalController::class, 'roomsList']);
+    });
+
+    /**
+     * Academic Year and Semester endpoint, shared by multiple systems
+     * TODO: Add 'ogos' as client
+     */
+    Route::middleware(['check.hmac:dms'])->group(function () {
+        Route::get('/academic-year-semester', 
+          [ExternalController::class, 'academicYearAndSemester']
+        );
+    });
 
     /**
      * Faculty Reportorial Requirements System (FRRS)
