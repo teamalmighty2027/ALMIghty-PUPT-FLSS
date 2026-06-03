@@ -147,6 +147,30 @@ class ExternalController extends Controller
     }
 
     /**
+     * Returns the current active academic year and semester
+     * For: Dental Management System (DMS)
+     */
+    public function academicYearAndSemester()
+    {
+        $activeSemester = $this->getActiveSemester();
+
+        if ($activeSemester) {
+            return response()->json([
+                'academic_year' => $activeSemester->academic_year,
+                'year_start' => $activeSemester->year_start,
+                'year_end' => $activeSemester->year_end,
+                'semester' => $activeSemester->semester_number,
+                'start_date' => $activeSemester->start_date,
+                'end_date' => $activeSemester->end_date,
+            ]);
+        }
+
+        return response()->json([
+          'message' => 'No active academic year and semester found'
+        ], 404);
+    }
+
+    /**
      * For: Faculty Reportorial Requirements System (FRRS)
      * Retrieves course schedules with room codes.
      */
@@ -795,11 +819,15 @@ class ExternalController extends Controller
 
     /**
      * Retrieves the current active semester with academic year details.
-     *
+     * 
      * @return object|null
      */
     private function getActiveSemester()
     {
+        // NOTE: Replace the condition to switch the active semester logic 
+        // by viewing based on the faculty view instead
+        // ->where('active_semesters.is_faculty_view', 1)
+
         return DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
