@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\FlssImplementationNotice;
+use App\Models\User;
 
 class SendFacultyNotice extends Command
 {
@@ -17,19 +18,29 @@ class SendFacultyNotice extends Command
     {
         // 1. Gather interactive inputs
         $this->info('--- FLSS Manual Notice Generator ---');
-        $firstName = $this->ask('Enter First Name');
-        $lastName = $this->ask('Enter Last Name');
-        $email = $this->ask('Enter Email Address');
+        $email    = $this->ask('Enter Faculty Email Address');
         $password = $this->ask('Enter Temporary/Backup Password');
-        
-        $loginUrl = config('app.url') . '/login'; // Update with your actual login route
 
-        // 2. Confirm details before sending
+        // 2. Look up the faculty member by email
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $this->error(
+                "No user found with email: {$email}"
+            );
+            return Command::FAILURE;
+        }
+
+        $firstName = $user->first_name;
+        $lastName  = $user->last_name;
+        $loginUrl  = config('app.url') . '/login';
+
+        // 3. Confirm details before sending
         $this->table(
             ['Field', 'Value'],
             [
-                ['Name', "$firstName $lastName"],
-                ['Email', $email],
+                ['Name',     "{$firstName} {$lastName}"],
+                ['Email',    $email],
                 ['Password', $password],
             ]
         );
@@ -38,6 +49,9 @@ class SendFacultyNotice extends Command
             $this->error('Operation cancelled.');
             return Command::FAILURE;
         }
+
+        // Set the temporary password on the user record (auto-hashed via mutator)
+        $user->update(['password' => $password]);
 
         // Dispatch a single queued email containing notice + credentials
         Mail::to($email)->queue(new FlssImplementationNotice(

@@ -121,7 +121,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>PUP Taguig - FLSS Project</h1>
+            <h1>PUP Taguig <br> Faculty Loading and Scheduling System (FLSS) </h1>
         </div>
 
         <div class="content">
