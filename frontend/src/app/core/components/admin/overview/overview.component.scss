@@ -535,6 +535,14 @@
       $justify: flex-start,
       $gap: var(--spacing-md)
     );
+
+    height: auto;
+
+    .main-cluster-one,
+    .main-cluster-two {
+      height: auto;
+      min-height: 0;
+    }
   }
 }
 

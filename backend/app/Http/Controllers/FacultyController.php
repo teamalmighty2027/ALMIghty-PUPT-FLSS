@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Faculty;
 use App\Models\User;
+use App\Models\UserProfile;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -90,9 +91,8 @@ class FacultyController extends Controller
             $faculty = $user->faculty()->create([
                 'faculty_type_id' => $validatedData['faculty_type_id'],
             ]);
-
-            $facultyProfile = \App\Models\FacultyProfile::create([
-                'faculty_id' => $faculty->id,
+            UserProfile::create([
+                'user_id' => $user->id,
                 'house_num' => null,
                 'street' => null,
                 'barangay' => null,
@@ -100,13 +100,9 @@ class FacultyController extends Controller
                 'province' => null,
                 'country' => null,
                 'zipcode' => null,
-                'program_id' => null,
                 'birthdate' => null,
                 'sex' => null,
             ]);
-
-            $faculty->faculty_profile_id = $facultyProfile->getKey();
-            $faculty->save();
 
             $facultyType = $faculty->facultyType;
 
