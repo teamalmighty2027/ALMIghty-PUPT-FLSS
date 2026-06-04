@@ -144,7 +144,7 @@
             <p><strong>What you need to know:</strong></p>
             <ul>
                 <li>For security reasons, <b>we recommend that you change this password after your first login.</b></li>
-                <li>Keep your PUPT-FLSS backup password safe - you will need it if the primary login through PUP-FESR is
+                <li>Keep your PUPT-FLSS backup password safe - you will need it if the primary login through PUPT IDP is
                     unavailable.</li>
             </ul>
 
