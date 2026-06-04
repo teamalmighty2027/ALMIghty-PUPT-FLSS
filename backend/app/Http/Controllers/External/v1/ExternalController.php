@@ -155,11 +155,15 @@ class ExternalController extends Controller
         $activeSemester = $this->getActiveSemester();
 
         if ($activeSemester) {
+            $academicYearLabel = $activeSemester
+                ? $activeSemester->year_start . '-' . $activeSemester->year_end
+                : 'N/A';
+
             return response()->json([
-                'academic_year' => $activeSemester->academic_year,
+                'academic_year' => $academicYearLabel,
                 'year_start' => $activeSemester->year_start,
                 'year_end' => $activeSemester->year_end,
-                'semester' => $activeSemester->semester_number,
+                'semester' => $this->formatSemesterLabel($activeSemester->semester),
                 'start_date' => $activeSemester->start_date,
                 'end_date' => $activeSemester->end_date,
             ]);
