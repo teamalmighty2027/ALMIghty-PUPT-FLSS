@@ -20,6 +20,7 @@ export class PreferencesService {
   private programsCache$: Observable<{
     programs: Program[];
     active_semester_id: number;
+    semester_id: number;
   }> | null = null;
 
   constructor(private http: HttpClient) {}
@@ -31,6 +32,7 @@ export class PreferencesService {
   getPrograms(): Observable<{
     programs: Program[];
     active_semester_id: number;
+    semester_id: number;
   }> {
     if (!this.programsCache$) {
       const url = `${this.baseUrl}/offered-courses-sem`;
@@ -38,6 +40,7 @@ export class PreferencesService {
         map((response) => ({
           programs: response.programs,
           active_semester_id: response.active_semester_id,
+          semester_id: response.semester_id,
         })),
         shareReplay(1),
         catchError((error) => {
@@ -51,33 +54,19 @@ export class PreferencesService {
   }
 
   /**
-   * Retrieves cached user preferences, triggering an API call if none are loaded.
-   * **Note**: This method is separate from the cached preferences by faculty_id.
+   * Retrieves user preferences for the Admin view.
+   * By returning the HTTP call directly, we prevent race conditions and infinite loading
+   * when switching between different academic terms in the dropdown.
    */
-  getPreferences(): Observable<any> {
-    if (!this.preferencesSubject.value) {
-      this.fetchPreferences();
+  getPreferences(termId?: number | null, forceRefresh: boolean = false): Observable<any> {
+    let params = new HttpParams();
+    
+    // Explicitly send the selected term ID to the Laravel backend
+    if (termId) {
+      params = params.set('term_id', termId.toString());
     }
-    return this.preferences$;
-  }
 
-  /**
-   * Fetches preferences data from the API and updates the preferences cache.
-   */
-  private fetchPreferences(): void {
-    const url = `${this.baseUrl}/get-unique-preferences`;
-    this.http
-      .get(url)
-      .pipe(take(1))
-      .subscribe({
-        next: (response) => {
-          this.preferencesSubject.next(response);
-        },
-        error: (error) => {
-          console.error('Error fetching preferences:', error);
-          this.preferencesSubject.error(error);
-        },
-      });
+    return this.http.get(`${this.baseUrl}/get-unique-preferences`, { params });
   }
 
   /**
@@ -87,35 +76,47 @@ export class PreferencesService {
    */
   getPreferencesByFacultyId(
     facultyId: string,
-    forceRefresh: boolean = false
+    forceRefresh: boolean = false,
+    termId?: number | null // <-- Added the 3rd parameter here
   ): Observable<any> {
     if (!facultyId) {
       console.error('Invalid faculty ID provided.');
       return throwError(() => new Error('Invalid faculty ID'));
     }
 
+    // Create a unique cache key that includes the termId so switching terms fetches fresh data
+    const cacheKey = termId ? `${facultyId}_term_${termId}` : facultyId;
+
     if (forceRefresh) {
-      this.preferencesCache.delete(facultyId);
+      this.preferencesCache.delete(cacheKey);
     }
 
-    if (this.preferencesCache.has(facultyId)) {
-      return this.preferencesCache.get(facultyId)!;
+    if (this.preferencesCache.has(cacheKey)) {
+      return this.preferencesCache.get(cacheKey)!;
+    }
+
+    // Attach the term_id to the HTTP request
+    let params = new HttpParams();
+    if (termId) {
+      params = params.set('term_id', termId.toString());
     }
 
     const url = `${this.baseUrl}/get-preferences/${facultyId}`;
-    const preferences$ = this.http.get(url).pipe(
+    
+    // Pass the { params } object into the http.get call
+    const preferences$ = this.http.get(url, { params }).pipe(
       shareReplay(1),
       catchError((error) => {
         console.error(
           `Error fetching preferences for faculty ID ${facultyId}:`,
           error
         );
-        this.preferencesCache.delete(facultyId);
+        this.preferencesCache.delete(cacheKey);
         return throwError(() => error);
       })
     );
 
-    this.preferencesCache.set(facultyId, preferences$);
+    this.preferencesCache.set(cacheKey, preferences$);
     return preferences$;
   }
 
@@ -145,7 +146,6 @@ export class PreferencesService {
     return this.http.patch(url, {}).pipe(
       tap(() => {
         this.clearCaches(facultyId);
-        // Also clear the general preferences cache to reflect changes in the admin list
         this.clearPreferencesCache();
       }),
       catchError((error) => {
@@ -222,7 +222,7 @@ export class PreferencesService {
       })
       .pipe(
         tap(() => {
-          this.fetchPreferences();
+          this.getPreferences(null, true).subscribe();
         }),
         catchError((error) => {
           console.error('Error toggling all preferences:', error);
@@ -252,7 +252,7 @@ export class PreferencesService {
       })
       .pipe(
         tap(() => {
-          this.fetchPreferences();
+          this.getPreferences(null, true).subscribe();
         }),
         catchError((error) => {
           console.error(

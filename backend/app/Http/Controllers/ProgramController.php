@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Log;
 
 class ProgramController extends Controller
 {
+    /**
+     * Fetch all programs with curricula and year levels.
+     */
     public function getPrograms()
     {
         $programs = Program::with(['curricula', 'yearLevels'])->get();
@@ -24,7 +27,8 @@ class ProgramController extends Controller
             $sortedYearLevels = $program->yearLevels->sortBy('year');
     
             // Get the curriculum years as an array
-            $curriculumYears = $sortedCurricula->pluck('curriculum_year')->toArray();
+            $curriculumYears = $sortedCurricula->pluck('curriculum_year')
+                ->toArray();
     
             // Format the program data including curricula_version
             return [
@@ -33,20 +37,25 @@ class ProgramController extends Controller
                 'program_title' => $program->program_title,
                 'program_info' => $program->program_info,
                 'number_of_years' => $program->number_of_years,
-                'curricula_version' => implode(', ', $curriculumYears), // Comma-separated list of curriculum years
+                // Comma-separated list of curriculum years
+                'curricula_version' => implode(', ', $curriculumYears), 
                 'status' => $program->status,
                 'last_synced_at' => $program->last_synced_at,
                 'created_at' => $program->created_at,
                 'updated_at' => $program->updated_at,
-                'curricula' => $sortedCurricula->values()->all(), // Return the sorted curricula
-                'year_levels' => $sortedYearLevels->values()->all() // Return the sorted year levels
+                // Return the sorted curricula
+                'curricula' => $sortedCurricula->values()->all(), 
+                // Return the sorted year levels
+                'year_levels' => $sortedYearLevels->values()->all() 
             ];
         });
     
         return response()->json($formattedPrograms);
     }
     
-
+    /**
+     * Add a new program manually.
+     */
     public function addProgram(Request $request)
     {
         // Validate the request data
@@ -60,7 +69,8 @@ class ProgramController extends Controller
 
         if ($this->puptasProgramExists($validatedData['program_code'])) {
             return response()->json([
-                'message' => 'This program is synced from PUPTAS. Use the manual sync to ensure it is current.'
+                'message' => 'This program is synced from PUPTAS. ' .
+                             'Use the manual sync to ensure it is current.'
             ], 422);
         }
     
@@ -72,7 +82,8 @@ class ProgramController extends Controller
     
         if ($existingProgram) {
             return response()->json([
-                'message' => 'A program with the same code, title, and info already exists.'
+                'message' => 'A program with the same code, title, and ' . 
+                             'info already exists.'
             ], 422);
         }
     
@@ -86,23 +97,29 @@ class ProgramController extends Controller
             model: 'Program',
             modelId: $program->program_id,
             data: $program->toArray(),
-            description: "Created program: {$program->program_code} - {$program->program_title}"
+            description: "Created program: {$program->program_code} - " .
+                         "{$program->program_title}"
         );
     
         // Refetch the program with relationships
-        $program = Program::with(['curricula', 'yearLevels'])->find($program->program_id);
+        $program = Program::with(['curricula', 'yearLevels'])
+            ->find($program->program_id);
     
         return response()->json($program, 201);
     }
 
-
+    /**
+     * Get detailed information for a specific program.
+     */
     public function getProgramDetails($id)
     {
         $program = Program::with('curricula', 'yearLevels')->findOrFail($id);
         return response()->json($program);
     }
 
-
+    /**
+     * Update an existing program's information.
+     */
     public function updateProgram(Request $request, $id)
     {
         $program = Program::findOrFail($id);
@@ -119,7 +136,9 @@ class ProgramController extends Controller
         ];
     
         $validatedData = $request->validate([
-            'program_code' => 'required|string|max:10|unique:programs,program_code,' . $program->program_id . ',program_id',
+            'program_code' => 'required|string|max:10|unique:programs,' . 
+                              'program_code,' . $program->program_id . 
+                              ',program_id',
             'program_title' => 'required|string|max:100',
             'program_info' => 'required|string|max:255',
             'status' => 'required|in:Active,Inactive',
@@ -127,11 +146,21 @@ class ProgramController extends Controller
         ]);
 
         // Manually assign to check dirtiness
-        if (isset($validatedData['program_code'])) $program->program_code = $validatedData['program_code'];
-        if (isset($validatedData['program_title'])) $program->program_title = $validatedData['program_title'];
-        if (isset($validatedData['program_info'])) $program->program_info = $validatedData['program_info'];
-        if (isset($validatedData['status'])) $program->status = $validatedData['status'];
-        if (isset($validatedData['number_of_years'])) $program->number_of_years = $validatedData['number_of_years'];
+        if (isset($validatedData['program_code'])) {
+            $program->program_code = $validatedData['program_code'];
+        }
+        if (isset($validatedData['program_title'])) {
+            $program->program_title = $validatedData['program_title'];
+        }
+        if (isset($validatedData['program_info'])) {
+            $program->program_info = $validatedData['program_info'];
+        }
+        if (isset($validatedData['status'])) {
+            $program->status = $validatedData['status'];
+        }
+        if (isset($validatedData['number_of_years'])) {
+            $program->number_of_years = $validatedData['number_of_years'];
+        }
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: DETAILED CHANGE TRACKING
@@ -139,19 +168,24 @@ class ProgramController extends Controller
         $changes = [];
 
         if ($oldData['program_code'] != $program->program_code) {
-            $changes[] = "Code: {$oldData['program_code']} → {$program->program_code}";
+            $changes[] = "Code: {$oldData['program_code']} → " . 
+                         "{$program->program_code}";
         }
         if ($oldData['program_title'] != $program->program_title) {
-            $changes[] = "Title: {$oldData['program_title']} → {$program->program_title}";
+            $changes[] = "Title: {$oldData['program_title']} → " . 
+                         "{$program->program_title}";
         }
         if ($oldData['program_info'] != $program->program_info) {
-            $changes[] = "Info: {$oldData['program_info']} → {$program->program_info}";
+            $changes[] = "Info: {$oldData['program_info']} → " . 
+                         "{$program->program_info}";
         }
         if ($oldData['status'] != $program->status) {
-            $changes[] = "Status: {$oldData['status']} → {$program->status}";
+            $changes[] = "Status: {$oldData['status']} → " . 
+                         "{$program->status}";
         }
         if ($oldData['number_of_years'] != $program->number_of_years) {
-            $changes[] = "Years: {$oldData['number_of_years']} → {$program->number_of_years}";
+            $changes[] = "Years: {$oldData['number_of_years']} → " . 
+                         "{$program->number_of_years}";
         }
 
         if (empty($changes)) {
@@ -166,23 +200,30 @@ class ProgramController extends Controller
             modelId: $program->program_id,
             oldData: $oldData,
             newData: $program->toArray(),
-            description: "Updated program: {$program->program_code} - {$changesSummary}"
+            description: "Updated program: {$program->program_code} - " . 
+                         "{$changesSummary}"
         );
 
-        $program = Program::with(['curricula', 'yearLevels'])->find($program->program_id);
+        $program = Program::with(['curricula', 'yearLevels'])
+            ->find($program->program_id);
     
         return response()->json($program, 200);
     } 
 
-
+    /**
+     * Delete a program if it's not associated with any academic year.
+     */
     public function deleteProgram($id)
     {
         // Check if the program is associated with any academic year
-        $isUsedInAcademicYear = ProgramYearLevelCurricula::where('program_id', $id)->exists();
+        $isUsedInAcademicYear = ProgramYearLevelCurricula::where(
+            'program_id', $id
+        )->exists();
     
         if ($isUsedInAcademicYear) {
             return response()->json([
-                'message' => 'Cannot delete the program associated with an academic year.',
+                'message' => 'Cannot delete the program associated with ' . 
+                             'an academic year.',
                 'success' => false
             ], 200);
         }
@@ -215,11 +256,14 @@ class ProgramController extends Controller
         ], 200);
     }    
 
-
+    /**
+     * Get programs filtered by curriculum year.
+     */
     public function getProgramsByCurriculumYear($curriculumYear)
     {
         // Fetch the curriculum by year
-        $curriculum = Curriculum::where('curriculum_year', $curriculumYear)->firstOrFail();
+        $curriculum = Curriculum::where('curriculum_year', $curriculumYear)
+            ->firstOrFail();
 
         // Fetch programs associated with this curriculum
         $programs = $curriculum->programs;
@@ -227,20 +271,45 @@ class ProgramController extends Controller
         return response()->json($programs);
     }
 
+    /**
+     * Check if a program exists in the PUPTAS API.
+     */
     private function puptasProgramExists(string $programCode): bool
     {
         $baseUrl = config('services.puptas.base_url');
-        $apiKey = config('services.puptas.api_key');
+        $clientId = config('services.puptas.client_id');
+        $clientSecret = config('services.puptas.client_secret');
 
-        if (! $baseUrl || ! $apiKey) {
+        if (! $baseUrl || ! $clientId || ! $clientSecret) {
             Log::warning('PUPTAS check skipped: missing configuration.');
+            return false;
+        }
+
+        // Reuse the cached token from Cache if available
+        $token = \Illuminate\Support\Facades\Cache::get('puptas_oauth_token');
+        
+        if (! $token) {
+            // Fetch fresh token (one-off)
+            $tokenResponse = Http::asForm()->post(
+                rtrim($baseUrl, '/') . '/oauth/token', [
+                'grant_type' => 'client_credentials',
+                'client_id' => $clientId,
+                'client_secret' => $clientSecret,
+                'scope' => 'program-read',
+            ]);
+            
+            $token = $tokenResponse->json('access_token') ?? '';
+        }
+
+        if (! $token) {
+            Log::warning('PUPTAS check failed: could not obtain token.');
             return false;
         }
 
         $url = rtrim($baseUrl, '/') . '/api/v1/programs';
 
         try {
-            $response = Http::withToken($apiKey)
+            $response = Http::withToken($token)
                 ->acceptJson()
                 ->timeout(15)
                 ->get($url);
@@ -257,7 +326,10 @@ class ProgramController extends Controller
             $programs = $this->extractPuptasPrograms($payload);
 
             foreach ($programs as $program) {
-                $code = trim((string) ($program['program_code'] ?? $program['code'] ?? ''));
+                $code = trim((string) (
+                    $program['program_code'] ?? $program['code'] ?? ''
+                ));
+                
                 if ($code !== '' && strcasecmp($code, $programCode) === 0) {
                     return true;
                 }
@@ -271,6 +343,9 @@ class ProgramController extends Controller
         return false;
     }
 
+    /**
+     * Extract programs from PUPTAS API payload.
+     */
     private function extractPuptasPrograms($payload): array
     {
         if (is_array($payload) && array_is_list($payload)) {
@@ -287,5 +362,4 @@ class ProgramController extends Controller
 
         return [];
     }
-
 }

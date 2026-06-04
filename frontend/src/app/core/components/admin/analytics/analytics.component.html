@@ -1,0 +1,261 @@
+<div class="analytics-wrapper">
+
+  <!-- Page-level loading — matches system pattern -->
+  <div class="analytics-loading" *ngIf="isTermsLoading">
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
+  </div>
+
+  <!-- Dashboard content — fades in once terms are loaded -->
+  <div class="analytics-container" [@fadeAnimation] *ngIf="!isTermsLoading">
+
+  <!-- ── Header Banner ─────────────────────────────────────── -->
+  <div class="analytics-header">
+    <div class="header-content">
+      <div class="title-section">
+        <div class="header-icon-badge">
+          <mat-icon fontSet="material-symbols-rounded">monitoring</mat-icon>
+        </div>
+        <div class="title-text">
+          <h1>Analytics Dashboard</h1>
+          <p class="subtitle">
+            Descriptive and prescriptive insights for scheduling and resource allocation
+          </p>
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <span class="filter-label">Academic Term</span>
+        <mat-form-field appearance="outline" class="term-selector">
+          <mat-select
+            [(ngModel)]="selectedTermId"
+            (selectionChange)="onTermChange()"
+            [disabled]="isTermsLoading">
+            <mat-option
+              *ngFor="let term of availableTerms"
+              [value]="term.active_semester_id">
+              {{ term.year_start }}-{{ term.year_end }} &nbsp;|&nbsp;
+              {{ getSemesterLabel(term.semester) }}
+            </mat-option>
+          </mat-select>
+          <mat-icon matPrefix fontSet="material-symbols-rounded">calendar_month</mat-icon>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Descriptive Section ───────────────────────────────── -->
+  <div class="section-divider">
+    <div class="divider-content">
+      <mat-icon fontSet="material-symbols-rounded">bar_chart</mat-icon>
+      <h2>Descriptive Analytics</h2>
+    </div>
+  </div>
+
+  <div class="analytics-grid">
+
+    <!-- Heatmap — full width -->
+    <div class="grid-item span-full">
+      <div class="widget-card heatmap-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">insights</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Schedule Distribution Heatmap</h3>
+              <p class="widget-subtitle">Class density across days and time slots for the selected term</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-descriptive">Heatmap</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-heatmap></app-analytics-heatmap>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Utilization -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">meeting_room</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Room Utilization</h3>
+              <p class="widget-subtitle">Total scheduled hours per room this term</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-descriptive">Bar Chart</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-room-utilization></app-analytics-room-utilization>
+        </div>
+      </div>
+    </div>
+
+    <!-- Faculty Composition -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">pie_chart</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Faculty Composition</h3>
+              <p class="widget-subtitle">Breakdown of faculty by employment type</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-descriptive">Doughnut</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-type></app-analytics-faculty-type>
+        </div>
+      </div>
+    </div>
+
+    <!-- Faculty Load Distribution -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">groups</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Faculty Load Distribution</h3>
+              <p class="widget-subtitle">Count of underloaded, optimal, and overloaded faculty</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-descriptive">Bar Chart</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-faculty-load></app-analytics-faculty-load>
+        </div>
+      </div>
+    </div>
+
+    <!-- Program Scheduling Progress -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">analytics</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Program Scheduling Progress</h3>
+              <p class="widget-subtitle">Percentage of course slots assigned per program</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-descriptive">Progress</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-program-coverage></app-analytics-program-coverage>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Prescriptive Section ──────────────────────────────── -->
+  <div class="section-divider">
+    <div class="divider-content">
+      <mat-icon fontSet="material-symbols-rounded">auto_awesome</mat-icon>
+      <h2>Prescriptive Insights</h2>
+    </div>
+  </div>
+
+  <div class="analytics-grid prescriptive-grid">
+
+    <!-- Faculty Load Analysis -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">engineering</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Faculty Load Analysis</h3>
+              <p class="widget-subtitle">Unit deviation from regular load per faculty member</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-prescriptive">Diverging</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-load-analysis></app-analytics-load-analysis>
+        </div>
+      </div>
+    </div>
+
+    <!-- Appeal Activity -->
+    <div class="grid-item">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">history_edu</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Appeal Activity</h3>
+              <p class="widget-subtitle">Status breakdown of rescheduling appeals this term</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-prescriptive">Doughnut</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-appeal-activity></app-analytics-appeal-activity>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optimal Time-Slot Recommendations -->
+    <div class="grid-item span-full">
+      <div class="widget-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">auto_awesome</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Optimal Time-Slot Recommendations</h3>
+              <p class="widget-subtitle">Time slots with high faculty preference but low current schedule usage</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-prescriptive">Recommendation</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-optimal-slots></app-analytics-optimal-slots>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multi-Semester Scheduling Trends -->
+    <div class="grid-item span-full">
+      <div class="widget-card tall-card">
+        <div class="widget-header">
+          <div class="widget-title-group">
+            <div class="widget-icon">
+              <mat-icon fontSet="material-symbols-rounded">trending_up</mat-icon>
+            </div>
+            <div class="widget-title-text">
+              <h3>Multi-Semester Scheduling Trends</h3>
+              <p class="widget-subtitle">Scheduling progress compared across the last 5 academic terms</p>
+            </div>
+          </div>
+          <span class="widget-badge badge-prescriptive">Trend Line</span>
+        </div>
+        <div class="widget-body">
+          <app-analytics-semester-trends></app-analytics-semester-trends>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>

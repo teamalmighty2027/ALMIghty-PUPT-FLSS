@@ -1,410 +1,677 @@
 @use "../../../styles/mixins";
 
+// ─── Host ───────────────────────────────────────────────────────────────────
 :host {
   @include mixins.custom-spinner(var(--primary-text));
+  display: block;
 }
 
+// ─── Outer container ────────────────────────────────────────────────────────
 .scheduling-dialog-container {
-  @include mixins.flex-layout($align: stretch);
-
-  .title {
-    @include mixins.flex-layout(
-      $direction: column,
-      $justify: flex-start,
-      $align: flex-start,
-      $gap: var(--spacing-xxs)
-    );
-    padding: var(--spacing-lg) 0;
-
-    .program-info,
-    .course-name {
-      font-size: var(--font-size-sm);
-      color: var(--primary-text);
-    }
-
-    .desc {
-      font-size: var(--font-size-sm);
-      color: var(--secondary-text);
-    }
-
-    .dialog-title {
-      @include mixins.flex-layout(
-        $justify: flex-start,
-        $gap: var(--spacing-xs)
-      );
-      font-weight: 500;
-
-      &.scheduling {
-        margin: 0;
-        color: var(--primary-text) !important;
-      }
-
-      &.suggested {
-        margin: 0;
-        color: var(--secondary-text) !important;
-      }
-    }
-  }
-
-  .section {
-    padding: 0 var(--spacing-lg);
-  }
-
-  .content {
-    @include mixins.reset-styles;
-  }
-}
-
-/* ------ Edit Schedule Section ------ */
-.edit-schedule-details {
-  flex: 5;
-  @include mixins.flex-layout(
-    $direction: column,
-    $align: stretch,
-    $justify: flex-start
-  );
+  display: flex;
+  align-items: stretch;
+  min-height: 560px;
+  max-height: 88vh;
   overflow: hidden;
+}
 
-  .content.forms-list {
-    @include mixins.flex-layout(
-      $direction: column,
-      $align: stretch,
-      $justify: flex-start,
-      $gap: var(--spacing-sm)
-    );
-    @include mixins.hide-scrollbar;
-    width: 100%;
+// ─── Shared section base ────────────────────────────────────────────────────
+.section {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--spacing-lg);
+  overflow: hidden;
+}
 
-    .draft-mode-banner {
-      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
-      padding: var(--spacing-xs) var(--spacing-sm);
-      margin-bottom: var(--spacing-sm);
-      background-color: var(--primary-fade);
-      color: var(--primary-text);
-      border: 1px solid var(--primary-text);
-      border-radius: var(--border-radius-sm);
-      font-size: var(--font-size-sm);
+.content {
+  @include mixins.reset-styles;
+}
 
-      mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-      }
-    }
+// ─── Shared title block ─────────────────────────────────────────────────────
+.title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xxs);
+  padding: var(--spacing-lg) 0 var(--spacing-sm);
+  flex-shrink: 0;
 
-    .scheduling-form-group {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: stretch,
-        $gap: var(--spacing-xs)
-      );
+  .dialog-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 600;
+    font-size: var(--font-size-md);
+    margin: 0;
 
-      /* ------ Day Picker Styles ------ */
-      .day-buttons-container {
-        @include mixins.flex-layout(
-          $justify: space-between,
-          $align: stretch,
-          $gap: var(--spacing-sm)
-        );
-        padding: var(--spacing-xs);
-        margin-block-end: var(--spacing-mdx);
-        background: var(--neutral-light);
-        border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-        border-bottom: 1px solid var(--neutral-base);
-
-        .day-button {
-          @include mixins.flex-layout;
-          position: relative;
-          z-index: 1;
-          width: var(--font-size-md);
-          aspect-ratio: 1 / 1;
-          padding: var(--spacing-sm);
-          margin: 1px;
-          font-size: var(--font-size-sm);
-          border-radius: 50%;
-          border: 1px solid transparent;
-          cursor: pointer;
-          -webkit-user-select: none;
-          -moz-user-select: none;
-          user-select: none;
-          transition: transform 0.2s ease-in-out;
-          overflow: hidden;
-
-          &::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: -1;
-            border-radius: 50%;
-            @include mixins.gradient-primary(315deg);
-            opacity: 0;
-            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          }
-
-          &:active {
-            transform: scale(0.85);
-          }
-
-          &.selected {
-            color: white;
-
-            &::before {
-              opacity: 1;
-            }
-          }
-
-          &.original-day {
-            border-color: var(--primary-text);
-            border-style: dashed;
-          }
-
-          &:hover:not(.selected) {
-            background-color: var(--neutral-fade);
-          }
-        }
-      }
-
-      .date-fields {
-        @include mixins.flex-layout($gap: var(--spacing-md));
-      }
-
-      /* Icon color when the field is focused */
-      .mat-focused .mat-icon {
-        color: var(--primary-one);
-      }
-
-      /* Icon color when the field is invalid */
-      .mat-focused .mat-icon.invalid-icon {
-        color: var(--primary-warning);
-      }
-
-      /* Maintain the invalid color when the field is touched and invalid */
-      .invalid-icon {
-        color: var(--primary-warning);
-      }
-    }
+    &.scheduling { color: var(--primary-text) !important; }
+    &.suggested  { color: var(--secondary-text) !important; }
   }
 
-  /* Schedule Validator Styles */
-  .schedule-validator {
-    @include mixins.flex-layout;
-
-    .validation-message {
-      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
-      padding: var(--spacing-xs);
-      border-radius: var(--border-radius-sm);
-      width: fit-content;
-
-      &.no-conflict {
-        background-color: var(--secondary-fade);
-        color: var(--secondary-text);
-      }
-
-      &.conflict {
-        background-color: var(--primary-fade);
-        color: var(--primary-text);
-      }
-    }
+  .desc {
+    font-size: var(--font-size-sm);
+    color: var(--secondary-text);
   }
 
-  .scheduling-dialog-actions {
-    @include mixins.reset-styles;
-    @include mixins.flex-layout($align: stretch, $justify: space-between);
-    padding: var(--spacing-lg) 0;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    user-select: none;
-
-    .clear-all-button {
-      color: var(--neutral-base);
-      font-weight: 500;
-      font-size: var(--font-size-sm);
-      opacity: var(--opacity-semi-opaque);
-      border-radius: var(--border-radius-xl);
-      padding: var(--spacing-xs) var(--spacing-sm);
-      background-color: transparent;
-      outline: none;
-      border: none;
-      cursor: pointer;
-
-      &:hover {
-        background-color: var(--neutral-option);
-      }
-    }
-
-    .button-group {
-      .cancel-button {
-        color: var(--primary-text) !important;
-      }
-      .action-button {
-        @include mixins.gradient-primary(315deg);
-
-        &:disabled {
-          background: var(--neutral-fade);
-          color: var(--neutral-base) !important;
-          opacity: var(--opacity-semi-opaque);
-        }
-      }
-    }
+  .program-info,
+  .course-name {
+    font-size: var(--font-size-sm);
+    color: var(--primary-text);
+    font-weight: 500;
   }
 }
 
-/* ------ Suggested Faculty Section ------ */
+// ══════════════════════════════════════════════════════════════════════════════
+// LEFT PANEL — Suggested Faculty
+// ══════════════════════════════════════════════════════════════════════════════
 .suggested-faculty {
-  flex: 3;
+  flex: 4;
   background-color: var(--neutral-extra);
+  border-right: 1px solid var(--neutral-base);
 
   .content.faculty-list {
     @include mixins.hide-scrollbar;
-    margin-bottom: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    overflow-y: auto;
+    flex: 1;
+    padding-bottom: var(--spacing-xl);
+    // Subtract title height so the list fills the remaining space
+    max-height: calc(88vh - 80px);
+  }
+}
+
+// ── Faculty Preferences block ─────────────────────────────────────────────────
+.faculty-preferences-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+
+  background: var(--neutral-extra-dark);
+  border: 1.5px solid var(--neutral-bar);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+// ── Section block header (Faculty Preferences header) ─────────────────────────
+.section-block-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+  flex-wrap: wrap;
+
+  .section-block-icon {
+    font-size: 18px;
+    color: var(--primary-text);
+    flex-shrink: 0;
+  }
+
+  .section-block-label {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--primary-text);
+  }
+
+  .section-block-sublabel {
+    font-size: var(--font-size-xs);
+    color: var(--secondary-text);
+    opacity: 0.75;
+  }
+}
+
+// ── Per-faculty card wrapper (holds nav + card) ───────────────────────────────
+.faculty-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xxs);
+}
+
+// ── Preference navigator (prev / next arrows) ─────────────────────────────────
+.faculty-pref-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-xxs);
+
+  .preference-count {
+    font-size: var(--font-size-xs);
+    color: var(--secondary-text);
+    opacity: 0.75;
+  }
+
+  .nav-button-container {
+    display: flex;
+    gap: var(--spacing-xxs);
+  }
+
+  .nav-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--neutral-light);
+    border: 1px solid var(--neutral-bar);
     border-radius: var(--border-radius-sm);
-    overflow: scroll;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--secondary-text);
+    transition: background 0.15s ease;
+    overflow: hidden;
 
-    .no-faculty-message {
-      opacity: var(--opacity-semi-opaque);
-      font-style: italic;
+    &:hover { background: var(--neutral-fade); }
+    &:active { transform: scale(0.9); }
+  }
+}
+
+// ── AI Suggestion block ──────────────────────────────────────────────────────
+.ai-block {
+  flex-shrink: 0;
+  background: var(--neutral-extra-dark);
+  border: 1.5px solid var(--neutral-bar);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+
+  .ai-block-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+
+    .ai-star-icon {
+      font-size: 18px;
+      color: var(--primary-text);
+      flex-shrink: 0;
     }
 
-    .faculty-card-wrapper {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: stretch,
-        $gap: var(--spacing-xxs)
-      );
-      margin-bottom: var(--spacing-sm);
-
-      .faculty-pref-nav {
-        @include mixins.flex-layout(
-          $align: center,
-          $justify: space-between,
-          $gap: var(--spacing-xxs)
-        );
-
-        .nav-button-container {
-          @include mixins.flex-layout;
-        }
-
-        .pref-nav-button {
-          @include mixins.flex-layout($align: center);
-          border: none;
-          outline: none;
-          background-color: transparent;
-          cursor: pointer;
-          padding: 0px;
-          border-radius: 50%;
-
-          mat-icon {
-            color: var(--neutral-base);
-          }
-
-          &:hover:not(:disabled) {
-            background-color: var(--neutral-fade);
-          }
-
-          &:disabled {
-            opacity: var(--opacity-semi-transparent);
-            cursor: not-allowed;
-          }
-        }
-      }
+    .ai-block-label {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--primary-text);
     }
 
-    .faculty-card {
-      background-color: var(--neutral-extra-dark);
-      padding: var(--spacing-xs) var(--spacing-sm);
-      border-radius: var(--border-radius-sm);
+    .ai-block-sublabel {
+      font-size: var(--font-size-xs);
+      color: var(--secondary-text);
+      opacity: 0.75;
+    }
+  }
+}
+
+// The AI card sits bare by default — no forced border/bg until selected
+.ai-suggestion-card {
+  .faculty-name {
+    font-size: var(--font-size-md) !important;
+  }
+}
+
+// ── Divider between sections ─────────────────────────────────────────────────
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+  margin: var(--spacing-xs) 0 var(--spacing-xxs);
+
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--neutral-base);
+    opacity: 0.5;
+  }
+
+  .divider-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--secondary-text);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    white-space: nowrap;
+    opacity: 0.75;
+  }
+}
+
+// ── Scrollable preferences list ──────────────────────────────────────────────
+.faculty-preferences-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  // Inherits scrolling from .faculty-list parent
+}
+
+// ── Empty states ─────────────────────────────────────────────────────────────
+.empty-state-text {
+  font-size: var(--font-size-sm);
+  color: var(--secondary-text);
+  opacity: var(--opacity-semi-opaque);
+  font-style: italic;
+  padding: var(--spacing-xs) 0;
+  margin: 0;
+}
+
+// ── Shared faculty card ───────────────────────────────────────────────────────
+.faculty-card {
+  background-color: var(--neutral-extra-dark);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity   0.18s ease,
+    border-color 0.15s ease;
+  box-shadow: var(--shadow-level-1);
+  border: 1.5px solid transparent;
+  flex-shrink: 0;
+
+  &:hover {
+    opacity: 0.82;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateX(2px) scale(0.98);
+  }
+
+  &.selected-faculty,
+  &.selected-history {
+    border-color: var(--green-primary);
+    background-color: var(--green-fade-lighter);
+  }
+
+  // Top row: type badge + pref badge
+  .card-row-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-xxs);
+  }
+
+  .faculty-type {
+    display: inline-block;
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--border-radius-md);
+    font-size: var(--font-size-xsx);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+
+    &.full-time  { background-color: var(--blue-fade-lighter);   color: var(--blue-primary);   }
+    &.designee   { background-color: var(--pink-fade-lighter);   color: var(--pink-primary);   }
+    &.part-time  { background-color: var(--purple-fade-lighter); color: var(--purple-primary); }
+    &.temporary  { background-color: var(--aqua-fade-lighter);   color: var(--aqua-primary);   }
+
+    &:not(.full-time):not(.designee):not(.part-time):not(.temporary) {
+      background-color: var(--neutral-fade);
+      color: var(--neutral-base);
+    }
+  }
+
+  .pref-badge {
+    font-size: var(--font-size-xsx);
+    color: var(--secondary-text);
+    opacity: 0.6;
+    background: var(--neutral-light);
+    border-radius: var(--border-radius-sm);
+    padding: 1px var(--spacing-xxs);
+    white-space: nowrap;
+  }
+
+  .faculty-name {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--primary-text);
+    margin-bottom: 3px;
+  }
+
+  .faculty-pref {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-base);
+    color: var(--secondary-text);
+    opacity: var(--opacity-semi-opaque);
+
+    .pref-icon {
+      font-size: 13px;
+      opacity: 0.6;
+    }
+  }
+}
+
+// ── Formal end marker — "— Nothing Follows —" ───────────────────────────────
+.formal-end-marker {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+  margin: var(--spacing-sm) 0;
+
+  .end-marker-line {
+    flex: 1;
+    height: 1px;
+    background: var(--neutral-base);
+    opacity: 0.3;
+  }
+
+  .end-marker-text {
+    font-size: var(--font-size-xs);
+    color: var(--neutral-base);
+    opacity: 0.6;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    font-style: italic;
+  }
+}
+
+// ── Course History block ──────────────────────────────────────────────────────
+.course-history-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+
+  // Same wrapper style as .ai-block
+  background: var(--neutral-extra-dark);
+  border: 1.5px solid var(--neutral-bar);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+
+  // Header mirrors .ai-block-header exactly
+  .course-history-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+
+    .history-header-icon {
+      font-size: 18px;
+      color: var(--primary-text);
+      flex-shrink: 0;
+    }
+
+    .history-header-label {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--primary-text);
+    }
+
+    .history-header-sublabel {
+      font-size: var(--font-size-xs);
+      color: var(--secondary-text);
+      opacity: 0.75;
+    }
+  }
+}
+
+// History card matches AI suggestion card — font bump only, no forced colors
+.history-card {
+  .faculty-name {
+    font-size: var(--font-size-md) !important;
+  }
+}
+
+// "Previous" badge — uses the same neutral fallback as any untyped card
+.history-type {
+  background-color: var(--neutral-fade) !important;
+  color: var(--neutral-base) !important;
+}
+
+// ── Inline empty state (used inside course-history-block) ────────────────────
+.empty-state-text {
+  font-size: var(--font-size-sm);
+  color: var(--secondary-text);
+  opacity: var(--opacity-semi-opaque);
+  font-style: italic;
+  padding: var(--spacing-xs) 0 var(--spacing-xxs);
+  margin: 0;
+}
+
+// ── Legacy nothing-follows (kept for safety) ─────────────────────────────────
+.nothing-follows-text {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--secondary-text);
+  opacity: 0.45;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  padding: var(--spacing-xs) 0 var(--spacing-xxs);
+  margin: 0;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RIGHT PANEL — Edit Schedule Details
+// ══════════════════════════════════════════════════════════════════════════════
+.edit-schedule-details {
+  flex: 5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  // Draft banner — outside scroll area so it stays visible
+  .draft-mode-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    background-color: var(--primary-fade);
+    color: var(--primary-text);
+    border: 1px solid var(--primary-text);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .content.forms-list {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--spacing-sm);
+    @include mixins.hide-scrollbar;
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+  }
+}
+
+// ── Form group ───────────────────────────────────────────────────────────────
+.scheduling-form-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-xs);
+
+  .scheduling-forms {
+    width: 100%;
+  }
+
+  // ── Day Picker ─────────────────────────────────────────────────────────────
+  .day-buttons-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xs);
+    margin-bottom: var(--spacing-mdx);
+    background: var(--neutral-light);
+    border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
+    border-bottom: 1px solid var(--neutral-base);
+
+    .day-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      width: var(--font-size-md);
+      aspect-ratio: 1 / 1;
+      padding: var(--spacing-sm);
+      margin: 1px;
+      font-size: var(--font-size-sm);
+      border-radius: 50%;
+      border: 1px solid transparent;
       cursor: pointer;
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-        opacity 0.3s ease;
-      box-shadow: var(--shadow-level-1);
+      user-select: none;
+      transition: transform 0.2s ease-in-out;
+      overflow: hidden;
 
-      &:hover {
-        opacity: var(--opacity-semi-opaque);
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: 50%;
+        @include mixins.gradient-primary(315deg);
+        opacity: 0;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      &:active {
-        transform: translateX(3px) scale(0.98);
+      &:active { transform: scale(0.85); }
+
+      &.selected {
+        color: white;
+        &::before { opacity: 1; }
       }
 
-      .faculty-type {
-        width: fit-content;
-        padding: 1px var(--spacing-xs);
-        margin: var(--spacing-xxs) 0;
-        border-radius: var(--border-radius-md);
-        font-size: var(--font-size-xsx);
-        font-weight: 500;
-
-        &.full-time {
-          background-color: var(--blue-fade-lighter);
-          color: var(--blue-primary);
-        }
-
-        &.designee {
-          background-color: var(--pink-fade-lighter);
-          color: var(--pink-primary);
-        }
-
-        &.part-time {
-          background-color: var(--purple-fade-lighter);
-          color: var(--purple-primary);
-        }
-
-        &.temporary {
-          background-color: var(--aqua-fade-lighter);
-          color: var(--aqua-primary);
-        }
-
-        /* Fallback theme for any new faculty type */
-        &:not(.full-time):not(.designee):not(.part-time):not(.temporary) {
-          background-color: var(--neutral-fade);
-          color: var(--neutral-base);
-        }
+      &.original-day {
+        border-color: var(--primary-text);
+        border-style: dashed;
       }
 
-      .faculty-name {
-        font-weight: 500;
+      &:hover:not(.selected) {
+        background-color: var(--neutral-fade);
       }
+    }
+  }
 
-      .faculty-pref {
-        opacity: var(--opacity-semi-opaque);
-      }			
+  // ── Time row ───────────────────────────────────────────────────────────────
+  .date-fields {
+    display: flex;
+    gap: var(--spacing-md);
+
+    .scheduling-forms {
+      flex: 1;
+
+      // Align the selected value text with other fields that have a prefix icon.
+      // Material adds padding-left for the prefix but doesn't always offset the
+      // value wrapper — this ensures the displayed value sits flush with the label.
+      .mat-mdc-select-value {
+        padding-left: 0;
+      }
+    }
+  }
+
+  // ── Icon colours ───────────────────────────────────────────────────────────
+  .mat-focused .mat-icon          { color: var(--primary-one); }
+  .mat-focused .mat-icon.invalid-icon { color: var(--primary-warning); }
+  .invalid-icon                   { color: var(--primary-warning); }
+}
+
+// ── Schedule validator ────────────────────────────────────────────────────────
+.schedule-validator {
+  display: flex;
+  width: 100%;
+
+  .combine-prompt-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xxs);
+    padding: var(--spacing-sm);
+    background-color: var(--neutral-light);
+    border: 1px solid var(--neutral-base);
+    border-radius: var(--border-radius-sm);
+    width: 100%;
+
+    .combine-checkbox {
+      font-size: var(--font-size-sm);
+      color: var(--primary-text);
     }
 
-        .faculty-preferences-wrapper {
-            margin-bottom: var(--spacing-sm);			
-        }
+    .combine-warning-message {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xxs);
+      font-size: var(--font-size-xs);
+      color: var(--primary-warning);
+      margin-top: var(--spacing-xxs);
 
-        .faculty-ai-suggestions-wrapper {
-            position: sticky;
-            bottom: 0;
-            z-index: 3;
-            height: auto; // Allow height to grow with content
-            display: flex;
-            flex-direction: column; // Make children stack vertically
-            align-items: flex-start; // Align items to the start
-            background: var(--neutral-extra-dark);
-            margin-top: 0;
-            margin-bottom: 0;
-            padding: var(--spacing-sm);
-            padding-bottom: var(--spacing-md);
-            border-top: 1px solid var(--neutral-base);
-            border-radius: 12px 12px 0 0;
-            width: 100%;
-            box-sizing: border-box;
-            font-size: var(--font-size-sm);
-            color: var(--secondary-text);
-        
-            .faculty-ai-suggestions-title {
-                font-weight: 600;
-                margin-bottom: var(--spacing-xs);
-                width: 100%;
-            }
-            .ai-suggestions,
-            .no-ai-suggestions {
-                margin-bottom: var(--spacing-xs);
-                width: 100%;
-                word-break: break-word;
-            }
-        }
+      span { font-size: 16px; }
+    }
+  }
+
+  .validation-message {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    width: fit-content;
+
+    &.no-conflict {
+      background-color: var(--secondary-fade);
+      color: var(--secondary-text);
+    }
+
+    &.conflict {
+      background-color: var(--primary-fade);
+      color: var(--primary-text);
+    }
+  }
+}
+
+// ── Dialog action bar ─────────────────────────────────────────────────────────
+.scheduling-dialog-actions {
+  @include mixins.reset-styles;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg) 0;
+  flex-shrink: 0;
+  user-select: none;
+
+  .clear-all-button {
+    color: var(--neutral-base);
+    font-weight: 500;
+    font-size: var(--font-size-sm);
+    opacity: var(--opacity-semi-opaque);
+    border-radius: var(--border-radius-xl);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: transparent;
+    outline: none;
+    border: none;
+    cursor: pointer;
+
+    &:hover { background-color: var(--neutral-option); }
+  }
+
+  .button-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+
+    .cancel-button { color: var(--primary-text) !important; }
+
+    .action-button {
+      @include mixins.gradient-primary(315deg);
+
+      &:disabled {
+        background: var(--neutral-fade);
+        color: var(--neutral-base) !important;
+        opacity: var(--opacity-semi-opaque);
+      }
+    }
   }
 }

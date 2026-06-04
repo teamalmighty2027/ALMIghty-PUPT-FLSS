@@ -37,11 +37,20 @@ class Handler extends ExceptionHandler
         }
 
         if ($request->expectsJson()) {
-            $status = method_exists($exception, 'getStatusCode') ? $exception->getStatusCode() : 500;
+            $status = 500;
+            $data = ['message' => $exception->getMessage()];
 
-            return response()->json([
-                'message' => $exception->getMessage(),
-            ], $status);
+            if (method_exists($exception, 'getStatusCode')) {
+                $status = $exception->getStatusCode();
+            } elseif (property_exists($exception, 'status')) {
+                $status = $exception->status;
+            }
+
+            if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                $data['errors'] = $exception->errors();
+            }
+
+            return response()->json($data, $status);
         }
 
         return parent::render($request, $exception);

@@ -1,0 +1,26 @@
+<div class="widget-container">
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="widget-loading-bar">
+      <span class="widget-loading-label">Fetching historical trends...</span>
+      <div class="widget-progress-track">
+        <div class="widget-progress-bar"></div>
+        <div class="widget-progress-bar secondary"></div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading && isEmpty" class="empty-state">
+    <mat-icon fontSet="material-symbols-rounded">trending_flat</mat-icon>
+    <p>No historical trends available yet.</p>
+  </div>
+
+  <div *ngIf="!isLoading && !isEmpty" class="chart-wrapper">
+    <canvas baseChart
+      [data]="lineChartData"
+      [options]="lineChartOptions"
+      [type]="lineChartType">
+    </canvas>
+  </div>
+
+  <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
+</div>

@@ -182,12 +182,19 @@ class PreferenceController extends Controller
      * In this context, 'unique' means it returns only one instance of a course,
      * a.k.a. the actual selected preference of the faculty
      */
-    public function getUniqueFacultyPreferences()
+    public function getUniqueFacultyPreferences(Request $request)
     {
-        // ... Keep exactly as is ...
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
@@ -228,8 +235,8 @@ class PreferenceController extends Controller
         }
 
         $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
-            $faculty           = $facultyGroup->first();
-            $facultyUser       = $faculty->user;
+            $faculty            = $facultyGroup->first();
+            $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
             $courses = $facultyGroup->map(function ($preference) use ($temporaryOfferingsById) {
@@ -377,12 +384,19 @@ class PreferenceController extends Controller
      * This returns ALL the instances of a selected course across all programs
      * in all active curricula.
      */
-    public function getAllFacultyPreferences()
+    public function getAllFacultyPreferences(Request $request)
     {
-        // ... Keep exactly as is ...
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
@@ -419,8 +433,8 @@ class PreferenceController extends Controller
         }
 
         $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
-            $faculty           = $facultyGroup->first();
-            $facultyUser       = $faculty->user;
+            $faculty            = $facultyGroup->first();
+            $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
             $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester, $temporaryOfferingsById) {
@@ -459,6 +473,9 @@ class PreferenceController extends Controller
                                 'course_title' => $submittedCourse->course_title ?? null,
                                 'program_id'   => $submittedCourse->program_id ?? null,
                                 'program_code' => $submittedCourse->program_code ?? null,
+                            ],
+                            'section_details'      => [
+                                'section_id'   => $preference->sections_per_program_year_id,
                             ],
                             'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
@@ -506,6 +523,9 @@ class PreferenceController extends Controller
                             'course_title' => $temporaryOffering->course_title ?? null,
                             'program_id'   => $temporaryOffering->program_id ?? null,
                             'program_code' => $temporaryOffering->program_code ?? null,
+                        ],
+                        'section_details'      => [
+                            'section_id'   => $preference->sections_per_program_year_id,
                         ],
                         'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
@@ -566,11 +586,19 @@ class PreferenceController extends Controller
     /**
      * Retrieves preferences for a specific faculty based on their faculty_id.
      */
-    public function getFacultyPreferencesById($faculty_id)
+    public function getFacultyPreferencesById(Request $request, $faculty_id)
     {
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
-            ->first();
+        $termId = $request->query('term_id');
+
+        if ($termId) {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('active_semester_id', $termId)
+                ->first();
+        } else {
+            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
+                ->where('is_faculty_view', 1)
+                ->first();
+        }
 
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
@@ -943,12 +971,23 @@ class PreferenceController extends Controller
             ], 403);
         }
 
-        // Find and delete the specific preference along with its associated days
+        // Find and delete the specific preference along with its associated days.
+        // When sections_per_program_year_id is falsy (0 or absent), the stored
+        // record has NULL in that column, so we must use whereNull to match it.
         $preferenceQuery = Preference::where('faculty_id', $facultyId)
             ->where('active_semester_id', $activeSemesterId)
-            ->where('sections_per_program_year_id', $sectionsPerProgramYearId)
+            ->where(function ($query) use ($sectionsPerProgramYearId) {
+                if (!$sectionsPerProgramYearId || $sectionsPerProgramYearId == 0) {
+                    $query->whereNull('sections_per_program_year_id');
+                } else {
+                    $query->where(
+                        'sections_per_program_year_id',
+                        $sectionsPerProgramYearId
+                    );
+                }
+            })
             ->where(function ($query) use ($preference_id) {
-                // try matching by course_assignment_id first, 
+                // Try matching by course_assignment_id first,
                 // then by temporary_course_offering_id.
                 $query->where('course_assignment_id', $preference_id)
                       ->orWhere('temporary_course_offering_id', $preference_id);

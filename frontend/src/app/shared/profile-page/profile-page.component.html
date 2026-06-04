@@ -1,22 +1,33 @@
 <div class="profile-page-container" @pageFloatUpAnimation>
-  <div class="page-header">
-    <h1>My Profile</h1>
-    <p>View and update your personal and account information</p>
+
+  <!-- Profile Hero Banner -->
+  <div class="profile-hero">
+    <div class="hero-content">
+      <div class="hero-avatar">
+        <img *ngIf="profilePictureUrl" [src]="profilePictureUrl" alt="Profile Picture" class="hero-avatar-img">
+        <span *ngIf="!profilePictureUrl" mat-symbol class="hero-avatar-icon">person</span>
+      </div>
+      <div class="hero-info">
+        <h1 class="hero-name">{{ profileForm.get('first_name')?.value }} {{ profileForm.get('last_name')?.value }}</h1>
+        <p class="hero-role">{{ isAdmin ? 'Administrator' : 'Faculty Member' }}</p>
+        <p class="hero-email">{{ profileForm.get('email')?.value }}</p>
+      </div>
+    </div>
   </div>
 
   <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="profile-form-card">
     <div class="split-layout">
       
       <div class="left-section">
-        <div class="avatar-container">
-          <div class="profile-avatar">
-            <span mat-symbol>person</span>
-          </div>
+        <div class="avatar-upload-row">
+          <!-- Hidden file input -->
+          <input type="file" #fileInput hidden (change)="onFileSelected($event)" accept="image/*">
           <button 
             type="button"
-            mat-flat-button 
-            class="preferences-btn">
-            Update Photo
+            class="maroon-btn upload-btn"
+            (click)="fileInput.click()">
+            <span mat-symbol>photo_camera</span>
+            Change Photo
           </button>
         </div>
 
@@ -29,11 +40,19 @@
             </span>
           </div>
           <div class="form-control-group">
+            <label>Middle Name</label>
+            <input formControlName="middle_name" class="pill-input" placeholder="Enter middle name">
+          </div>
+          <div class="form-control-group">
             <label>Last Name</label>
             <input formControlName="last_name" class="pill-input" placeholder="Enter last name">
             <span class="error-text" *ngIf="profileForm.get('last_name')?.invalid && profileForm.get('last_name')?.touched">
               Last name is required.
             </span>
+          </div>
+          <div class="form-control-group">
+            <label>Suffix</label>
+            <input formControlName="suffix_name" class="pill-input" placeholder="e.g., Jr., III">
           </div>
         </div>
       </div>
@@ -43,19 +62,24 @@
       <div class="right-section">
         <div class="compact-row">
           <div class="field-group faculty-code">
-            <label>Faculty Code</label>
-            <input formControlName="code" class="pill-input" placeholder="e.g., 1234">
+            <label>{{ isAdmin ? 'Admin Code' : 'Faculty Code' }}</label>
+            <!-- Add readonly attribute -->
+            <input formControlName="code" class="pill-input" placeholder="e.g., 1234" readonly>
           </div>
-          <div class="field-group program-id">
-            <label>Program ID</label>
-            <input formControlName="program_id" class="pill-input" placeholder="e.g., BSIT">
+          <div class="field-group department" *ngIf="!isAdmin">
+            <label>Department</label>
+            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept" 
+                  [title]="profileForm.get('department')?.value || ''">
           </div>
         </div>
 
         <div class="compact-row">
           <div class="field-group birthdate">
             <label>Birthdate</label>
-            <input type="date" formControlName="birthdate" class="pill-input">
+            <input type="date" formControlName="birthdate" class="pill-input" (change)="onBirthdateChange($event)">
+            <span class="error-text" *ngIf="profileForm.get('birthdate')?.hasError('birthdateToday') && profileForm.get('birthdate')?.touched">
+              Birthdate cannot be today. Please choose a valid date of birth.
+            </span>
           </div>
           <div class="field-group sex">
             <label>Sex</label>
@@ -74,20 +98,45 @@
     
     <div class="address-grid">
       <div class="field-group">
-        <input formControlName="house_num" placeholder="House #" class="pill-input">
+        <input formControlName="house_num" placeholder="House / Unit #" class="pill-input"
+              [title]="profileForm.get('house_num')?.value || ''">
       </div>
       <div class="field-group">
-        <input formControlName="street" placeholder="Street" class="pill-input">
+        <input formControlName="street" placeholder="Street / Subdivision" class="pill-input"
+              [title]="profileForm.get('street')?.value || ''">
       </div>
+
+      <!-- Province Dropdown -->
       <div class="field-group">
-        <input formControlName="barangay" placeholder="Barangay" class="pill-input">
+        <select formControlName="province" class="pill-input">
+          <!-- Note the brackets around [value]="''" -->
+          <option [value]="''" disabled selected>Select Province...</option>
+          <option *ngFor="let prov of provinces" [value]="prov.name">
+            {{ prov.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- City Dropdown -->
       <div class="field-group">
-        <input formControlName="city" placeholder="City" class="pill-input">
+        <select formControlName="city" class="pill-input">
+          <option [value]="''" disabled selected>Select City/Municipality...</option>
+          <option *ngFor="let city of cities" [value]="city.name">
+            {{ city.name }}
+          </option>
+        </select>
       </div>
+
+      <!-- Barangay Dropdown -->
       <div class="field-group">
-        <input formControlName="province" placeholder="Province" class="pill-input">
+        <select formControlName="barangay" class="pill-input">
+          <option [value]="''" disabled selected>Select Barangay...</option>
+          <option *ngFor="let brgy of barangays" [value]="brgy.name">
+            {{ brgy.name }}
+          </option>
+        </select>
       </div>
+
       <div class="field-group">
         <input formControlName="zipcode" placeholder="Zipcode" class="pill-input" maxlength="4">
         <span class="error-text" *ngIf="profileForm.get('zipcode')?.invalid && profileForm.get('zipcode')?.touched">
@@ -97,13 +146,13 @@
     </div>
 
     <div class="action-row">
-       <button type="button" class="btn-secondary-outline pop">Change Password</button>
-       <button type="submit" 
-               class="sienna-btn" 
+        <button type="submit" 
+               class="maroon-btn" 
                [disabled]="profileForm.invalid || isLoading"
                [class.force-disabled]="profileForm.invalid || isLoading">
-        {{ isLoading ? 'Saving...' : 'Save Changes' }}
-       </button>
+          <span mat-symbol>save</span>
+          {{ isLoading ? 'Saving...' : 'Save Changes' }}
+        </button>
     </div>
   </form>
 </div>

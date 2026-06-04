@@ -144,7 +144,6 @@
                 class="header-toggle"
                 [matTooltip]="getAllToggleTooltip(isToggleAllChecked)"
                 [checked]="isToggleAllChecked"
-                [disabled]="!hasSchedulesForToggleAll"
                 (change)="onToggleAllSchedules($event)"
               ></mat-slide-toggle>
               <span

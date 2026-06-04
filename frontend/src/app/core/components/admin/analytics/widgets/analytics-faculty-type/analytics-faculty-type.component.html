@@ -1,0 +1,24 @@
+<div class="chart-container">
+  <div class="chart-wrapper" *ngIf="!isLoading; else loading">
+    <canvas 
+      baseChart
+      [data]="doughnutChartData"
+      [options]="doughnutChartOptions"
+      [type]="doughnutChartType">
+    </canvas>
+  </div>
+
+  <ng-template #loading>
+    <div class="loading-overlay">
+      <div class="widget-loading-bar">
+        <span class="widget-loading-label">Analyzing faculty composition...</span>
+        <div class="widget-progress-track">
+          <div class="widget-progress-bar"></div>
+          <div class="widget-progress-bar secondary"></div>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+
+  <app-analytics-insight [text]="insightText" [type]="insightType"></app-analytics-insight>
+</div>

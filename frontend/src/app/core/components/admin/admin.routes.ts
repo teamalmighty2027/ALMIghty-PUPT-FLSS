@@ -88,11 +88,43 @@ export const ADMIN_ROUTES: Routes = [
             data: { pageTitle: 'Reports' },
           },
           {
+            path: 'faculty-assignment',
+            loadComponent: () =>
+              import('./reports/report-faculty-assignment/report-faculty-assignment.component').then(
+                (m) => m.ReportFacultyAssignmentComponent
+              ),
+            data: { pageTitle: 'Reports' },
+          },
+          {
+            path: '',
+            redirectTo: 'faculty',
+            pathMatch: 'full',
+          },
+          {
             path: '',
             redirectTo: 'faculty',
             pathMatch: 'full',
           },
         ],
+      },
+      {
+        path: 'analytics',
+        loadComponent: () =>
+          import('./analytics/analytics.component').then(
+            (m) => m.AnalyticsComponent
+          ),
+        data: { 
+          pageTitle: 'Data Analytics',
+          requirePermission: 'view_reports'
+        },
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('../../../shared/profile-page/profile-page.component').then(
+            (m) => m.ProfilePageComponent,
+          ),
+        data: { pageTitle: 'My Profile' },
       },
       {
         path: 'rescheduling',

@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, Eleme
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
-import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom } from 'rxjs';
+import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom, throwError, catchError } from 'rxjs';
 
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
@@ -31,6 +31,8 @@ import { Program, Course, PreferredDay, Section } from '../../../models/preferen
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
+import { DialogImportHistoryComponent } from '../../../../shared/dialog-import-history/dialog-import-history.component';
+import { HasUnsavedPreferences } from '../../../guards/unsaved-preferences.guard';
 
 interface TableData extends Course {
   preferredDays: PreferredDay[];
@@ -63,7 +65,7 @@ interface TableData extends Course {
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [fadeAnimation, cardEntranceAnimation, rowAdditionAnimation],
 })
-export class PreferencesComponent implements OnInit, OnDestroy {
+export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPreferences {
   // UI State
   isLoading = signal(true);
   searchState = signal<
@@ -101,6 +103,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   hasRequest = signal(false);
   isSchedulesPublished = signal(false);
   activeSemesterId = signal<number | null>(null);
+  semesterId = signal<number | null>(null);
   submissionDeadline = signal<Date | null>(null);
 
   // Search
@@ -182,6 +185,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   ];
   private isDarkTheme = signal<boolean>(false);
 
+  /**
+   * Creates the component and wires the initial draft-saving search stream.
+   *
+   * @param themeService Theme stream used to track dark mode.
+   * @param dialog Material dialog service used by the component.
+   * @param preferencesService API service for preferences data.
+   * @param snackBar Snackbar service used for user feedback.
+   * @param authService Auth service used to resolve the faculty id.
+   */
   constructor(
     private readonly themeService: ThemeService,
     private readonly dialog: MatDialog,
@@ -193,6 +205,23 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       this.dataSource().data;
     });
 
+    // Auto-save draft to localStorage on every change so refreshing the page
+    // doesn't lose unsaved courses. Only saves when there are unsubmitted rows
+    // and the faculty/semester IDs are already known.
+    effect(() => {
+      const courses = this.allSelectedCourses();
+      const key = this.getDraftKey();
+      if (!key) return;
+
+      const unsaved = courses.filter((c) => !c.isSubmitted);
+      if (unsaved.length > 0) {
+        localStorage.setItem(key, JSON.stringify(unsaved));
+      } else {
+        // All rows submitted — no draft needed
+        localStorage.removeItem(key);
+      }
+    });
+
     this.searchQuerySubject
       .pipe(debounceTime(300), distinctUntilChanged())
       .subscribe((query) => {
@@ -201,12 +230,19 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Initializes the component by wiring theme, search, and data loading
+   * subscriptions.
+   */
   ngOnInit() {
     this.subscribeToThemeChanges();
     this.setupSearchSubscription();
     this.loadInitialData();
   }
 
+  /**
+   * Cleans up active subscriptions and completes the search stream.
+   */
   ngOnDestroy() {
     this.subscriptions.unsubscribe();
     this.searchQuerySubject.complete();
@@ -214,6 +250,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Theme Subscription
+   */
+  /**
+   * Subscribes to theme changes so the component can react to dark mode.
    */
   private subscribeToThemeChanges() {
     this.subscriptions.add(
@@ -224,7 +263,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Data Loading and Initialization
+   * Loads the faculty preferences and available programs for the current
+   * faculty member.
    */
   private loadInitialData() {
     this.isLoading.set(true);
@@ -253,11 +293,14 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
             this.programs.set(programsResponse.programs);
             this.activeSemesterId.set(programsResponse.active_semester_id);
+            this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
             
-            // Sort courses alphabetically by course code for better UX in course selection
+            // Sort courses alphabetically by course code for better UX
             this.courses.set(
-              [...this.courses()].sort((a, b) => a.course_code.localeCompare(b.course_code))
+              [...this.courses()].sort((a, b) =>
+                a.course_code.localeCompare(b.course_code),
+              ),
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -266,7 +309,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Prepare class properties based on preferencesResponse
+   * Maps the preferences API response into component state.
+   *
+   * @param preferencesResponse Raw preferences response from the backend.
    */
   private processPreferencesResponse(preferencesResponse: any) {
     const facultyPreference = preferencesResponse.preferences;
@@ -282,10 +327,14 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       const activeSemester = facultyPreference.active_semesters[0];
       this.academicYear.set(activeSemester.academic_year);
       this.semesterLabel.set(activeSemester.semester_label);
+      this.activeSemesterId.set(activeSemester.active_semester_id);
 
       this.allSelectedCourses.set(
         this.mapPreferencesToTableData(activeSemester.courses),
       );
+
+      // Restore any locally saved draft on top of submitted courses
+      this.restoreDraft();
     } else {
       this.isPreferencesEnabled.set(true);
       this.isSchedulesPublished.set(false);
@@ -293,7 +342,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Map API response to TableData format to reflect in the table
+   * Converts preference courses from the API into table row data.
+   *
+   * @param courses Courses returned by the preferences API.
+   * @returns Table-ready preference rows.
    */
   private mapPreferencesToTableData(courses: any[]): TableData[] {
     return courses.map((course) => ({
@@ -329,7 +381,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle errors during data loading and show error messages to the user
+   * Handles preference-loading errors and shows a user-facing message.
+   *
+   * @param error Error returned by the data-loading pipeline.
    */
   private handleDataLoadingError(error: any) {
     const errorMessage = error.url.includes('/offered-courses-sem')
@@ -342,7 +396,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Program and Course Selection
+   * Selects a program and resets the search flow to the course picker.
+   *
+   * @param program Program chosen by the user.
    */
   public selectProgram(program: Program): void {
     this.selectedYearLevel.set(null);
@@ -354,7 +410,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Populate course selection sidebar with unique courses
+   * Populates the course map with unique courses for a program.
+   *
+   * @param program Program whose courses should be indexed.
+   * @param coursesMap Map used to store unique courses by identity key.
    */
   private populateUniqueCourses(
     program: Program,
@@ -362,16 +421,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   ): void {    
     program.year_levels.forEach((yearLevel) => {
       yearLevel.semester.courses.forEach((course) => {
+        // Ensure course has year_level from the program structure
+        course.year_level = yearLevel.year_level;
         const key = this.getCourseListKey(course);
         coursesMap.set(key, course);
       });
     });
   }
 
-  /** 
-   * Populate possible programs based on selected course
+  /**
+   * Finds all programs that offer the selected course.
+   *
+   * @param course Course selected from the picker.
    */
-  private populatePossiblePrograms(course: Course): void {
+  private async populatePossiblePrograms(course: Course): Promise<void> {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
     this.searchState.set('courseSelection');
@@ -389,7 +452,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     });
 
     if (possiblePrograms.length === 1) {
-      this.selectPossibleProgram(possiblePrograms[0]);
+      await this.selectPossibleProgram(possiblePrograms[0]);
       return;
     }
 
@@ -398,8 +461,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     this.possiblePrograms.set(possiblePrograms);
   }
 
-  /** 
-   * Event handler when user selects a program from possible programs list
+  /**
+   * Adds the selected course from a chosen program to the preferences table.
+   *
+   * @param program Program selected from the possible-programs list.
    */
   public async selectPossibleProgram(program: Program): Promise<void> {
     this.selectedProgram.set(program);
@@ -428,9 +493,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** 
-  * Revert sidebar to course list and optionally clear year level filter
-  */
+  /**
+   * Returns to the course-selection view and clears the year-level filter.
+   */
   public backToCourseSelection(): void {
     this.selectedYearLevel.set(null);
     if (this.searchState() === 'courseSelection') {
@@ -472,7 +537,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   });
 
   /**
-   * Search Functionality
+   * Keeps the search query stream synchronized with the search state.
    */
   private setupSearchSubscription() {
     this.subscriptions.add(
@@ -496,13 +561,20 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Event handler for search input changes
+   * Updates the search query from the input box.
+   *
+   * @param query Search text entered by the user.
    */
   public onSearchInput(query: string): void {
     this.searchQuerySubject.next(query);
     this.showPossiblePrograms.set(false);
   }
 
+  /**
+   * Updates the visible search state from the current query.
+   *
+   * @param query Search text that should drive the state.
+   */
   private updateSearchState(query: string): void {
     if (query) {
       this.searchState.set(
@@ -516,7 +588,7 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Clears search query and resets search state
+   * Clears the current search text and resets the UI state.
    */
   public clearSearch(): void {
     this.showPossiblePrograms.set(false);
@@ -526,18 +598,23 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Course Management
+   * Adds a course to the preferences table after validating section and
+   * program selection.
+   *
+   * @param course Course selected from the picker or search results.
    */
   public async addCourseToTable(course: Course): Promise<void> {   
-    
+    // If no program is selected, populate possible programs
     if (this.selectedProgram() === undefined) {
-      this.populatePossiblePrograms(course);
+      await this.populatePossiblePrograms(course);
       return;
     }
 
+    // If program is selected, check if another section is selected
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
 
+    // If another section is selected, set the section
     const section = this.selectedSection();
     if (section) {
       course.section = section;
@@ -546,19 +623,27 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // If course is already added, reset selections and show snackbar
     if (this.isCourseAlreadyAdded(course)) {
+      this.selectedProgram.set(undefined);
+      this.selectedSection.set(undefined);
       this.showSnackBar('You already selected this course.');
       return;
     }
 
+    const preferredDays = this.daysOfWeek.map((day) => {
+      const existing = course.preferred_days?.find((d) => d.day === day);
+      return {
+        day,
+        start_time: existing?.start_time ?? '',
+        end_time: existing?.end_time ?? '',
+      };
+    });
+
     const newCourse: TableData = {
       ...course,
-      preferredDays: this.daysOfWeek.map((day) => ({
-        day,
-        start_time: '',
-        end_time: '',
-      })),
-      isSubmitted: false,
+      preferredDays,
+      isSubmitted: !!course.preferred_days,
       program_details: this.selectedProgram(),
       year_section: `${course.year_level}-${course.section.section_name}`
     };
@@ -581,7 +666,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * General function to remove a course based on isSubmitted attribute
+   * Removes a course using the submitted or draft removal flow.
+   *
+   * @param course Course row to remove from the table.
    */
   public removeCourse(course: TableData): void {
     if (course.isSubmitted) {
@@ -592,7 +679,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Remove course from table and send backend signal to delete preference.
+   * Removes a submitted preference, optionally showing a confirmation.
+   *
+   * @param course Submitted course row to remove.
    */
   private removeSubmittedCourse(course: TableData) {
     // Check if course has preferred days with time set
@@ -627,7 +716,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Proceed with the actual removal of the preference
+   * Sends the delete request for a submitted preference.
+   *
+   * @param course Course row whose backend preference should be deleted.
    */
   private proceedWithRemoval(course: TableData) {
     const preferenceId = this.getPreferenceId(course);
@@ -685,7 +776,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Remove course from table
+   * Removes a draft course row from the local table only.
+   *
+   * @param course Draft course row to remove.
    */
   private removeUnsubmittedCourse(course: TableData) {
     this.allSelectedCourses.update((courses) =>
@@ -696,7 +789,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Checks if the course is already added based on course_id and section_name
+   * Checks whether the given course already exists in the table.
+   *
+   * @param course Course to compare against existing rows.
+   * @return True when an equivalent course row is already present.
    */
   private isCourseAlreadyAdded(course: Course): boolean {
     return this.allSelectedCourses().some((subject) =>
@@ -705,21 +801,27 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Asynchronous function that activates a dialog for section selection
-   * if the course has multiple sections.
+   * Prompts the user to choose a section when a course can apply to more than
+   * one section.
+   *
+   * @param course Course being added to the table.
+   * @return True when the selection should continue.
    */
   private async willSelectAnotherSection(course: Course): Promise<boolean> {  
+    if (this.selectedSection() !== undefined) {
+      return true;
+    }
     const yearLevels = this.selectedProgram()?.year_levels;
     if (course.year_level == null) {
       return true;
     }
 
-    const targetYear = yearLevels?.[course.year_level - 1];
+    const targetYear = yearLevels?.find(yl => yl.year_level === course.year_level);
     if (!targetYear) return true;
 
     // If only one or no section, set it and continue
-    const maxSections = Number(targetYear.sections.length);
-    if (isNaN(maxSections) || maxSections <= 1) {
+    const maxSections = targetYear.sections?.length ?? 0;
+    if (maxSections <= 1) {
       const firstSection = targetYear.sections[0];
 
       if (firstSection) {
@@ -729,10 +831,15 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
+      width: 'min(400px, 50vw)',
       data: { 
-        sections: targetYear.sections
+        sections: targetYear.sections,
+        programCode: this.selectedProgram()?.program_code ?? '',
+        courseCode: course.course_code,
+        courseTitle: course.course_title
       },
       autoFocus: true,
+      panelClass: 'dialog-base',
     });
 
     const result = await firstValueFrom(dialogRef.afterClosed());
@@ -749,7 +856,9 @@ export class PreferencesComponent implements OnInit, OnDestroy {
 
 
   /**
-   * Dialog Management
+   * Opens the day and time picker for a selected course row.
+   *
+   * @param element Table row to edit.
    */
   public openDayTimeDialog(element: TableData): void {
     this.dialog
@@ -787,13 +896,19 @@ export class PreferencesComponent implements OnInit, OnDestroy {
                   : course,
               ),
             );
+
+            // If no more unsaved rows remain, clear any saved draft
+            if (!this.hasUnsavedPreferences()) {
+              const key = this.getDraftKey();
+              if (key) localStorage.removeItem(key);
+            }
           }
         }
       });
   }
 
   /**
-   * Opens the preferences dialog in view-only mode
+   * Opens the read-only preferences dialog for the current faculty.
    */
   public openViewPreferencesDialog(): void {
     this.dialog.open(DialogPrefComponent, {
@@ -812,7 +927,189 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Opens the request access dialog
+   * Opens the import-from-history dialog and processes selected courses.
+   */
+  public openImportHistoryDialog(): void {
+    const existingKeys = this.allSelectedCourses().map(c => {
+      const base = this.getCourseIdentityKey(c);
+      const sectionId = c.section?.section_id ?? 'none';
+      const programCode = (c as any).program_details?.program_code ?? null;
+      const programPart = programCode ? `-program-${programCode}` : '';
+      return `${base}${programPart}-section-${sectionId}`;
+    });
+
+    this.dialog.open(DialogImportHistoryComponent, {
+      maxWidth: '95vw',
+      width: 'auto',
+      data: {
+        facultyId: parseInt(this.facultyId()!, 10),
+        programs: this.programs(),
+        existingKeys: existingKeys,
+        currentSemesterId: this.semesterId(),
+        currentActiveSemesterId: this.activeSemesterId()
+      },
+      disableClose: false,
+      autoFocus: true,
+      panelClass: 'dialog-base',
+    }).afterClosed()
+      .subscribe((selectedCourses: Course[] | undefined) => {
+        if (selectedCourses && selectedCourses.length > 0) {
+          this.processBatchImport(selectedCourses);
+        }
+      });
+  }
+
+  /**
+   * Imports a batch of historical courses and auto-submits preferences when
+   * enough data is available.
+   *
+   * @param courses Courses selected from the history dialog.
+   */
+  private async processBatchImport(courses: Course[]): Promise<void> {
+    let sectionToAutoSelect: Section | undefined;
+
+    for (const course of courses) {
+      sectionToAutoSelect = undefined;
+
+      // Try to find the program from previous data
+      let program: Program | undefined;
+      if (course.previousProgramCode) {
+        program = this.programs().find(
+          (p) => p.program_code === course.previousProgramCode
+        );
+      }
+
+      // Fallback: If only one program offers this course, use it
+      if (!program) {
+        const possible = this.programs().filter((p) =>
+          p.year_levels.some((yl) =>
+            yl.semester.courses.some((c) =>
+              this.isSameCourseOffering(c, course)
+            )
+          )
+        );
+
+        if (possible.length === 1) {
+          program = possible[0];
+        }
+      }
+
+      // Pre-select the section from previous data if available
+      if (program) {
+        this.selectedProgram.set(program);
+
+        if (course.previousSectionName) {
+          const targetYear = program.year_levels.find(
+            (yl) => yl.year_level === course.year_level
+          );
+
+          sectionToAutoSelect = targetYear?.sections.find(
+            (s) => s.section_name === course.previousSectionName
+          );
+
+          if (sectionToAutoSelect) {
+            this.selectedSection.set(sectionToAutoSelect);
+          } else if (targetYear) {
+            const fallbackSection = targetYear.sections?.[0];
+            const hasSingleFallback =
+              (targetYear.sections?.length ?? 0) <= 1;
+
+            if (hasSingleFallback && fallbackSection) {
+              this.showSnackBar(
+                `${course.course_code}: Section ` +
+                `${course.previousSectionName} does not exist. ` +
+                `Defaulted to ${fallbackSection.section_name}.`
+              );
+            } else {
+              this.showSnackBar(
+                `${course.course_code}: Section ` +
+                `${course.previousSectionName} does not exist. ` +
+                `Please select a section.`
+              );
+            }
+          }
+        }
+      }
+
+      const beforeCount = this.allSelectedCourses().length;
+      await this.addCourseToTable(course);
+      const wasAdded = this.allSelectedCourses().length > beforeCount;
+
+      if (wasAdded) {
+        let autoSubmitted = false;
+
+        // Auto-submit to backend if it has preferred days and a section
+        if (
+          course.preferred_days &&
+          course.preferred_days.length > 0 &&
+          course.section
+        ) {
+          const preferenceData: any = {
+            faculty_id: parseInt(this.facultyId()),
+            active_semester_id: this.activeSemesterId(),
+            sections_per_program_year_id: course.section.section_id,
+            preferred_days: course.preferred_days.map((d: any) => ({
+              day: d.day,
+              start_time: d.start_time,
+              end_time: d.end_time,
+            })),
+          };
+
+          if (course.temporary_course_offering_id != null) {
+            preferenceData.temporary_course_offering_id =
+              course.temporary_course_offering_id;
+          } else if (course.course_assignment_id != null) {
+            preferenceData.course_assignment_id =
+              course.course_assignment_id;
+          }
+
+          if (
+            preferenceData.faculty_id &&
+            preferenceData.active_semester_id &&
+            preferenceData.sections_per_program_year_id
+          ) {
+            try {
+              await firstValueFrom(
+                this.preferencesService
+                  .submitSinglePreference(preferenceData)
+                  .pipe(
+                    catchError((err) => {
+                      console.error(
+                        'Error auto-submitting imported preference:',
+                        err
+                      );
+                      this.showSnackBar(
+                        `Failed to save ${course.course_code} to backend.`
+                      );
+                      return throwError(() => err);
+                    })
+                  )
+              );
+              autoSubmitted = true;
+            } catch (e) {
+              console.error(
+                `Skipping ${course.course_code} due to error:`,
+                e
+              );
+            }
+          }
+        }
+
+        // Sync the submission status in the UI table
+        this.allSelectedCourses.update((coursesList) =>
+          coursesList.map((c) => {
+            if (this.getSelectionKey(c) === this.getSelectionKey(course)) {
+              return { ...c, isSubmitted: autoSubmitted };
+            }
+            return c;
+          })
+        );
+      }
+    }
+  }
+
+  /**
+   * Opens the access-request dialog and refreshes the request state.
    */
   public openRequestAccessDialog(): void {
     this.dialog
@@ -846,8 +1143,8 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
-  /*
-   * Utility Functions
+  /**
+   * Utility functions used by the preferences view.
    */
 
   private readonly SNACK_BAR_CONFIG = {
@@ -856,6 +1153,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     verticalPosition: 'bottom' as const,
   };
 
+  /**
+   * Converts a display time into API payload format.
+   *
+   * @param time Time string entered or displayed in the UI.
+   * @return Time in 24-hour payload format.
+   */
   public formatTimeForPayload(time?: string | null): string {
     if (!time) return '';
     if (!time.includes('AM') && !time.includes('PM')) return time;
@@ -870,7 +1173,10 @@ export class PreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Detects if the preferences represent "Any Day" or "Any Time" modifiers.
+   * Detects whether the selected days represent "Any Day" or "Any Time".
+   *
+   * @param element Table row whose preferred days should be analyzed.
+   * @return Flags describing the current modifiers.
    */
   private detectAnyModifiers(element: TableData): { has_any_day: boolean; has_any_time: boolean } {
     const filteredDays = element.preferredDays.filter((pd) => pd.start_time && pd.end_time);
@@ -887,6 +1193,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return { has_any_day, has_any_time };
   }
 
+  /**
+   * Formats the selected days and time range for display in the table.
+   *
+   * @param element Table row to format.
+   * @return Human-readable day and time summary.
+   */
   public formatSelectedDaysAndTime(element: TableData): string {
     const filteredDays = element.preferredDays
       .filter((pd) => pd.start_time && pd.end_time);
@@ -932,6 +1244,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return sortedDays || 'Click to select day and time';
   }
 
+  /**
+   * Formats a time string for display in 12-hour clock notation.
+   *
+   * @param time Time string to format.
+   * @return Display-friendly time string.
+   */
   private formatTime(time: string): string {
     if (!time) return '';
 
@@ -947,21 +1265,43 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return `${hour12}:${minutes} ${ampm}`;
   }
 
+  /**
+   * Shows a short snackbar message to the user.
+   *
+   * @param message Message text to display.
+   */
   private showSnackBar(message: string): void {
     this.snackBar.open(message, 'Close', this.SNACK_BAR_CONFIG);
   }
 
+  /**
+   * Returns the tooltip text for a preference schedule cell.
+   *
+   * @param element Table row being rendered.
+   * @return Tooltip text or an empty string.
+   */
   public getTooltipText(element: TableData): string {
     return element.preferredDays.some((pd) => pd.start_time && pd.end_time)
       ? 'Click to modify schedule'
       : '';
   }
 
+  /**
+   * Applies a year-level filter to the course list.
+   *
+   * @param year Year level to filter by, or null to clear the filter.
+   */
   public filterByYearLevel(year: number | null): void {
     this.selectedYearLevel.set(year);
     // Trigger recomputation of filtered courses
     this.filteredCourses(); 
   }
+  /**
+   * Returns the label shown for a temporary course badge.
+   *
+   * @param course Course to inspect.
+   * @return Badge text or an empty string.
+   */
   public getTemporaryBadgeText(course: Course): string {
     if (!course.is_temporary) {
       return '';
@@ -971,6 +1311,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return typeLabel ? `Temporary (${typeLabel})` : 'Temporary';
   }
 
+  /**
+   * Builds the tooltip text for a temporary course badge.
+   *
+   * @param course Course to inspect.
+   * @return Tooltip text or an empty string.
+   */
   public getTemporaryTooltip(course: Course): string {
     if (!course.is_temporary) {
       return '';
@@ -986,6 +1332,12 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return parts.join(' | ');
   }
 
+  /**
+   * Formats a temporary course type for display.
+   *
+   * @param type Raw temporary type value.
+   * @return Human-readable type label.
+   */
   private formatTemporaryType(type?: string | null): string {
     if (!type) return '';
     return type
@@ -994,7 +1346,50 @@ export class PreferencesComponent implements OnInit, OnDestroy {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  /**
+   * Checks whether a course is a temporary bridging offering.
+   *
+   * @param course Course to inspect.
+   * @return True when the course is a temporary bridging course.
+   */
+  private isBridgingTemporaryCourse(course: Course): boolean {
+    return course.is_temporary === true && course.temporary_type === 'bridging';
+  }
+
+  /**
+   * Returns the identity key used for deduping course options.
+   *
+   * @param course Course to identify.
+   * @return Stable identity key for grouping and selection.
+   */
+  private getCourseIdentityKey(course: Course): string {
+    if (this.isBridgingTemporaryCourse(course)) {
+      return `bridging-${course.course_code.toLowerCase()}`;
+    }
+
+    if (course.temporary_course_offering_id) {
+      return `temp-${course.temporary_course_offering_id}`;
+    }
+
+    return `course-${course.course_code.toLowerCase()}`;
+  }
+
+  /**
+   * Compares two course records to determine whether they represent the same
+   * course offering.
+   *
+   * @param candidate Course record being compared.
+   * @param target Course record used as the comparison target.
+   * @return True when both records represent the same offering.
+   */
   private isSameCourseOffering(candidate: Course, target: Course): boolean {
+    if (
+      this.isBridgingTemporaryCourse(candidate) ||
+      this.isBridgingTemporaryCourse(target)
+    ) {
+      return candidate.course_code === target.course_code;
+    }
+
     if (target.temporary_course_offering_id) {
       return (
         candidate.temporary_course_offering_id ===
@@ -1005,27 +1400,139 @@ export class PreferencesComponent implements OnInit, OnDestroy {
     return candidate.course_code === target.course_code;
   }
 
+  /**
+   * Builds the key used to dedupe courses in the picker list.
+   *
+   * @param course Course to key.
+   * @return Unique list key for the course.
+   */
   private getCourseListKey(course: Course): string {
-    if (course.temporary_course_offering_id) {
-      return `temp-${course.temporary_course_offering_id}`;
-    }
-
-    return `course-${course.course_code.toLowerCase()}`;
+    return this.getCourseIdentityKey(course);
   }
 
+  /**
+   * Builds the key used to identify a selected course row.
+   *
+   * @param course Course row to key.
+   * @return Unique selection key for the row.
+   */
   private getSelectionKey(course: Course): string {
-    const base = course.temporary_course_offering_id
-      ? `temp-${course.temporary_course_offering_id}`
-      : `course-${course.course_id}`;
+    const base = this.getCourseIdentityKey(course);
     const sectionId = course.section?.section_id ?? 'none';
     return `${base}-section-${sectionId}`;
   }
 
+  /**
+   * Resolves the backend preference identifier for a row.
+   *
+   * @param course Course row to inspect.
+   * @return Preference identifier or null.
+   */
   private getPreferenceId(course: Course): number | null {
     if (course.temporary_course_offering_id) {
       return course.temporary_course_offering_id;
     }
 
     return course.course_assignment_id ?? null;
+  }
+
+  /**
+   * Returns true when there are courses in the table that have not been
+   * submitted to the backend yet (draft rows). Used by the CanDeactivate guard.
+   */
+  /**
+   * Indicates whether the table contains unsubmitted draft rows.
+   *
+   * @return True when at least one draft row exists.
+   */
+  hasUnsavedPreferences(): boolean {
+    return this.allSelectedCourses().some((c) => !c.isSubmitted);
+  }
+
+  /**
+   * Persists the current unsubmitted courses to localStorage so the faculty
+   * can continue later. Key is scoped to the faculty + semester so drafts
+   * don't bleed across semesters.
+   */
+  /**
+   * Stores unsubmitted preference rows in localStorage.
+   */
+  saveDraft(): void {
+    const key = this.getDraftKey();
+    if (!key) return;
+    const draftCourses = this.allSelectedCourses().filter((c) => !c.isSubmitted);
+    localStorage.setItem(key, JSON.stringify(draftCourses));
+  }
+
+  /**
+   * Explicitly removes the draft from localStorage.
+   * Called when the faculty chooses "Discard & Leave" so the auto-saved
+   * draft doesn't get restored on the next visit.
+   */
+  /**
+   * Removes the saved draft for the current faculty and semester.
+   */
+  discardDraft(): void {
+    const key = this.getDraftKey();
+    if (key) localStorage.removeItem(key);
+  }
+
+  /**
+   * Restores a previously saved draft from localStorage and merges it with
+   * any already-submitted courses already loaded from the backend.
+   */
+  /**
+   * Restores saved draft rows and merges them with loaded preferences.
+   */
+  private restoreDraft(): void {
+    const key = this.getDraftKey();
+    if (!key) return;
+
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+
+    try {
+      const draftCourses: TableData[] = JSON.parse(raw);
+      if (!draftCourses?.length) return;
+
+      // Merge: keep submitted courses from backend, add draft ones on top
+      const existingKeys = new Set(
+        this.allSelectedCourses().map((c) => this.getSelectionKey(c))
+      );
+
+      const newDraftCourses = draftCourses.filter(
+        (c) => !existingKeys.has(this.getSelectionKey(c))
+      );
+
+      if (newDraftCourses.length > 0) {
+        this.allSelectedCourses.update((current) => [
+          ...current,
+          ...newDraftCourses,
+        ]);
+        this.showSnackBar(
+          `Draft restored: ${newDraftCourses.length} course${newDraftCourses.length > 1 ? 's' : ''} added from your saved draft.`
+        );
+      }
+
+      // Clear draft after restoring so it doesn't re-appear on next load
+      localStorage.removeItem(key);
+    } catch {
+      localStorage.removeItem(key);
+    }
+  }
+
+  /**
+   * Builds a localStorage key scoped to this faculty + active semester.
+   */
+  /**
+   * Builds the storage key used for the current faculty draft.
+   *
+   * @return Draft storage key or null when the scope is unavailable.
+   */
+  private getDraftKey(): string | null {
+    const facultyId = this.facultyId();
+    const semesterId = this.activeSemesterId();
+    if (!facultyId || !semesterId) return null;
+    return `pref_draft_${facultyId}_${semesterId}`;
   }
 }

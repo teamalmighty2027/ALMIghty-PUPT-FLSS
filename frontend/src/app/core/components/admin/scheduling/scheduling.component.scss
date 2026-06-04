@@ -20,6 +20,81 @@
   height: 100%;
 }
 
+.elective-override-section {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: none,
+    $gap: var(--spacing-sm)
+  );
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--border-radius-md);
+  background-color: var(--neutral-light);
+  box-shadow: var(--shadow-level-1);
+
+  .elective-override-header {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: flex-start,
+      $justify: none,
+      $gap: var(--spacing-xxs)
+    );
+
+    .title {
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    .subtitle {
+      font-size: var(--font-size-xs);
+      color: var(--secondary-text);
+    }
+  }
+
+  .elective-override-note {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    background-color: var(--neutral-space);
+    border: 1px solid var(--neutral-fade);
+    color: var(--secondary-text);
+    font-size: var(--font-size-sm);
+  }
+
+  .elective-override-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--spacing-md);
+  }
+
+  .elective-override-card {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: none,
+      $gap: var(--spacing-xs)
+    );
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-sm);
+    background-color: var(--neutral-space);
+
+    .slot-title {
+      font-weight: 600;
+      color: var(--primary-text);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border-radius: var(--border-radius-sm);
+      border: 1px solid var(--neutral-fade);
+      background-color: var(--neutral-light);
+      color: var(--primary-text);
+      font-size: var(--font-size-sm);
+    }
+  }
+}
+
 .scheduling-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;
@@ -102,13 +177,25 @@
           }
 
           .copy-icon,
-          .remove-icon {
+          .remove-icon,
+          .ml-suggest-icon {
             background: var(--neutral-option);
             border-radius: var(--border-radius-base);
             padding: var(--spacing-xxs);
             font-size: var(--font-size-sm);
             opacity: var(--opacity-semi-opaque);
             cursor: pointer;
+            @include mixins.default-transition;
+
+            &:hover {
+              transform: scale(1.15);
+              opacity: 1;
+            }
+          }
+
+          .ml-suggest-icon {
+            background: var(--secondary-hover);
+            color: var(--secondary-text);
           }
 
           .remove-icon {
@@ -198,6 +285,20 @@
 .draft-toggle-container {
   padding: var(--spacing-sm) var(--spacing-lg);
   @include mixins.flex-layout($justify: flex-end);
+
+  button {
+    @include mixins.gradient-primary(315deg);
+    color: white !important;
+    min-width: 200px;
+    height: 46px;
+    border-radius: 23px;
+    padding: 0 var(--spacing-lg);
+    box-shadow: var(--shadow-level-1);
+    
+    mat-icon {
+      margin-right: var(--spacing-xs);
+    }
+  }
 }
 
 .draft-toolbar {
@@ -208,17 +309,17 @@
   z-index: 10;
   margin: 0 var(--spacing-lg) var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-lg);
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--blur-bg);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  border: 1px solid var(--neutral-border);
   border-radius: var(--border-radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--glass-shadow);
 
   .draft-info {
     @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
     
     .amber-icon {
-      color: #ed6c02;
+      color: var(--neutral-button);
     }
 
     .texts {
@@ -229,7 +330,7 @@
       }
       .desc {
         font-size: var(--font-size-xs);
-        color: #ed6c02; // Using a solid amber-orange for better visibility
+        color: var(--neutral-button);
         font-weight: 500;
       }
     }
@@ -270,6 +371,103 @@
       .index {
         color: #f44336;
         font-weight: bold;
+      }
+    }
+  }
+}
+
+// ============================================================
+// MOBILE RESPONSIVE
+// ============================================================
+
+@media (max-width: 825px) {
+  .scheduling-container {
+    gap: var(--spacing-xs);
+  }
+
+  .scheduling-table-container {
+    .table-container {
+      max-height: calc(100vh - 220px);
+      overflow-x: auto;
+
+      .custom-table {
+        min-width: 720px;
+      }
+
+      .custom-cell {
+        button {
+          min-height: 44px;
+        }
+      }
+    }
+  }
+
+  // Draft toolbar stacks vertically on mobile
+  .draft-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    margin: 0 0 var(--spacing-md);
+    padding: var(--spacing-md);
+
+    .draft-info {
+      width: 100%;
+    }
+
+    .draft-actions {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+      width: 100%;
+
+      .divider {
+        display: none;
+      }
+
+      button {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 44px;
+        font-size: var(--font-size-sm);
+      }
+    }
+  }
+
+  // Draft toggle button full width
+  .draft-toggle-container {
+    padding: var(--spacing-xs) 0;
+
+    button {
+      width: 100%;
+      min-width: unset;
+    }
+  }
+}
+
+@media (max-width: 512px) {
+  .scheduling-table-container {
+    .table-container {
+      max-height: calc(100vh - 200px);
+
+      .custom-table {
+        min-width: 640px;
+      }
+
+      .custom-cell {
+        padding: var(--spacing-xxs) var(--spacing-xs);
+        font-size: var(--font-size-sm);
+      }
+
+      .custom-header {
+        font-size: var(--font-size-sm);
+        padding: var(--spacing-xs);
+      }
+    }
+  }
+
+  .draft-toolbar {
+    .draft-actions {
+      button {
+        flex: 1 1 calc(50% - var(--spacing-xs));
       }
     }
   }

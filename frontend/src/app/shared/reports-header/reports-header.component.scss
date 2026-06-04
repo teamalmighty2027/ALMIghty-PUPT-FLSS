@@ -104,9 +104,31 @@
       font-size: var(--font-size-lg);
     }
   }
+  
+  .export-program {
+    margin-right: 12px;
+    color: var(--primary-one);
+    border: 1px solid var(--primary-one);
+
+    &:hover:not(:disabled) {
+      background-color: var(--primary-one-hover);
+      color: white;
+    }
+
+    &.disabled-button {
+      background-color: var(--neutral-button);
+      color: var(--neutral-text);
+      border-color: var(--neutral-button);
+      cursor: not-allowed;
+    }
+  }
 
   .export-button {
     background-color: var(--neutral-button);
+
+    &:hover:not(:disabled) {
+      background-color: var(--neutral-hover);
+    }
 
     span {
       text-wrap: nowrap;
@@ -163,5 +185,116 @@
       $justify: flex-end,
       $gap: var(--spacing-md)
     );
+  }
+}
+
+// Tablets
+@media screen and (max-width: bp.$breakpoint-md) {
+  .header-wrapper {
+    padding: 0;
+  }
+
+  .header-container {
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+
+    .input-container {
+      flex-direction: column;
+      gap: var(--spacing-xs);
+
+      .search-field,
+      .program-field,
+      .year-level-field,
+      .sections-field,
+      .curriculum-field,
+      .academic-year-field {
+        flex: 1 1 100%;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+    }
+
+    .term-filter-container {
+      width: 100%;
+
+      .term-filter-flex {
+        flex-direction: column;
+        align-items: center;       // Center the "Academic Term:" label
+        gap: var(--spacing-xs);
+        white-space: normal;
+        width: 100%;
+        text-align: center;
+      }
+
+      .term-filter-label {
+        font-weight: 500;
+        font-size: var(--font-size-smx);
+        text-align: center;
+        width: 100%;
+      }
+
+      .term-filter-dropdown {
+        width: 100%;
+      }
+    }
+
+    .object-container {
+      align-items: stretch;
+
+      .active-year-sem-container {
+        width: 100%;
+        padding: var(--spacing-sm) var(--spacing-md) !important;
+        align-items: center;
+        text-align: center;
+      }
+    }
+
+    .button-container {
+      justify-content: center;
+      gap: var(--spacing-xs);
+
+      .tooltip-container {
+        flex: 1;
+      }
+
+      .custom-mat-button {
+        width: 100%;
+        min-height: 44px;
+      }
+    }
+  }
+}
+
+// Phones
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .header-container {
+    gap: var(--spacing-xs);
+
+    .input-container {
+      gap: var(--spacing-xs);
+    }
+
+    .term-filter-container {
+      .term-filter-flex {
+        align-items: center;
+        text-align: center;
+      }
+    }
+
+    .button-container {
+      flex-direction: column;
+      align-items: stretch;
+
+      .tooltip-container {
+        width: 100%;
+      }
+
+      .custom-mat-button {
+        width: 100%;
+        min-height: 48px;
+        font-size: var(--font-size-sm);
+      }
+    }
   }
 }

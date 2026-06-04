@@ -28,7 +28,7 @@ class FacultyNotificationController extends Controller
         $activeSemester = DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')
-            ->where('active_semesters.is_active', 1)
+            ->where('active_semesters.is_faculty_view', 1)
             ->select(
                 'active_semesters.active_semester_id',
                 'active_semesters.academic_year_id',
@@ -84,39 +84,54 @@ class FacultyNotificationController extends Controller
      */
     public function getRequestNotifications()
     {
-        $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-            ->where('is_active', 1)
-            ->first();
+        // 1. Get Active Semester safely
+        $activeSemester = \App\Models\ActiveSemester::where('is_faculty_view', 1)->first();
 
         if (!$activeSemester) {
-            return response()->json(['error' => 'No active semester found'], 404);
+            return response()->json([], 200); // Return empty array instead of 404 to keep dashboard alive
         }
 
-        $facultyRequests = Faculty::with(['user'])
+        // 2. Fetch Preference Requests
+        $prefRequests = \App\Models\Faculty::query()
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('preferences_settings', 'faculty.id', '=', 'preferences_settings.faculty_id')
             ->where('preferences_settings.has_request', 1)
+            ->select('faculty.id as faculty_id', 'users.first_name', 'users.last_name')
+            ->get()
+            ->map(function ($f) {
+                return [
+                    'faculty_id' => $f->faculty_id,
+                    'faculty_name' => "{$f->first_name} {$f->last_name}",
+                    'request_type' => 'preference'
+                ];
+            });
+
+        // 3. Fetch Appeal Requests (Using the new columns you added to phpMyAdmin)
+        $appealRequests = \App\Models\Faculty::query()
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('faculty.has_appeal_request', 1)
             ->select(
                 'faculty.id as faculty_id',
+                'faculty.appeal_start_date',
+                'faculty.appeal_end_date',
                 'users.first_name',
-                'users.middle_name',
                 'users.last_name'
             )
-            ->join('users', 'faculty.user_id', '=', 'users.id')
-            ->get();
+            ->get()
+            ->map(function ($f) {
+                return [
+                    'faculty_id' => $f->faculty_id,
+                    'faculty_name' => "{$f->first_name} {$f->last_name}",
+                    'request_type' => 'appeal', // This tag tells the dashboard to show the orange badge
+                    'appeal_start_date' => $f->appeal_start_date,
+                    'appeal_end_date' => $f->appeal_end_date,
+                ];
+            });
 
-        $notifications = $facultyRequests->map(function ($faculty) {
-            $facultyName = trim(implode(' ', array_filter([
-                $faculty->first_name,
-                $faculty->last_name,
-            ])));
+        // Combine them into a single array
+        $allNotifications = array_merge($prefRequests->toArray(), $appealRequests->toArray());
 
-            return [
-                'faculty_id' => $faculty->faculty_id,
-                'faculty_name' => $facultyName,
-            ];
-        });
-
-        return response()->json($notifications, 200);
+        return response()->json($allNotifications, 200);
     }
 
     private function getSemesterLabel($semester): string

@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
+    /**
+     * Handle user login and issue a Sanctum token.
+     */
     public function login(Request $request)
     {
         $loginUserData = $request->validate([
@@ -69,6 +72,7 @@ class AuthController extends Controller
             'email'            => $user->email,
             'role'             => $user->role,
             'roles'            => [$user->role],
+            'code'             => $user->code,
             'permissions'      => $permissions,
             'allowed_programs' => $allowedPrograms,
             'is_full_access'   => $isFullAccess,
@@ -101,6 +105,9 @@ class AuthController extends Controller
         ->cookie('token', $token, 1440, null, null, true, true);
     }
 
+    /**
+     * Log out the current user and revoke the active token.
+     */
     public function logout(Request $request)
     {
         if ($request->user()) {
@@ -128,6 +135,38 @@ class AuthController extends Controller
         return response()->json(['message' => 'Unauthenticated.'], 401);
     }
 
+    /**
+     * Reissue a Sanctum token for the authenticated user.
+     */
+    public function refreshToken(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        $currentToken = $user->currentAccessToken();
+
+        if ($currentToken && method_exists($currentToken, 'delete')) {
+            $currentToken->delete();
+        }
+
+        $tokenResult = $user->createToken('user-token');
+        $token = $tokenResult->plainTextToken;
+        $expiration = Carbon::now()->addHours(24);
+
+        return response()->json([
+            'message' => 'Token refreshed.',
+            'expires_at' => $expiration,
+            'token' => $token,
+        ])
+        ->cookie('token', $token, 1440, null, null, true, true);
+    }
+
+    /**
+     * Update the current user's password after validation.
+     */
     public function changePassword(Request $request)
     {
         $request->validate([
@@ -192,7 +231,9 @@ class AuthController extends Controller
         // Validate configuration before proceeding
         if (!$baseUrl || !$clientId || !$clientSecret) {
             Log::error('IDP Configuration missing at callback');
-            return response()->json(['message' => 'Authentication configuration error.'], 500);
+            return response()->json([
+              'message' => 'Authentication configuration error.'
+            ], 500);
         }
 
         // --- STEP 1: EXCHANGE CODE FOR TOKEN ---        
@@ -208,13 +249,14 @@ class AuthController extends Controller
         try {
             if (!$tokenResponse->successful()) {
                 $errorBody = $tokenResponse->json();
-                $errorMessage = $errorBody['error'] ?? $tokenResponse->body() ?: 'Token exchange failed.';
+                $detailedError = $errorBody['error'] ?? 
+                  $tokenResponse->body() ?: 'Token exchange failed.';
                 
-                Log::warning("IDP token exchange failed for client {$clientId}: " . $errorMessage);
+                Log::warning("IDP token exchange failed for client {$clientId}: " . $detailedError);
                 
                 return response()->json([
-                    'message' => 'IDP session has expired. Please log in again.',
-                    'idp_error' => $errorMessage
+                    'message' => 'Authentication failed. Please try again.',
+                    'error'   => true
                 ], 401);
             }   
 
@@ -227,13 +269,15 @@ class AuthController extends Controller
 
             if (!$meResponse->successful()) {
                 $errorBody = $meResponse->json();
-                $errorMessage = is_array($errorBody) && isset($errorBody['error'])
+                $detailedError = is_array($errorBody) && isset($errorBody['error'])
                     ? $errorBody['error']
                     : 'Failed to fetch user data from IDP.';
 
+                Log::warning("IDP user data fetch failed for client {$clientId}: " . $detailedError);
+
                 return response()->json([
-                    'error'   => True,
-                    'message' => $errorMessage
+                    'error'   => true,
+                    'message' => 'Failed to retrieve user information. Please try again.',
                 ], 401);
             }
 
@@ -241,7 +285,8 @@ class AuthController extends Controller
 
             if (!is_array($userData) || !isset($userData['email'])) {
                 return response()->json([
-                    'message' => 'Invalid user data received from IDP.'
+                    'message' => 'Invalid user data received from IDP.',
+                    'error'   => true
                 ], 401);
             }
 
@@ -299,6 +344,7 @@ class AuthController extends Controller
                 'id'               => $user->id,
                 'name'             => $user->first_name . ' ' . $user->last_name,
                 'email'            => $user->email,
+                'code'             => $user->code,
                 'roles'            => $roles,
                 'permissions'      => $permissions,
                 'allowed_programs' => $allowedPrograms,

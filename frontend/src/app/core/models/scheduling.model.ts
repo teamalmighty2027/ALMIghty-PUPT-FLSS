@@ -43,6 +43,7 @@ export interface Schedule {
   section: string;
   start_time?: string | null;
   end_time?: string | null;
+  elective_id?: number | null;
 
   schedule_id?: number;
   faculty_id?: number;
@@ -55,6 +56,10 @@ export interface Schedule {
   temporary_status?: string | null;
   petition_required?: boolean;
   temporary_course_offering_id?: number | null;
+  bridging_course_id?: number | null;
+  combined_with_program_id?: number | null;
+  isLastInGroup: boolean;
+  elective_slot_name?: string | null;
 }
 
 export interface Semester {
@@ -133,6 +138,8 @@ export interface CourseResponse {
     start_time: string;
     end_time: string;
     room_id?: number;
+    elective_id?: number | null;
+     elective_slot_name?: string | null;
   };
   professor: string;
   faculty_id: number;
@@ -161,6 +168,35 @@ export interface CourseCatalogItem {
   tuition_hours: number;
 }
 
+export interface Elective {
+  elective_id: number;
+  elective_slot_name: string;
+  course_code: string;
+  course_title: string;
+  lec_hours: number;
+  lab_hours: number;
+  units: number;
+  tuition_hours: number;
+  description?: string | null;
+  is_active: boolean;
+}
+
+export interface AcademicYearElective {
+  academic_year_elective_id: number;
+  academic_year_id: number;
+  semester_id: number;
+  program_id: number;
+  year_level: number;
+  elective_slot_name: string;
+  selected_elective_id: number;
+  elective?: Elective;
+}
+
+export interface AcademicYearElectivesResponse {
+  academic_year_id: number;
+  electives: AcademicYearElective[];
+}
+
 export interface BridgingCourseOption {
   bridging_course_id: number;
   curriculum_id: number;
@@ -175,6 +211,15 @@ export interface BridgingCourseOption {
   lab_hours: number;
   units: number;
   tuition_hours: number;
+  combined_with_program_id?: number | null;
+  combined_label?: string | null;
+}
+
+// Data format for prompting the user to combine matching bridging schedules
+export interface CombinedSchedulePromptData {
+  matchingProgramCode: string;
+  currentProgramCode: string;
+  combinedLabel: string;
 }
 
 export interface TemporaryCourseOfferingPayload {
@@ -261,6 +306,7 @@ export interface ConflictingCourseDetail {
 export interface ConflictingScheduleDetail {
   course: CourseResponse;
   programCode: string;
+  programId: number;
   yearLevel: number;
   sectionName: string;
 }
@@ -303,4 +349,15 @@ export interface YearLevelOption {
 export interface SectionOption {
   section_id: number;
   section_name: string;
+}
+
+export interface SmartSuggestion {
+  faculty_id: number;
+  faculty_name: string;
+  day: string;
+  start_time: string;
+  end_time: string;
+  confidence?: number;
+  isMl: boolean;
+  success: boolean;
 }

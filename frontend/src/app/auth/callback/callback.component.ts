@@ -124,8 +124,8 @@ export class CallbackComponent implements OnInit, OnDestroy {
   private handleError(message: string) {
     this.snackBar.open(message, 'Close', {
       duration: 5000,
-      horizontalPosition: 'end',
-      verticalPosition: 'top',
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom',
     });
     this.router.navigate(['/login']);
   }

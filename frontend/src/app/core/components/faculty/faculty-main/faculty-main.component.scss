@@ -654,3 +654,75 @@
     opacity: 1;
   }
 }
+
+// ==========================
+// PROFILE MENU STYLES
+// ==========================
+
+::ng-deep .admin-profile-menu {
+  min-width: 240px !important;
+  border-radius: var(--border-radius-lg) !important;
+  overflow: hidden;
+
+  .mat-mdc-menu-content {
+    padding: 0 !important;
+  }
+
+  .menu-email-header {
+    @include mixins.flex-layout($direction: row, $align: center, $gap: var(--spacing-sm));
+    padding: var(--spacing-md);
+    cursor: default;
+    
+    .menu-email-icon {
+      color: var(--primary-one);
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .menu-email-text {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+      font-weight: 500;
+      @include mixins.ellipsis;
+    }
+  }
+
+  .menu-divider {
+    height: 1px;
+    background-color: var(--neutral-option);
+    margin: 0;
+  }
+
+  .mat-mdc-menu-item {
+    height: 48px !important;
+
+    .menu-icon {
+      margin-right: var(--spacing-md) !important;
+      color: var(--neutral-base);
+      font-size: 22px;
+      display: inline-flex;
+      vertical-align: middle;
+      align-items: center;
+      justify-content: center;
+    }
+
+    span:not(.menu-icon) {
+      vertical-align: middle;
+      font-weight: 500;
+      color: var(--neutral-base);
+    }
+
+    &.menu-logout-item {
+      span {
+        color: #d32f2f !important;
+      }
+
+      &:hover {
+        background-color: rgba(211, 47, 47, 0.05) !important;
+      }
+    }
+  }
+}
+
+

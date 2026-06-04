@@ -5,25 +5,39 @@
 
   <div class="dialog-content privacyNotice">
     <p>
-      By clicking <strong>“I Agree”</strong>, you consent to the collection, use, and processing of your personal data for legitimate purposes related to this service.
+      By clicking <strong>“I Agree”</strong>, you consent to the collection,
+      use, and processing of your personal data for legitimate purposes related
+      to this service.
     </p>
     <p>
-      Your information will be handled in accordance with our <a href="https://www.pup.edu.ph/privacy/"><strong>Privacy Policy</strong></a> and in compliance with the <strong>Data Privacy Act of 2012</strong>.
+      Your information will be handled in accordance with our
+      <a href="https://www.pup.edu.ph/privacy/"
+        ><strong>Privacy Policy</strong></a
+      >
+      and in compliance with the <strong>Data Privacy Act of 2012</strong>.
     </p>
 
     <div class="checkbox-container">
-      <input type="checkbox" id="agree" [(ngModel)]="isAccepted" />
-      <label for="agree" class="privacyNotice">I Agree and acknowledge the 
-        <a href="https://www.pup.edu.ph/terms/">Terms and Conditions</a>.</label>
+      <input
+        type="checkbox"
+        id="agree"
+        [(ngModel)]="isAccepted"
+        cdkFocusInitial
+      />
+      <label for="agree" class="privacyNotice"
+        >I Agree and acknowledge the
+        <a href="https://www.pup.edu.ph/terms/">Terms and Conditions</a>.</label
+      >
     </div>
   </div>
 
   <div class="dialog-actions">
     <button class="btn-cancel" (click)="onCancel()">Cancel</button>
-    <button 
-      class="btn-continue" 
-      [disabled]="!isAccepted" 
-      (click)="onContinue()">
+    <button
+      class="btn-continue"
+      [disabled]="!isAccepted"
+      (click)="onContinue()"
+    >
       Continue
     </button>
   </div>

@@ -70,10 +70,11 @@
   }
 }
 
-.forgot-password-container {
-  text-align: right;
+.login-links-container {
+  @include mixins.flex-layout($justify: space-between, $gap: var(--spacing-sm));
 
-  .forgot-password-link {
+  .forgot-password-link,
+  .idp-login-link {
     color: var(--primary-text);
     text-decoration: none;
     font-weight: 500;
@@ -84,7 +85,8 @@
     cursor: pointer;
   }
 
-  .forgot-password-link::after {
+  .forgot-password-link::after,
+  .idp-login-link::after {
     content: '';
     position: absolute;
     width: 100%;
@@ -101,7 +103,8 @@
     will-change: transform;
   }
 
-  .forgot-password-link:hover::after {
+  .forgot-password-link:hover::after,
+  .idp-login-link:hover::after {
     transform: scaleX(1);
     transform-origin: left;
   }

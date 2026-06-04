@@ -6,39 +6,41 @@
 }
 
 .header-container {
-  @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-md));
+  @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-sm));
   flex-wrap: wrap;
   @include mixins.default-transition;
   padding-bottom: var(--spacing-sm);
 
   .input-container {
-    @include mixins.flex-layout($gap: var(--spacing-md));
+    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: flex-start);
     flex-wrap: wrap;
-    flex: 0 1 auto; // Prevents the container from expanding to fill the whole screen horizontally
+    flex: 1 1 auto;
     margin-bottom: 0;
 
     mat-form-field {
-      min-width: 120px;
+      min-width: 80px;
     }
 
     .search-field {
-      width: auto;
-      flex: 1;
+      max-width: 25rem;
+      width: 100%;
+      flex: 1 1 auto;
     }
 
     .program-field {
+      max-width: 35rem;
       width: auto;
       flex: 1.2;
     }
 
     .year-level-field {
-      width: auto;
-      flex: 1;
+      width: 140px;
+      flex: 0 0 auto;
     }
 
     .sections-field {
-      width: auto;
-      flex: 1;
+      width: 140px;
+      flex: 0 0 auto;
 
       mat-icon {
         cursor: pointer;
@@ -74,7 +76,8 @@
       @include mixins.flex-layout($align: center);
       flex: 0 0 auto;
 
-      .active-year-sem-container {
+      .active-year-sem-container,
+      .faculty-view-container {
         @include mixins.flex-layout(
           $direction: column,
           $align: flex-start,
@@ -82,7 +85,6 @@
           $gap: var(--spacing-xxs)
         );
 
-        @include mixins.gradient-primary(315deg);
         padding: var(--spacing-sm) var(--spacing-md);
         border-radius: var(--border-radius-md);
         color: white;
@@ -95,11 +97,30 @@
 
         .text {
           font-weight: 500;
+          @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+          
+          .lock-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+          }
         }
 
         .label {
           opacity: var(--opacity-semi-opaque);
         }
+      }
+
+      .active-year-sem-container {
+        @include mixins.gradient-primary(315deg);
+
+        &.read-only {
+          cursor: default;
+        }
+      }
+
+      .faculty-view-container {
+        @include mixins.gradient-secondary(315deg);
       }
     }
   }
@@ -142,33 +163,175 @@
 
 @media screen and (max-width: bp.$breakpoint-lgx) {
   .header-container {
-    @include mixins.flex-layout(
-      $direction: row,
-      $align: center,
-      $justify: space-between,
-      $gap: var(--spacing-md)
-    );
-    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-lg);
   }
 
-  .header-container .object-container {
-    @include mixins.flex-layout(
-      $direction: row,
-      $align: center,
-      $justify: flex-end,
-      $gap: var(--spacing-md)
-    );
+  .input-container {
+    justify-content: center;
+    flex: 1 1 100%;
+  }
+
+  .header-actions {
+    justify-content: center;
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+
+    .button-container,
+    .object-container {
+      justify-content: center;
+      width: auto;
+    }
 
     .active-year-sem-container {
       padding: var(--spacing-sm) !important;
     }
   }
+}
 
-  .header-container .button-container {
-    @include mixins.flex-layout(
-      $align: center,
-      $justify: center,
-      $gap: var(--spacing-md)
-    );
+// Tablets
+@media screen and (max-width: bp.$breakpoint-md) {
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+
+  .input-container {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    justify-content: stretch;
+
+    mat-form-field {
+      flex: 1 1 calc(50% - var(--spacing-xs));
+      min-width: 0;
+    }
+
+    .search-field {
+      flex: 1 1 100%;
+      max-width: 100%;
+    }
+
+    // Program field — full width so names aren't compressed
+    .program-field {
+      flex: 1 1 100%;
+      max-width: 100%;
+      width: 100%;
+    }
+
+    .year-level-field,
+    .sections-field {
+      flex: 1 1 calc(50% - var(--spacing-xs));
+      width: auto;
+      min-width: 0;
+    }
+  }
+
+  .header-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    flex: 1 1 100%;
+
+    .button-container {
+      flex-wrap: wrap;
+      gap: var(--spacing-xs);
+      justify-content: center;
+    }
+
+    .object-container {
+      flex: 1 1 auto;
+      justify-content: center;
+
+      .active-year-sem-container,
+      .faculty-view-container {
+        align-items: center;
+        text-align: center;
+      }
+    }
+  }
+}
+
+// Phones
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .header-container {
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-xs);
+  }
+
+  .input-container {
+    gap: var(--spacing-xs);
+
+    mat-form-field {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    .program-field,
+    .year-level-field,
+    .sections-field {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  .header-actions {
+    gap: var(--spacing-xs);
+    justify-content: center;
+    width: 100%;
+
+    .button-container {
+      width: 100%;
+      gap: var(--spacing-xs);
+      justify-content: center;
+      flex-wrap: wrap;
+
+      .tooltip-container {
+        flex: 1 1 100%;
+        width: 100%;
+        display: flex;
+      }
+
+      button {
+        flex: 1 1 100%;
+        width: 100%;
+        min-height: 44px;
+        justify-content: center;
+      }
+    }
+
+    .object-container {
+      width: 100%;
+      justify-content: center;
+
+      .active-year-sem-container,
+      .faculty-view-container {
+        width: 100%;
+        padding: var(--spacing-xs) var(--spacing-sm) !important;
+        align-items: center;
+        text-align: center;
+      }
+    }
+  }
+
+  // On phones keep button text visible — icon + label both shown
+  .custom-mat-button {
+    width: 100%;
+    padding: 0 var(--spacing-md);
+    min-height: 44px;
+    font-size: var(--font-size-sm);
+
+    span {
+      display: inline !important; // Keep text visible
+    }
+  }
+
+  .export-button {
+    span {
+      display: inline !important;
+    }
   }
 }

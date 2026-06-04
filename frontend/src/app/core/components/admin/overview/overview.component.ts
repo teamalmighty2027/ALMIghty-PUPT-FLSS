@@ -13,16 +13,29 @@ import { DialogActionComponent, DialogActionData } from '../../../../shared/dial
 import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
-import { OverviewService, OverviewDetails, RequestNotification } from '../../../services/admin/overview/overview.service';
+import { 
+  OverviewService, 
+  OverviewDetails, 
+  RequestNotification as BaseRequestNotification 
+} from '../../../services/admin/overview/overview.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
+import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; 
 import { AuthService } from '../../../services/auth/auth.service';
+import { PermissionService } from '../../../services/permission/permission.service';
 
 import { fadeAnimation, cardEntranceSide } from '../../../animations/animations';
-import { CommonModule } from '@angular/common';
+import { CommonModule, formatDate } from '@angular/common';
+import { 
+  DialogToggleAppealsComponent 
+} from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 interface CurriculumInfo {
   curriculum_id: number;
   curriculum_year: string;
+}
+
+export interface RequestNotification extends BaseRequestNotification {
+  request_type?: 'preference' | 'appeal';
 }
 
 @Component({
@@ -50,6 +63,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   // Academic info
   activeYear = 'N/A';
   activeSemester = 'N/A';
+  activeSemesterId: number | null = null; 
   activeFacultyCount = 0;
   activeProgramsCount = 0;
   activeCurricula: CurriculumInfo[] = [
@@ -70,8 +84,14 @@ export class OverviewComponent implements OnInit, OnDestroy {
   schedulesPublished = false;
   notificationsLoaded = false;
   facultyWithSchedulesCount = 0;
+  isMismatchedSemester = false;
 
   requestNotifications: RequestNotification[] = [];
+
+  // Permission flags
+  canEditPreferences = false;
+  canAssignSchedules = false;
+  canViewReports = false;
 
   isAnimatingOut = false;
 
@@ -81,25 +101,50 @@ export class OverviewComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private overviewService: OverviewService,
     private preferencesService: PreferencesService,
-    private authService: AuthService,    
+    private reschedulingService: ReschedulingService, 
+    private authService: AuthService,
+    private permissionService: PermissionService,
     private router: Router
   ) {}
 
+  /**
+   * Initializes the component by fetching admin info, checking permissions, and loading data.
+   */
   ngOnInit(): void {
     this.initializeAdminInfo();
+    this.checkPermissions();
     this.loadAllData();
   }
 
+  /**
+   * Checks and updates the user's administrative permissions.
+   */
+  private checkPermissions(): void {
+    this.canEditPreferences = this.permissionService.canEditFacultyPreferences();
+    this.canAssignSchedules = this.permissionService.canAssignSchedules();
+    this.canViewReports = this.permissionService.canViewReports();
+  }
+
+  /**
+   * Cleans up the component by completing the destroy subject.
+   */
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Retrieves and formats the administrator's name from the auth service.
+   */
   private initializeAdminInfo(): void {
     const fullName = this.authService.getUserName();
     this.adminName = fullName.split(' ')[0];
   }
 
+  /**
+   * Fetches overview details and notifications from the service.
+   * @param resetAnimation boolean
+   */
   private loadAllData(resetAnimation = true): void {
     this.isLoading = true;
     this.notificationsLoaded = false;
@@ -139,20 +184,20 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Processes overview data and updates component state
+   * Processes fetched overview data and updates metrics.
+   * @param data OverviewDetails
+   * @param resetAnimation boolean
    */
   private handleOverviewData(
     data: OverviewDetails,
     resetAnimation: boolean
   ): void {
-    // Update non-progress data
     this.updateBasicInfo(data);
 
     if (resetAnimation) {
       this.resetProgressMetrics();
       this.cdr.detectChanges();
 
-      // Trigger animations after delay
       setTimeout(() => {
         this.updateProgressMetrics(data);
         this.cdr.detectChanges();
@@ -163,9 +208,15 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
   }
 
-  private updateBasicInfo(data: OverviewDetails): void {
+  /**
+   * Updates the component's basic academic and status information.
+   * @param data any
+   */
+  private updateBasicInfo(data: any): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
+    this.activeSemesterId = data.activeSemesterId || 1; 
+    this.isMismatchedSemester = data.isMismatchedSemester ?? false;
     this.activeFacultyCount = data.activeFacultyCount;
     this.activeProgramsCount = data.activeProgramsCount;
     this.activeCurricula = data.activeCurricula;
@@ -176,6 +227,9 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.globalStartDate = data.global_start_date || null;
   }
 
+  /**
+   * Resets all progress indicators to zero.
+   */
   private resetProgressMetrics(): void {
     this.preferencesProgress = 0;
     this.schedulingProgress = 0;
@@ -183,6 +237,10 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.publishProgress = 0;
   }
 
+  /**
+   * Updates the progress metric values from the provided data.
+   * @param data OverviewDetails
+   */
   private updateProgressMetrics(data: OverviewDetails): void {
     this.preferencesProgress = data.preferencesProgress;
     this.schedulingProgress = data.schedulingProgress;
@@ -190,23 +248,45 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.publishProgress = data.publishProgress;
   }
 
+  /**
+   * Calculates the SVG dash-offset for progress circles.
+   * @param percentage number
+   * @returns number
+   */
   getCircleOffset(percentage: number): number {
     const circumference = 2 * Math.PI * 45;
     return circumference - (percentage / 100) * circumference;
+  }
+
+  /**
+   * Formats the semester ID into a human-readable label.
+   * @param semester any
+   * @returns string
+   */
+  formatSemester(semester: any): string {
+    if (!semester || semester === 'None') return 'None';
+
+    const sem = semester.toString();
+    switch (sem) {
+      case '1': return '1st Semester';
+      case '2': return '2nd Semester';
+      case '3': return 'Summer Semester';
+      default: return sem;
+    }
   }
 
   // ================
   // Toggle Methods
   // ================
 
+  /**
+   * Opens the dialog to enable or disable global preferences submission.
+   */
   togglePreferencesSubmission(): void {
-    const deadlineDate = this.globalDeadline
-      ? new Date(this.globalDeadline)
-      : null;
-
-    const StartDate = this.globalStartDate
-      ? new Date(this.globalStartDate)
-      : null;
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
 
     const dialogData: DialogTogglePreferencesData = {
       type: 'all_preferences',
@@ -214,24 +294,28 @@ export class OverviewComponent implements OnInit, OnDestroy {
       semester: this.activeSemester,
       hasSecondaryText: true,
       currentState: this.preferencesEnabled,
-      global_deadline: deadlineDate,
-      global_start_date: StartDate,
+      global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+      global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
     };
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-      data: dialogData,
-      disableClose: true,
-      autoFocus: false,
+      data: dialogData, disableClose: true, autoFocus: false,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.loadAllData(true);
-      }
+      if (result) this.loadAllData(true);
     });
   }
 
+  /**
+   * Opens the dialog to publish or unpublish faculty schedules.
+   */
   togglePublishSchedules(): void {
+    if (!this.canAssignSchedules) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     if (this.facultyWithSchedulesCount === 0) {
       this.showSchedulingRedirectMessage();
       return;
@@ -243,193 +327,271 @@ export class OverviewComponent implements OnInit, OnDestroy {
       semester: this.activeSemester,
       currentState: this.schedulesPublished,
       hasSecondaryText: true,
+      isMismatchedSemester: this.isMismatchedSemester,
     };
 
     const dialogRef = this.dialog.open(DialogActionComponent, {
-      data: dialogData,
-      disableClose: true,
+      data: dialogData, disableClose: true,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.loadAllData(true);
-      }
+      if (result) this.loadAllData(true);
     });
   }
 
+  /**
+   * Opens the report generation dialog for academic schedules.
+   */
   generateReports(): void {
+    if (!this.canViewReports) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     if (this.facultyWithSchedulesCount === 0) {
       this.showSchedulingRedirectMessage();
       return;
     }
 
-    const dialogRef = this.dialog.open(DialogActionComponent, {
-      data: {
-        type: 'reports',
-        academicYear: this.activeYear,
-        semester: this.activeSemester,
-      },
+    this.dialog.open(DialogActionComponent, {
+      data: { type: 'reports', academicYear: this.activeYear, semester: this.activeSemester, },
       disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe((result) => {
-      console.log('Export All dialog closed', result);
     });
   }
 
+  /**
+   * Navigates to the Data Analytics view.
+   */
+  viewAnalytics(): void {
+    if (!this.canViewReports) {
+      this.showNoPermissionMessage();
+      return;
+    }
+    this.router.navigate(['/admin/analytics']);
+  }
+
+  /**
+   * Displays a snackbar message if no schedules exist, with a link to scheduling.
+   */
   private showSchedulingRedirectMessage(): void {
     const snackBarRef = this.snackBar.open(
       'No schedule has been made yet.',
       'Go to Scheduling',
-      {
-        duration: this.SNACKBAR_DURATION,
-      }
+      { duration: this.SNACKBAR_DURATION }
     );
 
     snackBarRef.onAction().subscribe(() => {
-      this.navigateToScheduling();
+      this.router.navigate(['/admin/scheduling']);
     });
-  }
-
-  private navigateToScheduling(): void {
-    this.router.navigate(['/admin/scheduling']);
   }
 
   // ======================
   // Request Action Methods
   // ======================
-
+  /**
+   * Handles approval of faculty access requests for preferences or appeals.
+   * @param request RequestNotification
+   */
   approveRequest(request: RequestNotification): void {
-    const dialogData: DialogTogglePreferencesData = {
-      type: 'single_preferences',
-      academicYear: this.activeYear,
-      semester: this.activeSemester,
-      currentState: false,
-      facultyName: request.faculty_name,
-      faculty_id: request.faculty_id,
-      global_deadline: this.globalDeadline
-        ? new Date(this.globalDeadline)
-        : null,
-      global_start_date: this.globalStartDate
-        ? new Date(this.globalStartDate)
-        : null,
-    };
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
 
-    const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-      data: dialogData,
-      disableClose: true,
-      autoFocus: true,
-    });
+    const isAppeal = request.request_type === 'appeal';
 
-    dialogRef.afterClosed().subscribe((result: boolean) => {
-      if (result) {
-        this.preferencesService
-          .cancelRequestAccess(request.faculty_id.toString())
-          .pipe(takeUntil(this.destroy$))
-          .subscribe({
+    if (isAppeal) {
+      // Pre-populates the dialog with existing dates if available 
+      // from the notification payload.
+      const parseSqlDate = (dateStr: string | null | undefined) => 
+        dateStr ? new Date(dateStr.replace(' ', 'T')) : null;
+
+      const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
+        width: '500px',
+        data: {
+          type: 'single_appeal',
+          facultyName: request.faculty_name,
+          academicYear: this.activeYear,
+          semester: this.activeSemester,
+          currentState: false,
+          startDate: parseSqlDate(request.appeal_start_date),
+          endDate: parseSqlDate(request.appeal_end_date)
+        },
+        disableClose: true,
+        autoFocus: false
+      });
+
+      dialogRef.afterClosed().subscribe((result) => {
+        if (result) {
+          // Format raw dates before sending to Laravel to ensure 
+          // MySQL compatibility (yyyy-MM-dd HH:mm:ss).
+          const formattedStart = result.startDate 
+            ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') 
+            : undefined;
+
+          const formattedEnd = result.endDate 
+            ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') 
+            : undefined;
+
+          this.reschedulingService.toggleFacultyAppealAccess(
+            request.faculty_id,
+            true,
+            this.activeSemesterId || 1,
+            formattedStart,
+            formattedEnd,
+            result.sendEmail
+          ).subscribe({
             next: () => {
-              this.isAnimatingOut = true;
-              this.requestNotifications = this.requestNotifications.filter(
-                (r) => r.faculty_id !== request.faculty_id
-              );
-              this.cdr.detectChanges();
-
-              setTimeout(() => {
-                this.isAnimatingOut = false;
-                this.cdr.detectChanges();
-              }, 600);
-
-              this.showSuccessMessage(
-                'Faculty preferences access has been enabled.'
-              );
+              this.removeNotificationLocally(request);
+              this.showSuccessMessage('Appeal access granted and faculty notified.');
             },
-            error: this.handleError(
-              'Failed to process request. Please try again.'
-            ),
+            error: this.handleError('Failed to grant appeal access.')
           });
-      }
-    });
+        }
+      });
+    } else {
+      // --- PREFERENCES LOGIC ---
+      const dialogData: DialogTogglePreferencesData = {
+        type: 'single_preferences',
+        academicYear: this.activeYear,
+        semester: this.activeSemester,
+        currentState: false,
+        facultyName: request.faculty_name,
+        faculty_id: request.faculty_id,
+        global_deadline: this.globalDeadline ? new Date(this.globalDeadline) : null,
+        global_start_date: this.globalStartDate ? new Date(this.globalStartDate) : null,
+      };
+
+      const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+        data: dialogData, disableClose: true, autoFocus: true,
+      });
+
+      dialogRef.afterClosed().subscribe((result: boolean) => {
+        if (result) {
+          this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+              next: () => {
+                this.removeNotificationLocally(request);
+                this.showSuccessMessage('Faculty preferences access enabled.');
+              },
+              error: this.handleError('Failed to process request.')
+            });
+        }
+      });
+    }
   }
 
+  /**
+   * Handles the rejection or cancellation of faculty access requests.
+   * @param request RequestNotification
+   */
   discardRequest(request: RequestNotification): void {
+    if (!this.canEditPreferences) {
+      this.showNoPermissionMessage();
+      return;
+    }
+
     const discardedRequest = { ...request };
 
+    // 1. Optimistic UI Update (Hide it instantly)
     this.isAnimatingOut = true;
     this.requestNotifications = this.requestNotifications.filter(
       (r) => r.faculty_id !== request.faculty_id
     );
     this.cdr.detectChanges();
 
-    const snackBarRef = this.snackBar.open(
-      'Faculty request has been discarded.',
-      'Undo',
-      { duration: 3000 }
-    );
-
-    const cancelAction = new Subject<void>();
-    let animationTimeout: any;
-
-    snackBarRef
-      .onAction()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => {
-        cancelAction.next();
-        cancelAction.complete();
-
-        clearTimeout(animationTimeout);
-        this.isAnimatingOut = false;
-        this.requestNotifications = [
-          ...this.requestNotifications,
-          discardedRequest,
-        ];
-        this.cdr.detectChanges();
-        this.showSuccessMessage('Action cancelled.');
-      });
-
-    animationTimeout = setTimeout(() => {
+    setTimeout(() => {
       this.isAnimatingOut = false;
       this.cdr.detectChanges();
     }, 600);
 
-    snackBarRef
-      .afterDismissed()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((dismissedByAction) => {
-        if (!dismissedByAction.dismissedByAction) {
-          this.preferencesService
-            .cancelRequestAccess(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$), takeUntil(cancelAction))
-            .subscribe({
-              next: () => {
-                this.cdr.detectChanges();
-              },
-              error: (error) => {
-                this.requestNotifications = [
-                  ...this.requestNotifications,
-                  discardedRequest,
-                ];
-                this.cdr.detectChanges();
-                this.handleError(
-                  'Failed to discard request. Please try again.'
-                )(error);
-              },
-            });
-        }
-      });
+    // 2. IMMEDIATE API Call
+    if (request.request_type === 'appeal') {
+      this.reschedulingService.rejectAppealAccessRequest(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Request denied and faculty notified via email.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    } else {
+      this.preferencesService.cancelRequestAccess(request.faculty_id.toString())
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({
+          next: () => {
+            this.snackBar.open('Faculty preference request discarded.', 'Close', { duration: 3000 });
+          },
+          error: (err) => this.revertDiscard(discardedRequest, err)
+        });
+    }
+  }
+
+  /**
+   * Removes a notification from the local list with an animation.
+   * @param request RequestNotification
+   */
+  private removeNotificationLocally(request: RequestNotification) {
+    this.isAnimatingOut = true;
+    this.requestNotifications = this.requestNotifications.filter(
+      (r) => r.faculty_id !== request.faculty_id
+    );
+    this.cdr.detectChanges();
+
+    setTimeout(() => {
+      this.isAnimatingOut = false;
+      this.cdr.detectChanges();
+    }, 600);
+  }
+
+  /**
+   * Restores a discarded notification to the list in case of an API error.
+   * @param discardedRequest RequestNotification
+   * @param error any
+   */
+  private revertDiscard(discardedRequest: RequestNotification, error: any) {
+    this.requestNotifications = [...this.requestNotifications, discardedRequest];
+    this.cdr.detectChanges();
+    this.handleError('Failed to discard request. Please try again.')(error);
   }
 
   // ================
   // Utility Methods
   // ================
 
+  /**
+   * Displays a success message in a snackbar.
+   * @param message string
+   */
   private showSuccessMessage(message: string): void {
     this.snackBar.open(message, 'Close', { duration: this.SNACKBAR_DURATION });
   }
 
+  /**
+   * Displays an error message in a snackbar.
+   * @param message string
+   */
   private showErrorMessage(message: string): void {
     this.snackBar.open(message, 'Close', { duration: this.SNACKBAR_DURATION });
   }
 
+  /**
+   * Displays a standardized "no permission" warning.
+   */
+  private showNoPermissionMessage(): void {
+    this.snackBar.open(
+      'You do not have permission to perform this action.',
+      'Close',
+      { duration: this.SNACKBAR_DURATION }
+    );
+  }
+
+  /**
+   * Returns an error handling function that logs and displays a message.
+   * @param errorMessage string
+   * @returns Function
+   */
   private handleError(errorMessage: string) {
     return (error: any) => {
       console.error('Operation failed:', error);

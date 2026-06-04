@@ -50,35 +50,43 @@
       </div>
       <div class="profile-dropdown">
         <img
-          src="assets/images/default_faculty_icon.png"
+          [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
           alt="Profile Icon"
           class="profile-icon"
-          [matMenuTriggerFor]="desktopProfileMenu" 
+          [matMenuTriggerFor]="desktopProfileMenu"
           matTooltip="Click to open settings"
           matTooltipPosition="below" />
       </div>
     </div>
   </header>
 
-  <!-- Desktop Account Bottom Sheet -->
-    <mat-menu #desktopProfileMenu="matMenu" xPosition="before">
+  <!-- Desktop Account Popup Menu -->
+  <mat-menu #desktopProfileMenu="matMenu" yPosition="below" class="admin-profile-menu">
+    <div class="menu-email-header" (click)="$event.stopPropagation()">
+      <span mat-symbol="mail" class="menu-email-icon"></span>
+      <span class="menu-email-text">{{ facultyEmail }}</span>
+    </div>
+    <div class="menu-divider"></div>
+
     <button mat-menu-item (click)="onMenuAction('profile')">
-      <span mat-symbol="account_circle" style="margin-right: 8px;"></span>
+      <span mat-symbol="account_circle"></span>
       My Profile
     </button>
-    
-    <button mat-menu-item (click)="onMenuAction('theme')">
-      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'" style="margin-right: 8px;"></span>
-      Switch Theme
-    </button>
-    
+
     <button mat-menu-item (click)="onMenuAction('change-password')">
-      <span mat-symbol="lock" style="margin-right: 8px;"></span>
+      <span mat-symbol="lock"></span>
       Change Password
     </button>
-    
-    <button mat-menu-item (click)="onMenuAction('logout')" style="color: var(--primary-text);">
-      <span mat-symbol="door_open" style="margin-right: 8px; color: var(--primary-text);"></span>
+
+    <button mat-menu-item (click)="onMenuAction('theme')">
+      <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
+      Switch Theme
+    </button>
+
+    <div class="menu-divider"></div>
+
+    <button mat-menu-item (click)="onMenuAction('logout')" class="menu-logout-item">
+      <span mat-symbol="door_open"></span>
       Logout
     </button>
   </mat-menu>
@@ -127,7 +135,7 @@
   <div class="mobile-dropdown" [@slideUpDown]>
     <div class="mobile-dropdown-header">
       <img
-        src="assets/images/default_faculty_icon.png"
+        [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
         alt="Profile Icon"
         class="mobile-profile-icon" />
       <div class="mobile-account-info">
@@ -140,19 +148,16 @@
         <span mat-symbol="account_circle"></span>
         My Profile
       </button>
-      <button matRipple class="mobile-dropdown-item" (click)="toggleTheme()">
-        <span
-          [mat-symbol]="
-            (themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'
-          "></span>
-        Switch Theme
-      </button>
       <button
         matRipple
         class="mobile-dropdown-item"
         (click)="openChangePasswordDialog()">
         <span mat-symbol="lock"></span>
         Change Password
+      </button>
+      <button matRipple class="mobile-dropdown-item" (click)="toggleTheme()">
+        <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
+        Switch Theme
       </button>
       <button
         matRipple
@@ -167,16 +172,16 @@
   }
 
   <footer class="admin-footer">
-  <div class="footer-divider"></div>
-  <div class="footer-content">
-    <p class="footer-text">
-      © 2026 PUP Taguig Faculty Loading & Scheduling System. All rights reserved.
-    </p>
-    <div class="privacy-links">
-      <a href="https://www.pup.edu.ph/privacy/" target="_blank" class="privacyNotice">Privacy Policy</a>
-      <span class="separator">|</span>
-      <a href="https://www.pup.edu.ph/terms/" target="_blank" class="privacyNotice">Terms and Conditions</a>
+    <div class="footer-divider"></div>
+    <div class="footer-content">
+      <p class="footer-text">
+        © 2026 PUP Taguig Faculty Loading & Scheduling System. All rights reserved.
+      </p>
+      <div class="privacy-links">
+        <a href="https://www.pup.edu.ph/privacy/" target="_blank" class="privacyNotice">Privacy Policy</a>
+        <span class="separator">|</span>
+        <a href="https://www.pup.edu.ph/terms/" target="_blank" class="privacyNotice">Terms and Conditions</a>
+      </div>
     </div>
-  </div>
-</footer>
+  </footer>
 </div>

@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { A11yModule } from '@angular/cdk/a11y';
 import { MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth/auth.service';
@@ -10,7 +11,7 @@ import { fadeAnimation } from '../../core/animations/animations';
 @Component({
   selector: 'app-dialog-terms-conditions',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, A11yModule],
   templateUrl: './dialog-terms-conditions.component.html',
   styleUrl: './dialog-terms-conditions.component.scss',
   animations: [fadeAnimation],

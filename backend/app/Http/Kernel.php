@@ -38,11 +38,11 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ],
 
         'api' => [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             \Illuminate\Routing\Middleware\ThrottleRequests::class . ':api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ],
@@ -74,5 +74,6 @@ class Kernel extends HttpKernel
         'check.api.key' => \App\Http\Middleware\CheckApiKey::class,
         'check.hmac' => \App\Http\Middleware\CheckHmac::class,
         'custom.ratelimit' => \App\Http\Middleware\CustomRateLimiter::class,
+        'token.expiration' => \App\Http\Middleware\TokenExpirationMiddleware::class,
     ];
 }

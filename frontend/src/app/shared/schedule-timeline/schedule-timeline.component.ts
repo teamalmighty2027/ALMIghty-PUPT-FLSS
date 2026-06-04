@@ -1,11 +1,19 @@
-import { Component, Input, OnInit } from '@angular/core';
+import {
+  Component,
+  Input,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
 
 interface TimeSlot {
   time: string;
   minutes: number;
 }
 
+// Step 1: Extended ScheduleBlock with program tracking.
 interface ScheduleBlock {
   day: string;
   startSlot: number;
@@ -15,9 +23,16 @@ interface ScheduleBlock {
   roomCode: string;
   facultyName: string;
   program: string;
+  programId?: number;
   yearLevel: number;
   section: string;
   offeringType?: string;
+  startTimeStr?: string;
+  endTimeStr?: string;
+  facultyId?: number;
+  roomId?: number;
+  combinedLabel?: string;
+  combinedWithProgramId?: number | null;
 }
 
 type Day =
@@ -35,7 +50,7 @@ type Day =
   templateUrl: './schedule-timeline.component.html',
   styleUrls: ['./schedule-timeline.component.scss'],
 })
-export class ScheduleTimelineComponent implements OnInit {
+export class ScheduleTimelineComponent implements OnInit, OnChanges {
   @Input() scheduleData: any;
   @Input() entity!: string;
 
@@ -51,9 +66,25 @@ export class ScheduleTimelineComponent implements OnInit {
   timeSlots: TimeSlot[] = [];
   scheduleBlocks: ScheduleBlock[] = [];
 
+  // Step 3: Injected ScheduleValidationService.
+  constructor(private scheduleValidationService: ScheduleValidationService) {}
+
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
+    this.detectCombinedSchedules();
+  }
+
+  // Handle input changes and reinitialize.
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['scheduleData']) {
+      if (this.timeSlots.length === 0) {
+        this.generateTimeSlots();
+      }
+      this.scheduleBlocks = [];
+      this.processScheduleData();
+      this.detectCombinedSchedules();
+    }
   }
 
   private generateTimeSlots() {
@@ -71,7 +102,9 @@ export class ScheduleTimelineComponent implements OnInit {
     if (Array.isArray(this.scheduleData) && this.scheduleData.length > 0) {
       this.scheduleData.forEach((schedule: any) => {
         if (schedule.start_time && schedule.end_time) {
-          const startTime = this.convertTimeToMinutes(schedule.start_time);
+          const startTime = this.convertTimeToMinutes(
+            schedule.start_time
+          );
           const endTime = this.convertTimeToMinutes(schedule.end_time);
           const startSlot = this.findTimeSlotIndex(startTime);
           const duration = Math.ceil((endTime - startTime) / 30);
@@ -87,9 +120,15 @@ export class ScheduleTimelineComponent implements OnInit {
             roomCode: schedule.room_code,
             facultyName: schedule.faculty_name,
             program: schedule.program_code,
+            programId: schedule.program_id,
             yearLevel: schedule.year_level,
             section: schedule.section_name,
             offeringType: schedule.course_details.offering_type,
+            startTimeStr: schedule.start_time,
+            endTimeStr: schedule.end_time,
+            facultyId: schedule.faculty_id,
+            roomId: schedule.room?.room_id || null,
+            combinedWithProgramId: schedule.combined_with_program_id || null,
           });
         } else {
           return;
@@ -101,6 +140,64 @@ export class ScheduleTimelineComponent implements OnInit {
         this.scheduleData
       );
     }
+  }
+
+  // Step 2: Detect exact matches and assign combined labels.
+  private detectCombinedSchedules(): void {
+    // Group blocks by (day, startSlot, endSlot, facultyId, roomId)
+    const groupKey = new Map<
+      string,
+      { blocks: ScheduleBlock[]; programs: Set<string> }
+    >();
+
+    this.scheduleBlocks.forEach((block) => {
+      const key = `${block.day}|${block.startSlot}|${
+        block.startSlot + block.duration
+      }|${block.facultyId || 'null'}|${block.roomId || 'null'}`;
+
+      if (!groupKey.has(key)) {
+        groupKey.set(key, { blocks: [], programs: new Set() });
+      }
+
+      const group = groupKey.get(key)!;
+      group.blocks.push(block);
+      group.programs.add(block.program);
+    });
+
+    // For groups with 2+ different programs, assign combined label.
+    groupKey.forEach((group) => {
+      if (group.programs.size >= 2) {
+        const programArray = Array.from(group.programs);
+        const [codeA, codeB] = programArray.slice(0, 2);
+        const combinedLabel =
+          this.scheduleValidationService.buildCombinedLabel(
+            codeA,
+            codeB
+          );
+
+        group.blocks.forEach((block) => {
+          block.combinedLabel = combinedLabel;
+          // Store reference to other program
+          if (block.program !== codeA) {
+            block.combinedWithProgramId = this.getProgamIdByCode(
+              codeA
+            );
+          } else {
+            block.combinedWithProgramId = this.getProgamIdByCode(
+              codeB
+            );
+          }
+        });
+      }
+    });
+  }
+
+  // Helper to get program ID by code.
+  private getProgamIdByCode(programCode: string): number | null {
+    const block = this.scheduleBlocks.find(
+      (b) => b.program === programCode
+    );
+    return block?.programId || null;
   }
 
   private convertTimeToMinutes(time: string): number {

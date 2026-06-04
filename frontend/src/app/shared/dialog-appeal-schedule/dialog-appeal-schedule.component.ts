@@ -234,34 +234,43 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     }
   }
 
-  // Add event handler for file selection
   onFileSelected(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
-      // Validate file type (PDF only)
-      if (file.type !== 'application/pdf') {
-        this.snackBar.open('Please upload a PDF file only.', 
-          'Close', { duration: 3000 }
-        );
-        event.target.value = '';
-        return;
-      }
+  const file = event.target.files[0];
+  if (!file) return;
 
-      // Validate file size (max 2MB)
-      const maxSize = 2 * 1024 * 1024; 
-      if (file.size > maxSize) {
-        this.snackBar.open('File size must be less than 2MB.', 
-          'Close', { duration: 3000 }
-        );
-        event.target.value = '';
-        return;
-      }
+  // 1. Basic Type Check
+  if (file.type !== 'application/pdf') {
+    this.snackBar.open('Please upload a PDF file only.', 'Close', { duration: 3000 });
+    return;
+  }
 
+  // 2. Size Check (2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    this.snackBar.open('File size must be less than 2MB.', 'Close', { duration: 3000 });
+    return;
+  }
+
+  // 3. "Magic Number" Header Check (Local Sanity Check)
+  // This reads the first 4 bytes of the file to see if it actually starts with '%PDF'
+  const reader = new FileReader();
+  reader.onloadend = (e: any) => {
+    const arr = (new Uint8Array(e.target.result)).subarray(0, 4);
+    let header = "";
+    for (let i = 0; i < arr.length; i++) {
+       header += String.fromCharCode(arr[i]);
+    }
+    
+    if (header !== "%PDF") {
+      this.snackBar.open('Invalid PDF content detected.', 'Close', { duration: 3000 });
+      this.removeFile();
+    } else {
       this.selectedFile = file;
       this.selectedFileName = file.name;
       this.appealForm.patchValue({ appealFile: file });
     }
-  }
+  };
+  reader.readAsArrayBuffer(file);
+}
 
   // Remove selected file button handler
   removeFile(): void {
@@ -293,45 +302,58 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Submit the appeal form button handler
   onSubmit(): void {
-    this.dialogRef.close();
-    this.snackBar.open('Submitting your appeal...', '', { duration: 2000 });
-
-    if (this.appealForm.valid) {
-      // Validate end time is after start time
-      const startTime = this.appealForm.value.appealStartTime;
-      const endTime = this.appealForm.value.appealEndTime;
-      
-      if (this.compareTimeStrings(startTime, endTime) >= 0) {
-        this.snackBar.open('End time must be after start time.');
-        return;
-      }
-
-      this.reschedulingService.submitReschedulingAppeal(
-        this.data.original.scheduleId,
-        this.selectedFile,
-        this.appealForm.value.reason,
-        {
-          day: this.appealForm.value.appealDay,
-          startTime: this.appealForm.value.appealStartTime,
-          endTime: this.appealForm.value.appealEndTime,
-          roomCode: this.appealForm.value.appealRoom
-        },          
-      )
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: (response) => {
-            this.snackBar.open(response.message || 'Appeal submitted successfully.', 
-              'Close', {duration: 3000,}
-            );
-          },
-          error: (error) => {
-            console.error('Appeal error:', JSON.stringify(error));
-            this.snackBar.open(error.message, 
-              'Close', {duration: 3000,}
-            );
-          }
-        });
+    if (!this.appealForm.valid) {
+      this.appealForm.markAllAsTouched();
+      return;
     }
+
+    const startTime = this.appealForm.value.appealStartTime;
+    const endTime = this.appealForm.value.appealEndTime;
+    
+    if (this.compareTimeStrings(startTime, endTime) >= 0) {
+      this.snackBar.open('End time must be after start time.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    // Show submitting message
+    this.snackBar.open(
+      'Submitting appeal...', 
+      'Close', { duration: 5000 }
+    );
+
+    // Disable submit button
+    this.appealForm.disable();
+
+    // Submit in background
+    this.reschedulingService.submitReschedulingAppeal(
+      this.data.original.scheduleId,
+      this.selectedFile,
+      this.appealForm.value.reason,
+      {
+        day: this.appealForm.value.appealDay,
+        startTime: this.appealForm.value.appealStartTime,
+        endTime: this.appealForm.value.appealEndTime,
+        roomCode: this.appealForm.value.appealRoom
+      },          
+    )
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response) => {
+        this.snackBar.open(
+          response.message || 'Appeal submitted successfully.', 
+          'Close', { duration: 3000 }
+        );
+        this.dialogRef.close(true);
+      },
+      error: (error) => {
+        console.error('Appeal error:', error);
+        this.snackBar.open(
+          error?.error?.message || 'Failed to submit appeal. Please try again.', 
+          'Close', { duration: 3000 }
+        );
+        this.appealForm.enable();
+      }
+    });
   }
 
   /**

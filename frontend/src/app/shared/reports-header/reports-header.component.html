@@ -1,6 +1,5 @@
 <div class="header-wrapper">
   <div class="header-container">
-  <!-- Search Input -->
   <form [formGroup]="form" class="input-container">
     @for (field of inputFields; track field.key) { @if (field.type === 'text') {
     <mat-form-field
@@ -52,7 +51,6 @@
   @if (showTermFilter) {
   <div class="term-filter-container">
     <div class="term-filter-flex">
-      <span class="term-filter-label">Academic Term:</span>
       <mat-form-field
         appearance="fill"
         class="term-filter-dropdown"
@@ -74,7 +72,6 @@
   </div>
   }
 
-  <!--Objects-->
   @if (showActiveYearAndSem) {
   <div class="object-container">
     <div
@@ -88,10 +85,18 @@
   </div>
   }
 
-  <!--Buttons-->
   @if (showButtons) {
   <div class="button-container">
-    <!-- Export to PDF Button -->
+    
+    @if (showExportByProgramButton) {
+      <span class="tooltip-container" [matTooltip]="tooltipMessage" [matTooltipDisabled]="!buttonDisabled">
+        <button mat-flat-button class="ter-ripple custom-mat-button export-program" (click)="onExportByProgram()" [disabled]="buttonDisabled" [ngClass]="{ 'disabled-button': buttonDisabled }">
+          <mat-icon>import_contacts</mat-icon>
+          <span>Export by Program</span>
+        </button>
+      </span>
+    }
+
     @if (showExportButton) {
     <span
       class="tooltip-container"
@@ -109,7 +114,6 @@
     </span>
     }
 
-    <!-- Add Button -->
     @if (showAddButton) {
     <button
       mat-flat-button

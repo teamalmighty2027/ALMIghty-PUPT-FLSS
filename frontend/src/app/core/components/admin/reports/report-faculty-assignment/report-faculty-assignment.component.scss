@@ -1,0 +1,34 @@
+.pdf-viewer-container {
+   height: calc(100vh - 200px); /* Or height: 100%; depending on your layout */
+}
+
+/* ensure the main dialog container stretches */
+.mat-mdc-dialog-content {
+  max-height: none !important; /* Override material default if necessary */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-viewer-container {
+   height: 100% !important;
+   flex-grow: 1;
+   display: flex;
+   flex-direction: column;
+}
+
+/* Ensure the actual PDF object/iframe fills its parent */
+pdf-viewer, 
+iframe, 
+embed, 
+object {
+  width: 100%;
+  height: 100% !important;
+  flex-grow: 1;
+}
+
+/* Ensure the Table view also fills the space and scrolls if needed */
+.table-responsive-container { /* Replace with your table's wrapper class */
+  flex-grow: 1;
+  overflow: auto;
+}

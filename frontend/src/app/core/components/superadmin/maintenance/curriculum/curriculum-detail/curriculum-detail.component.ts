@@ -10,6 +10,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { TableGenericComponent } from '../../../../../../shared/table-generic/table-generic.component';
 import { TableHeaderComponent, InputField } from '../../../../../../shared/table-header/table-header.component';
+import { DialogGenericComponent } from '../../../../../../shared/dialog-generic/dialog-generic.component';
 import {
   TableDialogComponent,
   DialogConfig,
@@ -29,6 +30,9 @@ import {
   CourseRequirement,
   CourseWithRequirements,
   CourseRequirementLink,
+  Elective,
+  CurriculumElective,
+  CurriculumElectivesResponse,
 } from '../../../../../services/superadmin/curriculum/curriculum.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
@@ -42,13 +46,19 @@ interface TableCell {
   colSpan?: number;
 }
 
+interface ElectiveSlotSelection {
+  slotName: string;
+  options: Elective[];
+}
+
 @Component({
   selector: 'app-curriculum-detail',
+  standalone: true,
   imports: [
     CommonModule,
     TableGenericComponent,
     TableHeaderComponent,
-    LoadingComponent,
+    LoadingComponent
   ],
   templateUrl: './curriculum-detail.component.html',
   styleUrls: ['./curriculum-detail.component.scss'],
@@ -76,6 +86,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public bridgingCourses: Array<
     BridgingCourse & { pre_req: string; co_req: string }
   > = [];
+  public isLoadingElectives: boolean = false;
+  public electiveSlots: ElectiveSlotSelection[] = [];
+
+  private electiveVariants: Record<string, Elective[]> = {};
+  private electivesLoadedForYear: string | null = null;
 
   headerInputFields: InputField[] = [];
 
@@ -177,6 +192,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             this.updateRenderGroups();
             this.updateCustomExportOptions();
             this.loadBridgingCourses();
+            this.loadElectiveData(year);
             this.cdr.markForCheck();
           }
           this.isLoading = false;
@@ -333,6 +349,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
 
     this.renderGroups = groups;
+    this.updateElectiveSlots();
     this.cdr.detectChanges();
   }
 
@@ -464,6 +481,223 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ===========================
+  // Elective Pool Management
+  // ===========================
+
+  /**
+   * Load the masterlist of electives (the pool).
+   */
+  private loadElectiveData(curriculumYear: string): void {
+    if (this.electivesLoadedForYear === curriculumYear) {
+      this.updateElectiveSlots();
+      return;
+    }
+
+    this.isLoadingElectives = true;
+
+    // We only fetch the available options now, not assignments.
+    this.curriculumService.getElectives().pipe(
+      finalize(() => (this.isLoadingElectives = false)),
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (variants) => {
+        this.electiveVariants = variants;
+        this.electivesLoadedForYear = curriculumYear;
+        this.updateElectiveSlots();
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.snackBar.open('Error loading electives. Please try again.', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  /**
+   * Update the elective slots based on the current filters.
+   */
+  private updateElectiveSlots(): void {
+    if (!this.curriculum || !this.canManageElectives) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const program = this.getSelectedProgramData();
+    const yearLevel = Number(this.selectedYear);
+    const semesterValue = Number(this.selectedSemester);
+
+    if (!program) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const yearLevelData = this.getSelectedYearLevelData(program, yearLevel);
+    const semesterData = yearLevelData ? this.getSelectedSemesterData(yearLevelData, semesterValue) : undefined;
+
+    if (!yearLevelData || !semesterData) {
+      this.electiveSlots = [];
+      return;
+    }
+
+    const slotNames = this.getElectiveSlotsFromCourses(semesterData.courses);
+
+    this.electiveSlots = slotNames.map((slotName) => {
+      return {
+        slotName,
+        options: this.electiveVariants[slotName] || [],
+      };
+    });
+  }
+
+  /**
+   * Detect elective slot names from the curriculum courses.
+   */
+  private getElectiveSlotsFromCourses(courses: Course[]): string[] {
+    const slotNames = new Set<string>();
+
+    courses.forEach((course) => {
+      if (course.course_title.toLowerCase().includes('elective') || course.course_code.toLowerCase().includes('elective')) {
+        slotNames.add(course.course_title.trim()); 
+      }
+    });
+
+    return Array.from(slotNames.values()).sort((a, b) => a.localeCompare(b));
+  }
+
+  /**
+   * Open Dialog to Add an Option to the Pool
+   */
+  openManageElectiveDialog(slotName: string) {
+    const dialogConfig: DialogConfig = {
+      title: `Add Option for ${slotName}`,
+      isEdit: false,
+      fields: [
+        { label: 'Course Code', formControlName: 'course_code', type: 'text', maxLength: 50, required: true },
+        { label: 'Course Title', formControlName: 'course_title', type: 'text', maxLength: 100, required: true },
+        { label: 'Lecture Hours', formControlName: 'lec_hours', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Laboratory Hours', formControlName: 'lab_hours', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Units', formControlName: 'units', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Tuition Hours', formControlName: 'tuition_hours', type: 'number', min: 0, maxLength: 2, required: true },
+      ],
+      initialValue: {}
+    };
+
+    const dialogRef = this.dialog.open(TableDialogComponent, {
+      data: dialogConfig,
+      disableClose: true,
+      autoFocus: true
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        const payload = {
+          ...result,
+          elective_slot_name: slotName
+        };
+
+        // Call the service to save it to the database
+        this.curriculumService.addElectiveOption(payload).subscribe({
+          next: () => {
+            this.snackBar.open('Elective option added successfully!', 'Close', { duration: 3000 });
+            // Force a refresh of the pool
+            this.electivesLoadedForYear = null; 
+            this.loadElectiveData(this.curriculum!.curriculum_year.toString());
+          },
+          error: (err) => {
+            console.error(err);
+            this.snackBar.open('Error adding elective.', 'Close', { duration: 3000 });
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Open Dialog to Edit an existing Option
+   */
+  openEditElectiveDialog(slotName: string, option: Elective) {
+    const dialogConfig: DialogConfig = {
+      title: `Edit Option for ${slotName}`,
+      isEdit: true,
+      fields: [
+        { label: 'Course Code', formControlName: 'course_code', type: 'text', maxLength: 50, required: true },
+        { label: 'Course Title', formControlName: 'course_title', type: 'text', maxLength: 100, required: true },
+        { label: 'Lecture Hours', formControlName: 'lec_hours', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Laboratory Hours', formControlName: 'lab_hours', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Units', formControlName: 'units', type: 'number', min: 0, maxLength: 2, required: true },
+        { label: 'Tuition Hours', formControlName: 'tuition_hours', type: 'number', min: 0, maxLength: 2, required: true },
+      ],
+      initialValue: {
+        course_code: option.course_code,
+        course_title: option.course_title,
+        lec_hours: option.lec_hours,
+        lab_hours: option.lab_hours,
+        units: option.units,
+        tuition_hours: option.tuition_hours
+      }
+    };
+
+    const dialogRef = this.dialog.open(TableDialogComponent, {
+      data: dialogConfig,
+      disableClose: true,
+      autoFocus: true
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        // Call the service to update it in the database
+        this.curriculumService.updateElectiveOption(option.elective_id, result).subscribe({
+          next: () => {
+            this.snackBar.open('Elective option updated successfully!', 'Close', { duration: 3000 });
+            // Force a refresh of the pool
+            this.electivesLoadedForYear = null; 
+            this.loadElectiveData(this.curriculum!.curriculum_year.toString());
+          },
+          error: (err) => {
+            console.error(err);
+            this.snackBar.open('Error updating elective.', 'Close', { duration: 3000 });
+          }
+        });
+      }
+    });
+  }
+
+  /**
+   * Delete an Option from the Pool (Using Material Dialog)
+   */
+  deleteElectiveOption(electiveId: number) {
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      width: '400px',
+      disableClose: true,
+      data: {
+        title: 'Remove Elective Option',
+        content: 'Are you sure you want to remove this elective from the pool? It will no longer be available for scheduling.',
+        actionText: 'Remove',
+        cancelText: 'Cancel',
+        action: 'Remove',
+      },
+      autoFocus: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result) {
+        // User clicked "Remove", proceed with API call
+        this.curriculumService.deleteElectiveOption(electiveId).subscribe({
+            next: () => {
+                this.snackBar.open('Elective removed.', 'Close', { duration: 3000 });
+                // Force a refresh of the pool
+                this.electivesLoadedForYear = null;
+                this.loadElectiveData(this.curriculum!.curriculum_year.toString());
+            },
+            error: (err) => {
+                console.error(err);
+                this.snackBar.open('Error removing elective.', 'Close', { duration: 3000 });
+            }
+        });
+      }
+    });
+  }
+
   onInputChange(values: { [key: string]: any }) {
     let refreshBridging = false;
     let needsRender = false;
@@ -483,6 +717,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       needsRender = true;
       if (this.selectedCategory === 'Bridging') {
         refreshBridging = true;
+        this.electiveSlots = [];
       }
     }
 
@@ -651,6 +886,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
   get canManageBridgingCourses(): boolean {
     return (!!this.curriculum && this.selectedProgram !== 'All' && this.selectedYear !== 'All' && this.selectedSemester !== 'All');
+  }
+
+  get canManageElectives(): boolean {
+    return (
+      !!this.curriculum &&
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    );
   }
 
   get bridgingHeading(): string {
@@ -1109,7 +1353,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           return `${base}${cat}_${this.curriculum?.curriculum_year}.pdf`;
         },
 
-        // NEW: Excel Function 
         generateExcelFunction: async () => {
           const excelBlob = await this.generateExcel(exportAll);
           const base = exportAll ? 'All_Programs' : 'Curriculum';

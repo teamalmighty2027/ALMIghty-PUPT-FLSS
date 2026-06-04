@@ -6,85 +6,113 @@
   <div class="dialog-content">
     <!-- Main Action Text -->
     @if (!showReportOptions) {
-    <div class="main-text">
-      <strong>{{ actionText }}</strong>
+      <div class="main-text">
+        <strong>{{ actionText }}</strong>
 
-      <span>
-        {{
-          data.type === "all_publish"
-            ? "official load and schedule for all active faculty members this"
-            : data.type === "single_publish"
-            ? "official load and schedule for"
-            : "generate and download schedule reports for"
-        }}
+        <span>
+          {{
+            data.type === "all_publish"
+              ? "official load and schedule for all active faculty members this"
+              : data.type === "single_publish"
+                ? "official load and schedule for"
+                : "generate and download schedule reports for"
+          }}
 
-        {{ data.type.includes("single") ? data.facultyName + " this" : "" }}
+          {{ data.type.includes("single") ? data.facultyName + " this" : "" }}
 
-        A.Y. {{ data.academicYear }}, {{ data.semester }}.
-      </span>
-    </div>
+          A.Y. {{ data.academicYear }}, {{ data.semester }}.
+        </span>
+      </div>
+
+      @if (data.isMismatchedSemester) {
+        <div class="warning-text">
+          <span mat-symbol="warning"></span>
+          <span>
+            <strong>Warning:</strong> The scheduling semester (A.Y.
+            {{ data.academicYear }}, {{ data.semester }}) is different from the
+            faculty view semester. Publishing will update schedules for the
+            scheduling semester, which faculty are not currently viewing.
+          </span>
+        </div>
+      }
+
+      @if (data.incompleteScheduleWarning) {
+        <div class="warning-text">
+          <span mat-symbol="warning"></span>
+          <span>
+            <strong>Warning:</strong> Not all faculties have schedule assigned!
+            Do you wish to publish the rest?
+          </span>
+        </div>
+      }
     }
 
     <!-- Seondary Text Section -->
     @if (data.hasSecondaryText) {
-    <div class="secondary-text">
-      For a more specific view and download of reports, go to the
-      <a class="link" [routerLink]="navigationLink" (click)="closeDialog()">
-        {{ linkText }}
-      </a>
-      <span> page.</span>
-    </div>
+      <div class="secondary-text">
+        For a more specific view and download of reports, go to the
+        <a class="link" [routerLink]="navigationLink" (click)="closeDialog()">
+          {{ linkText }}
+        </a>
+        <span> page.</span>
+      </div>
     }
 
     <!-- Report Options Section -->
     @if (showReportOptions) {
-    <div class="main-text">
-      This will <strong>print and download</strong> an official copy of the
-      schedule reports for this semester. Select at least one from the
-      following:
-    </div>
+      <div class="main-text">
+        This will <strong>print and download</strong> an official copy of the
+        schedule reports for this semester. Select at least one from the
+        following:
+      </div>
 
-    <div class="checkbox-container reports">
-      <mat-checkbox [(ngModel)]="reportOptions.faculty" class="report-checkbox">
-        <span class="checkbox-content">
-          <span mat-symbol="groups"></span>
-          <span>Faculty Schedule Report</span>
-        </span>
-      </mat-checkbox>
+      <div class="checkbox-container reports">
+        <mat-checkbox
+          [(ngModel)]="reportOptions.faculty"
+          class="report-checkbox"
+        >
+          <span class="checkbox-content">
+            <span mat-symbol="groups"></span>
+            <span>Faculty Schedule Report</span>
+          </span>
+        </mat-checkbox>
 
-      <mat-checkbox
-        [(ngModel)]="reportOptions.programs"
-        class="report-checkbox"
-      >
-        <span class="checkbox-content">
-          <span mat-symbol="school"></span>
-          <span>Programs Schedule Report</span>
-        </span>
-      </mat-checkbox>
+        <mat-checkbox
+          [(ngModel)]="reportOptions.programs"
+          class="report-checkbox"
+        >
+          <span class="checkbox-content">
+            <span mat-symbol="school"></span>
+            <span>Programs Schedule Report</span>
+          </span>
+        </mat-checkbox>
 
-      <mat-checkbox [(ngModel)]="reportOptions.rooms" class="report-checkbox">
-        <span class="checkbox-content">
-          <span mat-symbol="meeting_room"></span>
-          <span>Rooms Schedule Report</span>
-        </span>
-      </mat-checkbox>
-    </div>
+        <mat-checkbox [(ngModel)]="reportOptions.rooms" class="report-checkbox">
+          <span class="checkbox-content">
+            <span mat-symbol="meeting_room"></span>
+            <span>Rooms Schedule Report</span>
+          </span>
+        </mat-checkbox>
+      </div>
     }
 
     <!-- Email Notification Section -->
     @if (showEmailOption && !data.currentState) {
-    <div class="checkbox-container email">
-      <mat-checkbox [(ngModel)]="sendEmail" class="email-checkbox">
-        <span class="checkbox-content">
-          <span mat-symbol="email"></span>
-          <span>
-            Send email to @if (data.type === 'single_publish') {
-            {{ data.facultyName }}
-            } @else { all faculty members }
+      <div class="checkbox-container email">
+        <mat-checkbox [(ngModel)]="sendEmail" class="email-checkbox">
+          <span class="checkbox-content">
+            <span mat-symbol="email"></span>
+            <span>
+              Send email to
+              @if (data.type === "single_publish") {
+                {{ data.facultyName }}
+              } @else {
+                all faculty members
+              }
+            </span>
           </span>
-        </span>
-      </mat-checkbox>
-    </div>
+        </mat-checkbox>
+      </div>
     }
   </div>
 
@@ -109,12 +137,15 @@
       "
       [ngClass]="{
         'disabled-button':
-          isProcessing || (data.type === 'reports' && !isReportSelectionValid())
+          isProcessing ||
+          (data.type === 'reports' && !isReportSelectionValid()),
       }"
     >
       @if (isProcessing) {
-      <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
-      } @else { Confirm }
+        <mat-spinner class="custom-spinner" diameter="25"></mat-spinner>
+      } @else {
+        Confirm
+      }
     </button>
   </div>
 </div>

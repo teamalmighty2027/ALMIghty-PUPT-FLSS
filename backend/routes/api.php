@@ -8,10 +8,12 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\FacultyProfileController;
+use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
 use App\Http\Controllers\LogoController;
@@ -27,10 +29,11 @@ use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SemesterController;
 use App\Http\Controllers\TemporaryCourseOfferingController;
-
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |----------------------------
@@ -44,6 +47,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
 });
 
 /**
@@ -58,6 +62,15 @@ Route::prefix('auth')->group(function () {
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [PasswordResetController::class, 'reset']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Fallback route for Philippine Addresses (Publicly accessible)
+Route::get('/addresses/fallback/{file}', function ($file) {
+    if (!Storage::disk('public')->exists('addresses/' . $file)) {
+        return response()->json([], 404);
+    }
+    $content = Storage::disk('public')->get('addresses/' . $file);
+    return response()->json(json_decode($content));
+});
 
 /*
 |-----------------------------
@@ -98,6 +111,10 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
     Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
     Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
+    Route::patch(
+        '/bridging-courses/{id}/combine',
+        [BridgingCourseController::class, 'combine']
+    );
 });
 
 /*
@@ -116,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/update-academic-year', [AcademicYearController::class, 'updateAcademicYear']);
     Route::get('/get-active-year-semester', [AcademicYearController::class, 'getActiveAcademicYearAndSemester']);
     Route::post('/set-active-year-semester', [AcademicYearController::class, 'setActiveAcademicYearAndSemester']);
+    Route::post('/set-faculty-view-semester', [AcademicYearController::class, 'setFacultyViewSemester']);
     Route::post('/fetch-ay-prog-details', [AcademicYearController::class, 'getProgramDetailsByAcademicYear']);
     Route::get('/active-year-levels-curricula', [AcademicYearController::class, 'getActiveYearLevelsCurricula']);
     Route::post('/update-yr-lvl-curricula', [AcademicYearController::class, 'updateYearLevelCurricula']);
@@ -167,6 +185,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/curricula-details/{curriculumYear}/', [CurriculumDetailsController::class, 'getCurriculumDetails']);
 
     /**
+     * Electives
+     */
+    Route::get('/electives', [ElectiveController::class, 'index']);
+    Route::post('/electives', [ElectiveController::class, 'storeElective']);           
+    Route::put('/electives/{id}', [ElectiveController::class, 'updateElective']);
+    Route::delete('/electives/{id}', [ElectiveController::class, 'destroyElective']);  
+    Route::get('/electives/{slotName}', [ElectiveController::class, 'showBySlot']);
+    Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
+    Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
+    Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
+    Route::post('/academic-year-electives', [ElectiveController::class, 'storeAcademicYearElective']);
+    Route::get('/academic-year/{academicYearId}/electives', [ElectiveController::class, 'getAcademicYearElectives']);
+
+    
+
+    /**
      * Email
      */
     Route::post('/email-all-faculty-pref-submitted', [EmailController::class, 'emailPrefSubmitted']);
@@ -177,9 +211,12 @@ Route::middleware('auth:sanctum')->group(function () {
      * Faculty
      */
     Route::get('/faculty', [FacultyController::class, 'index']);
+    Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
+    Route::get('/admin/profile', [AdminProfileController::class, 'show']);
+    Route::put('/admin/profile', [AdminProfileController::class, 'update']);
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
@@ -233,6 +270,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
 
+    // In routes/api.php
+    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
+    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
+    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
+
+    Route::post('/rescheduling-appeals/reject-access', [RescheduleController::class, 'rejectAppealAccessRequest']);
+    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
+    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
+    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
+
+    Route::get('/rescheduling-appeals/{id}/download', [App\Http\Controllers\RescheduleController::class, 'downloadAppealDocument']);
+
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
@@ -262,7 +313,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
 
-
+    /**
+     * Analytics
+     */
+    Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
+        Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
+        Route::get('/room-utilization', [AnalyticsController::class, 'getRoomUtilization']);
+        Route::get('/faculty-load', [AnalyticsController::class, 'getFacultyLoadDistribution']);
+        Route::get('/faculty-type-composition', [AnalyticsController::class, 'getFacultyTypeComposition']);
+        Route::get('/appeal-activity', [AnalyticsController::class, 'getAppealActivity']);
+        Route::get('/program-coverage', [AnalyticsController::class, 'getProgramCoverage']);
+        Route::get('/semester-trends', [AnalyticsController::class, 'getSemesterTrends']);
+        Route::get('/optimal-slots', [AnalyticsController::class, 'getOptimalSlots']);
+        Route::get('/underutilized-rooms', [AnalyticsController::class, 'getUnderutilizedRooms']);
+        Route::get('/faculty-load-analysis', [AnalyticsController::class, 'getFacultyLoadAnalysis']);
+        Route::get('/conflict-risk', [AnalyticsController::class, 'getConflictRisk']);
+        Route::get('/program-laggards', [AnalyticsController::class, 'getProgramLaggards']);
+    });
 
     /**
      * Rooms
@@ -312,7 +379,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/ai-suggestion', [ScheduleController::class, 'getAISchedulingSuggestion']);
+    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
     Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
 
     /**
@@ -355,9 +422,22 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
+        // Legacy route (backward compatibility)
         Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
-        Route::get('/rooms', [ExternalController::class, 'roomsList']);
+
+        // RESTful faculty schedule routes
+        Route::prefix('faculty-schedules')->group(function () {
+            Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
+            Route::get('/temporary', [ExternalController::class, 'temporaryFacultySchedules']);
+        });
     });
+
+    /**
+     * Rooms endpoint, shared by multiple systems
+     */
+      Route::middleware(['check.hmac:fas,frrs'])->group(function () {
+          Route::get('/rooms', [ExternalController::class, 'roomsList']);
+      });
 
     /**
      * Faculty Reportorial Requirements System (FRRS)
@@ -376,7 +456,7 @@ Route::prefix('v1')->group(function () {
 
     /**
      * Biometric Synchronization System (BioSync)
-     * Deprecated Route
+     * ! Deprecated Route
      */
     // Route::middleware(['check.hmac:biosync'])->group(function () {
     //     Route::get('/computer-laboratory-schedules', [ExternalController::class, 'labSchedules']);
@@ -386,8 +466,7 @@ Route::prefix('v1')->group(function () {
 /**
  * Faculty Data Management and Evaluation System with Research Repository (FESR)
  * 
- * ⚠️ DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
- * TODO: Replace with new internal event synchronization system.
+ * ! DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
  */
 Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']); // Removed - use new event system
+// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']);

@@ -6,10 +6,236 @@
   } @else {
     <mat-tab-group
       [(selectedIndex)]="selectedTabIndex"
+      (selectedTabChange)="onTabChange($event)"
       animationDuration="250ms"
       class="reports-tab bottom-tabs"
       style="height: 100%; display: flex; flex-direction: column"
     >
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <div
+            class="tab-label"
+            style="display: flex; gap: 8px; align-items: center"
+          >
+            <mat-icon>event_available</mat-icon>
+            <span>Internal Arrangements</span>
+          </div>
+        </ng-template>
+
+        <div
+          class="tab-content-wrapper"
+          style="
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+          "
+        >
+          <div class="report-header-container" style="margin-bottom: 15px">
+            <app-reports-header
+              [(selectedTermId)]="selectedTermId"
+              [inputFields]="arrangementsInputFields"
+              [showExportButton]="true"
+              [showAddButton]="false"
+              (export)="onExportArrangements()"
+              (inputChange)="onArrangementsInputChange($event)"
+              (termChange)="onTermChange()"
+              [buttonDisabled]="!hasAnyArrangements"
+            ></app-reports-header>
+          </div>
+
+          <div class="report-table-container">
+            <div class="table-container">
+              <table
+                mat-table
+                [dataSource]="arrangementsDataSource"
+                class="custom-table"
+              >
+                <ng-container matColumnDef="index">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header index"
+                  >
+                    #
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element; let i = index"
+                    class="index"
+                  >
+                    <span>{{ getArrangementRowIndex(i) }}</span>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="facultyName">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Name
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell max-cell"
+                    style="text-align: left"
+                  >
+                    {{ element.facultyName }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="facultyCode">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Code
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.facultyCode }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="facultyType">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Faculty Type
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    <div
+                      class="faculty-type"
+                      [ngClass]="getFacultyTypeClass(element.facultyType)"
+                    >
+                      {{ element.facultyType }}
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="facultyUnits">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Load<br />(Units)
+                  </th>
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    {{ element.facultyUnits }}
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="allowAppeals">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header" style="text-align: center;">
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                      <mat-slide-toggle 
+                        [checked]="isAllAppealsEnabled"
+                        (change)="toggleAllAppeals($event)"
+                        class="header-toggle"
+                        matTooltip="Enable appeals submission for ALL faculty"
+                        matTooltipPosition="above">
+                      </mat-slide-toggle>
+                      
+                      <mat-icon 
+                        style="font-size: 16px; height: 16px; width: 16px; opacity: 0.8; cursor: help;"
+                        matTooltip="Toggle to instantly grant or revoke appeal access for all faculty members at once.">
+                        help_outline
+                      </mat-icon>
+                    </div>
+                  </th>
+                  
+                  <td mat-cell *matCellDef="let element" class="custom-cell">
+                    <div class="flex items-center justify-center gap-2" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                      
+                      <mat-slide-toggle 
+                        [checked]="element.isAppealEnabled"
+                        (change)="toggleAppealAccess(element, $event)"
+                        class="header-toggle"
+                        [matTooltip]="'Enable appeal submission for ' + element.facultyName + ' only'"
+                        matTooltipPosition="above">
+                      </mat-slide-toggle>
+                      
+                    </div>
+                  </td>
+                </ng-container>
+
+                <ng-container matColumnDef="action">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Action
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell action"
+                  >
+                    <span
+                      [matTooltip]="
+                        element.schedules.length === 0
+                          ? element.facultyName + ' has no schedules available'
+                          : ''
+                      "
+                      matTooltipDisabled="false"
+                    >
+                      <button
+                        mat-button
+                        class="sec-ripple view-button"
+                        (click)="viewFacultyArrangements(element)"
+                        [disabled]="element.schedules.length === 0"
+                        [ngClass]="{
+                          'disabled-button': element.schedules.length === 0,
+                        }"
+                      >
+                        <mat-icon>visibility</mat-icon
+                        ><span>View Schedule</span>
+                      </button>
+                    </span>
+
+                    <span
+                      [matTooltip]="
+                        element.schedules.length === 0
+                          ? element.facultyName + ' has no schedules available'
+                          : ''
+                      "
+                      matTooltipDisabled="false"
+                    >
+                      <button
+                        mat-button
+                        class="sec-ripple export-button"
+                        (click)="downloadFacultyArrangements(element)"
+                        [disabled]="element.schedules.length === 0"
+                        [ngClass]="{
+                          'disabled-button': element.schedules.length === 0,
+                        }"
+                      >
+                        <mat-icon>download</mat-icon><span>Download</span>
+                      </button>
+                    </span>
+                  </td>
+                </ng-container>
+
+                <tr mat-header-row *matHeaderRowDef="arrangementsColumns"></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: arrangementsColumns"
+                ></tr>
+
+                <tr *matNoDataRow>
+                  <td class="no-data-cell" colspan="7">
+                    <div class="flex-cell">
+                      <div class="no-data-text">
+                        <mat-icon>info</mat-icon>
+                        <span> No faculty found.</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                #arrangementsPaginator
+                class="custom-paginator"
+                [length]="arrangementsDataSource.data.length"
+                [pageSize]="25"
+                [pageSizeOptions]="[5, 10, 25, 50]"
+                [showFirstLastButtons]="true"
+                aria-label="Select page for arrangements"
+              >
+            </mat-paginator>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
       <mat-tab>
         <ng-template mat-tab-label>
           <div
@@ -183,197 +409,6 @@
           </div>
         </div>
       </mat-tab>
-
-      <mat-tab>
-        <ng-template mat-tab-label>
-          <div
-            class="tab-label"
-            style="display: flex; gap: 8px; align-items: center"
-          >
-            <mat-icon>event_available</mat-icon>
-            <span>Internal Arrangements</span>
-          </div>
-        </ng-template>
-
-        <div
-          class="tab-content-wrapper"
-          style="
-            background: #ffffff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-          "
-        >
-          <div class="report-header-container" style="margin-bottom: 15px">
-            <app-reports-header
-              [(selectedTermId)]="selectedTermId"
-              [inputFields]="arrangementsInputFields"
-              [showExportButton]="true"
-              [showAddButton]="false"
-              (export)="onExportArrangements()"
-              (inputChange)="onArrangementsInputChange($event)"
-              (termChange)="onTermChange()"
-              [buttonDisabled]="!hasAnyArrangements"
-            ></app-reports-header>
-          </div>
-
-          <div class="report-table-container">
-            <div class="table-container">
-              <table
-                mat-table
-                [dataSource]="arrangementsDataSource"
-                class="custom-table"
-              >
-                <ng-container matColumnDef="index">
-                  <th
-                    mat-header-cell
-                    *matHeaderCellDef
-                    class="custom-header index"
-                  >
-                    #
-                  </th>
-                  <td
-                    mat-cell
-                    *matCellDef="let element; let i = index"
-                    class="index"
-                  >
-                    <span>{{ getArrangementRowIndex(i) }}</span>
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="facultyName">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Faculty Name
-                  </th>
-                  <td
-                    mat-cell
-                    *matCellDef="let element"
-                    class="custom-cell max-cell"
-                    style="text-align: left"
-                  >
-                    {{ element.facultyName }}
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="facultyCode">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Faculty Code
-                  </th>
-                  <td mat-cell *matCellDef="let element" class="custom-cell">
-                    {{ element.facultyCode }}
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="facultyType">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Faculty Type
-                  </th>
-                  <td mat-cell *matCellDef="let element" class="custom-cell">
-                    <div
-                      class="faculty-type"
-                      [ngClass]="getFacultyTypeClass(element.facultyType)"
-                    >
-                      {{ element.facultyType }}
-                    </div>
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="facultyUnits">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Load<br />(Units)
-                  </th>
-                  <td mat-cell *matCellDef="let element" class="custom-cell">
-                    {{ element.facultyUnits }}
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Action
-                  </th>
-                  <td
-                    mat-cell
-                    *matCellDef="let element"
-                    class="custom-cell action"
-                  >
-                    <span
-                      [matTooltip]="
-                        element.schedules.length === 0
-                          ? element.facultyName + ' has no schedules available'
-                          : ''
-                      "
-                      matTooltipDisabled="false"
-                    >
-                      <button
-                        mat-button
-                        class="sec-ripple view-button"
-                        (click)="viewFacultyArrangements(element)"
-                        [disabled]="element.schedules.length === 0"
-                        [ngClass]="{
-                          'disabled-button': element.schedules.length === 0,
-                        }"
-                      >
-                        <mat-icon>visibility</mat-icon
-                        ><span>View Schedule</span>
-                      </button>
-                    </span>
-
-                    <span
-                      [matTooltip]="
-                        element.schedules.length === 0
-                          ? element.facultyName + ' has no schedules available'
-                          : ''
-                      "
-                      matTooltipDisabled="false"
-                    >
-                      <button
-                        mat-button
-                        class="sec-ripple export-button"
-                        (click)="downloadFacultyArrangements(element)"
-                        [disabled]="element.schedules.length === 0"
-                        [ngClass]="{
-                          'disabled-button': element.schedules.length === 0,
-                        }"
-                      >
-                        <mat-icon>download</mat-icon><span>Download</span>
-                      </button>
-                    </span>
-                  </td>
-                </ng-container>
-
-                <tr mat-header-row *matHeaderRowDef="arrangementsColumns"></tr>
-                <tr
-                  mat-row
-                  *matRowDef="let row; columns: arrangementsColumns"
-                ></tr>
-
-                <tr *matNoDataRow>
-                  <td class="no-data-cell" colspan="6">
-                    <div class="flex-cell">
-                      <div class="no-data-text">
-                        <mat-icon>info</mat-icon>
-                        <span> No faculty found.</span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-
-              <mat-paginator
-                #arrangementsPaginator
-                class="custom-paginator"
-                [length]="arrangementsDataSource.data.length"
-                [pageSize]="25"
-                [pageSizeOptions]="[5, 10, 25, 50]"
-                [showFirstLastButtons]="true"
-                aria-label="Select page for arrangements"
-              >
-              </mat-paginator>
-            </div>
-          </div>
-        </div>
-      </mat-tab>
     </mat-tab-group>
   }
 </div>
@@ -448,15 +483,14 @@
           <div class="doc-row">
             <mat-icon class="doc-icon">picture_as_pdf</mat-icon>
             <span class="doc-name">{{ selectedAppeal?.filePath }}</span>
-            <a
+            <button
               mat-icon-button
               class="doc-view-btn"
-              [href]="getFileUrl(selectedAppeal?.filePath)"
-              target="_blank"
-              rel="noopener"
+              (click)="downloadAppealDocument(selectedAppeal?.id, selectedAppeal?.facultyName || 'Faculty')"
+              matTooltip="Download Document"
             >
-              <mat-icon>open_in_new</mat-icon>
-            </a>
+              <mat-icon>download</mat-icon>
+            </button>
           </div>
         </div>
         <div class="reason-section">

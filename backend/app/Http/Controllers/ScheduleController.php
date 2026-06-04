@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\ProcessExternalScheduleChange;
 use App\Models\Schedule;
 use App\Models\SectionCourse;
 use App\Models\Room;
@@ -184,6 +183,7 @@ class ScheduleController extends Controller
                     'start_time' => $existingSchedule->start_time ?? 'Not set',
                     'end_time' => $existingSchedule->end_time ?? 'Not set',
                     'room_id' => $existingSchedule->room_id ?? null,
+                    'elective_id' => $existingSchedule->elective_id ?? null,
                 ],
                 'faculty_id' => $existingSchedule->faculty_id ?? null,
                 'faculty_email' => $facultyEmail,
@@ -371,8 +371,22 @@ class ScheduleController extends Controller
         } else if (!is_null($originalSectionCourse->temporary_course_offering_id)) {
             $temporaryMeta = DB::table('temporary_course_offerings as t')
                 ->join('courses as co', 't.course_id', '=', 'co.course_id')
-                ->where('t.temporary_course_offering_id', $originalSectionCourse->temporary_course_offering_id)
-                ->select('co.course_id', 'co.course_code', 'co.course_title', 'co.lec_hours', 'co.lab_hours', 'co.units', 'co.tuition_hours', 't.type', 't.status')
+                ->where(
+                    't.temporary_course_offering_id',
+                    $originalSectionCourse->temporary_course_offering_id
+                )
+                ->select(
+                    'co.course_id',
+                    'co.course_code',
+                    'co.course_title',
+                    'co.lec_hours',
+                    'co.lab_hours',
+                    'co.units',
+                    'co.tuition_hours',
+                    't.type',
+                    't.status',
+                    't.bridging_course_id'
+                )
                 ->first();
             $course = $temporaryMeta;
         } else {
@@ -403,11 +417,15 @@ class ScheduleController extends Controller
             'temporary_type' => $temporaryType,
             'temporary_status' => $temporaryStatus,
             'petition_required' => $petitionRequired,
+            'bridging_course_id' => $temporaryMeta
+                ? $temporaryMeta->bridging_course_id
+                : null,
             'schedule' => [
                 'schedule_id' => $newScheduleId,
                 'day' => 'Not set',
                 'start_time' => null,
                 'end_time' => null,
+                'elective_id' => null,
             ],
             'professor' => 'Not set',
             'faculty_id' => null,
@@ -517,6 +535,7 @@ class ScheduleController extends Controller
             'day' => 'nullable|string',
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
+            'elective_id' => 'nullable|exists:electives,elective_id',
         ]);
 
         if ($validator->fails()) {
@@ -551,6 +570,7 @@ class ScheduleController extends Controller
                 'day'        => $schedule->day,
                 'start_time' => $schedule->start_time,
                 'end_time'   => $schedule->end_time,
+                'elective_id' => $schedule->elective_id,
             ];
 
             // 2. APPLY UPDATES
@@ -559,6 +579,7 @@ class ScheduleController extends Controller
             $schedule->day = $request->input('day');
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
+            $schedule->elective_id = $request->input('elective_id');
             
             // 3. TRACK HUMAN READABLE CHANGES
             $changes = [];
@@ -589,6 +610,30 @@ class ScheduleController extends Controller
                 $oldTime = ($oldData['start_time'] && $oldData['end_time']) ? "{$oldData['start_time']} - {$oldData['end_time']}" : "None";
                 $newTime = ($schedule->start_time && $schedule->end_time) ? "{$schedule->start_time} - {$schedule->end_time}" : "None";
                 $changes[] = "Time: {$oldTime} → {$newTime}";
+            }
+
+            if ($oldData['elective_id'] != $schedule->elective_id) {
+                $oldElective = $oldData['elective_id']
+                    ? DB::table('electives')
+                        ->where('elective_id', $oldData['elective_id'])
+                        ->select('course_code', 'course_title')
+                        ->first()
+                    : null;
+                $newElective = $schedule->elective_id
+                    ? DB::table('electives')
+                        ->where('elective_id', $schedule->elective_id)
+                        ->select('course_code', 'course_title')
+                        ->first()
+                    : null;
+
+                $oldElectiveLabel = $oldElective
+                    ? "{$oldElective->course_code} - {$oldElective->course_title}"
+                    : 'None';
+                $newElectiveLabel = $newElective
+                    ? "{$newElective->course_code} - {$newElective->course_title}"
+                    : 'None';
+
+                $changes[] = "Elective: {$oldElectiveLabel} → {$newElectiveLabel}";
             }
 
             if (empty($changes)) {
@@ -696,7 +741,6 @@ class ScheduleController extends Controller
                     )
                     ->first() : null;
 
-                // If faculty exists, fetch the user and use the formatted_name
                 if ($faculty) {
                     $user = \App\Models\User::find($faculty->user_id);
                     $faculty->professor = $user->formatted_name;
@@ -728,6 +772,37 @@ class ScheduleController extends Controller
                 ->where('section_course_id', $section_course->section_course_id)
                 ->first();
 
+            $electiveTitle = null;
+            $electiveCode = null;
+            $electiveSlotName = null;
+
+            // Check current schedule first, then fall back to any sibling with elective_id
+            $electiveId = $schedule->elective_id ?? null;
+
+            if (!$electiveId) {
+                // Look for elective_id on any schedule sharing the same course_assignment_id
+                $sibling = DB::table('schedules')
+                    ->join('section_courses as sc', 'schedules.section_course_id', '=', 'sc.section_course_id')
+                    ->where('sc.course_assignment_id', $row->course_assignment_id)
+                    ->where('sc.sections_per_program_year_id', $section->sections_per_program_year_id)
+                    ->whereNotNull('schedules.elective_id')
+                    ->select('schedules.elective_id')
+                    ->first();
+                $electiveId = $sibling->elective_id ?? null;
+            }
+
+            if ($electiveId) {
+                $elective = DB::table('electives')
+                    ->where('elective_id', $electiveId)
+                    ->select('elective_slot_name', 'course_title', 'course_code')
+                    ->first();
+                if ($elective) {
+                    $electiveSlotName = $elective->elective_slot_name;
+                    $electiveTitle = $elective->course_title;
+                    $electiveCode  = $elective->course_code;
+                }
+            }
+
             if (!isset($sections[$sectionIndex]['courses'])) {
                 $sections[$sectionIndex]['courses'] = [];
             }
@@ -735,8 +810,8 @@ class ScheduleController extends Controller
             $sections[$sectionIndex]['courses'][] = [
                 'course_assignment_id' => $row->course_assignment_id,
                 'course_id' => $row->course_id,
-                'course_code' => $row->course_code,
-                'course_title' => $row->course_title,
+                'course_code' => $electiveCode  ?? $row->course_code,
+                'course_title' => $electiveTitle ?? $row->course_title,
                 'lec_hours' => $row->lec_hours,
                 'lab_hours' => $row->lab_hours,
                 'units' => $row->units,
@@ -746,6 +821,8 @@ class ScheduleController extends Controller
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
+                    'elective_id' => $schedule->elective_id ?? null,
+                    'elective_slot_name' => $electiveSlotName,
                 ],
                 'professor' => $faculty ? $faculty->professor : 'Not set',
                 'faculty_id' => $faculty ? $faculty->id : null,
@@ -777,12 +854,20 @@ class ScheduleController extends Controller
                     ->where('pylc.academic_year_id', $academicYearId);
             })
             ->leftJoin('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
+            ->leftJoin(
+                'bridging_courses as bc',
+                't.bridging_course_id',
+                '=',
+                'bc.bridging_course_id'
+            )
             ->where('t.academic_year_id', $academicYearId)
             ->where('t.semester_id', $semesterId)
             ->where('t.is_archived', 0)
             ->where('t.status', 'Approved')
             ->select(
                 't.temporary_course_offering_id',
+                't.bridging_course_id',
+                'bc.combined_with_program_id',
                 't.program_id',
                 't.year_level',
                 't.section_per_program_year_id',
@@ -952,6 +1037,7 @@ class ScheduleController extends Controller
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
+                    'elective_id' => $schedule->elective_id ?? null,
                 ],
                 'professor' => $faculty ? $faculty->professor : 'Not set',
                 'faculty_id' => $faculty ? $faculty->id : null,
@@ -964,6 +1050,9 @@ class ScheduleController extends Controller
                 'temporary_type' => $offering->type,
                 'temporary_status' => $offering->status,
                 'petition_required' => in_array($offering->type, ['petition', 'tutorial'], true),
+                'bridging_course_id' => $offering->bridging_course_id ?? null,
+                'combined_with_program_id' =>
+                    $offering->combined_with_program_id ?? null,
                 'is_copy' => $section_course->is_copy,
                 'section_course_id' => $section_course->section_course_id,
             ];
@@ -1114,9 +1203,6 @@ class ScheduleController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                // Dispatch external service job
-                ProcessExternalScheduleChange::dispatch('toggleAllSchedules', $validated['is_published']);
-
                 // ═══════════════════════════════════════════════════════
                 // AUDIT LOG: All Schedules Published/Unpublished
                 // ═══════════════════════════════════════════════════════
@@ -1219,8 +1305,6 @@ class ScheduleController extends Controller
                         'updated_at' => now(),
                     ]);
 
-                ProcessExternalScheduleChange::dispatch('toggleSingleSchedule', $validated['is_published'], $validated['faculty_id']);
-
                 // ═══════════════════════════════════════════════════════
                 // AUDIT LOG: Single Faculty Schedule Published/Unpublished
                 // ═══════════════════════════════════════════════════════
@@ -1263,16 +1347,19 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Get AI Scheduling Suggestions
+     * Get scheduling suggestions using a Multi-Tier Heuristic Fallback Strategy.
+     * @param Request $request [program_id, year_level, section_id, course_id]
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function getAISchedulingSuggestion(Request $request)
+    public function getHeuristicSchedulingSuggestion(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'program_id' => 'required|integer|exists:programs,program_id',
             'year_level' => 'required|integer',
             'section_id' => 'required|integer',
-            'course_id' => 'nullable|integer|exists:courses,course_id',
+            'course_id' => 'required|integer|exists:courses,course_id',
         ]);
+
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation Error',
@@ -1294,139 +1381,184 @@ class ScheduleController extends Controller
             return response()->json([
                 'message' => 'No active semester found',
                 'success' => false,
-                'errors' => ['active_semester' => ['No active semester found']],
             ], 404);
         }
 
-        $query = DB::table('preferences as p')
-            ->join('preference_days as pd', 'p.preferences_id', '=', 'pd.preference_id')
-            ->leftJoin('course_assignments as ca', 'p.course_assignment_id', '=', 'ca.course_assignment_id')
-            ->leftJoin('curricula_program as cp', 'ca.curricula_program_id', '=', 'cp.curricula_program_id')
-            ->leftJoin('section_courses as sc', 'ca.course_assignment_id', '=', 'sc.course_assignment_id')
-            ->leftJoin('sections_per_program_year as sp', 'sc.sections_per_program_year_id', '=', 'sp.sections_per_program_year_id')
-            ->leftJoin('semesters as s', 'ca.semester_id', '=', 's.semester_id')
-            ->leftJoin('year_levels as yl', 's.year_level_id', '=', 'yl.year_level_id')
-            ->leftJoin('temporary_course_offerings as tco', 'p.temporary_course_offering_id', '=', 'tco.temporary_course_offering_id')
-            ->leftJoin('sections_per_program_year as psp', 'p.sections_per_program_year_id', '=', 'psp.sections_per_program_year_id')
-            ->join('faculty as f', 'p.faculty_id', '=', 'f.id')
-            ->join('users as u', 'f.user_id', '=', 'u.id')
-            ->leftJoin('faculty_type as ft', 'f.faculty_type_id', '=', 'ft.faculty_type_id')
-            ->where('p.active_semester_id', $activeSemester->active_semester_id)
-            ->where('p.is_ignored', 0)
-            ->where(function ($q) use ($programId, $yearLevel, $sectionId, $activeSemester) {
-                $q->where(function ($q) use ($programId, $yearLevel, $sectionId) {
-                    $q->whereNotNull('p.course_assignment_id')
-                        ->where('cp.program_id', $programId)
-                        ->where('yl.year', $yearLevel)
-                        ->where(function ($q) use ($sectionId) {
-                            $q->where('sp.sections_per_program_year_id', $sectionId)
-                                ->orWhereNull('sp.sections_per_program_year_id');
-                        });
-                })->orWhere(function ($q) use ($programId, $yearLevel, $sectionId, $activeSemester) {
-                    $q->whereNotNull('p.temporary_course_offering_id')
-                        ->where('tco.program_id', $programId)
-                        ->where('tco.year_level', $yearLevel)
-                        ->where('p.sections_per_program_year_id', $sectionId)
-                        ->where(function ($q) use ($sectionId) {
-                            $q->where('tco.applies_to_all_sections', 1)
-                                ->orWhere('tco.section_per_program_year_id', $sectionId);
-                        })
-                        ->where('tco.academic_year_id', $activeSemester->academic_year_id)
-                        ->where('tco.semester_id', $activeSemester->semester_id)
-                        ->where('tco.is_archived', 0)
-                        ->where('tco.status', 'Approved');
-                });
-            });
+        // Tier 1: Historical "Course Experts" (Who taught this before?)
+        $suggestion = $this->tryHistoricalExperts($courseId, $activeSemester);
+        if ($suggestion) return $suggestion;
 
-        if (!is_null($courseId)) {
-            $query->where(function ($q) use ($courseId) {
-                $q->where('ca.course_id', $courseId)
-                    ->orWhere('tco.course_id', $courseId);
-            });
-        }
+        // Tier 2: Current Semester Preferences
+        $suggestion = $this->tryCurrentPreferences($courseId, $programId, $yearLevel, $sectionId, $activeSemester);
+        if ($suggestion) return $suggestion;
 
-        $query->select(
-            'p.preferences_id',
-            'p.faculty_id',
-            'p.course_assignment_id',
-            'p.temporary_course_offering_id',
-            DB::raw('COALESCE(ca.course_id, tco.course_id) as course_id'),
-            'p.created_at as submitted_at',
-            'pd.preferred_day',
-            'pd.preferred_start_time',
-            'pd.preferred_end_time',
-            'f.id as faculty_id',
-            'u.first_name',
-            'u.last_name',
-            'u.middle_name',
-            'ft.faculty_type'
-        )
-        ->selectRaw('(SELECT COUNT(*) FROM schedules s WHERE s.faculty_id = p.faculty_id AND s.day IS NOT NULL) AS assigned_count')
-        ->selectRaw('EXISTS (
-                SELECT 1
-                FROM preferences px
-                JOIN course_assignments cax ON px.course_assignment_id = cax.course_assignment_id
-                JOIN curricula_program cpx ON cax.curricula_program_id = cpx.curricula_program_id
-                WHERE px.faculty_id = p.faculty_id
-                  AND px.course_assignment_id = p.course_assignment_id
-                  AND cpx.program_id != cp.program_id
-            ) AS has_other_program_preference')
-        ->selectRaw("
-                (
-                    (SELECT COUNT(*) FROM schedules s2 WHERE s2.faculty_id = p.faculty_id AND s2.day IS NOT NULL) * 1000
-                    + (CASE WHEN EXISTS (
-                        SELECT 1
-                        FROM preferences px2
-                        JOIN course_assignments cax2 ON px2.course_assignment_id = cax2.course_assignment_id
-                        JOIN curricula_program cpx2 ON cax2.curricula_program_id = cpx2.curricula_program_id
-                        WHERE px2.faculty_id = p.faculty_id
-                          AND px2.course_assignment_id = p.course_assignment_id
-                          AND cpx2.program_id != cp.program_id
-                    ) THEN 1000000 ELSE 0 END)
-                    + (CASE LOWER(ft.faculty_type)
-                        WHEN 'full-time' THEN 0
-                        WHEN 'designee'  THEN 10
-                        WHEN 'part-time' THEN 20
-                        WHEN 'temporary' THEN 30
-                        ELSE 25 END)
-                    + COALESCE(FLOOR(UNIX_TIMESTAMP(p.created_at) / 100000), 9223372036854775807)
-                ) AS score
-            ")
-        ->orderBy('score', 'asc')
-        ->orderBy('p.created_at', 'asc')
-        ->limit(1);
-
-        $top = $query->first();
-
-        if (!$top) {
-            return response()->json([
-                'message' => 'No preferences found for given parameters',
-                'success' => false,
-                'program_id' => $programId,
-                'year_level' => $yearLevel,
-                'section_id' => $sectionId,
-                'course_id' => $courseId,
-                'active_semester_id' => $activeSemester->active_semester_id,     
-                'prefs_count' => 0,
-            ], 200);
-        }
-
-        $name = trim(($top->last_name ?? '') . ', ' . 
-            ($top->first_name ?? '') . ' ' . ($top->middle_name ?? ''));
+        // Tier 3: Load Balancing (Available faculty with lowest load)
+        $suggestion = $this->tryLoadBalancing($activeSemester);
+        if ($suggestion) return $suggestion;
 
         return response()->json([
-            'message' => 'AI scheduling suggestions generated',
+            'message' => 'No valid candidates found after full heuristic search',
+            'success' => false,
+        ], 200);
+    }
+
+    /**
+     * Tier 1: Attempts to find candidates from current semester faculty preferences.
+     */
+    private function tryCurrentPreferences($courseId, $programId, $yearLevel, $sectionId, $activeSemester)
+    {
+        $prefs = DB::table('preferences as p')
+            ->join('preference_days as pd', 'p.preferences_id', '=', 'pd.preference_id')
+            ->leftJoin('course_assignments as ca', 'p.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->leftJoin('temporary_course_offerings as tco', 'p.temporary_course_offering_id', '=', 'tco.temporary_course_offering_id')
+            ->join('faculty as f', 'p.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->where('p.active_semester_id', $activeSemester->active_semester_id)
+            ->where('p.is_ignored', 0)
+            ->where(function ($q) use ($courseId) {
+                $q->where('ca.course_id', $courseId)
+                  ->orWhere('tco.course_id', $courseId);
+            })
+            ->select(
+                'p.faculty_id',
+                'u.first_name', 'u.last_name',
+                'pd.preferred_day', 'pd.preferred_start_time', 'pd.preferred_end_time'
+            )
+            ->get();
+
+        foreach ($prefs as $pref) {
+            if ($this->isFacultyAvailable($pref->faculty_id, $pref->preferred_day, $pref->preferred_start_time, $pref->preferred_end_time, $activeSemester->active_semester_id)) {
+                return $this->formatSuggestionResponse($pref, 'Current Preference');
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Tier 2: Attempts to find candidates who taught this course in previous semesters.
+     */
+    private function tryHistoricalExperts($courseId, $activeSemester)
+    {
+        // Find faculty who have taught this course in previous semesters
+        $experts = DB::table('schedules as s')
+            ->join('section_courses as sc', 's.section_course_id', '=', 'sc.section_course_id')
+            ->join('course_assignments as ca', 'sc.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->join('faculty as f', 's.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->where('ca.course_id', $courseId)
+            ->where('ca.semester_id', '!=', $activeSemester->semester_id)
+            ->select(
+                's.faculty_id', 'u.first_name', 'u.last_name',
+                's.day', 's.start_time', 's.end_time',
+                DB::raw('COUNT(*) as frequency')
+            )
+            ->groupBy('s.faculty_id', 'u.first_name', 'u.last_name', 's.day', 's.start_time', 's.end_time')
+            ->orderBy('frequency', 'desc')
+            ->limit(5)
+            ->get();
+
+        foreach ($experts as $expert) {
+            if ($this->isFacultyAvailable($expert->faculty_id, $expert->day, $expert->start_time, $expert->end_time, $activeSemester->active_semester_id)) {
+                return $this->formatSuggestionResponse($expert, 'Historical Expert', true);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Tier 3: Attempts to find available faculty with the lowest current workload.
+     */
+    private function tryLoadBalancing($activeSemester)
+    {
+        // Default working hours for generic assignment (7:30 AM - 10:30 AM)
+        $defaultDay = 'Monday';
+        $defaultStart = '07:30:00';
+        $defaultEnd = '10:30:00';
+
+        // Find faculty with lowest current load
+        $candidates = DB::table('faculty as f')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->select('f.id as faculty_id', 'u.first_name', 'u.last_name')
+            ->selectRaw('
+                (SELECT COUNT(*) 
+                 FROM schedules s 
+                 JOIN section_courses sc ON s.section_course_id = sc.section_course_id
+                 JOIN course_assignments ca ON sc.course_assignment_id = ca.course_assignment_id
+                 WHERE s.faculty_id = f.id 
+                 AND ca.semester_id = ?
+                ) as load_count', [$activeSemester->semester_id])
+            ->orderBy('load_count', 'asc')
+            ->limit(10)
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            // Try different days if Monday is full
+            $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            foreach ($days as $day) {
+                if ($this->isFacultyAvailable($candidate->faculty_id, $day, $defaultStart, $defaultEnd, $activeSemester->active_semester_id)) {
+                    $candidate->preferred_day = $day;
+                    $candidate->preferred_start_time = $defaultStart;
+                    $candidate->preferred_end_time = $defaultEnd;
+                    return $this->formatSuggestionResponse($candidate, 'Load Balancing');
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if a faculty member is available at a specific time in the current semester.
+     * @return bool True if available, false if there is a conflict.
+     */
+    private function isFacultyAvailable($facultyId, $day, $start, $end, $activeSemesterId)
+    {
+        if (!$day || !$start || !$end) return false;
+
+        return !DB::table('schedules as s')
+            ->join('section_courses as sc', 's.section_course_id', '=', 'sc.section_course_id')
+            ->join('course_assignments as ca', 'sc.course_assignment_id', '=', 'ca.course_assignment_id')
+            ->where('s.faculty_id', $facultyId)
+            ->where('s.day', $day)
+            ->where('ca.semester_id', function($query) use ($activeSemesterId) {
+                $query->select('semester_id')
+                    ->from('active_semesters')
+                    ->where('active_semester_id', $activeSemesterId);
+            })
+            ->where(function ($q) use ($start, $end) {
+                $q->where('s.start_time', '<', $end)
+                  ->where('s.end_time', '>', $start);
+            })
+            ->exists();
+    }
+
+    /**
+     * Standardizes the JSON response for a scheduling suggestion.
+     */
+    private function formatSuggestionResponse($data, $source, $isHistorical = false)
+    {
+        $name = trim(($data->last_name ?? '') . ', ' . ($data->first_name ?? ''));
+        
+        return response()->json([
             'success' => true,
-            'program_id' => $programId,
-            'year_level' => $yearLevel,
-            'section_id' => $sectionId,
-            'course_id' => $courseId,
+            'source' => $source,
             'faculty_name' => $name,
-            'faculty_id' => $top->faculty_id,
-            'faculty_type' => $top->faculty_type,
-            'preference_day' => $top->preferred_day,
-            'preferred_start_time' => $top->preferred_start_time,
-            'preferred_end_time' => $top->preferred_end_time,
+            'faculty_id' => $data->faculty_id,
+            'preference_day' => $isHistorical ? $data->day : $data->preferred_day,
+            'preferred_start_time' => $this->formatTo12h($isHistorical ? $data->start_time : $data->preferred_start_time),
+            'preferred_end_time' => $this->formatTo12h($isHistorical ? $data->end_time : $data->preferred_end_time),
         ]);
     }
+
+    /**
+     * Formats a 24-hour time string to 12-hour format (e.g., "13:00" -> "1:00 PM").
+     */
+    private function formatTo12h($time)
+    {
+        if (!$time) return null;
+        return date("g:i A", strtotime($time));
+    }
+    
 }

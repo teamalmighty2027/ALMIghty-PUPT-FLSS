@@ -139,7 +139,6 @@
 
       .view-button {
         color: var(--secondary-text);
-        margin-right: var(--spacing-md);
 
         &:hover {
           background-color: var(--secondary-hover) !important;
@@ -169,6 +168,59 @@
         span {
           opacity: var(--opacity-semi-opaque);
         }
+      }
+    }
+  }
+}
+
+// ============================================================
+// MOBILE RESPONSIVE
+// ============================================================
+
+@media (max-width: 825px) {
+  .faculty-pref-container {
+    gap: var(--spacing-xs);
+  }
+
+  .faculty-pref-table-container {
+    .table-container {
+      max-height: calc(100vh - 200px);
+      overflow-x: auto;
+
+      .custom-table {
+        min-width: 580px;
+      }
+
+      // Touch-friendly action buttons
+      .custom-cell.action {
+        white-space: nowrap;
+
+        button {
+          min-height: 44px;
+          padding: 0 var(--spacing-sm);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 512px) {
+  .faculty-pref-table-container {
+    .table-container {
+      max-height: calc(100vh - 180px);
+
+      .custom-table {
+        min-width: 520px;
+      }
+
+      .custom-cell {
+        padding: var(--spacing-xxs) var(--spacing-xs);
+        font-size: var(--font-size-sm);
+      }
+
+      .custom-header {
+        font-size: var(--font-size-sm);
+        padding: var(--spacing-xs);
       }
     }
   }

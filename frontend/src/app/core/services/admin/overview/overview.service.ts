@@ -6,12 +6,16 @@ import { environment } from '../../../../../environments/environment.dev';
 export interface RequestNotification {
   faculty_id: number;
   faculty_name: string;
+  request_type?: 'preference' | 'appeal';
+  appeal_start_date?: string | null;
+  appeal_end_date?: string | null;
 }
 
 export interface OverviewDetails {
   global_start_date: null;
   activeAcademicYear: string;
   activeSemester: string;
+  isMismatchedSemester?: boolean;
   activeFacultyCount: number;
   activeProgramsCount: number;
   activeCurricula: Array<{

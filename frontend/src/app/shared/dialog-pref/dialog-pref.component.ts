@@ -48,6 +48,7 @@ interface Course {
 interface DialogPrefData {
   facultyName: string;
   faculty_id: number;
+  termId?: number | null;
   isViewOnlyTable?: boolean;
   isViewHistory?: boolean;
   isAdmin?: boolean;
@@ -118,6 +119,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       .getPreferencesHistoryByFacultyId(this.data.faculty_id.toString()).subscribe(
       (response) => {
           this.academicYearList = response.academic_years;
+
+          if (this.data.isViewHistory) {
+            this.preselectHistoryDefault();
+          }
       },
       (error) => {
           console.error('Error fetching academic years:', error);
@@ -139,14 +144,21 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       this.selectedView = 'history-view'; 
     }
 
+    // Use the termId passed from the parent dialog data
+    const termId = this.data.termId || null;
+
     this.preferencesService
-      .getPreferencesByFacultyId(this.data.faculty_id.toString(), true)
-      .subscribe(
-        (response) => {
+      .getPreferencesByFacultyId(this.data.faculty_id.toString(), true, termId)
+      .subscribe({
+        next: (response) => {
+          // Check if response.preferences is an object (single faculty) or array
           const faculty = response.preferences;
 
           if (faculty) {
+            // If the response structure returned an array, find the right active semester
+            // or just grab the first one if it's already filtered by termId
             const activeSemester = faculty.active_semesters[0];
+            
             this.academicYear = activeSemester.academic_year;
             this.selectedYear = activeSemester.academic_year;
             this.semesterLabel = activeSemester.semester_label;
@@ -170,16 +182,13 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           }
 
           this.isLoading = false;
-          if (!this.data.isViewOnlyTable && this.selectedView === 'pdf-view') {
-            this.generateAndDisplayPdf();
-          }
         },
-        (error) => {
+        error: (error) => {
           console.error('Error loading faculty preferences:', error);
-          this.showSnackbar('Failed to load faculty preferences. Please try again later.');
+          this.showSnackbar('Failed to load faculty preferences.');
           this.isLoading = false;
         }
-      );
+      });
   }
 
   /**
@@ -216,6 +225,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     if (!semesterId) return;
 
     this.selectedSemester = semesterId;
+
+    // Ensure academic year label is updated from the current selection
+    if (this.selectedHistory) {
+      this.academicYear = this.selectedHistory.academic_year;
+    }
+
     this.updateTableFromSelection();
   }
 
@@ -253,8 +268,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     this.isLoading = true;
 
     const ay = this.academicYearList.find(
-      (y) => y.academic_year_id === this.selectedYear || y.academic_year === this.academicYear,
+      (y) => y.academic_year_id === this.selectedYear
     );
+
+    if (ay) {
+      this.academicYear = ay.academic_year;
+    }
 
     if (!ay) {
       this.isLoading = false;
@@ -302,6 +321,29 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Pre-selects the first available academic year and semester
+   * so the history view is not blank on first open.
+   */
+  private preselectHistoryDefault(): void {
+    if (!this.academicYearList?.length) return;
+    const firstAy = this.academicYearList[0];
+    const semesters = (firstAy as any).semesters
+      ?? (firstAy as any).semester ?? [];
+    
+    // Find the first semester that has preferences or just the first one
+    const firstSem = semesters.find(
+      (s: any) => (s.preferences ?? s.courses ?? []).length > 0
+    ) ?? semesters[0];
+    
+    if (!firstSem) return;
+
+    this.selectedHistory = firstAy;
+    this.selectedYear = firstAy.academic_year_id;
+    this.selectedSemester = firstSem.semester_id;
+    this.updateTableFromSelection();
+  }
+
+  /**
    * Generates the PDF Blob internally and sets it as the SafeResourceUrl for the iframe preview.
    */
   generateAndDisplayPdf(): void {
@@ -319,7 +361,15 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
    * Generates and automatically downloads the PDF format for the faculty preferences.
    */
   downloadPdf(): void {
-    this.generateFacultyPDF(false, [this.courses], false);
+    const pdfBlob = this.generateFacultyPDF(false, [this.courses], false);
+
+    if (pdfBlob instanceof Blob) {
+      const fileName = `${this.sanitizeFileName(
+        this.facultyName,
+      )}_preferences_report.pdf`;
+
+      saveAs(pdfBlob, fileName);
+    }
   }
 
   /**
@@ -434,8 +484,10 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
           course.is_ignored = response.is_ignored;
           this.showSnackbar(response.message || `Preference successfully ${course.is_ignored ? 'ignored' : 'restored'}.`);
         },
-        error: () => {
-          this.showSnackbar(`Failed to ${course.is_ignored ? 'restore' : 'ignore'} preference. Please try again.`);
+        error: (error) => {
+          this.showSnackbar(error.error?.message || error.message || 
+            `Failed to ${course.is_ignored ? 'restore' : 'ignore'} preference. Please try again.`
+          );
         }
       });
   }
@@ -450,11 +502,12 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
   /**
    * Main constructor utilizing jsPDF to format the faculty preferences table into a printable layout.
    */
+  // Generates the PDF Blob of faculty preferences
   generateFacultyPDF(
     isAll: boolean,
     coursesArray: Course[][],
     showPreview: boolean = false,
-  ): Blob | void {
+  ): Blob {
     const doc = new jsPDF('p', 'mm', 'a4') as any;
     let currentY = 15;
 
@@ -549,7 +602,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
 
             (doc as any).autoTable(tableConfig);
 
-            currentY = doc.autoTable.previous.finalY + 10;
+            currentY = (doc as any).lastAutoTable.finalY + 10;
             if (currentY > 270) {
               doc.addPage();
               this.reportHeaderService
@@ -567,20 +620,7 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             }
           });
 
-          const pdfBlob = doc.output('blob');
-          if (showPreview) {
-            return pdfBlob;
-          } else {
-            let fileName = 'faculty_preferences_report.pdf';
-
-            if (isAll && coursesArray.length > 0) {
-              fileName = `${this.sanitizeFileName(
-                this.facultyName,
-              )}_preferences_report.pdf`;
-            }
-
-            doc.save(fileName);
-          }
+          this.reportHeaderService.addStandardFooter(doc);
         });
 
       return doc.output('blob');
