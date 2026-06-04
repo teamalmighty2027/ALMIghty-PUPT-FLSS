@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\FlssImplementationNotice;
-use App\Jobs\SendFacultyFirstLoginPasswordJob;
 
 class SendFacultyNotice extends Command
 {
@@ -40,23 +39,19 @@ class SendFacultyNotice extends Command
             return Command::FAILURE;
         }
 
-        // 3. Trigger 1: The Implementation Notice (Mailable)
+        // Dispatch a single queued email containing notice + credentials
         Mail::to($email)->queue(new FlssImplementationNotice(
             $firstName,
             $lastName,
+            $email,
             $password,
             $loginUrl
         ));
 
-        // 4. Trigger 2: The Credentials Email (Job)
-        // We pass the data as a generic object/array so the Job can handle it
-        dispatch(new SendFacultyFirstLoginPasswordJob(
-            (object)['first_name' => $firstName, 'last_name' => $lastName, 'email' => $email],
-            $password
-        ))->delay(now()->addSeconds(5)); // Delay 5 seconds so they don't arrive mixed up
+        $this->info(
+            'Notice and credentials dispatched as one email!'
+        );
 
-        $this->info('Notice and Credentials successfully dispatched to the queue!');
-        
         return Command::SUCCESS;
     }
 }

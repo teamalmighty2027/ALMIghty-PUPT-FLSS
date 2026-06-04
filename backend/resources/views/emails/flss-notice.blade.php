@@ -62,6 +62,53 @@
             margin-top: 40px;
             text-align: left;
         }
+        /* Styled card for login credentials */
+        .credentials-box {
+            margin: 20px 0;
+            border: 1px solid #800000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .credentials-box .cred-title {
+            background-color: #800000;
+            color: #ffffff;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 14px;
+            letter-spacing: 0.5px;
+        }
+        .credentials-box table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .credentials-box td {
+            padding: 10px 16px;
+            font-size: 15px;
+            border-bottom: 1px solid #f0dede;
+            vertical-align: top;
+        }
+        .credentials-box td:first-child {
+            font-weight: 600;
+            width: 30%;
+            color: #800000;
+            white-space: nowrap;
+        }
+        .credentials-box tr:last-child td {
+            border-bottom: none;
+        }
+        /* Login button inside the credentials card */
+        .login-btn {
+            display: inline-block;
+            margin: 16px 0 8px;
+            padding: 10px 28px;
+            background-color: #800000;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 15px;
+            letter-spacing: 0.3px;
+        }
         .footer {
             text-align: center;
             font-size: 14px;
@@ -89,32 +136,37 @@
                 <p style="text-indent: 0; font-weight: bold;">Dear {{ $first_name }} {{ $last_name }},</p>
                 <p style="text-indent: 0;">Greetings!</p>
                 
-                <p>We, the BSIT 3-1 students, are currently conducting our Capstone Project titled "Implementation of the Polytechnic University of the Philippines Taguig Faculty Loading and Scheduling System (FLSS)" under the guidance of our research adviser, Dr. Gecilie C. Almirañez.</p>
+                <p>We, the BSIT 3-1 Capstone Project Team (Team ALMighty), are currently conducting our Capstone Project titled <b> "Implementation of the Polytechnic University of the Philippines Taguig Faculty Loading and Scheduling System (FLSS)" </b> under the guidance of our research adviser, Dr. Gecilie C. Almirañez.</p>
                 
-                <p>The main goal of this project is to implement the campus's scheduling system to improve schedule flexibility, conflict detection, analytics, and overall usability.</p>
+                <p>The main goal of this project is to implement the campus's scheduling system this <b> 1st Semester of the Academic Year 2026-2027 </b>. This activity involves the submission of your subject preferences for the upcoming semester.</p>
                 
-                <p>As key users of this system, your participation is vital. By logging into the FLSS, you acknowledge and agree to these terms regarding the collection and processing of your professional information.</p>
-                
-                <p>To facilitate your access to the system, please be informed that your official PUP email addresses will be collected and registered into the FLSS. Your email addresses will be used strictly for the following system functionalities:</p>
-                
-                <ul class="memo-list">
-                    <li>Creation of your individual faculty account</li>
-                    <li>Secure login and authentication</li>
-                    <li>Viewing of assigned class schedule</li>
-                    <li>Submission and management of your schedule preferences</li>
-                    <li>Communication of system-related notifications</li>
-                </ul>                
+                <p>To facilitate your access to the system, please be informed that your official PUP email addresses will be registered into the FLSS. Your email addresses will be used strictly for account creation and system related notifications </p>              
 
                 <p>We assure you that all collected personal data will be handled with strict confidentiality and will be used solely for academic and system development purposes. All data processing activities are in full compliance with the Data Privacy Act of 2012 (Republic Act No. 10173). Access to your information is restricted only to authorized system administrators and the developers directly involved in this study.</p>
-                <p>To ensure the confidentiality and integrity of your information, the following data privacy measures are in place:</p>
 
-                <ul class="memo-list">
-                    <li><strong>Secure Credential Handling:</strong> All passwords are protected using industry-standard one-way hashing (encryption).</li>  
-                    <li><strong>Limited Usage Period:</strong> Data collection is limited to the study's duration (Summer Semester 2026 to First Semester 2026-2027).</li>
-                    <li><strong>Controlled Access:</strong> Only authorized system administrators and specific researchers have access to user data for technical support.</li>
-                    <li><strong>Non-Disclosure:</strong> Your credentials and contact information will never be shared, sold, or utilized for any purpose outside the scope of this project.</li>
-                    <li><strong>Official Communication:</strong> This system will only send automated notices regarding your official faculty loading and scheduling.</li>
-                </ul>
+                <p>To gain access to the system, please use the account
+                credentials below. We strongly recommend changing your
+                password upon your first login.</p>
+
+                <!-- Account credentials card -->
+                <div class="credentials-box">
+                    <div class="cred-title">Your Account Credentials</div>
+                    <table>
+                        <tr>
+                            <td>Email</td>
+                            <td>{{ $email }}</td>
+                        </tr>
+                        <tr>
+                            <td>Password</td>
+                            <td>{{ $password }}</td>
+                        </tr>
+                    </table>
+                    <div style="padding: 4px 16px 16px;">
+                        <a href="{{ $loginUrl }}" class="login-btn">
+                            Log In to FLSS
+                        </a>
+                    </div>
+                </div>
                 
                 <p>Thank you very much for your time, support, and cooperation in helping us improve the faculty loading and scheduling process of our campus.</p>
             </div>

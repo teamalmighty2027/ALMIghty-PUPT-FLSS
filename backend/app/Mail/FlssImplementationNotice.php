@@ -16,6 +16,7 @@ class FlssImplementationNotice extends Mailable
 
     public $first_name;
     public $last_name;
+    public $email;
     public $password;
     public $loginUrl;
     public $date_sent;
@@ -23,13 +24,19 @@ class FlssImplementationNotice extends Mailable
     /**
      * Create a new message instance.
      */
-    public function __construct($first_name = 'Faculty', $last_name = 'Member', $password = '********', $loginUrl = '#')
-    {
+    public function __construct(
+        $first_name = 'Faculty',
+        $last_name = 'Member',
+        $email = '',
+        $password = '********',
+        $loginUrl = '#'
+    ) {
         $this->first_name = $first_name;
-        $this->last_name = $last_name;
-        $this->password = $password;
-        $this->loginUrl = $loginUrl;
-        $this->date_sent = now()->format('F d, Y');
+        $this->last_name  = $last_name;
+        $this->email      = $email;
+        $this->password   = $password;
+        $this->loginUrl   = config('app.url') . '/login';
+        $this->date_sent  = now()->format('F d, Y');
     }
 
     /**
@@ -51,10 +58,11 @@ class FlssImplementationNotice extends Mailable
             view: 'emails.flss-notice',
             with: [
                 'first_name' => $this->first_name,
-                'last_name' => $this->last_name,
-                'password' => $this->password,
-                'loginUrl' => $this->loginUrl,
-                'date_sent' => $this->date_sent,
+                'last_name'  => $this->last_name,
+                'email'      => $this->email,
+                'password'   => $this->password,
+                'loginUrl'   => $this->loginUrl,
+                'date_sent'  => $this->date_sent,
             ],
         );
     }
@@ -67,8 +75,8 @@ class FlssImplementationNotice extends Mailable
     public function attachments(): array
     {
         return [
-            Attachment::fromPath(public_path('PrivacyLetter.pdf'))
-                ->as('PrivacyLetter.pdf')
+            Attachment::fromPath(public_path('EmailUsage.pdf'))
+                ->as('EmailUsage.pdf')
                 ->withMime('application/pdf'),
         ];
     }
