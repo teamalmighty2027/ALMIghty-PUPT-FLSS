@@ -130,6 +130,8 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 $message->to($dataPreference['email'])
                     ->subject('Faculty Load & Schedule Preferences Submission is now open');
             });
+
+            Log::info('Preference submission email sent to ' . $dataPreference['email']);
         } catch (\Exception $e) {
             Log::error('Failed to send email to ' . ($dataPreference['email'] ?? 'unknown email') . ': ' . $e->getMessage());
             throw $e; // Re-throw to trigger job retry
