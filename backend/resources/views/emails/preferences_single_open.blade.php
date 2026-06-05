@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Faculty Preferences Submission</title>
     <style type="text/css">
-
         body {
             margin: 0;
             padding: 20px;
@@ -38,11 +37,6 @@
             margin-bottom: 15px;
         }
 
-        .header img {
-            width: 5rem;
-            height: auto;
-        }
-
         .header h1 {
             margin: 0;
             color: #ffffff;
@@ -66,7 +60,6 @@
         }
 
         p {
-
             text-align: justify;
         }
 
@@ -87,25 +80,38 @@
         .button-container {
             text-align: center;
             margin: 35px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
         }
 
         .button {
-            background-color: #800000;
             color: #ffffff !important;
             text-decoration: none;
-            padding: 14px 32px;
+            padding: 14px 24px;
             border-radius: 9999px;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 500;
             display: inline-block;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(128, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .button:hover {
+        .btn-yes {
+            background-color: #28a745;
+        }
+
+        .btn-yes:hover {
+            background-color: #218838;
+        }
+
+        .btn-no {
+            background-color: #800000;
+        }
+
+        .btn-no:hover {
             background-color: #660000;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px rgba(128, 0, 0, 0.2);
         }
 
         .important-note {
@@ -115,17 +121,30 @@
             margin: 0;
         }
 
+        .preferences-box {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+        }
+
+        .preferences-box ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #4a5568;
+        }
+
+        .preferences-box li {
+            margin-bottom: 8px;
+        }
+
         .footer {
             text-align: center;
             font-size: 14px;
             color: #666666;
             padding: 15px 40px;
             background-color: rgb(239, 228, 228);
-        }
-
-        .footer-divider {
-            border-top: 1px solid rgb(224, 196, 196);
-            margin: 20px 0;
         }
 
         .important-note a {
@@ -158,8 +177,9 @@
         <div class="content">
             <p class="greeting"><b>Dear {{ $faculty_name }},</b></p>
 
-            <p>We hope this email finds you well. We would like to inform you that the <b>submission is now open</b> for
+            <p>I hope this email finds you well. I would like to inform you that the <b>submission is now open</b> for
                 your load and schedule preferences for the upcoming semester.</p>
+
             <div class="deadline-box">
                 <p class="deadline-text">Submission Deadline: {{ $deadline }}</p>
                 @if ($days_left !== null)
@@ -168,14 +188,41 @@
                 @endif
             </div>
 
-            <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience.
-                Your input is highly valued and helps ensure a smooth scheduling process.</p>
+            @if(isset($previousPreferences) && count($previousPreferences) > 0)
+                <p>This is your preferences last academic year 2025-2026 1st semester:</p>
+                <div class="preferences-box">
+                    <ul>
+                        @foreach($previousPreferences as $pref)
+                            @php
+                                $courseCode = $pref->courseAssignment->course->course_code ?? $pref->temporaryCourseOffering->course->course_code ?? 'N/A';
+                                $courseTitle = $pref->courseAssignment->course->course_title ?? $pref->temporaryCourseOffering->course->course_title ?? 'N/A';
+                            @endphp
+                            <li><b>{{ $courseCode }}</b> - {{ $courseTitle }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+                
+                <p>Would you like to use these preferences for this coming academic year? If <b>YES</b> just click the button to import automatically to your account. If <b>NO</b> just click it then it will redirect you to preferences tab to input your new preferences.</p>
+                <p class="important-note"><b>NOTE:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.</p>
 
-            <div class="button-container">
-                <a href="{{ url('/') }}" class="button">Submit Preferences Now</a>
-            </div>
+                <div class="button-container">
+                    <a href="{{ url('/faculty/preferences?action=auto_import') }}" class="button btn-yes">YES (Import automatically)</a>
+                    <a href="{{ url('/faculty/preferences') }}" class="button btn-no">NO (Input new preferences)</a>
+                </div>
+            @else
+                <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience.
+                    Your input is highly valued and helps ensure a smooth scheduling process.</p>
 
-            <p class="important-note">Note: If you experience any technical difficulties or have questions about the
+                <div class="button-container">
+                    <a href="{{ url('/faculty/preferences') }}" class="button btn-no">Submit Preferences Now</a>
+                </div>
+            @endif
+
+            <p style="margin-top: 25px;">Here's a how-to add preferences video for you: <br>
+                <a href="https://youtu.be/2TPF8RWpOlc?si=caTZs_rlRiPMA3iB" target="_blank" style="color: #800000; font-weight: bold;">Watch Tutorial Video</a>
+            </p>
+
+            <p class="important-note" style="margin-top: 15px;">Note: If you experience any technical difficulties or have questions about the
                 submission process, please don't hesitate to contact our support team at <a
                     href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
         </div>

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, ElementRef, signal, computed, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom, throwError, catchError } from 'rxjs';
 
@@ -193,6 +194,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    * @param preferencesService API service for preferences data.
    * @param snackBar Snackbar service used for user feedback.
    * @param authService Auth service used to resolve the faculty id.
+   * @param route ActivatedRoute used to intercept query params for auto-import.
+   * @param router Router used to clean up query params.
    */
   constructor(
     private readonly themeService: ThemeService,
@@ -200,6 +203,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     private readonly preferencesService: PreferencesService,
     private readonly snackBar: MatSnackBar,
     private readonly authService: AuthService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {
     effect(() => {
       this.dataSource().data;
@@ -238,6 +243,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     this.subscribeToThemeChanges();
     this.setupSearchSubscription();
     this.loadInitialData();
+    this.listenForAutoImport();
   }
 
   /**
@@ -246,6 +252,49 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   ngOnDestroy() {
     this.subscriptions.unsubscribe();
     this.searchQuerySubject.complete();
+  }
+
+  /**
+   * Listens for the 'action=auto_import' query parameter to trigger the bulk import.
+   */
+  private listenForAutoImport(): void {
+    this.subscriptions.add(
+      this.route.queryParams.subscribe((params) => {
+        if (params['action'] === 'auto_import') {
+          this.executeAutoImport();
+          
+          // Clean up the URL so a manual page refresh doesn't re-trigger the import
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { action: null },
+            queryParamsHandling: 'merge',
+          });
+        }
+      })
+    );
+  }
+
+  /**
+   * Executes the backend bulk import and reloads the table data.
+   */
+  private executeAutoImport(): void {
+    const facultyId = this.authService.getUserFacultyId();
+    if (!facultyId) return;
+
+    this.isLoading.set(true);
+    this.subscriptions.add(
+      this.preferencesService.importBulkPreferencesHistory(facultyId).subscribe({
+        next: () => {
+          this.showSnackBar('Your previous preferences were successfully imported!');
+          this.loadInitialData(); // Refresh the table with the newly imported data
+        },
+        error: (err) => {
+          console.error('Error during auto-import:', err);
+          this.showSnackBar('Failed to auto-import preferences. Please try importing manually.');
+          this.isLoading.set(false);
+        }
+      })
+    );
   }
 
   /**
