@@ -180,23 +180,6 @@ export class PreferencesService {
   }
 
   /**
-   * Triggers a backend transaction to auto-import a faculty's previous preferences.
-   */
-  importBulkPreferencesHistory(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/preferences/bulk-import`;
-    return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
-      tap(() => {
-        this.clearCaches(facultyId);
-        this.getPreferences(null, true).subscribe(); // Refresh view
-      }),
-      catchError((error) => {
-        console.error('Error auto-importing preferences:', error);
-        return throwError(() => error);
-      })
-    );
-  }
-
-  /**
    * Deletes a specific preference by ID and clears relevant caches upon success.
    */
   deletePreference(

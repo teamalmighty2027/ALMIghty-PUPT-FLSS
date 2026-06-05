@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, ElementRef, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, ElementRef, signal, computed, effect, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -204,7 +204,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     private readonly snackBar: MatSnackBar,
     private readonly authService: AuthService,
     private readonly route: ActivatedRoute,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly injector: Injector
   ) {
     effect(() => {
       this.dataSource().data;
@@ -261,40 +262,154 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     this.subscriptions.add(
       this.route.queryParams.subscribe((params) => {
         if (params['action'] === 'auto_import') {
-          this.executeAutoImport();
-          
-          // Clean up the URL so a manual page refresh doesn't re-trigger the import
+          // Clean up the URL immediately so a manual page refresh doesn't re-trigger the import
           this.router.navigate([], {
             relativeTo: this.route,
             queryParams: { action: null },
             queryParamsHandling: 'merge',
           });
+          
+          // Wait for initial data (programs, semesterId) to load before executing
+          if (this.programs().length > 0 && this.semesterId() !== null) {
+              this.executeAutoImport();
+          } else {
+             // If data isn't loaded yet, set a one-time effect to trigger it once data arrives
+              const stopEffect = effect(() => {
+                if (this.programs().length > 0 && this.semesterId() !== null) {
+                    this.executeAutoImport();
+                    stopEffect.destroy();
+                }
+              }, { injector: this.injector });
+          }
         }
       })
     );
   }
 
   /**
-   * Executes the backend bulk import and reloads the table data.
+   * Executes the frontend-driven auto-import using existing history logic.
    */
   private executeAutoImport(): void {
     const facultyId = this.authService.getUserFacultyId();
-    if (!facultyId) return;
+    if (!facultyId || !this.semesterId()) return;
 
     this.isLoading.set(true);
+
+    // Fetch the faculty's history using the existing service
     this.subscriptions.add(
-      this.preferencesService.importBulkPreferencesHistory(facultyId).subscribe({
-        next: () => {
-          this.showSnackBar('Your previous preferences were successfully imported!');
-          this.loadInitialData(); // Refresh the table with the newly imported data
+      this.preferencesService.getPreferencesHistoryByFacultyId(facultyId).subscribe({
+        next: (response) => {
+          // 1. Filter out the current active semester
+          const historicalYears = response.academic_years.filter((ay: any) => {
+            const semestersArray = Object.values(ay.semesters);
+            return semestersArray.some((s: any) => 
+              s.semester_id === this.semesterId() &&
+              s.active_semester_id !== this.activeSemesterId()
+            );
+          });
+
+          if (historicalYears.length === 0) {
+              this.showSnackBar('No past preferences found for this semester type to import.');
+              this.isLoading.set(false);
+              return;
+          }
+
+          // 2. Grab the most recent historical semester data
+          const mostRecentYear = historicalYears[0];
+          const semestersArray = Object.values(mostRecentYear.semesters);
+          const targetSem = semestersArray.find((s: any) => s.semester_id === this.semesterId()) as any;
+          const rawPreferences = targetSem?.preferences ?? [];
+
+          if (rawPreferences.length === 0) {
+              this.showSnackBar('No past preferences found to import.');
+              this.isLoading.set(false);
+              return;
+          }
+
+          // 3. Map the raw preferences to the Course format expected by processBatchImport
+          const coursesToImport = this.mapHistoryToImportableCourses(rawPreferences);
+
+          if (coursesToImport.length > 0) {
+              // 4. Pass directly to the existing batch import logic
+              this.processBatchImport(coursesToImport).then(() => {
+                 this.showSnackBar('Your previous preferences were successfully imported!');
+                 this.isLoading.set(false);
+              });
+          } else {
+              this.showSnackBar('No valid courses could be matched for import.');
+              this.isLoading.set(false);
+          }
         },
         error: (err) => {
-          console.error('Error during auto-import:', err);
-          this.showSnackBar('Failed to auto-import preferences. Please try importing manually.');
+          console.error('Error fetching history for auto-import:', err);
+          this.showSnackBar('Failed to load past preferences for import.');
           this.isLoading.set(false);
         }
       })
     );
+  }
+
+  /**
+   * Maps raw history preferences to the Course objects required by processBatchImport.
+   * Replicates the mapping logic found in DialogImportHistoryComponent.
+   */
+  private mapHistoryToImportableCourses(rawPreferences: any[]): Course[] {
+    const programs = this.programs();
+    const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
+    const importable: Course[] = [];
+
+    rawPreferences.forEach(pref => {
+        if (pref.is_temporary) return;
+
+        const histProgramCode = pref.course_details?.program_code;
+        const histCourseCode = pref.course_details?.course_code;
+        const histSectionName = pref.section_details?.section_name;
+
+        const matchedProgram = programs.find(p => p.program_code === histProgramCode);
+        let match: Course | undefined;
+
+        if (matchedProgram) {
+            // Try exact match
+            for (const yl of matchedProgram.year_levels) {
+                const found = yl.semester.courses.find(c => c.course_code === histCourseCode);
+                if (found) {
+                    const matchedSection = yl.sections?.find(s => s.section_name === histSectionName);
+                    if (matchedSection) {
+                        match = { ...found, year_level: yl.year_level, section: matchedSection };
+                        break;
+                    }
+                }
+            }
+            // Fallback to course match only
+            if (!match) {
+                 for (const yl of matchedProgram.year_levels) {
+                    const found = yl.semester.courses.find(c => c.course_code === histCourseCode);
+                    if (found) {
+                        match = { ...found, year_level: yl.year_level };
+                        break;
+                    }
+                 }
+            }
+        }
+
+        if (match) {
+            // Attach the necessary previous data for processBatchImport to utilize
+            const courseToAdd: any = {
+                ...match,
+                previousSectionName: histSectionName,
+                previousProgramCode: histProgramCode,
+                preferred_days: pref.preferred_days
+            };
+
+            // Prevent adding duplicates
+            const key = this.getSelectionKey(match as Course, histProgramCode);
+            if (!existingKeys.includes(key)) {
+                importable.push(courseToAdd as Course);
+            }
+        }
+    });
+
+    return importable;
   }
 
   /**
@@ -1463,12 +1578,14 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    * Builds the key used to identify a selected course row.
    *
    * @param course Course row to key.
+   * @param programCode Optional program code to scope the key.
    * @return Unique selection key for the row.
    */
-  private getSelectionKey(course: Course): string {
+  private getSelectionKey(course: Course, programCode?: string | null): string {
     const base = this.getCourseIdentityKey(course);
     const sectionId = course.section?.section_id ?? 'none';
-    return `${base}-section-${sectionId}`;
+    const programPart = programCode ? `-program-${programCode}` : '';
+    return `${base}${programPart}-section-${sectionId}`;
   }
 
   /**
