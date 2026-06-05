@@ -54,7 +54,7 @@
             <button mat-icon-button matSuffix (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
-            } @if (showCourseSelection() && !searchQuery()) {
+            } @if (!showProgramSelection() && !searchQuery()) {
             <button
               mat-icon-button
               matSuffix
@@ -100,7 +100,7 @@
           </button>
         </mat-menu>
 
-        <!-- Add this block after the search input -->
+        <!-- Search results block -->
         @if (searchState() === 'searchResults') {
         <div id="search_results">
           <h3 class="cards-label">
@@ -141,44 +141,41 @@
             >No results found for "{{ searchQuery() }}"</span
           >
         </div>
-        } @if (showCourseSelection() && !searchQuery() && selectedYearLevel() === null) {
+        }
+
+        <!-- Program selection (default view) -->
+        @if (showProgramSelection() && !searchQuery() && !showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>Select a Course
+            <span mat-symbol="school"></span>Select a Program
           </h3>
-          <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="courses().length">
-              @for (course of courses(); track course.course_id) {
+          <div class="programs-scroll-container">
+            <div [@cardEntranceAnimation]="programs().length">
+              @for (program of programs(); track program.program_id) {
               <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
+                class="program-card pop"
+                (click)="selectProgram(program)"
                 matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
-                    </span>
-                    }
-                  </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                <div class="program-info">
+                  <span class="program-code">{{ program.program_code }}</span>
+                  <span class="program-title">{{ program.program_title }}</span>
                 </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
               </div>
               }
             </div>
           </div>
         </div>
-        } @else if (showCourseSelection() && !searchQuery() && selectedYearLevel() !== null) {
+
+        <!-- Course list for the selected program -->
+        } @else if (!showProgramSelection() && !searchQuery()
+                   && !showPossiblePrograms()) {
         <div id="courses_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>
-            Year Level {{ selectedYearLevel() }} Courses
+            <span
+              class="arrow_back"
+              mat-symbol="arrow_back"
+              (click)="backToProgramSelection()"></span>
+            Select {{ selectedProgram()?.program_code }} Courses
           </h3>
           <div class="courses-scroll-container">
             <div [@cardEntranceAnimation]="filteredCourses().length">
@@ -208,47 +205,15 @@
             </div>
           </div>
         </div>
-        } @else if (!showCourseSelection() && !searchQuery() && !showPossiblePrograms()) {
-        <div id="courses_list">
-          <h3 class="cards-label">
-            <span mat-symbol="school"></span>
-            Select a Course
-          </h3>
-          <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="filteredCourses().length">
-              @for (course of filteredCourses(); track course.course_id) {
-              <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
-                matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
-                    </span>
-                    }
-                  </div>
-                  <span class="course-title">{{ course.course_title }}</span>
-                </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
-              </div>
-              }
-            </div>
-          </div>
-        </div>
-        } @else if (!showCourseSelection() && showPossiblePrograms()) {
+
+        <!-- Possible programs for a bridging course -->
+        } @else if (showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
             <span
               class="arrow_back"
               mat-symbol="arrow_back"
-              (click)="backToCourseSelection()">
+              (click)="backToProgramSelection()">
             </span>
             Possible Programs for this Course
           </h3>

@@ -70,10 +70,12 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   // UI State
   isLoading = signal(true);
   searchState = signal<
-    'programSelection' | 'courseSelection' | 'searchResults' | 'noResults'
-  >('courseSelection');
-  showCourseSelection = computed(
-    () => this.searchState() === 'courseSelection',
+    'programSelection' | 'courseList' | 'searchResults' | 'noResults'
+  >('programSelection');
+
+  // True when the sidebar should show the program-picker cards
+  showProgramSelection = computed(
+    () => this.searchState() === 'programSelection',
   );
   showPossiblePrograms = signal(false);
 
@@ -88,11 +90,11 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   selectedCourse = signal<Course | null>(null);
   selectedSection = signal<Section | undefined>(undefined);
 
-  // Temporary hardcoded year level as four
+  // Year levels derived from the currently selected program only
   dynamicYearLevels = computed(() =>
-    this.selectedProgram() === undefined
-      ? this.programs()[0]!.year_levels.map((yl) => yl.year_level)
-      : this.selectedProgram()!.year_levels.map((yl) => yl.year_level),
+    this.selectedProgram()
+      ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
+      : [],
   );
   
   // Faculty Info
@@ -560,14 +562,14 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
-   * Selects a program and resets the search flow to the course picker.
+   * Selects a program and transitions the sidebar to the course list.
    *
    * @param program Program chosen by the user.
    */
   public selectProgram(program: Program): void {
     this.selectedYearLevel.set(null);
     this.selectedProgram.set(program);
-    this.searchState.set('courseSelection');
+    this.searchState.set('courseList');
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -595,13 +597,16 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
   /**
    * Finds all programs that offer the selected course.
+   * Switches to the possible-programs picker if more than one program matches.
    *
    * @param course Course selected from the picker.
    */
   private async populatePossiblePrograms(course: Course): Promise<void> {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
-    this.searchState.set('courseSelection');
+
+    // Stay on courseList while we resolve; switch only if needed
+    this.searchState.set('courseList');
 
     this.programs().forEach((program) => {
       const hasCourseInProgram = program.year_levels.some((yearLevel) =>
@@ -620,13 +625,15 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return;
     }
 
+    // Multiple programs: show possible-programs sidebar
     this.showPossiblePrograms.set(true);
     this.searchState.set('programSelection');
     this.possiblePrograms.set(possiblePrograms);
   }
 
   /**
-   * Adds the selected course from a chosen program to the preferences table.
+   * Adds the selected bridging course from a chosen program, then returns
+   * the sidebar to the course list.
    *
    * @param program Program selected from the possible-programs list.
    */
@@ -650,58 +657,60 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       }
     }
 
+    // After bridging selection, return sidebar to the course list
     if (this.searchQuery() !== '') {
       this.searchState.set('searchResults');
     } else {
-      this.searchState.set('courseSelection');
+      this.searchState.set('courseList');
     }
   }
 
   /**
-   * Returns to the course-selection view and clears the year-level filter.
+   * Returns the sidebar to the top-level program selection list and resets
+   * all selection state.
    */
-  public backToCourseSelection(): void {
+  public backToProgramSelection(): void {
     this.selectedYearLevel.set(null);
-    if (this.searchState() === 'courseSelection') {
-      this.searchState.set('searchResults');
-    } else {
-      // Insert course list without program list iteration
-      this.clearSearch();
-    }
+    this.selectedProgram.set(undefined);
+    this.showPossiblePrograms.set(false);
+    this.selectedCourse.set(null);
+    this.searchState.set('programSelection');
+    this.clearSearch();
   }
 
   /**
-   * Apply filter button to show courses based on selected year level
+   * Returns the visible course list filtered by year level.
+   * Only shows courses when a program is already selected.
    */
   public filteredCourses = computed(() => {
     const yearLevel = this.selectedYearLevel();
     const program = this.selectedProgram();
-    const courses = this.courses();
 
+    // No program selected: sidebar shows the program list, not courses
     if (!program) {
-      if (yearLevel === null) {
-        return courses;
-      }
-      return courses.filter((course) => course.year_level === yearLevel);
+      return [];
     }
 
-    // Retain Program Selection Flow filter process
+    // No year-level filter: show all unique courses for the program
     if (yearLevel === null) {
       return Array.from(this.uniqueCourses().values());
-    } else {
-      const yearLevelData = program.year_levels.find(
-        (yl) => yl.year_level === yearLevel,
-      );
-      return yearLevelData
-        ? yearLevelData.semester.courses.filter((course) =>
-            this.uniqueCourses().has(course.course_code),
-          )
-        : [];
     }
+
+    // Year-level filter active: return only that year's courses
+    const yearLevelData = program.year_levels.find(
+      (yl) => yl.year_level === yearLevel,
+    );
+    return yearLevelData
+      ? yearLevelData.semester.courses.filter((course) =>
+          this.uniqueCourses().has(this.getCourseListKey(course)),
+        )
+      : [];
   });
 
   /**
    * Keeps the search query stream synchronized with the search state.
+   * Falls back to 'programSelection' or 'courseList' depending on whether
+   * a program is already selected.
    */
   private setupSearchSubscription() {
     this.subscriptions.add(
@@ -716,8 +725,9 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               results.length > 0 ? 'searchResults' : 'noResults',
             );
           } else {
+            // Return to program list or course list based on selection state
             this.searchState.set(
-            'courseSelection'
+              this.selectedProgram() ? 'courseList' : 'programSelection',
             );
           }
         }),
@@ -725,11 +735,18 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
-   * Updates the search query from the input box.
+   * Event handler for search input changes.
+   * Blocks search when no program has been selected yet.
    *
    * @param query Search text entered by the user.
    */
   public onSearchInput(query: string): void {
+    // Require a program to be selected before searching
+    if (!this.selectedProgram()) {
+      this.showSnackBar('Choose a program first!');
+      return;
+    }
+
     this.searchQuerySubject.next(query);
     this.showPossiblePrograms.set(false);
   }
@@ -742,22 +759,25 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   private updateSearchState(query: string): void {
     if (query) {
       this.searchState.set(
-        this.filteredSearchResults().length > 0 ? 'searchResults' : 'noResults',
+        this.filteredSearchResults().length > 0
+          ? 'searchResults'
+          : 'noResults',
       );
     } else {
+      // Fall back to the appropriate default view
       this.searchState.set(
-        this.selectedProgram() ? 'courseSelection' : 'courseSelection',
+        this.selectedProgram() ? 'courseList' : 'programSelection',
       );
     }
   }
 
   /**
    * Clears the current search text and resets the UI state.
+   * Does NOT reset the selected program so the user stays in the course list.
    */
   public clearSearch(): void {
     this.showPossiblePrograms.set(false);
     this.selectedCourse.set(null);
-    this.selectedProgram.set(undefined);
     this.searchQuerySubject.next('');
   }
 
@@ -778,7 +798,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
 
-    // If another section is selected, set the section
+    // Ensure a section was resolved during willSelectAnotherSection
     const section = this.selectedSection();
     if (section) {
       course.section = section;
@@ -787,9 +807,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return;
     }
 
-    // If course is already added, reset selections and show snackbar
+    // Show snackbar and keep user in the current program's course list
     if (this.isCourseAlreadyAdded(course)) {
-      this.selectedProgram.set(undefined);
       this.selectedSection.set(undefined);
       this.showSnackBar('You already selected this course.');
       return;
@@ -812,8 +831,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       year_section: `${course.year_level}-${course.section.section_name}`
     };
 
-    // Reset selections after adding course to table
-    this.selectedProgram.set(undefined);
+    // Keep the selected program so the user stays in the course list;
+    // only reset section and the temporary course reference.
     this.selectedCourse.set(null);
     this.selectedSection.set(undefined);
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
@@ -821,10 +840,11 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       `${course.course_code} successfully added to your preferences.`,
     );
 
-    // Make the table component instantly scroll to the newly added course
+    // Scroll the table to show the newly added course
     setTimeout(() => {
       if (this.tableContainer) {
-        this.tableContainer.nativeElement.scrollTop = this.tableContainer.nativeElement.scrollHeight;
+        this.tableContainer.nativeElement.scrollTop =
+          this.tableContainer.nativeElement.scrollHeight;
       }
     }, 0);
   }
