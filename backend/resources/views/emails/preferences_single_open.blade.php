@@ -58,7 +58,7 @@
 
         .button-container {
             text-align: center;
-            margin: 25px 0 35px 0;
+            margin: 15px 0 35px 0; /* Reduced top margin since note is above it */
             display: flex;
             justify-content: center;
             gap: 15px;
@@ -248,7 +248,7 @@
 <body>
     <div class="container">
         <div class="content">
-            <p class="greeting"><b>Dear Professor {{ $faculty_name }},</b></p>
+            <p class="greeting"><b>Dear Prof. {{ $faculty_name }},</b></p>
 
             <p>I hope this email finds you well. I would like to inform you that the <b>submission is now open</b> for
                 your load and schedule preferences for the upcoming semester.</p>
@@ -268,7 +268,7 @@
             </div>
 
             @if(isset($previousPreferences) && count($previousPreferences) > 0)
-                <p>These were your submitted preferences from the <b>{{ $previous_academic_year }} {{ $previous_semester_label }}</b>.</p>
+                <p>The following are your submitted preferences from the Academic Year: <b>{{ $previous_academic_year }} {{ $previous_semester_label }}</b>.</p>
                 
                 <details class="pref-details">
                     <div class="preferences-box">
@@ -334,22 +334,22 @@
                 </details>
                 
                 <p style="margin-top: 30px;">Would you like to use these exact same preferences for this coming academic year?</p>
-                <div class="action-note" style="background-color: #fffaf0; border-left-color: #dd6b20; color: #7b341e;">
-                    <b>Note:</b> Clicking <b>YES</b> will copy the courses and schedules listed above directly into your current preferences. Clicking <b>NO</b> will allow you to input new preferences.
+                
+                <div class="action-note" style="background-color: #fffaf0; border-left-color: #dd6b20; color: #7b341e; margin-bottom: 15px;">
+                    <b>Note:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.
+                </div>
+
+                <div class="button-container">
+                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Same Preferences)</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Edit Preferences)</a>
                 </div>
             @else
                 <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience. Your input is highly valued and helps ensure a smooth scheduling process.</p>
-            @endif
-
-            <p class="important-note"><b>NOTE:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.</p>
-            <div class="button-container">
-                @if(isset($previousPreferences) && count($previousPreferences) > 0)
-                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Import automatically)</a>
-                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Input new preferences)</a>
-                @else
+                
+                <div class="button-container">
                     <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">Submit Preferences Now</a>
-                @endif
-            </div>
+                </div>
+            @endif
 
             <div style="margin-top: 35px;">
                 <div class="tutorial-title">How-to Videos:</div>

@@ -139,15 +139,10 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
         // ---------------------------------------------------
 
-        // --- FORMAT NAME: Lastname Firstname ---
-        $fullName = trim($faculty->user->name ?? 'Faculty Member');
-        $nameParts = explode(' ', $fullName);
-        $lastName = $faculty->user->last_name ?? array_pop($nameParts);
-        $firstName = $faculty->user->first_name ?? implode(' ', $nameParts);
-        $formattedName = $lastName . ' ' . $firstName;
+        $lastName = $faculty->user->last_name;
 
         $dataPreference = [
-            'faculty_name' => $formattedName,
+            'faculty_name' => $lastName,
             'email' => $faculty->user->email,
             'faculty_units' => $faculty->faculty_units ?? 0,
             'deadline' => $formatted_deadline,
