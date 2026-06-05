@@ -77,7 +77,7 @@
           </button>
         </div>
 
-        <mat-menu #filterMenu="matMenu">
+        <mat-menu #filterMenu="matMenu" panelClass="filter-year-menu">
           @for (year of dynamicYearLevels(); track year) {
           <button
             mat-menu-item

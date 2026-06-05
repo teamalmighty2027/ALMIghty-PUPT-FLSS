@@ -457,7 +457,22 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               this.populateUniqueCourses(program, allCoursesMap),
             );
 
-            this.programs.set(programsResponse.programs);
+            // Sort programs alphabetically; diploma programs go to the end
+            const sortedPrograms = [...programsResponse.programs].sort(
+              (a, b) => {
+                const aIsDiploma = /diploma/i.test(a.program_code)
+                  || /diploma/i.test(a.program_title);
+                const bIsDiploma = /diploma/i.test(b.program_code)
+                  || /diploma/i.test(b.program_title);
+
+                if (aIsDiploma !== bIsDiploma) {
+                  return aIsDiploma ? 1 : -1;
+                }
+
+                return a.program_code.localeCompare(b.program_code);
+              },
+            );
+            this.programs.set(sortedPrograms);
             this.activeSemesterId.set(programsResponse.active_semester_id);
             this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
