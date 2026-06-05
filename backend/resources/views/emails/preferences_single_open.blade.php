@@ -121,22 +121,71 @@
             margin: 0;
         }
 
+        /* TABLE STYLES */
         .preferences-box {
             background-color: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            padding: 15px 20px;
+            padding: 15px;
             margin: 20px 0;
+            overflow-x: auto;
         }
 
-        .preferences-box ul {
-            margin: 0;
-            padding-left: 20px;
+        .pref-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .pref-table th {
+            background-color: #fcebeb;
+            color: #800000;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+            font-weight: 600;
+        }
+
+        .pref-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #edf2f7;
             color: #4a5568;
+            vertical-align: top;
         }
 
-        .preferences-box li {
-            margin-bottom: 8px;
+        .pref-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .schedule-pill {
+            display: inline-block;
+            background-color: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 2px 6px;
+            margin-bottom: 4px;
+            font-size: 13px;
+        }
+
+        .program-badge {
+            display: inline-block;
+            background-color: #edf2f7;
+            color: #4a5568;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .section-badge {
+            display: inline-block;
+            background-color: #e2e8f0;
+            color: #2d3748;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 12px;
+            font-weight: 600;
         }
 
         .footer {
@@ -189,32 +238,82 @@
             </div>
 
             @if(isset($previousPreferences) && count($previousPreferences) > 0)
-                <p>This is your preferences last academic year 2025-2026 1st semester:</p>
+                <p>These were your submitted preferences from the <b>{{ $previous_academic_year }} {{ $previous_semester_label }}</b>:</p>
+                
                 <div class="preferences-box">
-                    <ul>
-                        @foreach($previousPreferences as $pref)
-                            @php
-                                $courseCode = $pref->courseAssignment->course->course_code ?? $pref->temporaryCourseOffering->course->course_code ?? 'N/A';
-                                $courseTitle = $pref->courseAssignment->course->course_title ?? $pref->temporaryCourseOffering->course->course_title ?? 'N/A';
-                            @endphp
-                            <li><b>{{ $courseCode }}</b> - {{ $courseTitle }}</li>
-                        @endforeach
-                    </ul>
+                    <table class="pref-table">
+                        <thead>
+                            <tr>
+                                <th>Course</th>
+                                <th>Program</th>
+                                <th>Year & Section</th>
+                                <th>Preferred Day & Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($previousPreferences as $pref)
+                                @php
+                                    // Extract Course Info
+                                    $courseCode = $pref->courseAssignment->course->course_code ?? $pref->temporaryCourseOffering->course->course_code ?? 'N/A';
+                                    $courseTitle = $pref->courseAssignment->course->course_title ?? $pref->temporaryCourseOffering->course->course_title ?? 'N/A';
+                                    
+                                    // Extract Program Info
+                                    $programCode = 'N/A';
+                                    if ($pref->courseAssignment && $pref->courseAssignment->curriculaProgram && $pref->courseAssignment->curriculaProgram->program) {
+                                        $programCode = $pref->courseAssignment->curriculaProgram->program->program_code;
+                                    } elseif ($pref->temporaryCourseOffering && $pref->temporaryCourseOffering->program) {
+                                        $programCode = $pref->temporaryCourseOffering->program->program_code;
+                                    }
+
+                                    // Extract Year & Section
+                                    $yearLevel = $pref->section->year_level ?? $pref->temporaryCourseOffering->year_level ?? 'N/A';
+                                    $sectionName = $pref->section->section_name ?? 'N/A';
+                                    $yearSection = ($yearLevel !== 'N/A' && $sectionName !== 'N/A') ? $yearLevel . '-' . $sectionName : 'N/A';
+                                @endphp
+                                <tr>
+                                    <td>
+                                        <b>{{ $courseCode }}</b><br>
+                                        <span style="font-size: 13px; color: #718096;">{{ $courseTitle }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="program-badge">{{ $programCode }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="section-badge">{{ $yearSection }}</span>
+                                    </td>
+                                    <td>
+                                        @if($pref->preferenceDays && $pref->preferenceDays->count() > 0)
+                                            @foreach($pref->preferenceDays as $day)
+                                                @php
+                                                    $startTime = $day->preferred_start_time ? \Carbon\Carbon::parse($day->preferred_start_time)->format('h:i A') : '';
+                                                    $endTime = $day->preferred_end_time ? \Carbon\Carbon::parse($day->preferred_end_time)->format('h:i A') : '';
+                                                    $timeString = ($startTime && $endTime) ? "($startTime - $endTime)" : "(Any Time)";
+                                                @endphp
+                                                <span class="schedule-pill">{{ $day->preferred_day }} {{ $timeString }}</span><br>
+                                            @endforeach
+                                        @else
+                                            <span style="color: #a0aec0; font-style: italic;">No specific schedule set</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
                 
-                <p>Would you like to use these preferences for this coming academic year? If <b>YES</b> just click the button to import automatically to your account. If <b>NO</b> just click it then it will redirect you to preferences tab to input your new preferences.</p>
+                <p>Would you like to use these preferences for this coming academic year? If <b>YES</b> just click the button to import automatically to your account. If <b>NO</b> just click it then it will redirect you to the preferences tab to input your new preferences.</p>
                 <p class="important-note"><b>NOTE:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.</p>
 
                 <div class="button-container">
-                    <a href="{{ url('/faculty/preferences?action=auto_import') }}" class="button btn-yes">YES (Import automatically)</a>
-                    <a href="{{ url('/faculty/preferences') }}" class="button btn-no">NO (Input new preferences)</a>
+                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Import automatically)</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Input new preferences)</a>
                 </div>
             @else
                 <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience.
                     Your input is highly valued and helps ensure a smooth scheduling process.</p>
 
                 <div class="button-container">
-                    <a href="{{ url('/faculty/preferences') }}" class="button btn-no">Submit Preferences Now</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">Submit Preferences Now</a>
                 </div>
             @endif
 

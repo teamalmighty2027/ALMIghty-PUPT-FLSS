@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class SendFacultyScheduleEmailJob implements ShouldQueue
 {
@@ -37,38 +38,9 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function handle()
     {
-        // Format the deadline for display in the email
-        $formatted_deadline = $deadline ? $deadline->setTimezone('Asia/Manila')->format('M d, Y') : 'No deadline set';
-
         $dataSchedule = [
             'faculty_name' => $this->faculty->user->name,
             'email' => $this->faculty->user->email,
-        ];
-
-        // Fetch the latest past preferences for this faculty to embed in the email
-        $latestPastSemesterId = \App\Models\Preference::where('faculty_id', $this->facultyId)
-            ->orderBy('active_semester_id', 'desc')
-            ->value('active_semester_id');
-
-        $previousPreferences = [];
-        if ($latestPastSemesterId) {
-            $previousPreferences = \App\Models\Preference::with([
-                'courseAssignment.course',
-                'temporaryCourseOffering.course'
-            ])
-            ->where('faculty_id', $this->facultyId)
-            ->where('active_semester_id', $latestPastSemesterId)
-            ->get();
-        }
-
-        // Prepare data to be passed to the email template with null checks
-        $dataPreference = [
-            'faculty_name' => $faculty->user->name ?? 'Faculty Member',
-            'email' => $faculty->user->email,
-            'faculty_units' => $faculty->faculty_units ?? 0,
-            'deadline' => $formatted_deadline,
-            'days_left' => $days_left,
-            'previousPreferences' => $previousPreferences // <-- Pass to Blade
         ];
 
         Mail::send('emails.load_schedule_published', $dataSchedule, function ($message) use ($dataSchedule) {
@@ -84,6 +56,8 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        \Log::error('Failed to send schedule email to faculty: ' . $this->faculty->faculty_email . ' Error: ' . $exception->getMessage());
+        // Use the user relationship to get the email safely
+        $email = $this->faculty->user->email ?? 'Unknown Email';
+        Log::error('Failed to send schedule email to faculty: ' . $email . ' Error: ' . $exception->getMessage());
     }
 }

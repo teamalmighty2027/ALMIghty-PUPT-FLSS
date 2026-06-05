@@ -22,6 +22,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     protected $is_individual;
     protected $individual_deadline;
     protected $global_deadline;
+    protected $appUrl;
 
     public $tries = 10;
     public $timeout = 300;
@@ -36,6 +37,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     {
         $this->facultyId = $facultyId;
         $this->is_individual = $is_individual;
+        $this->appUrl = config('app.url');
 
         // Retrieve preference settings for the faculty.
         $settings = PreferencesSetting::where('faculty_id', $facultyId)->first();
@@ -60,67 +62,99 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         // Retrieve the faculty model using the provided ID with eager loading of user relationship
         $faculty = FacultyModel::with('user')->find($this->facultyId);
 
-        // Log an error and return if the faculty is not found
-        if (!$faculty) {
-            Log::error('Faculty not found with ID: ' . $this->facultyId);
+        if (!$faculty || !$faculty->user) {
+            Log::error('Faculty or User not found for ID: ' . $this->facultyId);
             return;
         }
 
-        // Log an error and return if the user relationship is not found
-        if (!$faculty->user) {
-            Log::error('User not found for faculty ID: ' . $this->facultyId);
-            return;
-        }
-
-        // Retrieve the preference settings for the faculty
         $settings = PreferencesSetting::where('faculty_id', $this->facultyId)->first();
 
-        // Log an error and return if preference settings are not found
-        if (!$settings) {
-            Log::error('PreferencesSetting not found for faculty ID: ' . $this->facultyId);
+        if (!$settings || !$settings->is_enabled) {
             return;
         }
 
-        // Return early if preference emails are disabled for this faculty
-        if (!$settings->is_enabled) {
-            return;
-        }
-
-        // Determine the deadline based on whether it's an individual or global notification
         $deadline = $this->is_individual && $this->individual_deadline
-        ? $this->individual_deadline
-        : $this->global_deadline;
+            ? $this->individual_deadline
+            : $this->global_deadline;
 
-        // Format the deadline for display in the email
-        $formatted_deadline = $deadline ? $deadline->setTimezone('Asia/Manila')->format('M d, Y') : 'No deadline set';
+        $formatted_deadline = $deadline ? Carbon::parse($deadline)->setTimezone('Asia/Manila')->format('M d, Y') : 'No deadline set';
 
-        // Calculate the number of days left until the deadline
         $days_left = null;
         if ($deadline) {
-            $today = Carbon::now('Asia/Manila');
-            $days_left = $today->diffInDays($deadline, false);
+            $today = Carbon::now('Asia/Manila')->startOfDay();
+            $target_deadline = Carbon::parse($deadline)->setTimezone('Asia/Manila')->endOfDay();
 
-            // Adjust days left if the deadline is today
-            if ($today->copy()->endOfDay()->gt($today)) {
-                $days_left++;
+            if ($today->gt($target_deadline)) {
+                $days_left = 0; 
+            } else {
+                $days_left = floor($today->diffInDays($target_deadline, false));
             }
-
-            $days_left = floor($days_left);
         }
 
-        // Prepare data to be passed to the email template with null checks
+        // --- FETCH PREVIOUS PREFERENCES AND SEMESTER DETAILS ---
+        $currentActiveSemester = \App\Models\ActiveSemester::where('is_faculty_view', 1)->first();
+
+        $previousPreferences = [];
+        $previous_academic_year = '';
+        $previous_semester_label = '';
+
+        if ($currentActiveSemester) {
+            // Join to find the latest past semester that MATCHES the current semester_id (e.g. 1st sem to 1st sem)
+            $latestPastSemesterId = \App\Models\Preference::join('active_semesters', 'preferences.active_semester_id', '=', 'active_semesters.active_semester_id')
+                ->where('preferences.faculty_id', $this->facultyId)
+                ->where('preferences.active_semester_id', '!=', $currentActiveSemester->active_semester_id)
+                ->where('active_semesters.semester_id', $currentActiveSemester->semester_id) // Match semester type
+                ->where(function($query) {
+                    $query->whereNotNull('preferences.course_assignment_id')
+                          ->orWhereNotNull('preferences.temporary_course_offering_id');
+                })
+                ->orderBy('preferences.active_semester_id', 'desc')
+                ->value('preferences.active_semester_id');
+
+            if ($latestPastSemesterId) {
+                // Eager load everything needed for the UI table
+                $previousPreferences = \App\Models\Preference::with([
+                    'courseAssignment.course',
+                    'courseAssignment.curriculaProgram.program',
+                    'temporaryCourseOffering.course',
+                    'temporaryCourseOffering.program',
+                    'preferenceDays',
+                    'section' // <-- Added to get Year and Section
+                ])
+                ->where('faculty_id', $this->facultyId)
+                ->where('active_semester_id', $latestPastSemesterId)
+                ->where(function($query) {
+                    $query->whereNotNull('course_assignment_id')
+                          ->orWhereNotNull('temporary_course_offering_id');
+                })
+                ->get();
+
+                $pastActiveSemester = \App\Models\ActiveSemester::with(['academicYear', 'semester'])
+                    ->find($latestPastSemesterId);
+
+                if ($pastActiveSemester && $pastActiveSemester->academicYear) {
+                    $previous_academic_year = $pastActiveSemester->academicYear->year_start . '-' . $pastActiveSemester->academicYear->year_end;
+                    $semId = $pastActiveSemester->semester_id;
+                    $previous_semester_label = $semId == 1 ? '1st Semester' : ($semId == 2 ? '2nd Semester' : 'Summer Semester');
+                }
+            }
+        }
+        // ---------------------------------------------------
+
         $dataPreference = [
             'faculty_name' => $faculty->user->name ?? 'Faculty Member',
             'email' => $faculty->user->email,
             'faculty_units' => $faculty->faculty_units ?? 0,
             'deadline' => $formatted_deadline,
             'days_left' => $days_left,
+            'previousPreferences' => $previousPreferences,
+            'previous_academic_year' => $previous_academic_year,
+            'previous_semester_label' => $previous_semester_label,
+            'app_url' => $this->appUrl
         ];
 
-        // Determine the email template to use based on whether it's an individual notification
         $template = $this->is_individual ? 'emails.preferences_single_open' : 'emails.preferences_all_open';
 
-        // Attempt to send the email with proper error handling
         try {
             if (!$dataPreference['email']) {
                 throw new \Exception('Faculty email address is missing');
@@ -132,7 +166,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             });
         } catch (\Exception $e) {
             Log::error('Failed to send email to ' . ($dataPreference['email'] ?? 'unknown email') . ': ' . $e->getMessage());
-            throw $e; // Re-throw to trigger job retry
+            throw $e;
         }
     }
 
