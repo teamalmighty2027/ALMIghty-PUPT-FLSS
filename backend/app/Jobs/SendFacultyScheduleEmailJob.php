@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class SendFacultyScheduleEmailJob implements ShouldQueue
 {
@@ -55,6 +56,8 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        \Log::error('Failed to send schedule email to faculty: ' . $this->faculty->faculty_email . ' Error: ' . $exception->getMessage());
+        // Use the user relationship to get the email safely
+        $email = $this->faculty->user->email ?? 'Unknown Email';
+        Log::error('Failed to send schedule email to faculty: ' . $email . ' Error: ' . $exception->getMessage());
     }
 }
