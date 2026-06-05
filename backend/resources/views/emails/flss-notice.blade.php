@@ -51,11 +51,20 @@
             text-indent: 30px;
             margin-bottom: 15px;
         }
-        .memo-list {
+        a {
+            color: #800000;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .video-list {
             margin-left: 20px;
             margin-bottom: 20px;
+            list-style-type: disc;
         }
-        .memo-list li {
+        .video-list li {
             margin-bottom: 5px;
         }
         .sign-off {
@@ -69,7 +78,7 @@
             border-radius: 8px;
             overflow: hidden;
         }
-        .credentials-box .cred-title {
+        .credentials-box .cred-title, .tutorial-title {
             background-color: #800000;
             color: #ffffff;
             padding: 8px 16px;
@@ -103,11 +112,15 @@
             padding: 10px 28px;
             background-color: #800000;
             color: #ffffff !important;
-            text-decoration: none;
+            text-decoration: none !important;
             border-radius: 6px;
             font-weight: 600;
             font-size: 15px;
             letter-spacing: 0.3px;
+        }
+        .login-btn:hover {
+            background-color: #a00000;
+            text-decoration: none !important;
         }
         .footer {
             text-align: center;
@@ -166,6 +179,22 @@
                             Log In to FLSS
                         </a>
                     </div>
+                </div>
+
+                <div>
+                  <div class="tutorial-title"> How to Videos: </div>
+                  <p> To better understand the system process, you can watch these videos: </p>
+                  <ul class="video-list">
+                    <li>
+                      <a href="https://youtu.be/IzAfVlUYY7s?si=B9EBIJntFC_oDXgb" target="_blank"> How to Login </a>
+                    </li>
+                    <li>
+                      <a href="https://youtu.be/2TPF8RWpOlc?si=CwoH8qju25VmZCwm" target="_blank"> How to Set Preferences </a>
+                    </li>
+                    <li>
+                      <a href="https://youtu.be/kiixp_kmtWA?si=PERI5_Lzk9qiw_7x" target="_blank"> How to Reschedule </a>
+                    </li>
+                  </ul>
                 </div>
                 
                 <p>Thank you very much for your time, support, and cooperation in helping us improve the faculty loading and scheduling process of our campus.</p>
