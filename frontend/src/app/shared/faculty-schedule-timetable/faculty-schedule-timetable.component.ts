@@ -496,7 +496,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
-      disableClose: true,
       autoFocus: true,
       data: {
         exportType: 'single', 

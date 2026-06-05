@@ -121,7 +121,6 @@ export class TableHeaderComponent implements OnInit, OnChanges {
           isExportDialog: true,
           customExportOptions: this.customExportOptions,
         },
-        disableClose: true,
         autoFocus: true,
       });
 

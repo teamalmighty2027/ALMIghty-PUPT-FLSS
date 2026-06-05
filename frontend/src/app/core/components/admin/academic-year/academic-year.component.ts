@@ -358,7 +358,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
           initialValue,
           useHorizontalLayout: true,
         },
-        disableClose: true,
         autoFocus: true,
       });
 
@@ -489,7 +488,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
         initialValue,
         useHorizontalLayout: true,
       },
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -560,7 +558,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogGenericComponent, {
       data: dialogData,
-      disableClose: true,
       panelClass: 'dialog-base',
       autoFocus: true,
     });
@@ -644,7 +641,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
-      disableClose: true,
       autoFocus: true,
       panelClass: 'add-academic-year-dialog',
     });
@@ -723,7 +719,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
         const dialogRef = this.dialog.open(TableDialogComponent, {
           data: dialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
 
@@ -882,7 +877,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
               endDate: this.endDate ? new Date(this.endDate) : null,
             },
           },
-          disableClose: true,
           autoFocus: true,
         });
 
@@ -975,7 +969,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogGenericComponent, {
       data: dialogData,
-      disableClose: true,
       panelClass: 'dialog-base',
       autoFocus: true,
     });
@@ -1058,7 +1051,6 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
                 this.facultyViewSemester : semesterOptions[0]?.value || '',
             },
           },
-          disableClose: true,
           autoFocus: true,
         });
 

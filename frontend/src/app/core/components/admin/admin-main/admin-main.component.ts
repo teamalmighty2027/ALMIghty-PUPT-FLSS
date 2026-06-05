@@ -188,7 +188,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
         action: 'Log Out',
       },
       autoFocus: true,
-      disableClose: true,
       panelClass: 'dialog-base',
     });
 
@@ -206,7 +205,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
         content: 'Currently logging you out...',
         showProgressBar: true,
       },
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -223,7 +221,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -238,7 +235,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
       }

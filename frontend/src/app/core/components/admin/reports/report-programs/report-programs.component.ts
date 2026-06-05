@@ -392,7 +392,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         previewMode: true,
         showViewToggle: false
       },
-      disableClose: true,
     });
   }
 
@@ -826,7 +825,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         },
         previewMode: true,
       },
-      disableClose: true,
     });
   }
 
@@ -851,7 +849,6 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
-      disableClose: true,
       data: {
         exportType: 'single',
         customTitle: `${element.program_title} (${element.program_code})`,

@@ -130,7 +130,6 @@ export class DialogAdminLoginComponent implements OnInit {
 
     this.isRedirectDialogOpen = true;
     const dialogRef = this.dialog.open(DialogRedirectComponent, {
-      disableClose: true,
       autoFocus: true,
       data: { checkingIDP: true, intendedRole: ['admin', 'superadmin'] },
     });
