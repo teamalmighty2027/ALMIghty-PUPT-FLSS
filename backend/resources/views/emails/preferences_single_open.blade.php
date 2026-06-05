@@ -25,27 +25,6 @@
             overflow: hidden;
         }
 
-        .header {
-            text-align: center;
-            padding: 30px 20px;
-            background-color: #800000;
-        }
-
-        .logo {
-            width: 120px;
-            height: auto;
-            margin-bottom: 15px;
-        }
-
-        .header h1 {
-            margin: 0;
-            color: #ffffff;
-            font-size: 24px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            padding: 0;
-        }
-
         .content {
             padding: 35px 40px;
             color: #2c3e50;
@@ -79,7 +58,7 @@
 
         .button-container {
             text-align: center;
-            margin: 35px 0;
+            margin: 25px 0 35px 0;
             display: flex;
             justify-content: center;
             gap: 15px;
@@ -121,37 +100,67 @@
             margin: 0;
         }
 
-        /* TABLE STYLES */
-        .preferences-box {
-            background-color: #ffffff;
+        .action-note {
+            background-color: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14.5px;
+            color: #2a4365;
+        }
+
+        /* COLLAPSIBLE TABLE STYLES */
+        .pref-details {
+            background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 8px;
-            padding: 15px;
             margin: 20px 0;
-            overflow-x: auto;
+        }
+
+        .pref-summary {
+            background-color: #f7fafc;
+            color: #2d3748;
+            padding: 12px 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .preferences-box {
+            padding: 15px;
         }
 
         .pref-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            table-layout: fixed;
         }
 
         .pref-table th {
             background-color: #fcebeb;
             color: #800000;
-            padding: 10px;
+            padding: 12px 8px;
             text-align: left;
             border-bottom: 2px solid #e2e8f0;
             font-weight: 600;
+            word-wrap: break-word;
         }
 
         .pref-table td {
-            padding: 12px 10px;
+            padding: 12px 8px;
             border-bottom: 1px solid #edf2f7;
             color: #4a5568;
             vertical-align: top;
+            word-wrap: break-word;
         }
+
+        .col-course { width: 35%; }
+        .col-program { width: 15%; }
+        .col-section { width: 20%; }
+        .col-schedule { width: 30%; }
 
         .pref-table tr:last-child td {
             border-bottom: none;
@@ -162,9 +171,11 @@
             background-color: #f7fafc;
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 2px 6px;
+            padding: 3px 6px;
             margin-bottom: 4px;
-            font-size: 13px;
+            font-size: 12px;
+            white-space: normal;
+            word-break: break-word;
         }
 
         .program-badge {
@@ -176,6 +187,7 @@
             font-size: 12px;
             font-weight: 500;
             margin-bottom: 4px;
+            word-break: break-word;
         }
         
         .section-badge {
@@ -186,6 +198,34 @@
             padding: 2px 6px;
             font-size: 12px;
             font-weight: 600;
+            word-break: break-word;
+        }
+
+        /* TUTORIAL VIDEO STYLES */
+        .tutorial-title {
+            font-weight: 600;
+            color: #1a1a1a;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .video-list {
+            margin-top: 0;
+            padding-left: 20px;
+        }
+
+        .video-list li {
+            margin-bottom: 8px;
+        }
+
+        .video-list a {
+            color: #800000;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .video-list a:hover {
+            text-decoration: underline;
         }
 
         .footer {
@@ -194,16 +234,6 @@
             color: #666666;
             padding: 15px 40px;
             background-color: rgb(239, 228, 228);
-        }
-
-        .important-note a {
-            color: #800000;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .important-note a:hover {
-            text-decoration: underline;
         }
 
         .copyright {
@@ -217,17 +247,17 @@
 
 <body>
     <div class="container">
-        <div class="header">
-            <img src="https://images.pupt-flss.com/pup_logo_white_bg.png" alt="PUP Logo" class="logo">
-            <h1>PUP Taguig</h1>
-            <h1>Faculty Loading and Scheduling System</h1>
-        </div>
-
         <div class="content">
-            <p class="greeting"><b>Dear {{ $faculty_name }},</b></p>
+            <p class="greeting"><b>Dear Professor {{ $faculty_name }},</b></p>
 
             <p>I hope this email finds you well. I would like to inform you that the <b>submission is now open</b> for
                 your load and schedule preferences for the upcoming semester.</p>
+
+            <div class="action-note">
+                <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
+                <b>Email:</b> {{ $email }}<br>
+                <b>Default Password:</b> puptfaculty123*
+            </div>
 
             <div class="deadline-box">
                 <p class="deadline-text">Submission Deadline: {{ $deadline }}</p>
@@ -238,90 +268,106 @@
             </div>
 
             @if(isset($previousPreferences) && count($previousPreferences) > 0)
-                <p>These were your submitted preferences from the <b>{{ $previous_academic_year }} {{ $previous_semester_label }}</b>:</p>
+                <p>These were your submitted preferences from the <b>{{ $previous_academic_year }} {{ $previous_semester_label }}</b>.</p>
                 
-                <div class="preferences-box">
-                    <table class="pref-table">
-                        <thead>
-                            <tr>
-                                <th>Course</th>
-                                <th>Program</th>
-                                <th>Year & Section</th>
-                                <th>Preferred Day & Time</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($previousPreferences as $pref)
-                                @php
-                                    // Extract Course Info
-                                    $courseCode = $pref->courseAssignment->course->course_code ?? $pref->temporaryCourseOffering->course->course_code ?? 'N/A';
-                                    $courseTitle = $pref->courseAssignment->course->course_title ?? $pref->temporaryCourseOffering->course->course_title ?? 'N/A';
-                                    
-                                    // Extract Program Info
-                                    $programCode = 'N/A';
-                                    if ($pref->courseAssignment && $pref->courseAssignment->curriculaProgram && $pref->courseAssignment->curriculaProgram->program) {
-                                        $programCode = $pref->courseAssignment->curriculaProgram->program->program_code;
-                                    } elseif ($pref->temporaryCourseOffering && $pref->temporaryCourseOffering->program) {
-                                        $programCode = $pref->temporaryCourseOffering->program->program_code;
-                                    }
-
-                                    // Extract Year & Section
-                                    $yearLevel = $pref->section->year_level ?? $pref->temporaryCourseOffering->year_level ?? 'N/A';
-                                    $sectionName = $pref->section->section_name ?? 'N/A';
-                                    $yearSection = ($yearLevel !== 'N/A' && $sectionName !== 'N/A') ? $yearLevel . '-' . $sectionName : 'N/A';
-                                @endphp
+                <details class="pref-details">
+                    <div class="preferences-box">
+                        <table class="pref-table">
+                            <thead>
                                 <tr>
-                                    <td>
-                                        <b>{{ $courseCode }}</b><br>
-                                        <span style="font-size: 13px; color: #718096;">{{ $courseTitle }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="program-badge">{{ $programCode }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="section-badge">{{ $yearSection }}</span>
-                                    </td>
-                                    <td>
-                                        @if($pref->preferenceDays && $pref->preferenceDays->count() > 0)
-                                            @foreach($pref->preferenceDays as $day)
-                                                @php
-                                                    $startTime = $day->preferred_start_time ? \Carbon\Carbon::parse($day->preferred_start_time)->format('h:i A') : '';
-                                                    $endTime = $day->preferred_end_time ? \Carbon\Carbon::parse($day->preferred_end_time)->format('h:i A') : '';
-                                                    $timeString = ($startTime && $endTime) ? "($startTime - $endTime)" : "(Any Time)";
-                                                @endphp
-                                                <span class="schedule-pill">{{ $day->preferred_day }} {{ $timeString }}</span><br>
-                                            @endforeach
-                                        @else
-                                            <span style="color: #a0aec0; font-style: italic;">No specific schedule set</span>
-                                        @endif
-                                    </td>
+                                    <th class="col-course">Course</th>
+                                    <th class="col-program">Prog.</th>
+                                    <th class="col-section">Yr & Sec</th>
+                                    <th class="col-schedule">Day & Time</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                
-                <p>Would you like to use these preferences for this coming academic year? If <b>YES</b> just click the button to import automatically to your account. If <b>NO</b> just click it then it will redirect you to the preferences tab to input your new preferences.</p>
-                <p class="important-note"><b>NOTE:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.</p>
+                            </thead>
+                            <tbody>
+                                @foreach($previousPreferences as $pref)
+                                    @php
+                                        // Extract Course Info
+                                        $courseCode = $pref->courseAssignment->course->course_code ?? $pref->temporaryCourseOffering->course->course_code ?? 'N/A';
+                                        $courseTitle = $pref->courseAssignment->course->course_title ?? $pref->temporaryCourseOffering->course->course_title ?? 'N/A';
+                                        
+                                        // Extract Program Info
+                                        $programCode = 'N/A';
+                                        if ($pref->courseAssignment && $pref->courseAssignment->curriculaProgram && $pref->courseAssignment->curriculaProgram->program) {
+                                            $programCode = $pref->courseAssignment->curriculaProgram->program->program_code;
+                                        } elseif ($pref->temporaryCourseOffering && $pref->temporaryCourseOffering->program) {
+                                            $programCode = $pref->temporaryCourseOffering->program->program_code;
+                                        }
 
-                <div class="button-container">
-                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Import automatically)</a>
-                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Input new preferences)</a>
+                                        // Extract Year & Section
+                                        $yearLevel = $pref->section->year_level ?? $pref->temporaryCourseOffering->year_level ?? 'N/A';
+                                        $sectionName = $pref->section->section_name ?? 'N/A';
+                                        $yearSection = ($yearLevel !== 'N/A' && $sectionName !== 'N/A') ? $yearLevel . '-' . $sectionName : 'N/A';
+                                    @endphp
+                                    <tr>
+                                        <td class="col-course">
+                                            <b>{{ $courseCode }}</b><br>
+                                            <span style="font-size: 13px; color: #718096;">{{ $courseTitle }}</span>
+                                        </td>
+                                        <td class="col-program">
+                                            <span class="program-badge">{{ $programCode }}</span>
+                                        </td>
+                                        <td class="col-section">
+                                            <span class="section-badge">{{ $yearSection }}</span>
+                                        </td>
+                                        <td class="col-schedule">
+                                            @if($pref->preferenceDays && $pref->preferenceDays->count() > 0)
+                                                @foreach($pref->preferenceDays as $day)
+                                                    @php
+                                                        $startTime = $day->preferred_start_time ? \Carbon\Carbon::parse($day->preferred_start_time)->format('h:i A') : '';
+                                                        $endTime = $day->preferred_end_time ? \Carbon\Carbon::parse($day->preferred_end_time)->format('h:i A') : '';
+                                                        $timeString = ($startTime && $endTime) ? "($startTime - $endTime)" : "(Any Time)";
+                                                    @endphp
+                                                    <span class="schedule-pill">{{ $day->preferred_day }}<br>{{ $timeString }}</span><br>
+                                                @endforeach
+                                            @else
+                                                <span style="color: #a0aec0; font-style: italic;">No specific schedule set</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+                
+                <p style="margin-top: 30px;">Would you like to use these exact same preferences for this coming academic year?</p>
+                <div class="action-note" style="background-color: #fffaf0; border-left-color: #dd6b20; color: #7b341e;">
+                    <b>Note:</b> Clicking <b>YES</b> will copy the courses and schedules listed above directly into your current preferences. Clicking <b>NO</b> will allow you to input new preferences.
                 </div>
             @else
-                <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience.
-                    Your input is highly valued and helps ensure a smooth scheduling process.</p>
-
-                <div class="button-container">
-                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">Submit Preferences Now</a>
-                </div>
+                <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience. Your input is highly valued and helps ensure a smooth scheduling process.</p>
             @endif
 
-            <p style="margin-top: 25px;">Here's a how-to add preferences video for you: <br>
-                <a href="https://youtu.be/2TPF8RWpOlc?si=caTZs_rlRiPMA3iB" target="_blank" style="color: #800000; font-weight: bold;">Watch Tutorial Video</a>
-            </p>
+            <p class="important-note"><b>NOTE:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.</p>
+            <div class="button-container">
+                @if(isset($previousPreferences) && count($previousPreferences) > 0)
+                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Import automatically)</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Input new preferences)</a>
+                @else
+                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">Submit Preferences Now</a>
+                @endif
+            </div>
 
-            <p class="important-note" style="margin-top: 15px;">Note: If you experience any technical difficulties or have questions about the
+            <div style="margin-top: 35px;">
+                <div class="tutorial-title">How-to Videos:</div>
+                <p style="margin-top: 0;">To better understand the system process, you can watch these videos:</p>
+                <ul class="video-list">
+                    <li>
+                        <a href="https://youtu.be/IzAfVlUYY7s?si=-6z8Z3rJSbodNwfu" target="_blank">How to Login</a>
+                    </li>
+                    <li>
+                        <a href="https://youtu.be/2TPF8RWpOlc?si=1Jvukyua718bpF7f" target="_blank">How to Set Preferences</a>
+                    </li>
+                    <li>
+                        <a href="https://youtu.be/kiixp_kmtWA?si=xzaQosKHFV2qpjkC" target="_blank">How to Reschedule</a>
+                    </li>
+                </ul>
+            </div>
+
+            <p class="important-note" style="margin-top: 20px;">Note: If you experience any technical difficulties or have questions about the
                 submission process, please don't hesitate to contact our support team at <a
                     href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
         </div>

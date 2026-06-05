@@ -54,8 +54,6 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
 
     /**
      * Execute the job.
-     *
-     * This method sends an email to the faculty member regarding their preference submission.
      */
     public function handle()
     {
@@ -99,11 +97,11 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         $previous_semester_label = '';
 
         if ($currentActiveSemester) {
-            // Join to find the latest past semester that MATCHES the current semester_id (e.g. 1st sem to 1st sem)
+            // Join to find the latest past semester that MATCHES the current semester_id
             $latestPastSemesterId = \App\Models\Preference::join('active_semesters', 'preferences.active_semester_id', '=', 'active_semesters.active_semester_id')
                 ->where('preferences.faculty_id', $this->facultyId)
                 ->where('preferences.active_semester_id', '!=', $currentActiveSemester->active_semester_id)
-                ->where('active_semesters.semester_id', $currentActiveSemester->semester_id) // Match semester type
+                ->where('active_semesters.semester_id', $currentActiveSemester->semester_id)
                 ->where(function($query) {
                     $query->whereNotNull('preferences.course_assignment_id')
                           ->orWhereNotNull('preferences.temporary_course_offering_id');
@@ -119,7 +117,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                     'temporaryCourseOffering.course',
                     'temporaryCourseOffering.program',
                     'preferenceDays',
-                    'section' // <-- Added to get Year and Section
+                    'section'
                 ])
                 ->where('faculty_id', $this->facultyId)
                 ->where('active_semester_id', $latestPastSemesterId)
@@ -141,8 +139,15 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
         // ---------------------------------------------------
 
+        // --- FORMAT NAME: Lastname Firstname ---
+        $fullName = trim($faculty->user->name ?? 'Faculty Member');
+        $nameParts = explode(' ', $fullName);
+        $lastName = $faculty->user->last_name ?? array_pop($nameParts);
+        $firstName = $faculty->user->first_name ?? implode(' ', $nameParts);
+        $formattedName = $lastName . ' ' . $firstName;
+
         $dataPreference = [
-            'faculty_name' => $faculty->user->name ?? 'Faculty Member',
+            'faculty_name' => $formattedName,
             'email' => $faculty->user->email,
             'faculty_units' => $faculty->faculty_units ?? 0,
             'deadline' => $formatted_deadline,
@@ -150,7 +155,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             'previousPreferences' => $previousPreferences,
             'previous_academic_year' => $previous_academic_year,
             'previous_semester_label' => $previous_semester_label,
-            'app_url' => $this->appUrl
+            'app_url' => rtrim($this->appUrl, '/')
         ];
 
         $template = $this->is_individual ? 'emails.preferences_single_open' : 'emails.preferences_all_open';
@@ -170,14 +175,8 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
     }
 
-    /**
-     * Handle a job failure.
-     *
-     * @param  \Exception  $exception The exception that caused the failure.
-     */
     public function failed(Exception $exception)
     {
-        // Log the error message if the job fails.
         Log::error('Job failed: ' . $exception->getMessage());
     }
 }
