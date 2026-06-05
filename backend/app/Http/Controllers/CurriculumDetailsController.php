@@ -69,34 +69,50 @@ class CurriculumDetailsController extends Controller
             ->with(['course.requirements.requiredCourse'])
             ->get();
 
-        return $courseAssignments->map(function ($assignment) {
-            $course = $assignment->course;
+        // Filter out orphaned assignments whose course was deleted
+        // without the DB cascade firing (defensive guard).
+        return $courseAssignments
+            ->filter(fn($a) => $a->course !== null)
+            ->map(function ($assignment) {
+                $course = $assignment->course;
 
-            return [
-                'course_assignment_id' => $assignment->course_assignment_id,
-                'curricula_program_id' => $assignment->curricula_program_id,
-                'year_level_id' => $assignment->semester->yearLevel->year_level_id,
-                'course_id' => $course->course_id,
-                'course_code' => $course->course_code,
-                'course_title' => $course->course_title,
-                'lec_hours' => $course->lec_hours,
-                'lab_hours' => $course->lab_hours,
-                'units' => $course->units,
-                'tuition_hours' => $course->tuition_hours,
-                'prerequisites' => $this->getRequirements($course, 'pre'),
-                'corequisites' => $this->getRequirements($course, 'co'),
-            ];
-        });
+                return [
+                    'course_assignment_id' =>
+                        $assignment->course_assignment_id,
+                    'curricula_program_id' =>
+                        $assignment->curricula_program_id,
+                    'year_level_id' =>
+                        $assignment->semester->yearLevel->year_level_id,
+                    'course_id' => $course->course_id,
+                    'course_code' => $course->course_code,
+                    'course_title' => $course->course_title,
+                    'lec_hours' => $course->lec_hours,
+                    'lab_hours' => $course->lab_hours,
+                    'units' => $course->units,
+                    'tuition_hours' => $course->tuition_hours,
+                    'prerequisites' =>
+                        $this->getRequirements($course, 'pre'),
+                    'corequisites' =>
+                        $this->getRequirements($course, 'co'),
+                ];
+            })
+            ->values();
     }
 
     private function getRequirements($course, $type)
     {
-        return $course->requirements->where('requirement_type', $type)->map(function ($req) {
-            return [
-                'course_id' => $req->requiredCourse->course_id,
-                'course_code' => $req->requiredCourse->course_code,
-                'course_title' => $req->requiredCourse->course_title,
-            ];
-        })->values();
+        // Skip requirements whose referenced course was deleted
+        // without the DB cascade removing this row (defensive guard).
+        return $course->requirements
+            ->where('requirement_type', $type)
+            ->filter(fn($req) => $req->requiredCourse !== null)
+            ->map(function ($req) {
+                return [
+                    'course_id' => $req->requiredCourse->course_id,
+                    'course_code' => $req->requiredCourse->course_code,
+                    'course_title' => $req->requiredCourse->course_title,
+                ];
+            })
+            ->values();
     }
 }
