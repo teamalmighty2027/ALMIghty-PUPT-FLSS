@@ -68,28 +68,17 @@
         .button {
             color: #ffffff !important;
             text-decoration: none;
-            padding: 14px 24px;
+            padding: 14px 40px; /* Increased padding for the single button */
             border-radius: 9999px;
-            font-size: 15px;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
             display: inline-block;
             transition: all 0.3s ease;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-yes {
-            background-color: #28a745;
-        }
-
-        .btn-yes:hover {
-            background-color: #218838;
-        }
-
-        .btn-no {
             background-color: #800000;
         }
 
-        .btn-no:hover {
+        .button:hover {
             background-color: #660000;
         }
 
@@ -250,14 +239,8 @@
         <div class="content">
             <p class="greeting"><b>Dear Prof. {{ $faculty_name }},</b></p>
 
-            <p>I hope this email finds you well. I would like to inform you that the <b>submission is now open</b> for
+            <p>I hope this email finds you well. I would like to inform you that <b>submission is now open</b> for
                 your load and schedule preferences for the upcoming semester.</p>
-
-            <div class="action-note">
-                <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
-                <b>Email:</b> {{ $email }}<br>
-                <b>Default Password:</b> puptfaculty123*
-            </div>
 
             <div class="deadline-box">
                 <p class="deadline-text">Submission Deadline: {{ $deadline }}</p>
@@ -333,21 +316,28 @@
                     </div>
                 </details>
                 
-                <p style="margin-top: 30px;">Would you like to use these exact same preferences for this coming academic year?</p>
-                
-                <div class="action-note" style="background-color: #fffaf0; border-left-color: #dd6b20; color: #7b341e; margin-bottom: 15px;">
-                    <b>Note:</b> YOU MUST LOGIN FIRST BEFORE YOU CLICK YES OR NO.
+                <div class="action-note">
+                    <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
+                    <b>Email:</b> {{ $email }}<br>
+                    <b>Default Password:</b> puptfaculty123*
                 </div>
 
+                <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
+
                 <div class="button-container">
-                    <a href="{{ $app_url }}/faculty/preferences?action=auto_import" class="button btn-yes">YES (Same Preferences)</a>
-                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">NO (Edit Preferences)</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button">LOGIN</a>
                 </div>
             @else
-                <p>Please take a moment to log in to the system and provide your preferences at your earliest convenience. Your input is highly valued and helps ensure a smooth scheduling process.</p>
+                <div class="action-note">
+                    <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
+                    <b>Email:</b> {{ $email }}<br>
+                    <b>Default Password:</b> puptfaculty123*
+                </div>
+                
+                <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
                 
                 <div class="button-container">
-                    <a href="{{ $app_url }}/faculty/preferences" class="button btn-no">Submit Preferences Now</a>
+                    <a href="{{ $app_url }}/faculty/preferences" class="button">LOGIN</a>
                 </div>
             @endif
 
