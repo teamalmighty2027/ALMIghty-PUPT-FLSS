@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\FacultyController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\EmailController;
+use App\Mail\FlssImplementationNotice;
 use Carbon\Carbon;
 
 /*
@@ -111,3 +112,7 @@ Route::get('/preferences-single-open-email', [EmailController::class, 'testSingl
 Route::get('/test-schedule-published', [EmailController::class, 'testSchedulePublished']);
 
 Route::get('/test-faculty-first-login-password', [EmailController::class, 'testFacultyFirstLoginPassword']);
+
+Route::get('/preview-notice', function () {
+    return new FlssImplementationNotice();
+});
