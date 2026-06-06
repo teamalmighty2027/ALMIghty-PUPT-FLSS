@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\Validator;
 
 class ScheduleController extends Controller
 {
+    private $sectionCoursesCache = [];
+    private $schedulesCache = [];
+    private $facultyCache = [];
+    private $roomsCache = [];
+    private $curriculumElectivesCache = [];
+    private $electivesCache = [];
     /**
      * Fetches schedules for a historical (non-active) academic year and semester.
      */
@@ -213,6 +219,104 @@ class ScheduleController extends Controller
 
         $activeAcademicYearId = $activeSemester->academic_year_id;
 
+        // Populate database query caches to eliminate N+1 queries
+        $this->sectionCoursesCache = DB::table('section_courses as sc')
+            ->join(
+                'sections_per_program_year as sp',
+                'sc.sections_per_program_year_id',
+                '=',
+                'sp.sections_per_program_year_id'
+            )
+            ->where('sp.academic_year_id', $activeAcademicYearId)
+            ->select(
+                'sc.section_course_id',
+                'sc.sections_per_program_year_id',
+                'sc.course_assignment_id',
+                'sc.is_copy'
+            )
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->sections_per_program_year_id . '-'
+                     . $item->course_assignment_id;
+            });
+
+        $this->schedulesCache = DB::table('schedules as s')
+            ->join(
+                'section_courses as sc',
+                's.section_course_id',
+                '=',
+                'sc.section_course_id'
+            )
+            ->join(
+                'sections_per_program_year as sp',
+                'sc.sections_per_program_year_id',
+                '=',
+                'sp.sections_per_program_year_id'
+            )
+            ->where('sp.academic_year_id', $activeAcademicYearId)
+            ->select('s.*')
+            ->get()
+            ->keyBy('section_course_id');
+
+        $this->facultyCache = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->select(
+                'faculty.id',
+                'users.id as user_id',
+                'users.email as faculty_email',
+                'users.first_name',
+                'users.middle_name',
+                'users.last_name',
+                'users.suffix_name'
+            )
+            ->get()
+            ->keyBy('id');
+
+        $this->roomsCache = DB::table('rooms')
+            ->get()
+            ->keyBy('room_id');
+
+        $this->curriculumElectivesCache = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->where(function ($q) use ($activeAcademicYearId) {
+                $q->where('ce.academic_year_id', $activeAcademicYearId)
+                  ->orWhereNull('ce.academic_year_id');
+            })
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'e.elective_id',
+                'e.elective_slot_name',
+                'e.course_title',
+                'e.course_code',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $this->electivesCache = DB::table('electives')
+            ->select(
+                'elective_id',
+                'elective_slot_name',
+                'course_title',
+                'course_code'
+            )
+            ->get()
+            ->keyBy('elective_id');
+
+        $allSections = DB::table('sections_per_program_year')
+            ->where('academic_year_id', $activeAcademicYearId)
+            ->get()
+            ->groupBy(function ($item) {
+                return $item->program_id . '-' . $item->year_level;
+            });
+
         // Fetch all assigned courses for the active semester and academic year
         $assignedCourses = DB::table('curricula as c')
             ->select(
@@ -272,15 +376,17 @@ class ScheduleController extends Controller
         foreach ($assignedCourses as $row) {
             // Organize data hierarchically: Program -> Year Level -> Semester -> Sections -> Courses
             $programIndex = $this->findOrCreateProgram($response, $row);
-            $yearLevelIndex = $this->findOrCreateYearLevel($response[$programIndex]['year_levels'], $row);
-            $semesterIndex = $this->findOrCreateSemester($response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'], $row);
+            $yearLevelIndex = $this->findOrCreateYearLevel(
+                $response[$programIndex]['year_levels'],
+                $row
+            );
+            $semesterIndex = $this->findOrCreateSemester(
+                $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'],
+                $row
+            );
 
-            // Fetch sections for the current program-year level
-            $sections = DB::table('sections_per_program_year')
-                ->where('program_id', $row->program_id)
-                ->where('year_level', $row->year_level)
-                ->where('academic_year_id', $activeAcademicYearId)
-                ->get();
+            $cacheKey = $row->program_id . '-' . $row->year_level;
+            $sections = $allSections->get($cacheKey, []);
 
             foreach ($sections as $section) {
                 // Ensure section_courses entry exists for each assigned course
@@ -290,7 +396,8 @@ class ScheduleController extends Controller
                 $this->assignCourseToSectionAndSchedule(
                     $row,
                     $section,
-                    $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'],
+                    $response[$programIndex]['year_levels'][$yearLevelIndex]
+                             ['semesters'][$semesterIndex]['sections'],
                     $activeAcademicYearId
                 );
             }
@@ -695,20 +802,29 @@ class ScheduleController extends Controller
             return;
         }
 
-        $existingSectionCourse = DB::table('section_courses')
-            ->where('sections_per_program_year_id', $section->sections_per_program_year_id)
-            ->where('course_assignment_id', $row->course_assignment_id)
-            ->first();
+        $cacheKey = $section->sections_per_program_year_id . '-'
+                  . $row->course_assignment_id;
 
-        if (!$existingSectionCourse) {
+        if (!$this->sectionCoursesCache->has($cacheKey)) {
             // Insert missing section_course for new courses
-            DB::table('section_courses')->insert([
-                'sections_per_program_year_id' => $section->sections_per_program_year_id,
+            $id = DB::table('section_courses')->insertGetId([
+                'sections_per_program_year_id' =>
+                    $section->sections_per_program_year_id,
                 'course_assignment_id' => $row->course_assignment_id,
                 'is_copy' => 0, // Default to original
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            $newSecCourse = (object) [
+                'section_course_id' => $id,
+                'sections_per_program_year_id' =>
+                    $section->sections_per_program_year_id,
+                'course_assignment_id' => $row->course_assignment_id,
+                'is_copy' => 0,
+            ];
+
+            $this->sectionCoursesCache->put($cacheKey, collect([$newSecCourse]));
         }
     }
 
@@ -730,36 +846,36 @@ class ScheduleController extends Controller
         // Find or create the section in the response array
         $sectionIndex = $this->findOrCreateSection($sections, $section);
 
-        // Fetch all section_courses, including duplicates
-        $sectionCourses = DB::table('section_courses')
-            ->where('sections_per_program_year_id', $section->sections_per_program_year_id)
-            ->where('course_assignment_id', $row->course_assignment_id)
-            ->get();
+        $cacheKey = $section->sections_per_program_year_id . '-'
+                  . $row->course_assignment_id;
+        $sectionCourses = $this->sectionCoursesCache->get($cacheKey, []);
 
         foreach ($sectionCourses as $section_course) {
-            $existingSchedule = DB::table('schedules')
-                ->where('section_course_id', $section_course->section_course_id)
-                ->first();
+            $existingSchedule = $this->schedulesCache->get(
+                $section_course->section_course_id,
+                null
+            );
 
             if ($existingSchedule) {
-                $faculty = $existingSchedule->faculty_id ? DB::table('faculty')
-                    ->join('users', 'faculty.user_id', '=', 'users.id')
-                    ->where('faculty.id', $existingSchedule->faculty_id)
-                    ->select(
-                        'faculty.id',
-                        'users.id as user_id',
-                        'users.email as faculty_email'
-                    )
-                    ->first() : null;
+                $faculty = $existingSchedule->faculty_id ?
+                    ($this->facultyCache->get($existingSchedule->faculty_id) ?? null)
+                    : null;
 
                 if ($faculty) {
-                    $user = \App\Models\User::find($faculty->user_id);
-                    $faculty->professor = $user->formatted_name;
+                    $formattedName = $faculty->last_name . ', '
+                                   . $faculty->first_name;
+                    if ($faculty->middle_name) {
+                        $formattedName .= ' ' . $faculty->middle_name;
+                    }
+                    if ($faculty->suffix_name) {
+                        $formattedName .= ' ' . $faculty->suffix_name;
+                    }
+                    $faculty->professor = $formattedName;
                 }
 
-                $room = $existingSchedule->room_id ? DB::table('rooms')
-                    ->where('room_id', $existingSchedule->room_id)
-                    ->first() : null;
+                $room = $existingSchedule->room_id ?
+                    ($this->roomsCache->get($existingSchedule->room_id) ?? null)
+                    : null;
 
                 $scheduleId = $existingSchedule->schedule_id;
             } else {
@@ -777,11 +893,27 @@ class ScheduleController extends Controller
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+
+                $newScheduleObj = (object) [
+                    'schedule_id' => $scheduleId,
+                    'section_course_id' => $section_course->section_course_id,
+                    'day' => null,
+                    'start_time' => null,
+                    'end_time' => null,
+                    'faculty_id' => null,
+                    'room_id' => null,
+                    'elective_id' => null,
+                ];
+
+                $this->schedulesCache->put(
+                    $section_course->section_course_id,
+                    $newScheduleObj
+                );
             }
 
-            $schedule = DB::table('schedules')
-                ->where('section_course_id', $section_course->section_course_id)
-                ->first();
+            $schedule = $this->schedulesCache->get(
+                $section_course->section_course_id
+            );
 
             $electiveTitle = null;
             $electiveCode = null;
@@ -792,85 +924,37 @@ class ScheduleController extends Controller
             $electiveId = $schedule->elective_id ?? null;
 
             if (!$electiveId) {
-                // Resolve from curriculum_electives using the row's
-                // curriculum + program + year_level + semester
-                // and the slot name stored on the elective record.
-                $curriculumElective = DB::table(
-                    'curriculum_electives as ce'
-                )
-                    ->join(
-                        'electives as e',
-                        'ce.selected_elective_id',
-                        '=',
-                        'e.elective_id'
-                    )
-                    ->join(
-                        'course_assignments as ca',
-                        function ($join) use ($row) {
-                            $join
-                                ->on(
-                                    'ca.curricula_program_id',
-                                    '=',
-                                    DB::raw(
-                                        '(SELECT curricula_program_id '
-                                        . 'FROM curricula_program '
-                                        . 'WHERE curriculum_id = '
-                                        . $row->curriculum_id
-                                        . ' AND program_id = '
-                                        . $row->program_id
-                                        . ' LIMIT 1)'
-                                    )
-                                )
-                                ->on(
-                                    'ca.course_assignment_id',
-                                    '=',
-                                    DB::raw(
-                                        $row->course_assignment_id
-                                    )
-                                );
-                        }
-                    )
-                    ->where('ce.curriculum_id', $row->curriculum_id)
-                    ->where('ce.program_id', $row->program_id)
-                    ->where('ce.year_level', $row->year_level)
-                    ->where(
-                        'ce.semester_id',
-                        $row->semester_id
-                    )
-                    // Scope to the current academic year first;
-                    // fall back to null (legacy rows) if none found.
-                    ->where(function ($q) use ($activeAcademicYearId) {
-                        $q->where(
-                            'ce.academic_year_id',
-                            $activeAcademicYearId
-                        )->orWhereNull('ce.academic_year_id');
-                    })
-                    ->orderByRaw(
-                        'ce.academic_year_id IS NULL ASC'
-                    )
-                    ->whereRaw(
-                        'LOWER(e.elective_slot_name) = LOWER('
-                        . 'SUBSTRING_INDEX(?, \' \', 1))',
-                        [$row->course_code]
-                    )
-                    ->select(
-                        'e.elective_id',
-                        'e.elective_slot_name',
-                        'e.course_title',
-                        'e.course_code'
-                    )
-                    ->first();
+                // Resolve from curriculum_electives cache
+                $matchedElective = null;
+                foreach ($this->curriculumElectivesCache as $ce) {
+                    if ($ce->curriculum_id == $row->curriculum_id &&
+                        $ce->program_id == $row->program_id &&
+                        $ce->year_level == $row->year_level &&
+                        $ce->semester_id == $row->semester_id) {
 
-                if ($curriculumElective) {
-                    $electiveId = $curriculumElective->elective_id;
+                        $slotNameFirstWord = strtolower(
+                            explode(' ', $ce->elective_slot_name)[0]
+                        );
+                        $courseCodeFirstWord = strtolower(
+                            explode(' ', $row->course_code)[0]
+                        );
+
+                        if ($slotNameFirstWord === $courseCodeFirstWord) {
+                            if (is_null($matchedElective) ||
+                                $ce->academic_year_id == $activeAcademicYearId) {
+                                $matchedElective = $ce;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchedElective) {
+                    $electiveId = $matchedElective->elective_id;
                 }
             }
 
             if ($electiveId) {
-                $elective = DB::table('electives')
-                    ->where('elective_id', $electiveId)
-                    ->select('elective_slot_name', 'course_title', 'course_code')
-                    ->first();
+                $elective = $this->electivesCache->get($electiveId, null);
                 if ($elective) {
                     $electiveSlotName = $elective->elective_slot_name;
                     $electiveTitle = $elective->course_title;
