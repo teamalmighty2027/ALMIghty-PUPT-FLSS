@@ -23,7 +23,6 @@ import {
   TemporaryCourseOfferingPayload,
   SmartSuggestion,
   Elective,
-  AcademicYearElectivesResponse,
 } from '../../../models/scheduling.model';
 
 import { environment } from '../../../../../environments/environment.dev';
@@ -129,38 +128,6 @@ export class SchedulingService {
         params,
       })
       .pipe(catchError(this.handleError));
-  }
-
-  /**
-   * Fetch elective overrides for an academic year.
-   */
-  getAcademicYearElectives(
-    academicYearId: number
-  ): Observable<AcademicYearElectivesResponse> {
-    return this.http
-      .get<AcademicYearElectivesResponse>(
-        `${this.baseUrl}/academic-year/${academicYearId}/electives`
-      )
-      .pipe(catchError(this.handleError));
-  }
-
-  /**
-   * Save an academic year elective override.
-   */
-  saveAcademicYearElective(payload: {
-    academic_year_id: number;
-    semester_id: number;
-    program_id: number;
-    year_level: number;
-    elective_slot_name: string;
-    selected_elective_id: number;
-  }): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/academic-year-electives`, payload)
-      .pipe(
-        tap(() => this.resetCaches([CacheType.Schedules])),
-        catchError(this.handleError)
-      );
   }
 
   /**

@@ -54,6 +54,25 @@ export class PreferencesService {
   }
 
   /**
+   * Fetches active elective assignments for a curriculum year
+   * scoped to a specific academic year.
+   * Used in faculty preferences to resolve elective display names.
+   */
+  getResolvedCurriculumElectives(
+    curriculumYear: string,
+    academicYearId: number
+  ): Observable<any> {
+    const params = new HttpParams().set(
+      'academic_year_id',
+      academicYearId.toString()
+    );
+    return this.http.get<any>(
+      `${this.baseUrl}/curriculum/${curriculumYear}/electives`,
+      { params }
+    );
+  }
+
+  /**
    * Retrieves user preferences for the Admin view.
    * By returning the HTTP call directly, we prevent race conditions and infinite loading
    * when switching between different academic terms in the dropdown.
