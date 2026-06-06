@@ -21,6 +21,7 @@ export class PreferencesService {
     programs: Program[];
     active_semester_id: number;
     semester_id: number;
+    academic_year_id: number;
   }> | null = null;
 
   constructor(private http: HttpClient) {}
@@ -33,22 +34,26 @@ export class PreferencesService {
     programs: Program[];
     active_semester_id: number;
     semester_id: number;
+    academic_year_id: number;
   }> {
     if (!this.programsCache$) {
       const url = `${this.baseUrl}/offered-courses-sem`;
-      this.programsCache$ = this.http.get<AssignedCoursesResponse>(url).pipe(
-        map((response) => ({
-          programs: response.programs,
-          active_semester_id: response.active_semester_id,
-          semester_id: response.semester_id,
-        })),
-        shareReplay(1),
-        catchError((error) => {
-          console.error('Error fetching programs:', error);
-          this.programsCache$ = null;
-          return throwError(() => error);
-        })
-      );
+      this.programsCache$ = this.http
+        .get<AssignedCoursesResponse>(url)
+        .pipe(
+          map((response) => ({
+            programs: response.programs,
+            active_semester_id: response.active_semester_id,
+            semester_id: response.semester_id,
+            academic_year_id: response.academic_year_id,
+          })),
+          shareReplay(1),
+          catchError((error) => {
+            console.error('Error fetching programs:', error);
+            this.programsCache$ = null;
+            return throwError(() => error);
+          })
+        );
     }
     return this.programsCache$;
   }

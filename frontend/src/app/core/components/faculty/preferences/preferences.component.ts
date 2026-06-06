@@ -29,6 +29,7 @@ import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { AuthService } from '../../../services/auth/auth.service';
 import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
+import { Elective } from '../../../models/scheduling.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -116,9 +117,9 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
   /**
    * Maps elective slot name (course_title) to the resolved
-   * active elective title for the current academic year.
+   * active elective for the current academic year.
    */
-  electiveNameMap = signal(new Map<string, string>());
+  electiveNameMap = signal(new Map<string, Elective>());
   filteredSearchResults = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const selectedProgram = this.selectedProgram();
@@ -494,7 +495,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
             // resolved title, not just the generic slot name.
             this.loadElectiveNameMap(
               programsResponse.programs,
-              (programsResponse as any).academic_year_id
+              programsResponse.academic_year_id
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -591,7 +592,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
   /**
    * Fetches the AY-scoped active elective assignments and builds
-   * electiveNameMap (slot title -> resolved elective title).
+   * electiveNameMap (slot title -> resolved Elective).
    */
   private loadElectiveNameMap(
     programs: Program[],
@@ -610,7 +611,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     if (curriculumYears.size === 0 || !academicYearId) return;
 
     // Fetch elective assignments for each unique curriculum year
-    const newMap = new Map<string, string>();
+    const newMap = new Map<string, Elective>();
     let pending = curriculumYears.size;
 
     curriculumYears.forEach(year => {
@@ -620,11 +621,11 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
           .subscribe({
             next: (response: any) => {
               (response.electives || []).forEach((ce: any) => {
-                if (ce.elective?.course_title) {
-                  // Key by slot name; value is the resolved title
+                if (ce.elective) {
+                  // Key by slot name; value is the resolved Elective object
                   newMap.set(
                     ce.elective_slot_name,
-                    ce.elective.course_title
+                    ce.elective
                   );
                 }
               });
@@ -645,17 +646,30 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
-   * Returns the resolved elective course title for a slot-name
-   * course, or the original title when no active elective is set.
+   * Returns the resolved elective details (code/title) for a slot.
    */
-  public getElectiveDisplayTitle(course: Course): string {
+  public getResolvedElective(course: Course): Elective | null {
     const title = course.course_title;
     const isElective = title.toLowerCase().includes('elective');
+    if (!isElective) return null;
 
-    if (!isElective) return title;
+    return this.electiveNameMap().get(title) ?? null;
+  }
 
-    const resolved = this.electiveNameMap().get(title);
-    return resolved ?? title;
+  /**
+   * Returns the display code for a course (resolves elective if applicable).
+   */
+  public getDisplayCode(course: Course): string {
+    const resolved = this.getResolvedElective(course);
+    return resolved ? resolved.course_code : course.course_code;
+  }
+
+  /**
+   * Returns the display title for a course (resolves elective if applicable).
+   */
+  public getDisplayTitle(course: Course): string {
+    const resolved = this.getResolvedElective(course);
+    return resolved ? resolved.course_title : course.course_title;
   }
 
   /**
