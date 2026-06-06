@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AcademicYearElective;
+
 use App\Models\Curriculum;
 use App\Models\CurriculumElective;
 use App\Models\Elective;
@@ -57,7 +57,8 @@ class ElectiveController extends Controller
     }
 
     /**
-     * Create or update a curriculum elective assignment.
+     * Create or update a curriculum elective assignment,
+     * scoped to a specific academic year when provided.
      */
     public function storeCurriculumElective(Request $request)
     {
@@ -84,15 +85,23 @@ class ElectiveController extends Controller
                 'integer',
                 'exists:electives,elective_id',
             ],
+            'academic_year_id' => [
+                'nullable',
+                'integer',
+                'exists:academic_years,academic_year_id',
+            ],
         ]);
 
         $assignment = CurriculumElective::updateOrCreate(
             [
                 'curriculum_id' => $validated['curriculum_id'],
-                'program_id' => $validated['program_id'],
-                'year_level' => $validated['year_level'],
-                'semester_id' => $validated['semester_id'],
-                'elective_slot_name' => $validated['elective_slot_name'],
+                'program_id'    => $validated['program_id'],
+                'year_level'    => $validated['year_level'],
+                'semester_id'   => $validated['semester_id'],
+                'elective_slot_name' =>
+                    $validated['elective_slot_name'],
+                'academic_year_id' =>
+                    $validated['academic_year_id'] ?? null,
             ],
             [
                 'selected_elective_id' =>
@@ -191,17 +200,28 @@ class ElectiveController extends Controller
     }
 
     /**
-     * Get elective assignments for a curriculum year.
+     * Get elective assignments for a curriculum year,
+     * optionally filtered by academic_year_id.
      */
-    public function getCurriculumElectives(string $curriculumYear)
-    {
+    public function getCurriculumElectives(
+        Request $request,
+        string $curriculumYear
+    ) {
         $curriculum = Curriculum::where(
             'curriculum_year',
             $curriculumYear
         )->firstOrFail();
 
-        $assignments = CurriculumElective::with('elective')
-            ->where('curriculum_id', $curriculum->curriculum_id)
+        $query = CurriculumElective::with('elective')
+            ->where('curriculum_id', $curriculum->curriculum_id);
+
+        // Filter by AY when provided
+        $academicYearId = $request->query('academic_year_id');
+        if ($academicYearId) {
+            $query->where('academic_year_id', (int) $academicYearId);
+        }
+
+        $assignments = $query
             ->orderBy('program_id')
             ->orderBy('year_level')
             ->orderBy('semester_id')
@@ -209,78 +229,9 @@ class ElectiveController extends Controller
             ->get();
 
         return response()->json([
-            'curriculum_id' => $curriculum->curriculum_id,
+            'curriculum_id'   => $curriculum->curriculum_id,
             'curriculum_year' => $curriculum->curriculum_year,
-            'electives' => $assignments,
-        ]);
-    }
-
-    /**
-     * Create or update an academic year elective override.
-     */
-    public function storeAcademicYearElective(Request $request)
-    {
-        $validated = $request->validate([
-            'academic_year_id' => [
-                'required',
-                'integer',
-                'exists:academic_years,academic_year_id',
-            ],
-            'semester_id' => [
-                'required',
-                'integer',
-                'exists:semesters,semester_id',
-            ],
-            'program_id' => [
-                'required',
-                'integer',
-                'exists:programs,program_id',
-            ],
-            'year_level' => ['required', 'integer', 'min:1'],
-            'elective_slot_name' => ['required', 'string', 'max:50'],
-            'selected_elective_id' => [
-                'required',
-                'integer',
-                'exists:electives,elective_id',
-            ],
-        ]);
-
-        $override = AcademicYearElective::updateOrCreate(
-            [
-                'academic_year_id' => $validated['academic_year_id'],
-                'semester_id' => $validated['semester_id'],
-                'program_id' => $validated['program_id'],
-                'year_level' => $validated['year_level'],
-                'elective_slot_name' => $validated['elective_slot_name'],
-            ],
-            [
-                'selected_elective_id' =>
-                    $validated['selected_elective_id'],
-            ]
-        );
-
-        return response()->json([
-            'message' => 'Academic year elective saved.',
-            'academic_year_elective' => $override,
-        ]);
-    }
-
-    /**
-     * Get elective overrides for an academic year.
-     */
-    public function getAcademicYearElectives(int $academicYearId)
-    {
-        $overrides = AcademicYearElective::with('elective')
-            ->where('academic_year_id', $academicYearId)
-            ->orderBy('program_id')
-            ->orderBy('year_level')
-            ->orderBy('semester_id')
-            ->orderBy('elective_slot_name')
-            ->get();
-
-        return response()->json([
-            'academic_year_id' => $academicYearId,
-            'electives' => $overrides,
+            'electives'       => $assignments,
         ]);
     }
 }
