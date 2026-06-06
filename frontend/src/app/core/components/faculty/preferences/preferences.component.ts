@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, ElementRef, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ViewChild, ElementRef, signal, computed, effect, Injector } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
 
 import { finalize, of, Subscription, Subject, debounceTime, distinctUntilChanged, startWith, tap, switchMap, firstValueFrom, throwError, catchError } from 'rxjs';
 
@@ -69,10 +70,12 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   // UI State
   isLoading = signal(true);
   searchState = signal<
-    'programSelection' | 'courseSelection' | 'searchResults' | 'noResults'
-  >('courseSelection');
-  showCourseSelection = computed(
-    () => this.searchState() === 'courseSelection',
+    'programSelection' | 'courseList' | 'searchResults' | 'noResults'
+  >('programSelection');
+
+  // True when the sidebar should show the program-picker cards
+  showProgramSelection = computed(
+    () => this.searchState() === 'programSelection',
   );
   showPossiblePrograms = signal(false);
 
@@ -87,11 +90,11 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   selectedCourse = signal<Course | null>(null);
   selectedSection = signal<Section | undefined>(undefined);
 
-  // Temporary hardcoded year level as four
+  // Year levels derived from the currently selected program only
   dynamicYearLevels = computed(() =>
-    this.selectedProgram() === undefined
-      ? this.programs()[0]!.year_levels.map((yl) => yl.year_level)
-      : this.selectedProgram()!.year_levels.map((yl) => yl.year_level),
+    this.selectedProgram()
+      ? this.selectedProgram()!.year_levels.map((yl) => yl.year_level)
+      : [],
   );
   
   // Faculty Info
@@ -193,6 +196,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    * @param preferencesService API service for preferences data.
    * @param snackBar Snackbar service used for user feedback.
    * @param authService Auth service used to resolve the faculty id.
+   * @param route ActivatedRoute used to intercept query params for auto-import.
+   * @param router Router used to clean up query params.
    */
   constructor(
     private readonly themeService: ThemeService,
@@ -200,6 +205,9 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     private readonly preferencesService: PreferencesService,
     private readonly snackBar: MatSnackBar,
     private readonly authService: AuthService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly injector: Injector
   ) {
     effect(() => {
       this.dataSource().data;
@@ -238,6 +246,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     this.subscribeToThemeChanges();
     this.setupSearchSubscription();
     this.loadInitialData();
+    this.listenForAutoImport();
   }
 
   /**
@@ -246,6 +255,163 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   ngOnDestroy() {
     this.subscriptions.unsubscribe();
     this.searchQuerySubject.complete();
+  }
+
+  /**
+   * Listens for the 'action=auto_import' query parameter to trigger the bulk import.
+   */
+  private listenForAutoImport(): void {
+    this.subscriptions.add(
+      this.route.queryParams.subscribe((params) => {
+        if (params['action'] === 'auto_import') {
+          // Clean up the URL immediately so a manual page refresh doesn't re-trigger the import
+          this.router.navigate([], {
+            relativeTo: this.route,
+            queryParams: { action: null },
+            queryParamsHandling: 'merge',
+          });
+          
+          // Wait for initial data (programs, semesterId) to load before executing
+          if (this.programs().length > 0 && this.semesterId() !== null) {
+              this.executeAutoImport();
+          } else {
+             // If data isn't loaded yet, set a one-time effect to trigger it once data arrives
+              const stopEffect = effect(() => {
+                if (this.programs().length > 0 && this.semesterId() !== null) {
+                    this.executeAutoImport();
+                    stopEffect.destroy();
+                }
+              }, { injector: this.injector });
+          }
+        }
+      })
+    );
+  }
+
+  /**
+   * Executes the frontend-driven auto-import using existing history logic.
+   */
+  private executeAutoImport(): void {
+    const facultyId = this.authService.getUserFacultyId();
+    if (!facultyId || !this.semesterId()) return;
+
+    this.isLoading.set(true);
+
+    // Fetch the faculty's history using the existing service
+    this.subscriptions.add(
+      this.preferencesService.getPreferencesHistoryByFacultyId(facultyId).subscribe({
+        next: (response) => {
+          // 1. Filter out the current active semester
+          const historicalYears = response.academic_years.filter((ay: any) => {
+            const semestersArray = Object.values(ay.semesters);
+            return semestersArray.some((s: any) => 
+              s.semester_id === this.semesterId() &&
+              s.active_semester_id !== this.activeSemesterId()
+            );
+          });
+
+          if (historicalYears.length === 0) {
+              this.showSnackBar('No past preferences found for this semester type to import.');
+              this.isLoading.set(false);
+              return;
+          }
+
+          // 2. Grab the most recent historical semester data
+          const mostRecentYear = historicalYears[0];
+          const semestersArray = Object.values(mostRecentYear.semesters);
+          const targetSem = semestersArray.find((s: any) => s.semester_id === this.semesterId()) as any;
+          const rawPreferences = targetSem?.preferences ?? [];
+
+          if (rawPreferences.length === 0) {
+              this.showSnackBar('No past preferences found to import.');
+              this.isLoading.set(false);
+              return;
+          }
+
+          // 3. Map the raw preferences to the Course format expected by processBatchImport
+          const coursesToImport = this.mapHistoryToImportableCourses(rawPreferences);
+
+          if (coursesToImport.length > 0) {
+              // 4. Pass directly to the existing batch import logic
+              this.processBatchImport(coursesToImport).then(() => {
+                 this.showSnackBar('Your previous preferences were successfully imported!');
+                 this.isLoading.set(false);
+              });
+          } else {
+              this.showSnackBar('No valid courses could be matched for import.');
+              this.isLoading.set(false);
+          }
+        },
+        error: (err) => {
+          console.error('Error fetching history for auto-import:', err);
+          this.showSnackBar('Failed to load past preferences for import.');
+          this.isLoading.set(false);
+        }
+      })
+    );
+  }
+
+  /**
+   * Maps raw history preferences to the Course objects required by processBatchImport.
+   * Replicates the mapping logic found in DialogImportHistoryComponent.
+   */
+  private mapHistoryToImportableCourses(rawPreferences: any[]): Course[] {
+    const programs = this.programs();
+    const existingKeys = this.allSelectedCourses().map(c => this.getSelectionKey(c));
+    const importable: Course[] = [];
+
+    rawPreferences.forEach(pref => {
+        if (pref.is_temporary) return;
+
+        const histProgramCode = pref.course_details?.program_code;
+        const histCourseCode = pref.course_details?.course_code;
+        const histSectionName = pref.section_details?.section_name;
+
+        const matchedProgram = programs.find(p => p.program_code === histProgramCode);
+        let match: Course | undefined;
+
+        if (matchedProgram) {
+            // Try exact match
+            for (const yl of matchedProgram.year_levels) {
+                const found = yl.semester.courses.find(c => c.course_code === histCourseCode);
+                if (found) {
+                    const matchedSection = yl.sections?.find(s => s.section_name === histSectionName);
+                    if (matchedSection) {
+                        match = { ...found, year_level: yl.year_level, section: matchedSection };
+                        break;
+                    }
+                }
+            }
+            // Fallback to course match only
+            if (!match) {
+                 for (const yl of matchedProgram.year_levels) {
+                    const found = yl.semester.courses.find(c => c.course_code === histCourseCode);
+                    if (found) {
+                        match = { ...found, year_level: yl.year_level };
+                        break;
+                    }
+                 }
+            }
+        }
+
+        if (match) {
+            // Attach the necessary previous data for processBatchImport to utilize
+            const courseToAdd: any = {
+                ...match,
+                previousSectionName: histSectionName,
+                previousProgramCode: histProgramCode,
+                preferred_days: pref.preferred_days
+            };
+
+            // Prevent adding duplicates
+            const key = this.getSelectionKey(match as Course, histProgramCode);
+            if (!existingKeys.includes(key)) {
+                importable.push(courseToAdd as Course);
+            }
+        }
+    });
+
+    return importable;
   }
 
   /**
@@ -291,7 +457,22 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               this.populateUniqueCourses(program, allCoursesMap),
             );
 
-            this.programs.set(programsResponse.programs);
+            // Sort programs alphabetically; diploma programs go to the end
+            const sortedPrograms = [...programsResponse.programs].sort(
+              (a, b) => {
+                const aIsDiploma = /diploma/i.test(a.program_code)
+                  || /diploma/i.test(a.program_title);
+                const bIsDiploma = /diploma/i.test(b.program_code)
+                  || /diploma/i.test(b.program_title);
+
+                if (aIsDiploma !== bIsDiploma) {
+                  return aIsDiploma ? 1 : -1;
+                }
+
+                return a.program_code.localeCompare(b.program_code);
+              },
+            );
+            this.programs.set(sortedPrograms);
             this.activeSemesterId.set(programsResponse.active_semester_id);
             this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
@@ -396,14 +577,14 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
-   * Selects a program and resets the search flow to the course picker.
+   * Selects a program and transitions the sidebar to the course list.
    *
    * @param program Program chosen by the user.
    */
   public selectProgram(program: Program): void {
     this.selectedYearLevel.set(null);
     this.selectedProgram.set(program);
-    this.searchState.set('courseSelection');
+    this.searchState.set('courseList');
     this.uniqueCourses.set(new Map<string, Course>());
     this.populateUniqueCourses(program, this.uniqueCourses());
     this.clearSearch();
@@ -431,13 +612,16 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
   /**
    * Finds all programs that offer the selected course.
+   * Switches to the possible-programs picker if more than one program matches.
    *
    * @param course Course selected from the picker.
    */
   private async populatePossiblePrograms(course: Course): Promise<void> {
     const possiblePrograms: Program[] = [];
     this.selectedCourse.set(course);
-    this.searchState.set('courseSelection');
+
+    // Stay on courseList while we resolve; switch only if needed
+    this.searchState.set('courseList');
 
     this.programs().forEach((program) => {
       const hasCourseInProgram = program.year_levels.some((yearLevel) =>
@@ -456,13 +640,15 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return;
     }
 
+    // Multiple programs: show possible-programs sidebar
     this.showPossiblePrograms.set(true);
     this.searchState.set('programSelection');
     this.possiblePrograms.set(possiblePrograms);
   }
 
   /**
-   * Adds the selected course from a chosen program to the preferences table.
+   * Adds the selected bridging course from a chosen program, then returns
+   * the sidebar to the course list.
    *
    * @param program Program selected from the possible-programs list.
    */
@@ -486,58 +672,60 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       }
     }
 
+    // After bridging selection, return sidebar to the course list
     if (this.searchQuery() !== '') {
       this.searchState.set('searchResults');
     } else {
-      this.searchState.set('courseSelection');
+      this.searchState.set('courseList');
     }
   }
 
   /**
-   * Returns to the course-selection view and clears the year-level filter.
+   * Returns the sidebar to the top-level program selection list and resets
+   * all selection state.
    */
-  public backToCourseSelection(): void {
+  public backToProgramSelection(): void {
     this.selectedYearLevel.set(null);
-    if (this.searchState() === 'courseSelection') {
-      this.searchState.set('searchResults');
-    } else {
-      // Insert course list without program list iteration
-      this.clearSearch();
-    }
+    this.selectedProgram.set(undefined);
+    this.showPossiblePrograms.set(false);
+    this.selectedCourse.set(null);
+    this.searchState.set('programSelection');
+    this.clearSearch();
   }
 
   /**
-   * Apply filter button to show courses based on selected year level
+   * Returns the visible course list filtered by year level.
+   * Only shows courses when a program is already selected.
    */
   public filteredCourses = computed(() => {
     const yearLevel = this.selectedYearLevel();
     const program = this.selectedProgram();
-    const courses = this.courses();
 
+    // No program selected: sidebar shows the program list, not courses
     if (!program) {
-      if (yearLevel === null) {
-        return courses;
-      }
-      return courses.filter((course) => course.year_level === yearLevel);
+      return [];
     }
 
-    // Retain Program Selection Flow filter process
+    // No year-level filter: show all unique courses for the program
     if (yearLevel === null) {
       return Array.from(this.uniqueCourses().values());
-    } else {
-      const yearLevelData = program.year_levels.find(
-        (yl) => yl.year_level === yearLevel,
-      );
-      return yearLevelData
-        ? yearLevelData.semester.courses.filter((course) =>
-            this.uniqueCourses().has(course.course_code),
-          )
-        : [];
     }
+
+    // Year-level filter active: return only that year's courses
+    const yearLevelData = program.year_levels.find(
+      (yl) => yl.year_level === yearLevel,
+    );
+    return yearLevelData
+      ? yearLevelData.semester.courses.filter((course) =>
+          this.uniqueCourses().has(this.getCourseListKey(course)),
+        )
+      : [];
   });
 
   /**
    * Keeps the search query stream synchronized with the search state.
+   * Falls back to 'programSelection' or 'courseList' depending on whether
+   * a program is already selected.
    */
   private setupSearchSubscription() {
     this.subscriptions.add(
@@ -552,8 +740,9 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               results.length > 0 ? 'searchResults' : 'noResults',
             );
           } else {
+            // Return to program list or course list based on selection state
             this.searchState.set(
-            'courseSelection'
+              this.selectedProgram() ? 'courseList' : 'programSelection',
             );
           }
         }),
@@ -561,11 +750,18 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
-   * Updates the search query from the input box.
+   * Event handler for search input changes.
+   * Blocks search when no program has been selected yet.
    *
    * @param query Search text entered by the user.
    */
   public onSearchInput(query: string): void {
+    // Require a program to be selected before searching
+    if (!this.selectedProgram()) {
+      this.showSnackBar('Choose a program first!');
+      return;
+    }
+
     this.searchQuerySubject.next(query);
     this.showPossiblePrograms.set(false);
   }
@@ -578,22 +774,25 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   private updateSearchState(query: string): void {
     if (query) {
       this.searchState.set(
-        this.filteredSearchResults().length > 0 ? 'searchResults' : 'noResults',
+        this.filteredSearchResults().length > 0
+          ? 'searchResults'
+          : 'noResults',
       );
     } else {
+      // Fall back to the appropriate default view
       this.searchState.set(
-        this.selectedProgram() ? 'courseSelection' : 'courseSelection',
+        this.selectedProgram() ? 'courseList' : 'programSelection',
       );
     }
   }
 
   /**
    * Clears the current search text and resets the UI state.
+   * Does NOT reset the selected program so the user stays in the course list.
    */
   public clearSearch(): void {
     this.showPossiblePrograms.set(false);
     this.selectedCourse.set(null);
-    this.selectedProgram.set(undefined);
     this.searchQuerySubject.next('');
   }
 
@@ -614,7 +813,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     const shouldProceed = await this.willSelectAnotherSection(course);
     if (!shouldProceed) return;
 
-    // If another section is selected, set the section
+    // Ensure a section was resolved during willSelectAnotherSection
     const section = this.selectedSection();
     if (section) {
       course.section = section;
@@ -623,9 +822,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return;
     }
 
-    // If course is already added, reset selections and show snackbar
+    // Show snackbar and keep user in the current program's course list
     if (this.isCourseAlreadyAdded(course)) {
-      this.selectedProgram.set(undefined);
       this.selectedSection.set(undefined);
       this.showSnackBar('You already selected this course.');
       return;
@@ -648,8 +846,8 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       year_section: `${course.year_level}-${course.section.section_name}`
     };
 
-    // Reset selections after adding course to table
-    this.selectedProgram.set(undefined);
+    // Keep the selected program so the user stays in the course list;
+    // only reset section and the temporary course reference.
     this.selectedCourse.set(null);
     this.selectedSection.set(undefined);
     this.allSelectedCourses.update((courses) => [...courses, newCourse]);
@@ -657,10 +855,11 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       `${course.course_code} successfully added to your preferences.`,
     );
 
-    // Make the table component instantly scroll to the newly added course
+    // Scroll the table to show the newly added course
     setTimeout(() => {
       if (this.tableContainer) {
-        this.tableContainer.nativeElement.scrollTop = this.tableContainer.nativeElement.scrollHeight;
+        this.tableContainer.nativeElement.scrollTop =
+          this.tableContainer.nativeElement.scrollHeight;
       }
     }, 0);
   }
@@ -1414,12 +1613,14 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    * Builds the key used to identify a selected course row.
    *
    * @param course Course row to key.
+   * @param programCode Optional program code to scope the key.
    * @return Unique selection key for the row.
    */
-  private getSelectionKey(course: Course): string {
+  private getSelectionKey(course: Course, programCode?: string | null): string {
     const base = this.getCourseIdentityKey(course);
     const sectionId = course.section?.section_id ?? 'none';
-    return `${base}-section-${sectionId}`;
+    const programPart = programCode ? `-program-${programCode}` : '';
+    return `${base}${programPart}-section-${sectionId}`;
   }
 
   /**

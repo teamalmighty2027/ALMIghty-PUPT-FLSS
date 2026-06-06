@@ -550,6 +550,17 @@
   }
 }
 
+// Ensure the filter dropdown is wide enough and has correct padding/styling
+::ng-deep .filter-year-menu.mat-mdc-menu-panel {
+  min-width: 220px !important;
+  max-width: none !important;
+
+  .mat-mdc-menu-item {
+    padding: 0 var(--spacing-md) !important;
+    text-align: left !important;
+  }
+}
+
 /* Media Query */
 @media screen and (max-width: bp.$breakpoint-md) {
   #courses_container {
