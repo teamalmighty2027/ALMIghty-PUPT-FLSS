@@ -910,7 +910,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             scheduleBlocks.push({ day: 'TBA', time: 'TBA' });
         }
 
-        const courseCode = course.course_details?.course_code || 'N/A';
+        const originalCode =
+          course.original_course_code ||
+          course.course_details?.original_course_code;
+
+        const courseCode = originalCode
+          ? `${course.course_details?.course_code} (${originalCode})`
+          : (course.course_details?.course_code || 'N/A');
+
         const courseTitle = course.course_details?.course_title || 'N/A';
         const lec = course.lec_hours || 0;
         const lab = course.lab_hours || 0;
@@ -1332,17 +1339,33 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
       activeSemester.courses.forEach((course: any, index: number) => {
         const preferredDays = course.preferred_days || [];
-        const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+        const formattedDayTimes =
+          this.formatPreferredDaysAndTime(preferredDays);
 
-        const sectionName = course.section_details?.section_name || course.course_details?.section_name || '';
+        const sectionName =
+          course.section_details?.section_name ||
+          course.course_details?.section_name ||
+          '';
+
         const yearLevel = course.course_details?.year_level || '';
-        const yearSection = yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+        const yearSection =
+          yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+
+        const originalCode =
+          course.original_course_code ||
+          course.course_details?.original_course_code;
+
+        const displayCode = originalCode
+          ? `${course.course_details?.course_code} (${originalCode})`
+          : (course.course_details?.course_code || 'N/A');
 
         const row = worksheet.addRow([
           index + 1,
-          course.course_details?.program_code || course.program_details?.program_code || 'N/A',
+          course.course_details?.program_code ||
+            course.program_details?.program_code ||
+            'N/A',
           yearSection,
-          course.course_details?.course_code || 'N/A',
+          displayCode,
           course.course_details?.course_title || 'N/A',
           course.lec_hours || 0,
           course.lab_hours || 0,
@@ -1351,8 +1374,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         ]);
 
         row.eachCell((cell, colNum) => {
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
-          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal:
+              colNum === 5 || colNum === 9 ? 'left' : 'center',
+            wrapText: true
+          };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
         });
       });
     }
@@ -1417,13 +1450,29 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             const courseData = activeSemester.courses.map(
               (course: any, index: number) => {
                 const preferredDays = course.preferred_days || [];
-                const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+                const formattedDayTimes =
+                  this.formatPreferredDaysAndTime(preferredDays);
+
+                const originalCode =
+                  course.original_course_code ||
+                  course.course_details?.original_course_code;
+
+                const displayCode = originalCode
+                  ? `${course.course_details?.course_code} (${originalCode})`
+                  : (course.course_details?.course_code || 'N/A');
+
+                const yearSec =
+                  course.course_details?.year_level &&
+                  course.course_details?.section_name
+                    ? `${course.course_details.year_level}-` +
+                      `${course.course_details.section_name}`
+                    : 'N/A';
 
                 return [
                   (index + 1).toString(),
                   course.course_details?.program_code || 'N/A',
-                  course.course_details?.year_level + '-' + course.course_details?.section_name || 'N/A',                
-                  course.course_details?.course_code || 'N/A',
+                  yearSec,
+                  displayCode,
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
                   course.lab_hours.toString(),

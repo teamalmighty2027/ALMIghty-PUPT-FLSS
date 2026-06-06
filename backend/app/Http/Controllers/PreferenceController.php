@@ -200,6 +200,41 @@ class PreferenceController extends Controller
             return response()->json(['error' => 'No active semester found'], 404);
         }
 
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
+
         $faculty = Faculty::with(['user', 'preferenceSetting'])
             ->whereHas('user', function ($query) {
                 $query->where('status', 'Active');
@@ -234,7 +269,14 @@ class PreferenceController extends Controller
                 ->keyBy('temporary_course_offering_id');
         }
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
+        $facultyPreferences = $faculty->groupBy('id')->map(function (
+            $facultyGroup
+        ) use (
+            $activeSemester,
+            $temporaryOfferingsById,
+            $courseAssignments,
+            $curriculumElectives
+        ) {
             $faculty            = $facultyGroup->first();
             $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
@@ -361,7 +403,21 @@ class PreferenceController extends Controller
                         ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                         'individual_deadline'   => $preferenceSetting && $preferenceSetting->individual_deadline
                         ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
-                        'courses'               => $courses->toArray(),
+                        'courses'               => (function () use (
+                            $courses,
+                            $activeSemester,
+                            $courseAssignments,
+                            $curriculumElectives
+                        ) {
+                            $coursesArray = $courses->toArray();
+                            $this->resolveElectivesForCourses(
+                                $coursesArray,
+                                (int)$activeSemester->academic_year_id,
+                                $courseAssignments,
+                                $curriculumElectives
+                            );
+                            return $coursesArray;
+                        })(),
                     ],
                 ],
             ];
@@ -402,6 +458,50 @@ class PreferenceController extends Controller
             return response()->json(['error' => 'No active semester found'], 404);
         }
 
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
+
+        $sections = DB::table('sections_per_program_year')
+            ->select(
+                'sections_per_program_year_id',
+                'year_level',
+                'section_name'
+            )
+            ->get()
+            ->keyBy('sections_per_program_year_id');
+
         $faculty = Faculty::with(['user', 'preferenceSetting'])
             ->leftJoin('preferences', function ($join) use ($activeSemester) {
                 $join->on('faculty.id', '=', 'preferences.faculty_id')
@@ -432,12 +532,26 @@ class PreferenceController extends Controller
                 ->keyBy('temporary_course_offering_id');
         }
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
+        $facultyPreferences = $faculty->groupBy('id')->map(function (
+            $facultyGroup
+        ) use (
+            $activeSemester,
+            $temporaryOfferingsById,
+            $courseAssignments,
+            $curriculumElectives,
+            $sections
+        ) {
             $faculty            = $facultyGroup->first();
             $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
-            $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester, $temporaryOfferingsById) {
+            $courses = $facultyGroup->flatMap(function (
+                $preference
+            ) use (
+                $activeSemester,
+                $temporaryOfferingsById,
+                $sections
+            ) {
                 if ($preference->course_assignment_id) {
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
                         ->orderBy('preferred_day')
@@ -463,6 +577,8 @@ class PreferenceController extends Controller
                         )
                         ->first();
 
+                    $sec = $sections->get($preference->sections_per_program_year_id);
+
                     return ($submittedCourse && !$preference->is_ignored)
                         ? [[
                             'course_assignment_id' => $submittedCourse->course_assignment_id ?? 'N/A',
@@ -476,6 +592,8 @@ class PreferenceController extends Controller
                             ],
                             'section_details'      => [
                                 'section_id'   => $preference->sections_per_program_year_id,
+                                'section_name' => $sec?->section_name ?? null,
+                                'year_level'   => $sec?->year_level ?? null,
                             ],
                             'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
@@ -526,6 +644,8 @@ class PreferenceController extends Controller
                         ],
                         'section_details'      => [
                             'section_id'   => $preference->sections_per_program_year_id,
+                            'section_name' => $sec?->section_name ?? null,
+                            'year_level'   => $sec?->year_level ?? null,
                         ],
                         'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
@@ -569,7 +689,21 @@ class PreferenceController extends Controller
                             ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString()
                             : ($preferenceSetting && $preferenceSetting->global_deadline 
                             ? Carbon::parse($preferenceSetting->global_deadline)->toDateString(): null),
-                        'courses'               => $courses->values()->toArray(),
+                        'courses'               => (function () use (
+                            $courses,
+                            $activeSemester,
+                            $courseAssignments,
+                            $curriculumElectives
+                        ) {
+                            $coursesArray = $courses->values()->toArray();
+                            $this->resolveElectivesForCourses(
+                                $coursesArray,
+                                (int)$activeSemester->academic_year_id,
+                                $courseAssignments,
+                                $curriculumElectives
+                            );
+                            return $coursesArray;
+                        })(),
                     ],
                 ],
             ];
@@ -600,9 +734,40 @@ class PreferenceController extends Controller
                 ->first();
         }
 
-        if (! $activeSemester) {
-            return response()->json(['error' => 'No active semester found'], 404);
-        }
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
 
         $faculty = Faculty::where('id', $faculty_id)
             ->with([
@@ -750,7 +915,21 @@ class PreferenceController extends Controller
                     'semester_label'      => $this->getSemesterLabel($activeSemester->semester_id),
                     'global_deadline'     => $preferenceSetting && $preferenceSetting->global_deadline ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                     'individual_deadline' => $preferenceSetting && $preferenceSetting->individual_deadline ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
-                    'courses'             => $courses->toArray(),
+                    'courses'             => (function () use (
+                        $courses,
+                        $activeSemester,
+                        $courseAssignments,
+                        $curriculumElectives
+                    ) {
+                        $coursesArray = $courses->toArray();
+                        $this->resolveElectivesForCourses(
+                            $coursesArray,
+                            (int)$activeSemester->academic_year_id,
+                            $courseAssignments,
+                            $curriculumElectives
+                        );
+                        return $coursesArray;
+                    })(),
                 ],
             ],
         ];
@@ -770,6 +949,41 @@ class PreferenceController extends Controller
         if (! $faculty) {
             return response()->json(['error' => 'Faculty not found'], 404);
         }
+
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
 
         $preferences = Preference::with([
                 'preferenceDays',
@@ -913,9 +1127,16 @@ class PreferenceController extends Controller
                 'temporary_type'        => $temporaryOffering?->type ?? null,
                 'temporary_status'      => $temporaryOffering?->status ?? null,
                 'petition_required'     => $temporaryOffering ? in_array($temporaryOffering->type, ['petition', 'tutorial'], true) : false,
-                'created_at'     => $pref->created_at ? Carbon::parse($pref->created_at)->toDateTimeString() : 'N/A',
-                'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
             ];
+
+            $coursesList = [$preferencePayload];
+            $this->resolveElectivesForCourses(
+                $coursesList,
+                (int)$academicYearId,
+                $courseAssignments,
+                $curriculumElectives
+            );
+            $preferencePayload = $coursesList[0];
 
             if (isset($grouped[$academicYearId]['semesters'][$semesterId])) {
                 $grouped[$academicYearId]['semesters'][$semesterId]['preferences'][] = $preferencePayload;
@@ -1482,5 +1703,74 @@ class PreferenceController extends Controller
             return $activeSemester->academicYear->year_start . '-' . $activeSemester->academicYear->year_end;
         }
         return 'N/A';
+    }
+
+    /**
+     * Resolves electives for a collection of preference courses.
+     * Modifies the courses array in-place to include resolved elective details.
+     */
+    private function resolveElectivesForCourses(
+        array &$courses,
+        int $academicYearId,
+        $courseAssignments,
+        $curriculumElectives
+    ): void {
+        foreach ($courses as &$course) {
+            $caId = $course['course_assignment_id'] ?? null;
+            if (!$caId || $caId === 'N/A') {
+                continue;
+            }
+
+            $details = &$course['course_details'];
+            $courseCode = $details['course_code'] ?? '';
+            $courseTitle = $details['course_title'] ?? '';
+
+            // Get year level
+            $yearLevel = $details['year_level'] ?? null;
+            if (is_null($yearLevel) && isset($course['section_details']['year_level'])) {
+                $yearLevel = $course['section_details']['year_level'];
+            }
+            if (is_null($yearLevel) && isset($course['year_section'])) {
+                $parts = explode('-', $course['year_section']);
+                $yearLevel = is_numeric($parts[0]) ? (int)$parts[0] : null;
+            }
+
+            $assignment = $courseAssignments->get($caId);
+            if ($assignment && !is_null($yearLevel)) {
+                $matchedElective = null;
+                foreach ($curriculumElectives as $ce) {
+                    if ($ce->curriculum_id == $assignment->curriculum_id &&
+                        $ce->program_id == $assignment->program_id &&
+                        $ce->year_level == $yearLevel &&
+                        $ce->semester_id == $assignment->semester_id) {
+
+                        if (strcasecmp($ce->elective_slot_name, $courseTitle) === 0) {
+                            if (is_null($matchedElective) ||
+                                (!is_null($ce->academic_year_id) &&
+                                 (int)$ce->academic_year_id === (int)$academicYearId)) {
+                                $matchedElective = $ce;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchedElective) {
+                    $course['original_course_code'] = $courseCode;
+                    $course['elective_slot_name'] = $matchedElective->elective_slot_name;
+                    $details['original_course_code'] = $courseCode;
+                    $details['elective_slot_name'] = $matchedElective->elective_slot_name;
+
+                    $details['course_code'] = $matchedElective->course_code;
+                    $details['course_title'] = $matchedElective->course_title;
+
+                    if (isset($course['course_code'])) {
+                        $course['course_code'] = $matchedElective->course_code;
+                    }
+                    if (isset($course['course_title'])) {
+                        $course['course_title'] = $matchedElective->course_title;
+                    }
+                }
+            }
+        }
     }
 }
