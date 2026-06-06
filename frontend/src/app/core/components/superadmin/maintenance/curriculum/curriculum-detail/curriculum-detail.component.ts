@@ -812,11 +812,24 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   onDeleteCourse(course: Course, group: any) {
     this.curriculumService.deleteCourse(course.course_id).subscribe({
       next: () => {
-        this.snackBar.open(`Course deleted successfully.`, 'Close', { duration: 3000 });
-        this.fetchCurriculum(this.curriculum!.curriculum_year.toString(), true); 
+        this.snackBar.open(
+          `Course deleted successfully.`,
+          'Close',
+          { duration: 3000 }
+        );
+
+        // Optimistically remove from local state for instant feedback
+        this.removeCourseLocally(course.course_id, group);
+
+        // Silent background refresh to sync with server
+        this.fetchCurriculum(
+          this.curriculum!.curriculum_year.toString(), true
+        );
       },
-      error: (error) => {
-        this.snackBar.open(`Error deleting course.`, 'Close', { duration: 3000 });
+      error: () => {
+        this.snackBar.open(
+          `Error deleting course.`, 'Close', { duration: 3000 }
+        );
       },
     });
   }
@@ -864,13 +877,42 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     });
   }
 
-  private mapTitlesToIds(titles: any, programBridgingCourses: BridgingCourse[] = []): number[] {
+
+  /**
+   * Removes a course from the local curriculum data structure
+   * immediately, without waiting for a server round-trip.
+   */
+  private removeCourseLocally(
+    courseId: number,
+    group: any
+  ): void {
+    const sem = group.originalSemester;
+
+    if (sem && Array.isArray(sem.courses)) {
+      sem.courses = sem.courses.filter(
+        (c: Course) => c.course_id !== courseId
+      );
+    }
+
+    this.updateRenderGroups();
+    this.cdr.detectChanges();
+  }
+
+  private mapTitlesToIds(
+    titles: any,
+    programBridgingCourses: BridgingCourse[] = []
+  ): number[] {
     return Array.isArray(titles)
       ? titles.filter((title: string) => title && title !== 'None')
-          .map((title: string) => this.getCourseIdByTitle(title, programBridgingCourses))
-          .filter((id: number | undefined) => id !== undefined) as number[]
+          .map((title: string) =>
+            this.getCourseIdByTitle(title, programBridgingCourses)
+          )
+          .filter(
+            (id: number | undefined) => id !== undefined
+          ) as number[]
       : [];
   }
+
 
   getCourseIdByTitle(title: string, programBridgingCourses: BridgingCourse[] = []): number | undefined {
     const bridgingCourse = programBridgingCourses.find(bc => `${bc.course_code} - ${bc.course_title}` === title);
