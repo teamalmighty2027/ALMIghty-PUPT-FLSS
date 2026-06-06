@@ -72,7 +72,8 @@
                           Academic Year
                         </span>
                         <mat-select
-                          [(ngModel)]="selectedAYForSlot[slot.slotName]"
+                          [value]="selectedAYForSlot[slot.slotName]"
+                          (selectionChange)="selectedAYForSlot[slot.slotName] = $event.value"
                           style="font-size:13px;width:100%;">
                           @for (ay of academicYearsForCurriculum;
                                 track ay.academic_year_id) {

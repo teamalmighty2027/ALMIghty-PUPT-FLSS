@@ -7,6 +7,7 @@ import { finalize, switchMap, takeUntil, debounceTime, distinctUntilChanged } fr
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSelect, MatOption } from "@angular/material/select";
 
 import { TableGenericComponent } from '../../../../../../shared/table-generic/table-generic.component';
 import { TableHeaderComponent, InputField } from '../../../../../../shared/table-header/table-header.component';
@@ -59,8 +60,10 @@ interface ElectiveSlotSelection {
     CommonModule,
     TableGenericComponent,
     TableHeaderComponent,
-    LoadingComponent
-  ],
+    LoadingComponent,
+    MatSelect,
+    MatOption
+],
   templateUrl: './curriculum-detail.component.html',
   styleUrls: ['./curriculum-detail.component.scss'],
   animations: [fadeAnimation, pageFloatUpAnimation],
