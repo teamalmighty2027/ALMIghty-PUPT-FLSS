@@ -1522,10 +1522,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
-            selectedElectiveId: schedule.elective_id ?? null,
-            selectedElectiveSlotName: schedule.elective_slot_name ?? null,
-            isElectiveSlot: !!(schedule.elective_id) || 
-              (schedule.course_code || '').toLowerCase().includes('elective'),
           },
         });
 

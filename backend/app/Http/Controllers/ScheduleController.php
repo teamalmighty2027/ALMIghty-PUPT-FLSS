@@ -287,7 +287,12 @@ class ScheduleController extends Controller
                 $this->ensureSectionCourseExists($row, $section);
 
                 // Now assign the course to each section with a specific schedule
-                $this->assignCourseToSectionAndSchedule($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections']);
+                $this->assignCourseToSectionAndSchedule(
+                    $row,
+                    $section,
+                    $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'],
+                    $activeAcademicYearId
+                );
             }
         }
 
@@ -709,9 +714,15 @@ class ScheduleController extends Controller
 
     /**
      * Assigns a course to a section and schedule.
+     * Resolves the active elective from curriculum_electives
+     * scoped to the given academic year.
      */
-    private function assignCourseToSectionAndSchedule($row, $section, &$sections)
-    {
+    private function assignCourseToSectionAndSchedule(
+        $row,
+        $section,
+        &$sections,
+        int $activeAcademicYearId = 0
+    ) {
         if (is_null($row->course_assignment_id)) {
             return;
         }
@@ -776,19 +787,83 @@ class ScheduleController extends Controller
             $electiveCode = null;
             $electiveSlotName = null;
 
-            // Check current schedule first, then fall back to any sibling with elective_id
+            // Use the schedule's own elective_id first;
+            // fall back to the curriculum_electives assignment.
             $electiveId = $schedule->elective_id ?? null;
 
             if (!$electiveId) {
-                // Look for elective_id on any schedule sharing the same course_assignment_id
-                $sibling = DB::table('schedules')
-                    ->join('section_courses as sc', 'schedules.section_course_id', '=', 'sc.section_course_id')
-                    ->where('sc.course_assignment_id', $row->course_assignment_id)
-                    ->where('sc.sections_per_program_year_id', $section->sections_per_program_year_id)
-                    ->whereNotNull('schedules.elective_id')
-                    ->select('schedules.elective_id')
+                // Resolve from curriculum_electives using the row's
+                // curriculum + program + year_level + semester
+                // and the slot name stored on the elective record.
+                $curriculumElective = DB::table(
+                    'curriculum_electives as ce'
+                )
+                    ->join(
+                        'electives as e',
+                        'ce.selected_elective_id',
+                        '=',
+                        'e.elective_id'
+                    )
+                    ->join(
+                        'course_assignments as ca',
+                        function ($join) use ($row) {
+                            $join
+                                ->on(
+                                    'ca.curricula_program_id',
+                                    '=',
+                                    DB::raw(
+                                        '(SELECT curricula_program_id '
+                                        . 'FROM curricula_program '
+                                        . 'WHERE curriculum_id = '
+                                        . $row->curriculum_id
+                                        . ' AND program_id = '
+                                        . $row->program_id
+                                        . ' LIMIT 1)'
+                                    )
+                                )
+                                ->on(
+                                    'ca.course_assignment_id',
+                                    '=',
+                                    DB::raw(
+                                        $row->course_assignment_id
+                                    )
+                                );
+                        }
+                    )
+                    ->where('ce.curriculum_id', $row->curriculum_id)
+                    ->where('ce.program_id', $row->program_id)
+                    ->where('ce.year_level', $row->year_level)
+                    ->where(
+                        'ce.semester_id',
+                        $row->semester_id
+                    )
+                    // Scope to the current academic year first;
+                    // fall back to null (legacy rows) if none found.
+                    ->where(function ($q) use ($activeAcademicYearId) {
+                        $q->where(
+                            'ce.academic_year_id',
+                            $activeAcademicYearId
+                        )->orWhereNull('ce.academic_year_id');
+                    })
+                    ->orderByRaw(
+                        'ce.academic_year_id IS NULL ASC'
+                    )
+                    ->whereRaw(
+                        'LOWER(e.elective_slot_name) = LOWER('
+                        . 'SUBSTRING_INDEX(?, \' \', 1))',
+                        [$row->course_code]
+                    )
+                    ->select(
+                        'e.elective_id',
+                        'e.elective_slot_name',
+                        'e.course_title',
+                        'e.course_code'
+                    )
                     ->first();
-                $electiveId = $sibling->elective_id ?? null;
+
+                if ($curriculumElective) {
+                    $electiveId = $curriculumElective->elective_id;
+                }
             }
 
             if ($electiveId) {
