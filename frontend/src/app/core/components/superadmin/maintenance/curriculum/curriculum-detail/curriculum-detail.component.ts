@@ -7,6 +7,7 @@ import { finalize, switchMap, takeUntil, debounceTime, distinctUntilChanged } fr
 
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSelect, MatOption } from "@angular/material/select";
 
 import { TableGenericComponent } from '../../../../../../shared/table-generic/table-generic.component';
 import { TableHeaderComponent, InputField } from '../../../../../../shared/table-header/table-header.component';
@@ -34,6 +35,7 @@ import {
   CurriculumElective,
   CurriculumElectivesResponse,
 } from '../../../../../services/superadmin/curriculum/curriculum.service';
+import { AcademicYearService } from '../../../../../services/admin/academic-year/academic-year.service';
 import { ReportHeaderService } from '../../../../../services/report-header/report-header.service';
 
 import { jsPDF } from 'jspdf';
@@ -58,8 +60,10 @@ interface ElectiveSlotSelection {
     CommonModule,
     TableGenericComponent,
     TableHeaderComponent,
-    LoadingComponent
-  ],
+    LoadingComponent,
+    MatSelect,
+    MatOption
+],
   templateUrl: './curriculum-detail.component.html',
   styleUrls: ['./curriculum-detail.component.scss'],
   animations: [fadeAnimation, pageFloatUpAnimation],
@@ -88,6 +92,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   > = [];
   public isLoadingElectives: boolean = false;
   public electiveSlots: ElectiveSlotSelection[] = [];
+
+  public academicYearsForCurriculum: {
+    academic_year_id: number;
+    year_start: number;
+    year_end: number;
+    is_active: boolean;
+  }[] = [];
+  
+  public selectedAcademicYearId: number | null = null;
+  public selectedAYForSlot: Record<string, number> = {};
+  public activeElectiveMap: Record<string, number> = {};
+  public isSavingElective: boolean = false;
 
   private electiveVariants: Record<string, Elective[]> = {};
   private electivesLoadedForYear: string | null = null;
@@ -147,6 +163,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   constructor(
     private route: ActivatedRoute,
     private curriculumService: CurriculumService,
+    private academicYearService: AcademicYearService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
@@ -486,7 +503,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   // ===========================
 
   /**
-   * Load the masterlist of electives (the pool).
+   * Load the masterlist of electives (the pool) and the
+   * academic years that reference this curriculum so the
+   * superadmin can set the active elective per AY.
    */
   private loadElectiveData(curriculumYear: string): void {
     if (this.electivesLoadedForYear === curriculumYear) {
@@ -496,19 +515,238 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.isLoadingElectives = true;
 
-    // We only fetch the available options now, not assignments.
-    this.curriculumService.getElectives().pipe(
+    // Load pool of variants, academic years, and active year details
+    forkJoin({
+      variants: this.curriculumService.getElectives(),
+      academicYears: this.academicYearService.getAcademicYears(),
+      activeYearInfo: this.academicYearService.getActiveYearAndSemester(),
+    }).pipe(
       finalize(() => (this.isLoadingElectives = false)),
       takeUntil(this.destroy$)
     ).subscribe({
-      next: (variants) => {
+      next: ({ variants, academicYears, activeYearInfo }) => {
         this.electiveVariants = variants;
         this.electivesLoadedForYear = curriculumYear;
+
+        this.academicYearsForCurriculum = (academicYears as any[]).map(
+          (ay: any) => {
+            const parts = (ay.academic_year || '').split('-');
+            const yearStart = parts[0] ? Number(parts[0]) : 0;
+            const yearEnd = parts[1] ? Number(parts[1]) : 0;
+            const isActive = ay.academic_year === activeYearInfo?.activeYear;
+
+            return {
+              academic_year_id: ay.academic_year_id,
+              year_start: yearStart,
+              year_end: yearEnd,
+              is_active: isActive,
+            };
+          }
+        );
+
+        // Default to the active AY
+        const activeAY = this.academicYearsForCurriculum.find(
+          (ay) => ay.is_active
+        );
+        if (activeAY && !this.selectedAcademicYearId) {
+          this.selectedAcademicYearId = activeAY.academic_year_id;
+        }
+
         this.updateElectiveSlots();
+        this.loadActiveElectiveMap(curriculumYear);
         this.cdr.markForCheck();
       },
       error: () => {
-        this.snackBar.open('Error loading electives. Please try again.', 'Close', { duration: 3000 });
+        this.snackBar.open(
+          'Error loading electives. Please try again.',
+          'Close',
+          { duration: 3000 }
+        );
+      }
+    });
+  }
+
+  /**
+   * Eager load active elective assignments for all AYs.
+   * Resolves the activeElectiveMap for the curriculum.
+   */
+  private loadActiveElectiveMap(curriculumYear: string): void {
+    this.curriculumService
+      .getCurriculumElectives(curriculumYear)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          this.activeElectiveMap = {};
+
+          response.electives.forEach((ce) => {
+            const key = this.buildElectiveKey(
+              ce.program_id,
+              ce.year_level,
+              ce.semester_id,
+              ce.elective_slot_name,
+              ce.academic_year_id
+            );
+            this.activeElectiveMap[key] = ce.selected_elective_id;
+          });
+
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.snackBar.open(
+            'Error loading active elective data.',
+            'Close',
+            { duration: 3000 }
+          );
+        },
+      });
+  }
+
+  /**
+   * Build the map key for activeElectiveMap.
+   */
+  private buildElectiveKey(
+    programId: number,
+    yearLevel: number,
+    semesterId: number,
+    slotName: string,
+    academicYearId: number | null
+  ): string {
+    return `${programId}_${yearLevel}_${semesterId}_${slotName}`
+      + `_${academicYearId ?? 'null'}`;
+  }
+
+  /**
+   * Returns the AY label string, e.g. "2024-2025".
+   */
+  public getAYLabel(ayId: number): string {
+    const ay = this.academicYearsForCurriculum.find(
+      a => a.academic_year_id === ayId
+    );
+    return ay ? `${ay.year_start}–${ay.year_end}` : '';
+  }
+
+  /**
+   * Called when the user changes the AY selector.
+   * Reloads activeElectiveMap for the new AY.
+   */
+  public onAcademicYearChange(ayId: number): void {
+    this.selectedAcademicYearId = ayId;
+    const year = this.curriculum?.curriculum_year?.toString();
+
+    if (year) {
+      this.loadActiveElectiveMap(year);
+    }
+  }
+
+  /**
+   * Returns the active elective_id for a slot in the
+   * specified academic year context, or null if none set.
+   */
+  public getActiveElectiveForSlot(
+    slotName: string,
+    academicYearId: number | null
+  ): number | null {
+    if (!academicYearId) return null;
+
+    const program = this.getSelectedProgramData();
+    const yearLevelData = program
+      ? this.getSelectedYearLevelData(
+          program,
+          Number(this.selectedYear)
+        )
+      : null;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(
+          yearLevelData,
+          Number(this.selectedSemester)
+        )
+      : null;
+
+    if (!program || !yearLevelData || !semesterData) {
+      return null;
+    }
+
+    const key = this.buildElectiveKey(
+      program.program_id,
+      yearLevelData.year,
+      semesterData.semester_id,
+      slotName,
+      academicYearId
+    );
+
+    return this.activeElectiveMap[key] ?? null;
+  }
+
+  /**
+   * Saves the active elective for a slot to the backend
+   * and updates the local map optimistically.
+   */
+  public setActiveElectiveForSlot(
+    slotName: string,
+    academicYearId: number | null,
+    electiveId: number
+  ): void {
+    if (!this.curriculum || !academicYearId) return;
+
+    const program = this.getSelectedProgramData();
+    const yearLevelData = program
+      ? this.getSelectedYearLevelData(
+          program,
+          Number(this.selectedYear)
+        )
+      : null;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(
+          yearLevelData,
+          Number(this.selectedSemester)
+        )
+      : null;
+
+    if (!program || !yearLevelData || !semesterData) return;
+
+    const key = this.buildElectiveKey(
+      program.program_id,
+      yearLevelData.year,
+      semesterData.semester_id,
+      slotName,
+      academicYearId
+    );
+
+    // Optimistic update
+    this.activeElectiveMap[key] = electiveId;
+    this.isSavingElective = true;
+
+    this.curriculumService.saveCurriculumElective({
+      curriculum_id: this.curriculum.curriculum_id,
+      program_id: program.program_id,
+      year_level: yearLevelData.year,
+      semester_id: semesterData.semester_id,
+      elective_slot_name: slotName,
+      selected_elective_id: electiveId,
+      academic_year_id: academicYearId,
+    }).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.isSavingElective = false;
+        this.cdr.markForCheck();
+      })
+    ).subscribe({
+      next: () => {
+        this.snackBar.open(
+          'Active elective saved.',
+          'Close',
+          { duration: 2000 }
+        );
+      },
+      error: (err) => {
+        console.error(err);
+        // Revert optimistic update on error
+        delete this.activeElectiveMap[key];
+        this.snackBar.open(
+          'Error saving elective. Please try again.',
+          'Close',
+          { duration: 3000 }
+        );
       }
     });
   }
@@ -532,7 +770,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
 
     const yearLevelData = this.getSelectedYearLevelData(program, yearLevel);
-    const semesterData = yearLevelData ? this.getSelectedSemesterData(yearLevelData, semesterValue) : undefined;
+    const semesterData = yearLevelData
+      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
+      : undefined;
 
     if (!yearLevelData || !semesterData) {
       this.electiveSlots = [];
@@ -540,8 +780,17 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
 
     const slotNames = this.getElectiveSlotsFromCourses(semesterData.courses);
+    const activeAY = this.academicYearsForCurriculum.find(
+      (ay) => ay.is_active
+    );
+    const defaultAYId = activeAY
+      ? activeAY.academic_year_id
+      : (this.academicYearsForCurriculum[0]?.academic_year_id || null);
 
     this.electiveSlots = slotNames.map((slotName) => {
+      if (defaultAYId && !this.selectedAYForSlot[slotName]) {
+        this.selectedAYForSlot[slotName] = defaultAYId;
+      }
       return {
         slotName,
         options: this.electiveVariants[slotName] || [],

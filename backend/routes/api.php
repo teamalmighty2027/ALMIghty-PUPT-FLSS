@@ -195,8 +195,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
-    Route::post('/academic-year-electives', [ElectiveController::class, 'storeAcademicYearElective']);
-    Route::get('/academic-year/{academicYearId}/electives', [ElectiveController::class, 'getAcademicYearElectives']);
 
     
 

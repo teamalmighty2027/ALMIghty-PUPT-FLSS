@@ -205,3 +205,24 @@
   background-color: #1d6f42 !important;
   color: white !important;
 }
+
+.course-code-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.elective-badge {
+  background-color: #efebe9;
+  color: #5d4037;
+  border: 1px solid #d7ccc8;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}

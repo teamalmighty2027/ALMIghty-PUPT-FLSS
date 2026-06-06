@@ -126,7 +126,18 @@
                   Course Code
                 </th>
                 <td mat-cell *matCellDef="let element" class="custom-cell">
-                  {{ element.course_code }}
+                  <div class="course-code-cell">
+                    <span>{{ element.course_code }}</span>
+                    @if (element.original_course_code) {
+                      <span
+                        class="elective-badge"
+                        [matTooltip]="'Original slot: ' +
+                                      element.original_course_code"
+                      >
+                        {{ element.original_course_code }}
+                      </span>
+                    }
+                  </div>
                 </td>
               </ng-container>
 

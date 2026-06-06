@@ -104,6 +104,7 @@ export interface CurriculumElective {
   semester_id: number;
   elective_slot_name: string;
   selected_elective_id: number;
+  academic_year_id: number | null;
   elective?: Elective;
 }
 
@@ -318,16 +319,28 @@ export class CurriculumService {
     );
   }
 
-  // Fetch elective assignments for a curriculum year.
+  // Fetch elective assignments for a curriculum year,
+  // optionally scoped to a specific academic year.
   getCurriculumElectives(
-    curriculumYear: string
+    curriculumYear: string,
+    academicYearId?: number | null
   ): Observable<CurriculumElectivesResponse> {
+    let params = new HttpParams();
+
+    if (academicYearId) {
+      params = params.set(
+        'academic_year_id',
+        academicYearId.toString()
+      );
+    }
+
     return this.http.get<CurriculumElectivesResponse>(
-      `${this.baseUrl}/curriculum/${curriculumYear}/electives`
+      `${this.baseUrl}/curriculum/${curriculumYear}/electives`,
+      { params }
     );
   }
 
-  // Save a curriculum elective assignment.
+  // Save a curriculum elective assignment scoped to an academic year.
   saveCurriculumElective(payload: {
     curriculum_id: number;
     program_id: number;
@@ -335,8 +348,12 @@ export class CurriculumService {
     semester_id: number;
     elective_slot_name: string;
     selected_elective_id: number;
+    academic_year_id: number | null;
   }): Observable<any> {
-    return this.http.post(`${this.baseUrl}/curriculum-electives`, payload);
+    return this.http.post(
+      `${this.baseUrl}/curriculum-electives`,
+      payload
+    );
   }
 
   // Add a new elective to the pool

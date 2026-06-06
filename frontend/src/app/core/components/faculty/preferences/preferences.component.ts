@@ -29,6 +29,7 @@ import { ThemeService } from '../../../services/theme/theme.service';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { AuthService } from '../../../services/auth/auth.service';
 import { Program, Course, PreferredDay, Section } from '../../../models/preferences.model';
+import { Elective } from '../../../models/scheduling.model';
 
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
@@ -113,6 +114,12 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   private searchQuerySubject = new Subject<string>();
   searchQuery = signal('');
   uniqueCourses = signal(new Map<string, Course>());
+
+  /**
+   * Maps elective slot name (course_title) to the resolved
+   * active elective for the current academic year.
+   */
+  electiveNameMap = signal(new Map<string, Elective>());
   filteredSearchResults = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     const selectedProgram = this.selectedProgram();
@@ -476,12 +483,19 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
             this.activeSemesterId.set(programsResponse.active_semester_id);
             this.semesterId.set(programsResponse.semester_id);
             this.courses.set([...allCoursesMap.values()]);
-            
+
             // Sort courses alphabetically by course code for better UX
             this.courses.set(
               [...this.courses()].sort((a, b) =>
                 a.course_code.localeCompare(b.course_code),
               ),
+            );
+
+            // Load active elective names so the faculty sees the
+            // resolved title, not just the generic slot name.
+            this.loadElectiveNameMap(
+              programsResponse.programs,
+              programsResponse.academic_year_id
             );
           },
           error: (error) => this.handleDataLoadingError(error),
@@ -577,10 +591,93 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   }
 
   /**
+   * Fetches the AY-scoped active elective assignments and builds
+   * electiveNameMap (slot title -> resolved Elective).
+   */
+  private loadElectiveNameMap(
+    programs: Program[],
+    academicYearId: number
+  ): void {
+    // Collect unique curriculum_year values from all programs
+    const curriculumYears = new Set<string>();
+    programs.forEach(p =>
+      p.year_levels.forEach(yl => {
+        if (yl.curriculum_year) {
+          curriculumYears.add(yl.curriculum_year);
+        }
+      })
+    );
+
+    if (curriculumYears.size === 0 || !academicYearId) return;
+
+    // Fetch elective assignments for each unique curriculum year
+    const newMap = new Map<string, Elective>();
+    let pending = curriculumYears.size;
+
+    curriculumYears.forEach(year => {
+      this.subscriptions.add(
+        this.preferencesService
+          .getResolvedCurriculumElectives(year, academicYearId)
+          .subscribe({
+            next: (response: any) => {
+              (response.electives || []).forEach((ce: any) => {
+                if (ce.elective) {
+                  // Key by slot name; value is the resolved Elective object
+                  newMap.set(
+                    ce.elective_slot_name,
+                    ce.elective
+                  );
+                }
+              });
+              pending--;
+              if (pending === 0) {
+                this.electiveNameMap.set(newMap);
+              }
+            },
+            error: () => {
+              pending--;
+              if (pending === 0) {
+                this.electiveNameMap.set(newMap);
+              }
+            }
+          })
+      );
+    });
+  }
+
+  /**
+   * Returns the resolved elective details (code/title) for a slot.
+   */
+  public getResolvedElective(course: Course): Elective | null {
+    const title = course.course_title;
+    const isElective = title.toLowerCase().includes('elective');
+    if (!isElective) return null;
+
+    return this.electiveNameMap().get(title) ?? null;
+  }
+
+  /**
+   * Returns the display code for a course (resolves elective if applicable).
+   */
+  public getDisplayCode(course: Course): string {
+    const resolved = this.getResolvedElective(course);
+    return resolved ? resolved.course_code : course.course_code;
+  }
+
+  /**
+   * Returns the display title for a course (resolves elective if applicable).
+   */
+  public getDisplayTitle(course: Course): string {
+    const resolved = this.getResolvedElective(course);
+    return resolved ? resolved.course_title : course.course_title;
+  }
+
+  /**
    * Selects a program and transitions the sidebar to the course list.
    *
    * @param program Program chosen by the user.
    */
+
   public selectProgram(program: Program): void {
     this.selectedYearLevel.set(null);
     this.selectedProgram.set(program);

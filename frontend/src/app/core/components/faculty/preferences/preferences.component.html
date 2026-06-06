@@ -115,7 +115,16 @@
                 matRipple>
                 <div class="course-info">
                   <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
+                    <span class="course-code">{{ getDisplayCode(course) }}</span>
+                    @if (getResolvedElective(course)) {
+                      <span
+                        class="elective-badge"
+                        [matTooltip]="'Original slot: ' +
+                                      course.course_code"
+                      >
+                        {{ course.course_code }}
+                      </span>
+                    }
                     @if (course.is_temporary) {
                     <span
                       class="temp-pill"
@@ -124,7 +133,7 @@
                     </span>
                     }
                   </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
                   <span mat-symbol="add" variant="outlined" size="20px"></span>
@@ -186,7 +195,16 @@
                 matRipple>
                 <div class="course-info">
                   <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
+                    <span class="course-code">{{ getDisplayCode(course) }}</span>
+                    @if (getResolvedElective(course)) {
+                      <span
+                        class="elective-badge"
+                        [matTooltip]="'Original slot: ' +
+                                      course.course_code"
+                      >
+                        {{ course.course_code }}
+                      </span>
+                    }
                     @if (course.is_temporary) {
                     <span
                       class="temp-pill"
@@ -195,7 +213,7 @@
                     </span>
                     }
                   </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
                   <span mat-symbol="add" variant="outlined" size="20px"></span>
@@ -306,7 +324,16 @@
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
               <div class="course-code-cell">
-                <span>{{ element.course_code }}</span>
+                <span>{{ getDisplayCode(element) }}</span>
+                @if (getResolvedElective(element)) {
+                  <span
+                    class="elective-badge"
+                    [matTooltip]="'Original slot: ' +
+                                  element.course_code"
+                  >
+                    {{ element.course_code }}
+                  </span>
+                }
                 @if (element.is_temporary) {
                 <span
                   class="temp-pill"
@@ -327,7 +354,7 @@
               mat-cell
               *matCellDef="let element"
               class="table-cell title-cell">
-              {{ element.course_title }}
+              {{ getDisplayTitle(element) }}
             </td>
           </ng-container>
 
