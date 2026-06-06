@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\FlssImplementationNotice;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class SendFacultyNotice extends Command
 {
@@ -64,6 +65,10 @@ class SendFacultyNotice extends Command
 
         $this->info(
             'Notice and credentials dispatched as one email!'
+        );
+
+        Log::info(
+            "FLSS notice sent to {$email} with temporary password."
         );
 
         return Command::SUCCESS;
