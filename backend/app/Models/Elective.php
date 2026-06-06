@@ -35,15 +35,5 @@ class Elective extends Model
         );
     }
 
-    /**
-     * Get academic year elective assignments for this elective.
-     */
-    public function academicYearElectives()
-    {
-        return $this->hasMany(
-            AcademicYearElective::class,
-            'selected_elective_id',
-            'elective_id'
-        );
-    }
+
 }
