@@ -215,10 +215,13 @@ class ElectiveController extends Controller
         $query = CurriculumElective::with('elective')
             ->where('curriculum_id', $curriculum->curriculum_id);
 
-        // Filter by AY when provided
+        // Filter by AY when provided, allowing fallback to default (NULL)
         $academicYearId = $request->query('academic_year_id');
         if ($academicYearId) {
-            $query->where('academic_year_id', (int) $academicYearId);
+            $query->where(function ($q) use ($academicYearId) {
+                $q->where('academic_year_id', (int) $academicYearId)
+                  ->orWhereNull('academic_year_id');
+            });
         }
 
         $assignments = $query
@@ -226,6 +229,7 @@ class ElectiveController extends Controller
             ->orderBy('year_level')
             ->orderBy('semester_id')
             ->orderBy('elective_slot_name')
+            ->orderByRaw('academic_year_id IS NULL DESC')
             ->get();
 
         return response()->json([

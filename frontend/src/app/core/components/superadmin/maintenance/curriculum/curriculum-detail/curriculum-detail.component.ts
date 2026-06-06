@@ -93,24 +93,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public isLoadingElectives: boolean = false;
   public electiveSlots: ElectiveSlotSelection[] = [];
 
-  // --- AY-scoped active elective state ---
-  /** Academic years that reference this curriculum. */
   public academicYearsForCurriculum: {
     academic_year_id: number;
     year_start: number;
     year_end: number;
     is_active: boolean;
   }[] = [];
-  /** Currently selected AY for active-elective management. */
+  
   public selectedAcademicYearId: number | null = null;
-
-  /** Selected Academic Year ID for each elective slot. */
   public selectedAYForSlot: Record<string, number> = {};
-
-  /**
-   * Maps "program_id_yearLevel_semesterId_slotName_ayId"
-   * → selected_elective_id for the active context.
-   */
   public activeElectiveMap: Record<string, number> = {};
   public isSavingElective: boolean = false;
 
@@ -524,36 +515,39 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.isLoadingElectives = true;
 
-    // Load the pool of variants AND the academic years in one shot
+    // Load pool of variants, academic years, and active year details
     forkJoin({
       variants: this.curriculumService.getElectives(),
       academicYears: this.academicYearService.getAcademicYears(),
+      activeYearInfo: this.academicYearService.getActiveYearAndSemester(),
     }).pipe(
       finalize(() => (this.isLoadingElectives = false)),
       takeUntil(this.destroy$)
     ).subscribe({
-      next: ({ variants, academicYears }) => {
+      next: ({ variants, academicYears, activeYearInfo }) => {
         this.electiveVariants = variants;
         this.electivesLoadedForYear = curriculumYear;
 
-        // Filter AYs to those that reference this curriculum
-        const currId = this.curriculum?.curriculum_id;
-        this.academicYearsForCurriculum = (academicYears as any[])
-          .filter((ay: any) =>
-            !currId ||
-            // Include if we can't determine — show all as fallback
-            true
-          )
-          .map((ay: any) => ({
-            academic_year_id: ay.academic_year_id,
-            year_start: ay.year_start,
-            year_end: ay.year_end,
-            is_active: ay.is_active,
-          }));
+        this.academicYearsForCurriculum = (academicYears as any[]).map(
+          (ay: any) => {
+            const parts = (ay.academic_year || '').split('-');
+            const yearStart = parts[0] ? Number(parts[0]) : 0;
+            const yearEnd = parts[1] ? Number(parts[1]) : 0;
+            const isActive = ay.academic_year === activeYearInfo?.activeYear;
+
+            return {
+              academic_year_id: ay.academic_year_id,
+              year_start: yearStart,
+              year_end: yearEnd,
+              is_active: isActive,
+            };
+          }
+        );
 
         // Default to the active AY
-        const activeAY = this.academicYearsForCurriculum
-          .find(ay => ay.is_active);
+        const activeAY = this.academicYearsForCurriculum.find(
+          (ay) => ay.is_active
+        );
         if (activeAY && !this.selectedAcademicYearId) {
           this.selectedAcademicYearId = activeAY.academic_year_id;
         }

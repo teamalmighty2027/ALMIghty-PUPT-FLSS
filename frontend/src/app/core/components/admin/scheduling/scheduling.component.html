@@ -171,6 +171,16 @@
                   </span>
                 }
 
+                @if (element.elective_slot_name) {
+                  <span
+                    class="elective-badge"
+                    [matTooltip]="'Original slot: ' +
+                                  element.elective_slot_name"
+                  >
+                    {{ element.elective_slot_name }}
+                  </span>
+                }
+
                 <!-- Add Icon for Original Courses -->
                 @if (!element.is_copy) {
                   @if (processingCourseId === element.section_course_id) {

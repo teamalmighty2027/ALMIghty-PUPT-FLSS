@@ -932,16 +932,14 @@ class ScheduleController extends Controller
                         $ce->year_level == $row->year_level &&
                         $ce->semester_id == $row->semester_id) {
 
-                        $slotNameFirstWord = strtolower(
-                            explode(' ', $ce->elective_slot_name)[0]
-                        );
-                        $courseCodeFirstWord = strtolower(
-                            explode(' ', $row->course_code)[0]
-                        );
-
-                        if ($slotNameFirstWord === $courseCodeFirstWord) {
+                        if (strcasecmp(
+                            $ce->elective_slot_name,
+                            $row->course_title
+                        ) === 0) {
                             if (is_null($matchedElective) ||
-                                $ce->academic_year_id == $activeAcademicYearId) {
+                                (!is_null($ce->academic_year_id) &&
+                                 (int)$ce->academic_year_id ===
+                                 (int)$activeAcademicYearId)) {
                                 $matchedElective = $ce;
                             }
                         }
