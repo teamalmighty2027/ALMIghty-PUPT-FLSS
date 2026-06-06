@@ -586,7 +586,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -637,7 +636,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -686,7 +684,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
         }
       },
-      disableClose: true,
       autoFocus: true,
     });
   }
@@ -729,7 +726,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.pdf`,
       },
-      disableClose: true,
     });
   }
 
@@ -790,7 +786,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.pdf`,
       },
-      disableClose: true,
     });
   }
 
@@ -828,7 +823,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateFileNameFunction: () => `${fileNameBase}.pdf`
       },
-      disableClose: true,
     });
   }
 

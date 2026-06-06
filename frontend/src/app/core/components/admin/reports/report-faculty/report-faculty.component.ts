@@ -329,7 +329,6 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         },
         previewMode: true,
       },
-      disableClose: true,
     });
   }
 
@@ -373,7 +372,6 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         previewMode: true,
         showViewToggle: false,
       },
-      disableClose: true,
     });
   }
 
@@ -386,7 +384,6 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
-      disableClose: true,
       data: {
         exportType: 'single',
         customTitle: faculty.facultyName,
@@ -606,7 +603,6 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         isMismatchedSemester: this.isMismatchedSemester,
         incompleteScheduleWarning: !allHaveSchedules && intendedState,
       },
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -635,7 +631,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         academicYear: element.academicYear, semester: element.semester,
         isMismatchedSemester: this.isMismatchedSemester,
       },
-      disableClose: true, autoFocus: true,
+      autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {

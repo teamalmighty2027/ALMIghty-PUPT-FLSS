@@ -898,7 +898,6 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
           cancelText: 'Cancel',
           action: 'Remove',
         },
-        disableClose: true,
         panelClass: 'dialog-base',
         autoFocus: true,
       });
@@ -1073,7 +1072,6 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
           section_id: element.section.section_id,
           allSelectedCourses: this.allSelectedCourses(),
         },
-        disableClose: true,
         autoFocus: true,
       })
       .afterClosed()
@@ -1120,7 +1118,6 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
         isViewHistory: true,
         isAdmin: false,
       },
-      disableClose: true,
       autoFocus: true,
     });
   }
@@ -1313,7 +1310,6 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   public openRequestAccessDialog(): void {
     this.dialog
       .open(DialogRequestAccessComponent, {
-        disableClose: true,
         data: {
           has_request: this.hasRequest(),
           facultyId: this.facultyId(),

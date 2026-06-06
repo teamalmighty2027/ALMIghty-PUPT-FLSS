@@ -584,7 +584,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
-      disableClose: true,
       autoFocus: true
     });
 
@@ -639,7 +638,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: dialogConfig,
-      disableClose: true,
       autoFocus: true
     });
 
@@ -668,7 +666,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   deleteElectiveOption(electiveId: number) {
     const dialogRef = this.dialog.open(DialogGenericComponent, {
       width: '400px',
-      disableClose: true,
       data: {
         title: 'Remove Elective Option',
         content: 'Are you sure you want to remove this elective from the pool? It will no longer be available for scheduling.',
@@ -771,7 +768,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   onEditCourse(course: Course, group: any) {
     const dialogConfig = this.getCourseDialogConfig(course, undefined, group);
     const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: dialogConfig, disableClose: true, autoFocus: true,
+      data: dialogConfig, autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -839,7 +836,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     const dialogConfig = this.getCourseDialogConfig(undefined, group.originalSemester.semester, group);
     const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: dialogConfig, disableClose: true, autoFocus: true,
+      data: dialogConfig, autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
@@ -1018,7 +1015,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService.getBridgingCourses(this.curriculum.curriculum_id, programId).subscribe({
       next: (programBridgingCourses) => {
         const dialogConfig = this.getBridgingDialogConfig(program, yearLevelData.year, undefined, [], [], programBridgingCourses);
-        const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, disableClose: true, autoFocus: true });
+        const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, autoFocus: true });
 
         dialogRef.afterClosed().subscribe((result) => {
           if (!result) return;
@@ -1119,7 +1116,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     this.curriculumService.getBridgingCourses(this.curriculum.curriculum_id, programId).subscribe({
         next: (programBridgingCourses) => {
           const dialogConfig = this.getBridgingDialogConfig(program, yearLevel, undefined, [], [], programBridgingCourses);
-          const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, disableClose: true, autoFocus: true });
+          const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, autoFocus: true });
 
           dialogRef.afterClosed().subscribe((result) => {
             if (!result) return;
@@ -1185,7 +1182,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         const coReqTitles = this.mapRequirementTitles(currentCourse?.requirements, courses, 'co');
 
         const dialogConfig = this.getBridgingDialogConfig(program, yearLevel, bridgingCourse, preReqTitles, coReqTitles, programBridgingCourses);
-        const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, disableClose: true, autoFocus: true });
+        const dialogRef = this.dialog.open(TableDialogComponent, { data: dialogConfig, autoFocus: true });
 
         dialogRef.afterClosed().subscribe((result) => {
           if (!result) return;
@@ -1270,7 +1267,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         };
 
         const dialogRef = this.dialog.open(TableDialogComponent, {
-          data: dialogConfig, width: '25rem', disableClose: true, autoFocus: true,
+          data: dialogConfig, width: '25rem', autoFocus: true,
         });
 
         dialogRef.afterClosed().subscribe((result) => {

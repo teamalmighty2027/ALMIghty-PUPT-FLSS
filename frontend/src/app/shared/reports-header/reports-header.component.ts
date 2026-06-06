@@ -126,7 +126,6 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
           isExportDialog: true,
           customExportOptions: this.customExportOptions,
         },
-        disableClose: true,
         autoFocus: true,
       });
 

@@ -103,7 +103,6 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     this.isFacultyDialogOpen = true;
     const dialogRef = this.dialog.open(DialogFacultyLoginComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -120,7 +119,6 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     this.isAdminDialogOpen = true;
     const dialogRef = this.dialog.open(DialogAdminLoginComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
