@@ -944,7 +944,6 @@ class PreferenceController extends Controller
     **/
     public function getPreferencesHistoryByFacultyId($faculty_id)
     {
-        // ... Keep exactly as is ...
         $faculty = Faculty::find($faculty_id);
         if (! $faculty) {
             return response()->json(['error' => 'Faculty not found'], 404);
@@ -1162,6 +1161,137 @@ class PreferenceController extends Controller
         return response()->json([
             'academic_years' => $result
         ], 200, [], JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Retrieves the most recent preference history for a specific faculty.
+     */
+    public static function getFacultyPreviousPreferenceHistory(
+        $facultyId,
+        $isIndividual = false
+    ) {
+        // Retrieve the faculty model using the provided ID
+        $faculty = Faculty::find($facultyId);
+
+        if (!$faculty || !$faculty->user) {
+            Log::error('Faculty or User not found for ID: ' . $facultyId);
+            return null;
+        }
+
+        $settings = PreferencesSetting::where('faculty_id', $facultyId)->first();
+
+        if (!$settings || !$settings->is_enabled) {
+            return null;
+        }
+
+        $deadline = $isIndividual && $settings->individual_deadline
+            ? $settings->individual_deadline
+            : $settings->global_deadline;
+
+        $formatted_deadline = $deadline
+            ? Carbon::parse($deadline)
+                ->setTimezone('Asia/Manila')
+                ->format('M d, Y')
+            : 'No deadline set';
+
+        $days_left = null;
+
+        if ($deadline) {
+            $today = Carbon::now('Asia/Manila')->startOfDay();
+            $target_deadline = Carbon::parse($deadline)
+                ->setTimezone('Asia/Manila')
+                ->endOfDay();
+
+            if ($today->gt($target_deadline)) {
+                $days_left = 0;
+            } else {
+                $days_left = floor($today->diffInDays($target_deadline, false));
+            }
+        }
+
+        // --- FETCH PREVIOUS PREFERENCES AND SEMESTER DETAILS ---
+        $currentActiveSemester = ActiveSemester::where('is_active', 1)->first();
+
+        $previousPreferences = [];
+        $previous_academic_year = '';
+        $previous_semester_label = '';
+
+        if ($currentActiveSemester) {
+            // Join to find the latest past semester that MATCHES semester_id
+            $latestPastSemesterId = Preference::join(
+                'active_semesters',
+                'preferences.active_semester_id',
+                '=',
+                'active_semesters.active_semester_id'
+            )
+            ->where('preferences.faculty_id', $facultyId)
+            ->where(
+                'preferences.active_semester_id',
+                '!=',
+                $currentActiveSemester->active_semester_id
+            )
+            ->where(
+                'active_semesters.semester_id',
+                $currentActiveSemester->semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('preferences.course_assignment_id')
+                      ->orWhereNotNull(
+                          'preferences.temporary_course_offering_id'
+                      );
+            })
+            ->orderBy('preferences.active_semester_id', 'desc')
+            ->value('preferences.active_semester_id');
+
+            if ($latestPastSemesterId) {
+                // Eager load everything needed for the UI table
+                $previousPreferences = Preference::with([
+                    'courseAssignment.course',
+                    'courseAssignment.curriculaProgram.program',
+                    'temporaryCourseOffering.course',
+                    'temporaryCourseOffering.program',
+                    'preferenceDays',
+                    'section'
+                ])
+                ->where('faculty_id', $facultyId)
+                ->where('active_semester_id', $latestPastSemesterId)
+                ->where(function ($query) {
+                    $query->whereNotNull('course_assignment_id')
+                          ->orWhereNotNull('temporary_course_offering_id');
+                })
+                ->get();
+
+                $pastActiveSemester = ActiveSemester::with([
+                    'academicYear',
+                    'semester'
+                ])->find($latestPastSemesterId);
+
+                if ($pastActiveSemester && $pastActiveSemester->academicYear) {
+                    $previous_academic_year =
+                        $pastActiveSemester->academicYear->year_start .
+                        '-' .
+                        $pastActiveSemester->academicYear->year_end;
+                    $semId = $pastActiveSemester->semester_id;
+                    $previous_semester_label = 
+                      $previous_semester_label = $semId == 1 ? 
+                      '1st Semester' : ($semId == 2 ? 
+                      '2nd Semester' : 'Summer Semester');
+                }
+            }
+        }
+
+        $previousPreferencesData = [
+            'faculty_name' => $faculty->user->formatted_name ?? 'N/A',
+            'email' => $faculty->user->email,
+            'faculty_units' => $faculty->faculty_units ?? 0,
+            'deadline' => $formatted_deadline,
+            'days_left' => $days_left,
+            'previousPreferences' => $previousPreferences,
+            'previous_academic_year' => $previous_academic_year,
+            'previous_semester_label' => $previous_semester_label
+        ];
+
+        return $previousPreferencesData;
     }
 
     /**
