@@ -86,71 +86,80 @@ class PreferenceController extends Controller
         $preferenceRecord = null;
         $isUpdate = false;
 
+        DB::beginTransaction();
+
         try {
-            DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $temporaryCourseOfferingId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
-                
-                $existingPreference = Preference::where([
-                    'faculty_id' => $facultyId,
-                    'active_semester_id' => $activeSemesterId,
-                    'course_assignment_id' => $courseAssignmentId,
+            $existingPreference = Preference::where([
+                'faculty_id' => $facultyId,
+                'active_semester_id' => $activeSemesterId,
+                'course_assignment_id' => $courseAssignmentId,
+                'temporary_course_offering_id' => $temporaryCourseOfferingId,
+                'sections_per_program_year_id' => $sectionsPerProgramYearId,
+            ])->first();
+
+            $isUpdate = $existingPreference ? true : false;
+
+            $preference = Preference::updateOrCreate(
+                [
+                    'faculty_id'                   => $facultyId,
+                    'active_semester_id'           => $activeSemesterId,
+                    'course_assignment_id'         => $courseAssignmentId,
                     'temporary_course_offering_id' => $temporaryCourseOfferingId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
-                ])->first();
+                ]
+            );
 
-                $isUpdate = $existingPreference ? true : false;
+            // Check if preferred days have changed
+            $existingDays = PreferenceDay::
+                where('preference_id', $preference->preferences_id)
+                ->orderBy('preferred_day')
+                ->get()
+                ->map(function ($day) {
+                    return [
+                        'day'        => $day->preferred_day,
+                        'start_time' => $day->preferred_start_time,
+                        'end_time'   => $day->preferred_end_time,
+                    ];
+                })->toArray();
 
-                $preference = Preference::updateOrCreate(
-                    [
-                        'faculty_id'                   => $facultyId,
-                        'active_semester_id'           => $activeSemesterId,
-                        'course_assignment_id'         => $courseAssignmentId,
-                        'temporary_course_offering_id' => $temporaryCourseOfferingId,
-                        'sections_per_program_year_id' => $sectionsPerProgramYearId,
-                    ]
-                );
-
-                // Check if preferred days have changed
-                $existingDays = PreferenceDay::where('preference_id', $preference->preferences_id)
-                    ->orderBy('preferred_day')
-                    ->get()
-                    ->map(function ($day) {
-                        return [
-                            'day'        => $day->preferred_day,
-                            'start_time' => $day->preferred_start_time,
-                            'end_time'   => $day->preferred_end_time,
-                        ];
-                    })->toArray();
-
-                $newDays = $validatedData['preferred_days'];
-                usort($newDays, function ($a, $b) {
-                    return $a['day'] <=> $b['day'];
-                });
-
-                if ($existingDays !== $newDays) {
-                    // Delete existing days for this preference
-                    PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
-
-                    // Create new preference days with start and end times
-                    foreach ($newDays as $dayData) {
-                        PreferenceDay::create([
-                            'preference_id'        => $preference->preferences_id,
-                            'preferred_day'        => $dayData['day'],
-                            'preferred_start_time' => $dayData['start_time'],
-                            'preferred_end_time'   => $dayData['end_time'],
-                        ]);
-                    }
-                }
-
-                $preferenceRecord = $preference;
+            $newDays = $validatedData['preferred_days'];
+            usort($newDays, function ($a, $b) {
+                return $a['day'] <=> $b['day'];
             });
+
+            if ($existingDays !== $newDays) {
+                // Delete existing days for this preference
+                PreferenceDay::
+                    where('preference_id', $preference->preferences_id)
+                    ->delete();
+
+                // Create new preference days with start and end times
+                foreach ($newDays as $dayData) {
+                    PreferenceDay::create([
+                        'preference_id'        => $preference->preferences_id,
+                        'preferred_day'        => $dayData['day'],
+                        'preferred_start_time' => $dayData['start_time'],
+                        'preferred_end_time'   => $dayData['end_time'],
+                    ]);
+                }
+            }
+
+            $preferenceRecord = $preference;
+
+            DB::commit();
 
             // ═══════════════════════════════════════════════════════
             // AUDIT LOG: Preference Submitted/Updated
             // ═══════════════════════════════════════════════════════
-            $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
-                $q->where('id', $facultyId);
-            })->first();
-            $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+            $facultyUser = User::whereHas(
+                'faculty',
+                function ($q) use ($facultyId) {
+                    $q->where('id', $facultyId);
+                }
+            )->first();
+            $facultyName = $facultyUser
+                ? $facultyUser->formatted_name
+                : "Faculty ID: {$facultyId}";
 
             $courseReference = $courseAssignmentId
                 ? "Course Assignment ID: {$courseAssignmentId}"
@@ -162,22 +171,24 @@ class PreferenceController extends Controller
                     modelId: $preferenceRecord->preferences_id,
                     oldData: [],
                     newData: ['days' => $validatedData['preferred_days']],
-                    description: "Updated schedule preference for {$facultyName} ({$courseReference})"
+                    description: "Updated schedule preference for " .
+                        $facultyName . " (" . $courseReference . ")"
                 );
             } else {
                 AuditLogger::logCreate(
                     model: 'Preference',
                     modelId: $preferenceRecord->preferences_id,
                     data: $validatedData,
-                    description: "Submitted new schedule preference for {$facultyName}"
+                    description: "Submitted new schedule preference for " .
+                        $facultyName
                 );
             }
         } catch (\Exception $e) {
+            DB::rollBack();
             Log::error('Error submitting preference: ' . $e->getMessage());
             return response()->json([
                 'message' => 'An error occurred while submitting preferences. Please try again.',
             ], 500);
-            DB::rollBack();
         }
 
         return response()->json([
@@ -1469,60 +1480,63 @@ class PreferenceController extends Controller
                 continue;
             }
 
-            try {
-                // 5. Create new Preference
-                DB::transaction(function () use (
-                    $facultyId,
-                    $currentActiveSemester,
-                    $newCourseAssignmentId,
-                    $newTemporaryOfferingId,
-                    $newSectionId,
-                    $pref
-                ) {
-                    $newPref = Preference::create([
-                        'faculty_id' => $facultyId,
-                        'active_semester_id' =>
-                            $currentActiveSemester->active_semester_id,
-                        'course_assignment_id' => $newCourseAssignmentId,
-                        'temporary_course_offering_id' => $newTemporaryOfferingId,
-                        'sections_per_program_year_id' => $newSectionId,
-                        'is_ignored' => $pref->is_ignored
-                    ]);
+            DB::beginTransaction();
 
-                    foreach ($pref->preferenceDays as $day) {
-                        PreferenceDay::create([
-                            'preference_id' => $newPref->preferences_id,
-                            'preferred_day' => $day->preferred_day,
-                            'preferred_start_time' => $day->preferred_start_time,
-                            'preferred_end_time' => $day->preferred_end_time,
-                        ]);
-                    }
-                });
+            try {
+                $newPref = Preference::create([
+                    'faculty_id' => $facultyId,
+                    'active_semester_id' =>
+                        $currentActiveSemester->active_semester_id,
+                    'course_assignment_id' => $newCourseAssignmentId,
+                    'temporary_course_offering_id' =>
+                        $newTemporaryOfferingId,
+                    'sections_per_program_year_id' => $newSectionId,
+                    'is_ignored' => $pref->is_ignored
+                ]);
+
+                foreach ($pref->preferenceDays as $day) {
+                    PreferenceDay::create([
+                        'preference_id' => $newPref->preferences_id,
+                        'preferred_day' => $day->preferred_day,
+                        'preferred_start_time' =>
+                            $day->preferred_start_time,
+                        'preferred_end_time' => $day->preferred_end_time,
+                    ]);
+                }
+
+                DB::commit();
 
                 // ═══════════════════════════════════════════════════════
                 // AUDIT LOG: Preference Submitted
                 // ═══════════════════════════════════════════════════════
-                $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
-                    $q->where('id', $facultyId);
-                })->first();
-                $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+                $facultyUser = User::whereHas(
+                    'faculty',
+                    function ($q) use ($facultyId) {
+                        $q->where('id', $facultyId);
+                    }
+                )->first();
 
-                $courseReference = $courseAssignmentId
-                    ? "Course Assignment ID: {$courseAssignmentId}"
-                    : "Temporary Offering ID: {$temporaryCourseOfferingId}";
-                
+                $facultyName = $facultyUser
+                    ? $facultyUser->formatted_name
+                    : "Faculty ID: {$facultyId}";
+
+                $courseReference = $newCourseAssignmentId
+                    ? "Course Assignment ID: {$newCourseAssignmentId}"
+                    : "Temporary Offering ID: {$newTemporaryOfferingId}";
+
                 AuditLogger::logCreate(
                     model: 'Preference',
-                    modelId: $preferenceRecord->preferences_id,
-                    data: $validatedData,
-                    description: "Submitted new schedule preference for {$facultyName}"
+                    modelId: $newPref->preferences_id,
+                    data: $newPref->toArray(),
+                    description: "Submitted new schedule preference for " .
+                        $facultyName . " (" . $courseReference . ")"
                 );
             } catch (\Exception $e) {
+                DB::rollBack();
                 Log::error(
                     "Error auto-submitting preference for faculty " .
                     $facultyId . ": " . $e->getMessage()
                 );
-                DB::rollBack();
             }
         }
     }
@@ -1691,10 +1705,16 @@ class PreferenceController extends Controller
 
         $sendEmail = $validated['send_email'];
 
-        DB::transaction(function () use ($validated, $sendEmail) {
+        DB::beginTransaction();
+
+        try {
             $status            = $validated['status'];
-            $global_deadline   = $status && $validated['global_deadline'] ? Carbon::parse($validated['global_deadline'])->endOfDay() : null;
-            $global_start_date = $status && $validated['global_start_date'] ? Carbon::parse($validated['global_start_date'])->startOfDay() : null;
+            $global_deadline   = $status && $validated['global_deadline']
+                ? Carbon::parse($validated['global_deadline'])->endOfDay()
+                : null;
+            $global_start_date = $status && $validated['global_start_date']
+                ? Carbon::parse($validated['global_start_date'])->startOfDay()
+                : null;
 
             // Current date and start date
             $currentDate = Carbon::now();
@@ -1704,7 +1724,9 @@ class PreferenceController extends Controller
             $finalStatus = false;
             if ($status) {
                 // Enable only if start date is today or already passed
-                $finalStatus = $startDate ? $startDate->lessThanOrEqualTo($currentDate) : true;
+                $finalStatus = $startDate
+                    ? $startDate->lessThanOrEqualTo($currentDate)
+                    : true;
             }
 
             PreferencesSetting::query()->update([
@@ -1717,7 +1739,9 @@ class PreferenceController extends Controller
             ]);
 
             // Handle faculties without settings
-            $facultyWithoutSettings = Faculty::whereDoesntHave('preferenceSetting')->get();
+            $facultyWithoutSettings = Faculty::
+                whereDoesntHave('preferenceSetting')->get();
+
             foreach ($facultyWithoutSettings as $faculty) {
                 PreferencesSetting::create([
                     'faculty_id'          => $faculty->id,
@@ -1736,7 +1760,8 @@ class PreferenceController extends Controller
                     if ($finalStatus) {
                         SendFacultyPreferenceEmailJob::dispatch($faculty->id);
                     } else if ($startDate) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty->id)->delay($startDate);
+                        SendFacultyPreferenceEmailJob::dispatch($faculty->id)
+                            ->delay($startDate);
                     }
                 }
             }
@@ -1745,14 +1770,25 @@ class PreferenceController extends Controller
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
                 DB::table('faculty_schedule_publication')
-                    ->where('academic_year_id', $activeSemester->academic_year_id)
+                    ->where(
+                        'academic_year_id',
+                        $activeSemester->academic_year_id
+                    )
                     ->where('semester_id', $activeSemester->semester_id)
                     ->update([
                         'is_published' => 0,
                         'updated_at'   => now(),
                     ]);
             }
-        });
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to toggle all preferences: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while updating settings.',
+            ], 500);
+        }
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Global Settings Updated
@@ -1798,7 +1834,9 @@ class PreferenceController extends Controller
         $oldSettings = PreferencesSetting::where('faculty_id', $faculty_id)->first();
         $oldData = $oldSettings ? $oldSettings->toArray() : [];
 
-        DB::transaction(function () use ($validated, $faculty_id, $status, $individual_deadline, $individual_start_date, $sendEmail) {
+        DB::beginTransaction();
+
+        try {
             // Current date and start date
             $currentDate = Carbon::now();
             $startDate   = $individual_start_date;
@@ -1807,7 +1845,9 @@ class PreferenceController extends Controller
             $finalStatus = false;
             if ($status) {
                 // Enable only if start date is today or already passed
-                $finalStatus = $startDate ? $startDate->lessThanOrEqualTo($currentDate) : true;
+                $finalStatus = $startDate
+                    ? $startDate->lessThanOrEqualTo($currentDate)
+                    : true;
             }
 
             $preferenceSetting = PreferencesSetting::firstOrCreate(
@@ -1836,25 +1876,43 @@ class PreferenceController extends Controller
                 $faculty = Faculty::find($faculty_id);
                 if ($faculty) {
                     if ($finalStatus) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty_id, true);
+                        SendFacultyPreferenceEmailJob::
+                            dispatch($faculty_id, true);
                     } else if ($startDate) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty_id, true)->delay($startDate);
+                        SendFacultyPreferenceEmailJob::
+                            dispatch($faculty_id, true)
+                            ->delay($startDate);
                     }
                 }
             }
 
-            // Clear schedule publications for the specific faculty in the active semester
+            // Clear schedule publications for the specific faculty
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
                 DB::table('faculty_schedule_publication')
-                    ->where('academic_year_id', $activeSemester->academic_year_id)
+                    ->where(
+                        'academic_year_id',
+                        $activeSemester->academic_year_id
+                    )
                     ->where('semester_id', $activeSemester->semester_id)
                     ->update([
                         'is_published' => 0,
                         'updated_at'   => now(),
                     ]);
             }
-        });
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error(
+                'Failed to toggle preference for faculty ' .
+                $faculty_id . ': ' . $e->getMessage()
+            );
+
+            return response()->json([
+                'message' => 'An error occurred while updating settings.',
+            ], 500);
+        }
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Individual Setting Updated
