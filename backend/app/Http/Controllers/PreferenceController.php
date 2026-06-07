@@ -10,6 +10,10 @@ use App\Models\Preference;
 use App\Models\PreferenceDay;
 use App\Models\PreferencesSetting;
 use App\Models\User;
+use App\Models\CourseAssignment;
+use App\Models\AcademicYearCurricula;
+use App\Models\TemporaryCourseOffering;
+use App\Models\SectionsPerProgramYear;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1282,6 +1286,11 @@ class PreferenceController extends Controller
 
                 // If there are previous preferences, attempt to auto-submit
                 if ($previousPreferences->isNotEmpty()) {
+                    Log::info(
+                        "Auto-submitting previous preferences for faculty ID: " .
+                        $facultyId
+                    );
+                    
                     self::autoSubmitPreviousPreferences(
                         $facultyId,
                         $previousPreferences,
@@ -1299,9 +1308,10 @@ class PreferenceController extends Controller
                         $pastActiveSemester->academicYear->year_start .
                         '-' .
                         $pastActiveSemester->academicYear->year_end;
-
-                    $previous_semester_label =
-                        self::getSemesterLabel($pastActiveSemester->semester_id);
+                  $semId = $pastActiveSemester->semester_id;
+                  $previous_semester_label = 
+                    $semId == 1 ? '1st Semester' : 
+                    ($semId == 2 ? '2nd Semester' : 'Summer Semester');
                 }
             }
         }
@@ -1328,7 +1338,7 @@ class PreferenceController extends Controller
         $previousPreferences,
         $currentActiveSemester
     ) {
-        $curriculumId = \App\Models\AcademicYearCurricula::where(
+        $curriculumId = AcademicYearCurricula::where(
             'academic_year_id',
             $currentActiveSemester->academic_year_id
         )->value('curriculum_id');
@@ -1348,7 +1358,7 @@ class PreferenceController extends Controller
 
             // 1. Resolve sections_per_program_year_id
             if ($pref->section) {
-                $matchingSection = \App\Models\SectionsPerProgramYear::
+                $matchingSection = SectionsPerProgramYear::
                     where([
                         'academic_year_id' =>
                             $currentActiveSemester->academic_year_id,
@@ -1372,7 +1382,7 @@ class PreferenceController extends Controller
 
             // 2. Resolve course_assignment_id
             if ($pref->courseAssignment && $pref->courseAssignment->course) {
-                $matchingCourseAssignment = \App\Models\CourseAssignment::
+                $matchingCourseAssignment = CourseAssignment::
                     whereHas(
                         'curriculaProgram',
                         function ($query) use ($curriculumId, $pref) {
@@ -1422,7 +1432,7 @@ class PreferenceController extends Controller
                 $pref->temporaryCourseOffering &&
                 $pref->temporaryCourseOffering->course
             ) {
-                $matchingTemporaryOffering = \App\Models\TemporaryCourseOffering::
+                $matchingTemporaryOffering = TemporaryCourseOffering::
                     where([
                         'academic_year_id' =>
                             $currentActiveSemester->academic_year_id,

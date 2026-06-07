@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Faculty as FacultyModel;
 use App\Models\PreferencesSetting;
 use App\Models\Faculty;
+use App\Http\Controllers\PreferenceController;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
