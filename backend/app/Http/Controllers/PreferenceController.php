@@ -86,90 +86,98 @@ class PreferenceController extends Controller
         $preferenceRecord = null;
         $isUpdate = false;
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $temporaryCourseOfferingId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
-            
-            $existingPreference = Preference::where([
-                'faculty_id' => $facultyId,
-                'active_semester_id' => $activeSemesterId,
-                'course_assignment_id' => $courseAssignmentId,
-                'temporary_course_offering_id' => $temporaryCourseOfferingId,
-                'sections_per_program_year_id' => $sectionsPerProgramYearId,
-            ])->first();
-
-            $isUpdate = $existingPreference ? true : false;
-
-            $preference = Preference::updateOrCreate(
-                [
-                    'faculty_id'                   => $facultyId,
-                    'active_semester_id'           => $activeSemesterId,
-                    'course_assignment_id'         => $courseAssignmentId,
+        try {
+            DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $temporaryCourseOfferingId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
+                
+                $existingPreference = Preference::where([
+                    'faculty_id' => $facultyId,
+                    'active_semester_id' => $activeSemesterId,
+                    'course_assignment_id' => $courseAssignmentId,
                     'temporary_course_offering_id' => $temporaryCourseOfferingId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
-                ]
-            );
+                ])->first();
 
-            // Check if preferred days have changed
-            $existingDays = PreferenceDay::where('preference_id', $preference->preferences_id)
-                ->orderBy('preferred_day')
-                ->get()
-                ->map(function ($day) {
-                    return [
-                        'day'        => $day->preferred_day,
-                        'start_time' => $day->preferred_start_time,
-                        'end_time'   => $day->preferred_end_time,
-                    ];
-                })->toArray();
+                $isUpdate = $existingPreference ? true : false;
 
-            $newDays = $validatedData['preferred_days'];
-            usort($newDays, function ($a, $b) {
-                return $a['day'] <=> $b['day'];
+                $preference = Preference::updateOrCreate(
+                    [
+                        'faculty_id'                   => $facultyId,
+                        'active_semester_id'           => $activeSemesterId,
+                        'course_assignment_id'         => $courseAssignmentId,
+                        'temporary_course_offering_id' => $temporaryCourseOfferingId,
+                        'sections_per_program_year_id' => $sectionsPerProgramYearId,
+                    ]
+                );
+
+                // Check if preferred days have changed
+                $existingDays = PreferenceDay::where('preference_id', $preference->preferences_id)
+                    ->orderBy('preferred_day')
+                    ->get()
+                    ->map(function ($day) {
+                        return [
+                            'day'        => $day->preferred_day,
+                            'start_time' => $day->preferred_start_time,
+                            'end_time'   => $day->preferred_end_time,
+                        ];
+                    })->toArray();
+
+                $newDays = $validatedData['preferred_days'];
+                usort($newDays, function ($a, $b) {
+                    return $a['day'] <=> $b['day'];
+                });
+
+                if ($existingDays !== $newDays) {
+                    // Delete existing days for this preference
+                    PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
+
+                    // Create new preference days with start and end times
+                    foreach ($newDays as $dayData) {
+                        PreferenceDay::create([
+                            'preference_id'        => $preference->preferences_id,
+                            'preferred_day'        => $dayData['day'],
+                            'preferred_start_time' => $dayData['start_time'],
+                            'preferred_end_time'   => $dayData['end_time'],
+                        ]);
+                    }
+                }
+
+                $preferenceRecord = $preference;
             });
 
-            if ($existingDays !== $newDays) {
-                // Delete existing days for this preference
-                PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Preference Submitted/Updated
+            // ═══════════════════════════════════════════════════════
+            $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+                $q->where('id', $facultyId);
+            })->first();
+            $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
 
-                // Create new preference days with start and end times
-                foreach ($newDays as $dayData) {
-                    PreferenceDay::create([
-                        'preference_id'        => $preference->preferences_id,
-                        'preferred_day'        => $dayData['day'],
-                        'preferred_start_time' => $dayData['start_time'],
-                        'preferred_end_time'   => $dayData['end_time'],
-                    ]);
-                }
+            $courseReference = $courseAssignmentId
+                ? "Course Assignment ID: {$courseAssignmentId}"
+                : "Temporary Offering ID: {$temporaryCourseOfferingId}";
+
+            if ($isUpdate) {
+                AuditLogger::logUpdate(
+                    model: 'Preference',
+                    modelId: $preferenceRecord->preferences_id,
+                    oldData: [],
+                    newData: ['days' => $validatedData['preferred_days']],
+                    description: "Updated schedule preference for {$facultyName} ({$courseReference})"
+                );
+            } else {
+                AuditLogger::logCreate(
+                    model: 'Preference',
+                    modelId: $preferenceRecord->preferences_id,
+                    data: $validatedData,
+                    description: "Submitted new schedule preference for {$facultyName}"
+                );
             }
-
-            $preferenceRecord = $preference;
-        });
-
-        // ═══════════════════════════════════════════════════════
-        // AUDIT LOG: Preference Submitted/Updated
-        // ═══════════════════════════════════════════════════════
-        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
-            $q->where('id', $facultyId);
-        })->first();
-        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
-
-        $courseReference = $courseAssignmentId
-            ? "Course Assignment ID: {$courseAssignmentId}"
-            : "Temporary Offering ID: {$temporaryCourseOfferingId}";
-
-        if ($isUpdate) {
-            AuditLogger::logUpdate(
-                model: 'Preference',
-                modelId: $preferenceRecord->preferences_id,
-                oldData: [], // Days comparison is too complex for basic Old/New array, stick to description
-                newData: ['days' => $validatedData['preferred_days']],
-                description: "Updated schedule preference for {$facultyName} ({$courseReference})"
-            );
-        } else {
-            AuditLogger::logCreate(
-                model: 'Preference',
-                modelId: $preferenceRecord->preferences_id,
-                data: $validatedData,
-                description: "Submitted new schedule preference for {$facultyName}"
-            );
+        } catch (\Exception $e) {
+            Log::error('Error submitting preference: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while submitting preferences. Please try again.',
+            ], 500);
+            DB::rollBack();
         }
 
         return response()->json([
@@ -1261,6 +1269,15 @@ class PreferenceController extends Controller
                 })
                 ->get();
 
+                // If there are previous preferences, attempt to auto-submit
+                if ($previousPreferences->isNotEmpty()) {
+                    self::autoSubmitPreviousPreferences(
+                        $facultyId,
+                        $previousPreferences,
+                        $currentActiveSemester
+                    );
+                }
+
                 $pastActiveSemester = ActiveSemester::with([
                     'academicYear',
                     'semester'
@@ -1271,11 +1288,9 @@ class PreferenceController extends Controller
                         $pastActiveSemester->academicYear->year_start .
                         '-' .
                         $pastActiveSemester->academicYear->year_end;
-                    $semId = $pastActiveSemester->semester_id;
-                    $previous_semester_label = 
-                      $previous_semester_label = $semId == 1 ? 
-                      '1st Semester' : ($semId == 2 ? 
-                      '2nd Semester' : 'Summer Semester');
+
+                    $previous_semester_label =
+                        self::getSemesterLabel($pastActiveSemester->semester_id);
                 }
             }
         }
@@ -1292,6 +1307,224 @@ class PreferenceController extends Controller
         ];
 
         return $previousPreferencesData;
+    }
+
+    /**
+     * Automatically clones and submits previous preferences to current semester
+     */
+    public static function autoSubmitPreviousPreferences(
+        $facultyId,
+        $previousPreferences,
+        $currentActiveSemester
+    ) {
+        $curriculumId = \App\Models\AcademicYearCurricula::where(
+            'academic_year_id',
+            $currentActiveSemester->academic_year_id
+        )->value('curriculum_id');
+
+        if (!$curriculumId) {
+            Log::warning(
+                "No active curriculum found for academic year ID: " .
+                $currentActiveSemester->academic_year_id
+            );
+            return;
+        }
+
+        foreach ($previousPreferences as $pref) {
+            $newCourseAssignmentId = null;
+            $newTemporaryOfferingId = null;
+            $newSectionId = null;
+
+            // 1. Resolve sections_per_program_year_id
+            if ($pref->section) {
+                $matchingSection = \App\Models\SectionsPerProgramYear::
+                    where([
+                        'academic_year_id' =>
+                            $currentActiveSemester->academic_year_id,
+                        'program_id' => $pref->section->program_id,
+                        'year_level' => $pref->section->year_level,
+                        'section_name' => $pref->section->section_name,
+                    ])->first();
+
+                if ($matchingSection) {
+                    $newSectionId =
+                        $matchingSection->sections_per_program_year_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: section " .
+                        $pref->section->section_name .
+                        " not found in current year."
+                    );
+                    continue;
+                }
+            }
+
+            // 2. Resolve course_assignment_id
+            if ($pref->courseAssignment && $pref->courseAssignment->course) {
+                $matchingCourseAssignment = \App\Models\CourseAssignment::
+                    whereHas(
+                        'curriculaProgram',
+                        function ($query) use ($curriculumId, $pref) {
+                            $query->where('curriculum_id', $curriculumId)
+                                  ->where(
+                                      'program_id',
+                                      $pref->courseAssignment
+                                          ->curriculaProgram->program_id
+                                  );
+                        }
+                    )
+                    ->whereHas(
+                        'semester',
+                        function ($query) use ($currentActiveSemester) {
+                            $query->where(
+                                'semester',
+                                $currentActiveSemester->semester_id
+                            );
+                        }
+                    )
+                    ->where('course_id', function ($query) use ($pref) {
+                        $query->select('course_id')
+                              ->from('courses')
+                              ->where(
+                                  'course_code',
+                                  $pref->courseAssignment->course->course_code
+                              )
+                              ->limit(1);
+                    })
+                    ->first();
+
+                if ($matchingCourseAssignment) {
+                    $newCourseAssignmentId =
+                        $matchingCourseAssignment->course_assignment_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: course assignment for " .
+                        $pref->courseAssignment->course->course_code .
+                        " not found in current semester."
+                    );
+                    continue;
+                }
+            }
+
+            // 3. Resolve temporary_course_offering_id
+            if (
+                $pref->temporaryCourseOffering &&
+                $pref->temporaryCourseOffering->course
+            ) {
+                $matchingTemporaryOffering = \App\Models\TemporaryCourseOffering::
+                    where([
+                        'academic_year_id' =>
+                            $currentActiveSemester->academic_year_id,
+                        'semester_id' => $currentActiveSemester->semester_id,
+                        'program_id' =>
+                            $pref->temporaryCourseOffering->program_id,
+                        'year_level' =>
+                            $pref->temporaryCourseOffering->year_level,
+                        'type' => $pref->temporaryCourseOffering->type,
+                        'status' => 'Approved',
+                        'is_archived' => 0,
+                    ])
+                    ->whereHas('course', function ($query) use ($pref) {
+                        $query->where(
+                            'course_code',
+                            $pref->temporaryCourseOffering->course->course_code
+                        );
+                    })
+                    ->first();
+
+                if ($matchingTemporaryOffering) {
+                    $newTemporaryOfferingId =
+                        $matchingTemporaryOffering
+                            ->temporary_course_offering_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: temporary offering " .
+                        $pref->temporaryCourseOffering->course->course_code .
+                        " not found/approved in current semester."
+                    );
+                    continue;
+                }
+            }
+
+            // Verify we have at least one course identifier
+            if (!$newCourseAssignmentId && !$newTemporaryOfferingId) {
+                continue;
+            }
+
+            // 4. Duplicate Check
+            $duplicateExists = Preference::where([
+                'faculty_id' => $facultyId,
+                'active_semester_id' =>
+                    $currentActiveSemester->active_semester_id,
+                'course_assignment_id' => $newCourseAssignmentId,
+                'temporary_course_offering_id' => $newTemporaryOfferingId,
+                'sections_per_program_year_id' => $newSectionId,
+            ])->exists();
+
+            if ($duplicateExists) {
+                Log::info(
+                    "Preference already exists (duplicate) for faculty " .
+                    $facultyId . " - skipping auto-submit."
+                );
+                continue;
+            }
+
+            try {
+                // 5. Create new Preference
+                DB::transaction(function () use (
+                    $facultyId,
+                    $currentActiveSemester,
+                    $newCourseAssignmentId,
+                    $newTemporaryOfferingId,
+                    $newSectionId,
+                    $pref
+                ) {
+                    $newPref = Preference::create([
+                        'faculty_id' => $facultyId,
+                        'active_semester_id' =>
+                            $currentActiveSemester->active_semester_id,
+                        'course_assignment_id' => $newCourseAssignmentId,
+                        'temporary_course_offering_id' => $newTemporaryOfferingId,
+                        'sections_per_program_year_id' => $newSectionId,
+                        'is_ignored' => $pref->is_ignored
+                    ]);
+
+                    foreach ($pref->preferenceDays as $day) {
+                        PreferenceDay::create([
+                            'preference_id' => $newPref->preferences_id,
+                            'preferred_day' => $day->preferred_day,
+                            'preferred_start_time' => $day->preferred_start_time,
+                            'preferred_end_time' => $day->preferred_end_time,
+                        ]);
+                    }
+                });
+
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: Preference Submitted
+                // ═══════════════════════════════════════════════════════
+                $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
+                    $q->where('id', $facultyId);
+                })->first();
+                $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+
+                $courseReference = $courseAssignmentId
+                    ? "Course Assignment ID: {$courseAssignmentId}"
+                    : "Temporary Offering ID: {$temporaryCourseOfferingId}";
+                
+                AuditLogger::logCreate(
+                    model: 'Preference',
+                    modelId: $preferenceRecord->preferences_id,
+                    data: $validatedData,
+                    description: "Submitted new schedule preference for {$facultyName}"
+                );
+            } catch (\Exception $e) {
+                Log::error(
+                    "Error auto-submitting preference for faculty " .
+                    $facultyId . ": " . $e->getMessage()
+                );
+                DB::rollBack();
+            }
+        }
     }
 
     /**
