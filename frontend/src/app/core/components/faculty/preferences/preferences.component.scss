@@ -118,42 +118,74 @@
     }
   }
 
-  // Right-side actions wrapper: tutorial button + totals
+  // Right-side actions wrapper: tutorial card + totals — row layout
   .pref-header-actions {
     @include mixins.flex-layout(
-      $direction: column,
-      $align: flex-end,
-      $justify: flex-start,
-      $gap: var(--spacing-sm)
+      $direction: row,
+      $align: stretch,
+      $justify: flex-end,
+      $gap: var(--spacing-md)
     );
     flex-shrink: 0;
   }
 
-  .tutorial-btn {
-    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
-    height: 2.25rem;
-    padding: 0 var(--spacing-md);
-    border-radius: var(--border-radius-xl);
-    border: 1.5px solid var(--primary-one-fade);
-    color: var(--primary-text);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
+  // Standalone tutorial card — ~half height of adjacent cards
+  .tutorial-card {
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
     @include mixins.default-transition;
-    white-space: nowrap;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    min-width: 7rem;
+    cursor: pointer;
+    text-align: left;
+    border: 1.5px solid var(--primary-one-fade);
+    background: var(--primary-fade);
+    position: relative;
+    overflow: hidden;
 
-    ::ng-deep .mdc-button__label {
-      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    .tutorial-card-icon {
+      font-size: 2rem;
+      color: var(--primary-text);
+      flex-shrink: 0;
+      @include mixins.flex-layout;
     }
 
-    .tutorial-btn-icon {
-      font-size: 1.1rem;
-      display: flex;
-      align-items: center;
+    .tutorial-card-text {
+      @include mixins.flex-layout($direction: column, $gap: 1px);
+
+      .tutorial-card-title {
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: var(--primary-text);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .tutorial-card-sub {
+        font-size: var(--font-size-sm);
+        color: var(--primary-text);
+        opacity: 0.6;
+        white-space: nowrap;
+      }
     }
+
+    // arrow removed — cleaner look
 
     &:hover {
-      background-color: var(--primary-fade);
+      background: var(--primary-hover);
       border-color: var(--primary-one);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-level-1);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-one);
+      outline-offset: 2px;
     }
   }
 }

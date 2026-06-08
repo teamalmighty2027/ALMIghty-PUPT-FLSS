@@ -1,14 +1,12 @@
 @use '../../../styles/mixins';
 
-// ── Host ──────────────────────────────────────────────────────
 :host {
   display: block;
   width: 100%;
   overflow: hidden;
 }
 
-// ── Shell ─────────────────────────────────────────────────────
-.tutorial-dialog {
+.video-tutorial-dialog {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -109,7 +107,7 @@
   margin-bottom: var(--spacing-xxs);
 }
 
-// ── Progress bar ──────────────────────────────────────────────
+// ── Step progress bar ─────────────────────────────────────────
 .progress-track {
   height: 3px;
   width: 100%;
@@ -139,7 +137,6 @@
   }
 }
 
-// ── Step icon ─────────────────────────────────────────────────
 .step-icon-wrapper {
   position: relative;
   width: 72px;
@@ -176,7 +173,6 @@
   }
 }
 
-// ── Step content ──────────────────────────────────────────────
 .step-content {
   display: flex;
   flex-direction: column;
@@ -196,7 +192,7 @@
 
   .step-description {
     margin: 0;
-    font-size: var(--font-size-md);   // ← upgraded from sm
+    font-size: var(--font-size-md);
     color: var(--neutral-base);
     opacity: 0.85;
     line-height: var(--line-height-mdx);
@@ -208,19 +204,15 @@
     border-radius: var(--border-radius-sm);
     background-color: var(--primary-fade);
     color: var(--primary-text);
-    font-size: var(--font-size-smx);  // ← upgraded from xs
+    font-size: var(--font-size-smx);
     font-weight: 500;
     text-align: left;
     width: 100%;
 
-    .highlight-icon {
-      font-size: 1rem;
-      flex-shrink: 0;
-    }
+    .highlight-icon { font-size: 1rem; flex-shrink: 0; }
   }
 }
 
-// ── Step counter ──────────────────────────────────────────────
 .step-counter {
   margin: 0;
   font-size: var(--font-size-xs);
@@ -228,7 +220,6 @@
   opacity: 0.5;
 }
 
-// ── Step dots ─────────────────────────────────────────────────
 .step-dots {
   @include mixins.flex-layout($gap: var(--spacing-xs));
 
@@ -244,13 +235,7 @@
     flex-shrink: 0;
 
     &.visited { background-color: var(--primary-one-fade); }
-
-    &.active {
-      width: 24px;
-      border-radius: 4px;
-      @include mixins.gradient-primary;
-    }
-
+    &.active { width: 24px; border-radius: 4px; @include mixins.gradient-primary; }
     &:hover:not(.active) { background-color: var(--primary-one-fade); }
   }
 }
@@ -262,9 +247,7 @@
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-lg);
 
-  @media (max-width: 480px) {
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
+  @media (max-width: 480px) { padding: var(--spacing-sm) var(--spacing-md); }
 
   .video-meta {
     @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
@@ -292,7 +275,6 @@
     }
   }
 
-  // 16:9 responsive wrapper
   .video-wrapper {
     position: relative;
     width: 100%;
@@ -343,13 +325,10 @@
     color: var(--neutral-base);
     opacity: 0.55;
     font-size: var(--font-size-sm);
-
     &:hover { opacity: 0.9; background-color: var(--neutral-hover); }
   }
 
-  .nav-buttons {
-    @include mixins.flex-layout($gap: var(--spacing-xs));
-  }
+  .nav-buttons { @include mixins.flex-layout($gap: var(--spacing-xs)); }
 
   .prev-btn {
     color: var(--primary-text);
@@ -359,10 +338,7 @@
     &:not(:disabled):hover { background-color: var(--primary-hover); }
     &:disabled { opacity: 0.35; }
 
-    ::ng-deep .mdc-button__label {
-      display: inline-flex; align-items: center; gap: 4px;
-    }
-
+    ::ng-deep .mdc-button__label { display: inline-flex; align-items: center; gap: 4px; }
     .nav-icon { font-size: 1.1rem; line-height: 1; display: inline-flex; align-items: center; }
   }
 
@@ -373,10 +349,7 @@
     font-size: var(--font-size-sm);
     font-weight: 600;
 
-    ::ng-deep .mdc-button__label {
-      display: inline-flex; align-items: center; gap: 4px;
-    }
-
+    ::ng-deep .mdc-button__label { display: inline-flex; align-items: center; gap: 4px; }
     .nav-icon { font-size: 1.1rem; line-height: 1; display: inline-flex; align-items: center; }
   }
 }

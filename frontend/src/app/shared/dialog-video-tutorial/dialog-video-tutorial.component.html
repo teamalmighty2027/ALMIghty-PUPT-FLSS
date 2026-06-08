@@ -1,63 +1,57 @@
-<div class="tutorial-dialog">
+<div class="video-tutorial-dialog">
 
   <!-- Gradient header -->
   <div class="dialog-header">
     <div class="header-top">
       <div class="header-label">
         <span mat-symbol="menu_book" class="header-icon"></span>
-        <span class="header-eyebrow">Faculty Preferences Tutorial</span>
+        <span class="header-eyebrow">Tutorial</span>
       </div>
-      <button
-        mat-icon-button
-        class="close-btn"
-        (click)="confirmClose('x')"
-        aria-label="Close tutorial">
+      <button mat-icon-button class="close-btn" (click)="close()" aria-label="Close tutorial">
         <span mat-symbol="close"></span>
       </button>
     </div>
-    <h2 class="dialog-title">How to Submit Faculty Preferences</h2>
+    <h2 class="dialog-title">{{ title }}</h2>
   </div>
 
-  <!-- Tab bar -->
-  <div class="tab-bar" role="tablist">
-    <button
-      class="tab-item"
-      [class.active]="activeTab === 'guide'"
-      (click)="setTab('guide')"
-      role="tab"
-      [attr.aria-selected]="activeTab === 'guide'">
-      Step-by-Step Guide
-    </button>
-    <button
-      class="tab-item"
-      [class.active]="activeTab === 'video'"
-      (click)="setTab('video')"
-      role="tab"
-      [attr.aria-selected]="activeTab === 'video'">
-      Video Tutorial
-    </button>
-    <div class="tab-indicator" [class.video-tab]="activeTab === 'video'"></div>
-  </div>
-
-  <!-- Separator between tab bar and progress bar -->
-  <div class="tab-progress-separator"></div>
+  <!-- Tab bar — only shown when there are guide steps -->
+  @if (hasTabs) {
+    <div class="tab-bar" role="tablist">
+      <button
+        class="tab-item"
+        [class.active]="activeTab === 'guide'"
+        (click)="setTab('guide')"
+        role="tab"
+        [attr.aria-selected]="activeTab === 'guide'">
+        Step-by-Step Guide
+      </button>
+      <button
+        class="tab-item"
+        [class.active]="activeTab === 'video'"
+        (click)="setTab('video')"
+        role="tab"
+        [attr.aria-selected]="activeTab === 'video'">
+        Video Tutorial
+      </button>
+      <div class="tab-indicator" [class.video-tab]="activeTab === 'video'"></div>
+    </div>
+    <div class="tab-progress-separator"></div>
+  }
 
   <!-- ── GUIDE TAB ── -->
-  @if (activeTab === 'guide') {
+  @if (hasTabs && activeTab === 'guide') {
 
-    <!-- Progress bar -->
+    <!-- Step progress bar -->
     <div class="progress-track"
          role="progressbar"
          [attr.aria-valuenow]="progressPercent"
-         aria-valuemin="0"
-         aria-valuemax="100">
+         aria-valuemin="0" aria-valuemax="100">
       <div class="progress-fill" [style.width.%]="progressPercent"></div>
     </div>
 
     <!-- Body -->
     <div class="dialog-body">
 
-      <!-- Step icon + number badge -->
       <div class="step-icon-wrapper">
         <div class="step-icon-bg">
           <span [mat-symbol]="currentStep.icon" [fill]="false" class="step-icon"></span>
@@ -65,11 +59,9 @@
         <span class="step-badge">{{ currentStep.stepNumber }}</span>
       </div>
 
-      <!-- Step content -->
       <div class="step-content">
         <h3 class="step-title">{{ currentStep.title }}</h3>
         <p class="step-description">{{ currentStep.description }}</p>
-
         @if (currentStep.highlight) {
           <div class="step-highlight">
             <span mat-symbol="info" class="highlight-icon"></span>
@@ -78,10 +70,8 @@
         }
       </div>
 
-      <!-- Step counter -->
       <p class="step-counter">Step {{ currentStep.stepNumber }} of {{ steps.length }}</p>
 
-      <!-- Step dots navigation -->
       <div class="step-dots" role="tablist" aria-label="Tutorial steps">
         @for (step of steps; track step.stepNumber; let i = $index) {
           <button
@@ -98,42 +88,21 @@
 
     </div>
 
-    <!-- Footer buttons -->
+    <!-- Guide footer -->
     <div class="dialog-buttons">
-      <button
-        mat-button
-        class="skip-btn"
-        (click)="confirmClose('skip')"
-        aria-label="Skip tutorial">
-        Skip
-      </button>
-
+      <button mat-button class="skip-btn" (click)="close()">Close</button>
       <div class="nav-buttons">
-        <button
-          mat-stroked-button
-          class="prev-btn"
-          (click)="previous()"
-          [disabled]="isFirstStep"
-          aria-label="Previous step">
+        <button mat-stroked-button class="prev-btn" (click)="previous()" [disabled]="isFirstStep">
           <span mat-symbol="arrow_back" class="nav-icon"></span>
           Previous
         </button>
-
         @if (!isLastStep) {
-          <button
-            mat-flat-button
-            class="next-btn"
-            (click)="next()"
-            aria-label="Next step">
+          <button mat-flat-button class="next-btn" (click)="next()">
             Next
             <span mat-symbol="arrow_forward" class="nav-icon"></span>
           </button>
         } @else {
-          <button
-            mat-flat-button
-            class="finish-btn"
-            (click)="finish()"
-            aria-label="Got it, close tutorial">
+          <button mat-flat-button class="finish-btn" (click)="close()">
             Got it!
             <span mat-symbol="check" class="nav-icon"></span>
           </button>
@@ -143,24 +112,23 @@
 
   }
 
-  <!-- ── VIDEO TAB ── -->
-  @if (activeTab === 'video') {
+  <!-- ── VIDEO TAB (or sole content when no steps) ── -->
+  @if (!hasTabs || activeTab === 'video') {
 
     <div class="video-tab-body">
       <div class="video-meta">
         <span mat-symbol="play_circle" class="video-meta-icon"></span>
         <div class="video-meta-text">
-          <span class="video-meta-title">How to Set Faculty Preferences</span>
-          <span class="video-meta-sub">Watch the walkthrough below</span>
+          <span class="video-meta-title">{{ title }}</span>
+          <span class="video-meta-sub">{{ description }}</span>
         </div>
       </div>
 
-      <!-- 16:9 responsive embed -->
       <div class="video-wrapper">
         <iframe
           class="video-player"
-          [src]="safeVideoUrl"
-          title="How to Set Faculty Preferences"
+          [src]="safeEmbedUrl"
+          [title]="title"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowfullscreen
@@ -176,7 +144,7 @@
 
     <div class="dialog-buttons">
       <span></span>
-      <button mat-flat-button class="finish-btn" (click)="finish()">
+      <button mat-flat-button class="finish-btn" (click)="close()">
         Done
         <span mat-symbol="check" class="nav-icon"></span>
       </button>

@@ -1,7 +1,13 @@
 import { Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule, MatDialog } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialogRef,
+  MatDialogModule,
+  MatDialog,
+} from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { DialogGenericComponent } from '../dialog-generic/dialog-generic.component';
@@ -13,6 +19,8 @@ export interface TutorialStep {
   icon: string;
   highlight?: string;
 }
+
+export type TutorialTab = 'guide' | 'video';
 
 @Component({
   selector: 'app-dialog-preferences-tutorial',
@@ -27,6 +35,13 @@ export interface TutorialStep {
   styleUrls: ['./dialog-preferences-tutorial.component.scss'],
 })
 export class DialogPreferencesTutorialComponent {
+
+  /** Which tab is currently active */
+  activeTab: TutorialTab = 'guide';
+
+  /** Safe embedded YouTube URL */
+  readonly safeVideoUrl: SafeResourceUrl;
+
   readonly steps: TutorialStep[] = [
     {
       stepNumber: 1,
@@ -93,7 +108,16 @@ export class DialogPreferencesTutorialComponent {
     public dialogRef: MatDialogRef<DialogPreferencesTutorialComponent>,
     @Inject(MAT_DIALOG_DATA) public data: Record<string, never>,
     private readonly matDialog: MatDialog,
-  ) {}
+    private readonly sanitizer: DomSanitizer,
+  ) {
+    this.safeVideoUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+      'https://www.youtube-nocookie.com/embed/2TPF8RWpOlc?rel=0&modestbranding=1',
+    );
+  }
+
+  setTab(tab: TutorialTab): void {
+    this.activeTab = tab;
+  }
 
   next(): void {
     if (!this.isLastStep) {
@@ -113,21 +137,22 @@ export class DialogPreferencesTutorialComponent {
     }
   }
 
-  /** "!" — closes without confirmation. */
   finish(): void {
     this.dialogRef.close('finished');
   }
 
-  /** "Skip" and "X" both go through the same confirmation dialog. */
   confirmClose(source: 'skip' | 'x'): void {
-    const label = source === 'skip' ? 'skip the tutorial' : 'close the tutorial';
+    const isSkip = source === 'skip';
+
     const confirmRef = this.matDialog.open(DialogGenericComponent, {
       data: {
-        title: 'Skip Tutorial?',
-        content: `Are you sure you want to ${label}? You can always reopen it by clicking the Tutorial button on the preferences page.`,
-        actionText: 'Yes, Skip',
-        cancelText: 'Keep Reading',
-        action: 'skip',
+        title: isSkip ? 'Skip Tutorial?' : 'Close Tutorial?',
+        content: isSkip
+          ? 'Are you sure you want to skip the tutorial? You can access it again anytime from the Tutorial card on the Preferences page.'
+          : 'Are you sure you want to close the tutorial? Your current progress will not be saved.',
+        actionText: isSkip ? 'Yes, Skip' : 'Yes, Close',
+        cancelText: isSkip ? 'Keep Reading' : 'Stay',
+        action: 'confirm',
         actionTextColor: '#ffffff',
         actionBgColor: 'var(--primary-one)',
       },
@@ -136,8 +161,8 @@ export class DialogPreferencesTutorialComponent {
     });
 
     confirmRef.afterClosed().subscribe((result) => {
-      if (result === 'skip') {
-        this.dialogRef.close('skipped');
+      if (result === 'confirm') {
+        this.dialogRef.close(isSkip ? 'skipped' : 'closed');
       }
     });
   }
