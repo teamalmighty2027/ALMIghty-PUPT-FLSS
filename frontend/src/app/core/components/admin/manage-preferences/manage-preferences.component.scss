@@ -238,3 +238,33 @@
   display: inline-block;
   vertical-align: middle;
 }
+
+.pref-loaded-note-banner {
+  @include mixins.flex-layout(
+    $direction: row,
+    $align: center,
+    $justify: flex-start,
+    $gap: var(--spacing-sm)
+  );
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+  border: 1px solid #bee3f8;
+  border-left: 4px solid #3182ce;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-xs);
+
+  .info-icon {
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+    color: #3182ce;
+    flex-shrink: 0;
+  }
+
+  .note-content {
+    flex-grow: 1;
+  }
+}
