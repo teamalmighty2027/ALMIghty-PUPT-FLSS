@@ -1,0 +1,115 @@
+<div class="tutorial-dialog">
+
+  <!-- Gradient header -->
+  <div class="dialog-header">
+    <div class="header-top">
+      <div class="header-label">
+        <span mat-symbol="menu_book" class="header-icon"></span>
+        <span class="header-eyebrow">Quick Tutorial</span>
+      </div>
+      <button
+        mat-icon-button
+        class="close-btn"
+        (click)="confirmClose('x')"
+        aria-label="Close tutorial">
+        <span mat-symbol="close"></span>
+      </button>
+    </div>
+    <h2 class="dialog-title">How to Submit Faculty Preferences</h2>
+    <p class="dialog-subtitle">Step {{ currentStep.stepNumber }} of {{ steps.length }}</p>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-track"
+       role="progressbar"
+       [attr.aria-valuenow]="progressPercent"
+       aria-valuemin="0"
+       aria-valuemax="100">
+    <div class="progress-fill" [style.width.%]="progressPercent"></div>
+  </div>
+
+  <!-- Body -->
+  <div class="dialog-body">
+
+    <!-- Step icon + number badge -->
+    <div class="step-icon-wrapper">
+      <div class="step-icon-bg">
+        <span [mat-symbol]="currentStep.icon" [fill]="false" class="step-icon"></span>
+      </div>
+      <span class="step-badge">{{ currentStep.stepNumber }}</span>
+    </div>
+
+    <!-- Step content -->
+    <div class="step-content">
+      <h3 class="step-title">{{ currentStep.title }}</h3>
+      <p class="step-description">{{ currentStep.description }}</p>
+
+      @if (currentStep.highlight) {
+        <div class="step-highlight">
+          <span mat-symbol="info" class="highlight-icon"></span>
+          <span>{{ currentStep.highlight }}</span>
+        </div>
+      }
+    </div>
+
+    <!-- Step dots navigation -->
+    <div class="step-dots" role="tablist" aria-label="Tutorial steps">
+      @for (step of steps; track step.stepNumber; let i = $index) {
+        <button
+          class="dot"
+          [class.active]="i === currentStepIndex"
+          [class.visited]="i < currentStepIndex"
+          (click)="goToStep(i)"
+          role="tab"
+          [attr.aria-selected]="i === currentStepIndex"
+          [attr.aria-label]="'Go to step ' + step.stepNumber">
+        </button>
+      }
+    </div>
+
+  </div>
+
+  <!-- Footer buttons -->
+  <div class="dialog-buttons">
+    <button
+      mat-button
+      class="skip-btn"
+      (click)="confirmClose('skip')"
+      aria-label="Skip tutorial">
+      Skip
+    </button>
+
+    <div class="nav-buttons">
+      <button
+        mat-stroked-button
+        class="prev-btn"
+        (click)="previous()"
+        [disabled]="isFirstStep"
+        aria-label="Previous step">
+        <span mat-symbol="arrow_back" class="nav-icon"></span>
+        Previous
+      </button>
+
+      @if (!isLastStep) {
+        <button
+          mat-flat-button
+          class="next-btn"
+          (click)="next()"
+          aria-label="Next step">
+          Next
+          <span mat-symbol="arrow_forward" class="nav-icon"></span>
+        </button>
+      } @else {
+        <button
+          mat-flat-button
+          class="finish-btn"
+          (click)="finish()"
+          aria-label="Got it, close tutorial">
+          Got it!
+          <span mat-symbol="check" class="nav-icon"></span>
+        </button>
+      }
+    </div>
+  </div>
+
+</div>

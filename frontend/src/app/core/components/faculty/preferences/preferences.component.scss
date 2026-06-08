@@ -117,6 +117,45 @@
       }
     }
   }
+
+  // Right-side actions wrapper: tutorial button + totals
+  .pref-header-actions {
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: flex-end,
+      $justify: flex-start,
+      $gap: var(--spacing-sm)
+    );
+    flex-shrink: 0;
+  }
+
+  .tutorial-btn {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    height: 2.25rem;
+    padding: 0 var(--spacing-md);
+    border-radius: var(--border-radius-xl);
+    border: 1.5px solid var(--primary-one-fade);
+    color: var(--primary-text);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    @include mixins.default-transition;
+    white-space: nowrap;
+
+    ::ng-deep .mdc-button__label {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    }
+
+    .tutorial-btn-icon {
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    &:hover {
+      background-color: var(--primary-fade);
+      border-color: var(--primary-one);
+    }
+  }
 }
 
 /* Second Row - Course List and Table */

@@ -34,6 +34,7 @@ import { Elective } from '../../../models/scheduling.model';
 import { fadeAnimation, cardEntranceAnimation, rowAdditionAnimation } from '../../../animations/animations';
 import { DialogPrefSectionComponent } from '../../../../shared/dialog-pref-section/dialog-pref-section.component';
 import { DialogImportHistoryComponent } from '../../../../shared/dialog-import-history/dialog-import-history.component';
+import { DialogPreferencesTutorialComponent } from '../../../../shared/dialog-preferences-tutorial/dialog-preferences-tutorial.component';
 import { HasUnsavedPreferences } from '../../../guards/unsaved-preferences.guard';
 
 interface TableData extends Course {
@@ -497,6 +498,10 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               programsResponse.programs,
               programsResponse.academic_year_id
             );
+
+            // Show the tutorial the first time a faculty enters this page
+            // while the submission period is open.
+            this.maybeShowTutorial();
           },
           error: (error) => this.handleDataLoadingError(error),
         }),
@@ -1216,6 +1221,39 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
         isAdmin: false,
       },
       autoFocus: true,
+    });
+  }
+
+  /**
+   * Shows the preferences tutorial dialog if the submission period is open
+   * and the faculty has not yet seen it this session.
+   * Uses sessionStorage so the dialog only appears once per browser session.
+   */
+  private maybeShowTutorial(): void {
+    const id = this.facultyId() || 'unknown';
+    const sessionKey = `pref_tutorial_seen_${id}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+
+    // Small delay so the page content renders before the dialog appears
+    setTimeout(() => {
+      if (this.isPreferencesEnabled()) {
+        sessionStorage.setItem(sessionKey, '1');
+        this.openTutorial();
+      }
+    }, 600);
+  }
+
+  /**
+   * Opens the Faculty Preferences Tutorial dialog.
+   */
+  public openTutorial(): void {
+    this.dialog.open(DialogPreferencesTutorialComponent, {
+      width: '480px',
+      maxWidth: '95vw',
+      disableClose: false,
+      autoFocus: false,
+      panelClass: 'dialog-base',
+      data: {},
     });
   }
 

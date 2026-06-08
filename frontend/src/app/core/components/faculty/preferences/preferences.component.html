@@ -19,18 +19,31 @@
       </div>
 
       @if(isPreferencesEnabled()) {
-      <div
-        class="total-container desktop"
-        [class.disabled]="!isPreferencesEnabled()">
-        <div class="total units" [@fadeAnimation]>
-          <h2>{{ totalUnits() }}</h2>
-          <span>Total Units Selected</span>
-        </div>
+      <div class="pref-header-actions">
+        <!-- Tutorial button — always visible while submission is open -->
+        <button
+          mat-stroked-button
+          class="tutorial-btn"
+          (click)="openTutorial()"
+          matTooltip="View the step-by-step tutorial"
+          aria-label="View tutorial">
+          <span mat-symbol="menu_book" class="tutorial-btn-icon"></span>
+          View Tutorial
+        </button>
 
-        <!-- Total Hours -->
-        <div class="total hours" [@fadeAnimation]>
-          <h2>{{ totalHours() }}</h2>
-          <span>Total Hours Selected</span>
+        <div
+          class="total-container desktop"
+          [class.disabled]="!isPreferencesEnabled()">
+          <div class="total units" [@fadeAnimation]>
+            <h2>{{ totalUnits() }}</h2>
+            <span>Total Units Selected</span>
+          </div>
+
+          <!-- Total Hours -->
+          <div class="total hours" [@fadeAnimation]>
+            <h2>{{ totalHours() }}</h2>
+            <span>Total Hours Selected</span>
+          </div>
         </div>
       </div>
       }
