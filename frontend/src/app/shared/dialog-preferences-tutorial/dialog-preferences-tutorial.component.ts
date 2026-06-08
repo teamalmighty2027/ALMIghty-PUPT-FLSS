@@ -29,7 +29,6 @@ export type TutorialTab = 'guide' | 'video';
     MatDialogModule,
     MatButtonModule,
     MatSymbolDirective,
-    DialogGenericComponent,
   ],
   templateUrl: './dialog-preferences-tutorial.component.html',
   styleUrls: ['./dialog-preferences-tutorial.component.scss'],

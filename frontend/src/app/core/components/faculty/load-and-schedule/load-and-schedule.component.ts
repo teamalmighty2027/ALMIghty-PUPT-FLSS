@@ -60,7 +60,6 @@ export interface ScheduleBlock {
     FacultyScheduleTimetableComponent,
     LoadingComponent,
     MatSymbolDirective,
-    DialogVideoTutorialComponent,
   ],
   templateUrl: './load-and-schedule.component.html',
   styleUrl: './load-and-schedule.component.scss',
