@@ -62,7 +62,6 @@ interface TableData extends Course {
     MatProgressSpinnerModule,
     MatMenuModule,
     MatRippleModule,
-    DialogVideoTutorialComponent,
 ],
   templateUrl: './preferences.component.html',
   styleUrls: ['./preferences.component.scss'],
