@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\NotifyAdminOfPreferenceChangeJob;
 use App\Jobs\SendFacultyPreferenceEmailJob;
+use App\Jobs\AutoSubmitPreviousPreferencesJob;
 use App\Models\ActiveSemester;
 use App\Models\AcademicYear;
 use App\Models\Faculty;
@@ -1284,19 +1285,6 @@ class PreferenceController extends Controller
                 })
                 ->get();
 
-                // If there are previous preferences, attempt to auto-submit
-                if ($previousPreferences->isNotEmpty()) {
-                    Log::info(
-                        "Auto-submitting previous preferences for faculty ID: " .
-                        $facultyId
-                    );
-                    
-                    self::autoSubmitPreviousPreferences(
-                        $facultyId,
-                        $previousPreferences,
-                        $currentActiveSemester
-                    );
-                }
 
                 $pastActiveSemester = ActiveSemester::with([
                     'academicYear',
@@ -1792,6 +1780,10 @@ class PreferenceController extends Controller
             }
 
             DB::commit();
+
+            if ($status) {
+                AutoSubmitPreviousPreferencesJob::dispatch();
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to toggle all preferences: ' . $e->getMessage());
@@ -1912,6 +1904,10 @@ class PreferenceController extends Controller
             }
 
             DB::commit();
+
+            if ($status) {
+                AutoSubmitPreviousPreferencesJob::dispatch($faculty_id);
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error(
