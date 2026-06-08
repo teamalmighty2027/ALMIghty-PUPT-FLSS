@@ -1526,7 +1526,7 @@ class PreferenceController extends Controller
                     model: 'Preference',
                     modelId: $newPref->preferences_id,
                     data: $newPref->toArray(),
-                    description: "Submitted new schedule preference for " .
+                    description: "Submitted past schedule preference for " .
                         $facultyName . " (" . $courseReference . ")"
                 );
             } catch (\Exception $e) {

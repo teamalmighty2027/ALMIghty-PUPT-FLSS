@@ -21,16 +21,27 @@
     </app-reports-header>
   </div>
 
-  @if (isToggleAllChecked || isAnyIndividualToggleOn) {
+  @if (isToggleAllChecked) {
   <div class="pref-loaded-note-banner" [@fadeAnimation]>
     <mat-icon class="info-icon">info</mat-icon>
     <div class="note-content">
       <strong>Note:</strong> Previous preferences (from the matching semester
-      of the latest academic year) have been automatically loaded for active
+      of the latest academic year) have been automatically loaded for all active 
+      faculty members.
+    </div>
+  </div>
+  } @else if (isAnyIndividualToggleOn) {
+  <div class="pref-loaded-note-banner" [@fadeAnimation]>
+    <mat-icon class="info-icon">info</mat-icon>
+    <div class="note-content">
+      <strong>Note:</strong> Previous preferences (from the matching semester
+      of the latest academic year) have been automatically loaded for selected 
       faculty members.
     </div>
   </div>
   }
+
+  
 
   <div class="faculty-pref-table-container" [@fadeAnimation]>
     <div class="table-container">
