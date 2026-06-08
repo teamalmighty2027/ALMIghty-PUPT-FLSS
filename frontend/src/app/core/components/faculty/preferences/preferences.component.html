@@ -19,18 +19,33 @@
       </div>
 
       @if(isPreferencesEnabled()) {
-      <div
-        class="total-container desktop"
-        [class.disabled]="!isPreferencesEnabled()">
-        <div class="total units" [@fadeAnimation]>
-          <h2>{{ totalUnits() }}</h2>
-          <span>Total Units Selected</span>
+      <div class="pref-header-actions">
+
+        <!-- Tutorial action card — sits LEFT of totals, same visual weight -->
+        <div class="tutorial-card" (click)="openTutorial()" [@fadeAnimation]
+             matRipple role="button" tabindex="0"
+             aria-label="Open faculty preferences tutorial"
+             (keydown.enter)="openTutorial()">
+          <span mat-symbol="menu_book" class="tutorial-card-icon"></span>
+          <div class="tutorial-card-text">
+            <span class="tutorial-card-title">Preferences Tutorial</span>
+            <span class="tutorial-card-sub">Guide &amp; Video</span>
+          </div>
         </div>
 
-        <!-- Total Hours -->
-        <div class="total hours" [@fadeAnimation]>
-          <h2>{{ totalHours() }}</h2>
-          <span>Total Hours Selected</span>
+        <div
+          class="total-container desktop"
+          [class.disabled]="!isPreferencesEnabled()">
+          <div class="total units" [@fadeAnimation]>
+            <h2>{{ totalUnits() }}</h2>
+            <span>Total Units Selected</span>
+          </div>
+
+          <!-- Total Hours -->
+          <div class="total hours" [@fadeAnimation]>
+            <h2>{{ totalHours() }}</h2>
+            <span>Total Hours Selected</span>
+          </div>
         </div>
       </div>
       }
@@ -303,7 +318,7 @@
               Program
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.program_details?.program_code || '—' }}
+              {{ element.program_details?.program_code || 'ΓÇö' }}
             </td>
           </ng-container> 
           
@@ -313,7 +328,7 @@
               Year & Section
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.year_section || '—' }}
+              {{ element.year_section || 'ΓÇö' }}
             </td>
           </ng-container> 
 
