@@ -209,9 +209,12 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
                     }
                   );
                 },
-                error: () => {
-                  this.snackBar.open('Error adding faculty type', 'Close', {
-                    duration: 3000,
+                error: (error) => {
+                  const errorMessage =
+                    error.error?.message ||
+                    'Error adding faculty type';
+                  this.snackBar.open(errorMessage, 'Close', {
+                    duration: 5000,
                   });
                 },
               });
@@ -243,9 +246,12 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
                     }
                   );
                 },
-                error: () => {
-                  this.snackBar.open('Error updating faculty type', 'Close', {
-                    duration: 3000,
+                error: (error) => {
+                  const errorMessage =
+                    error.error?.message ||
+                    'Error updating faculty type';
+                  this.snackBar.open(errorMessage, 'Close', {
+                    duration: 5000,
                   });
                 },
               });
@@ -268,9 +274,12 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
             duration: 3000,
           });
         },
-        error: () => {
-          this.snackBar.open('Error deleting faculty type', 'Close', {
-            duration: 3000,
+        error: (error) => {
+          const errorMessage =
+            error.error?.message ||
+            'Error deleting faculty type';
+          this.snackBar.open(errorMessage, 'Close', {
+            duration: 5000,
           });
         },
       });

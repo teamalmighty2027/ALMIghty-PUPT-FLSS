@@ -8,6 +8,7 @@ use App\Models\UserProfile;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Jobs\RegisterUserToIdpJob;
 use App\Jobs\SendFacultyFirstLoginPasswordJob;
 
@@ -42,15 +43,15 @@ class FacultyController extends Controller
 
         if ($lastCode) {
             // Extract the number between prefix and suffix
-            // e.g., from FA001TG2024 extract 001
+            // e.g., from FA0001TG2024 extract 001
             $pattern = "/^" . preg_quote($prefix) . "(\d+)" . preg_quote($suffix) . "$/";
             if (preg_match($pattern, $lastCode->code, $matches)) {
                 $nextNumber = (int)$matches[1] + 1;
             }
         }
 
-        // Pad with at least 3 zeroes (or more if the number is large)
-        $paddedNumber = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        // Pad with at least 4 zeroes (or more if the number is large)
+        $paddedNumber = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         $suggestedCode = "{$prefix}{$paddedNumber}{$suffix}";
 
         return response()->json(['suggested_code' => $suggestedCode]);
@@ -125,7 +126,7 @@ class FacultyController extends Controller
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {
             DB::rollBack();
-            \Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'message' => 'Failed to create faculty',
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
@@ -152,7 +153,7 @@ class FacultyController extends Controller
                     $oldFacultyTypeModel = \App\Models\FacultyType::find($user->faculty->faculty_type_id);
                     $oldFacultyType = $oldFacultyTypeModel ? $oldFacultyTypeModel->faculty_type : null;
                 } catch (\Exception $e) {
-                    \Log::warning("Could not load old faculty type: " . $e->getMessage());
+                    Log::warning("Could not load old faculty type: " . $e->getMessage());
                 }
             }
 
@@ -256,7 +257,7 @@ class FacultyController extends Controller
             return response()->json($user->load('faculty.facultyType'));
 
         } catch (\Exception $e) {
-            \Log::error('Faculty update failed: ' . $e->getMessage(), [
+            Log::error('Faculty update failed: ' . $e->getMessage(), [
                 'user_id' => $user->id,
                 'trace' => $e->getTraceAsString()
             ]);
