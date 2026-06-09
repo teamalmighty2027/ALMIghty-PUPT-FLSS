@@ -153,6 +153,22 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
     return Array.from(uniqueCoursesMap.values());
   });
+
+  // Filters the list of programs based on the search query
+  filteredPrograms = computed(() => {
+    const query = this.searchQuery().toLowerCase().trim();
+
+    if (!query) {
+      return this.programs();
+    }
+
+    return this.programs().filter(
+      (program) =>
+        program.program_code.toLowerCase().includes(query) ||
+        program.program_title.toLowerCase().includes(query),
+    );
+  });
+
   @ViewChild('searchInput') searchInput!: ElementRef;
    @ViewChild('tableContainer') tableContainer!: ElementRef<HTMLDivElement>;
 
@@ -674,35 +690,17 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
         .pipe(startWith(''), debounceTime(300), distinctUntilChanged())
         .subscribe((query) => {
           this.searchQuery.set(query);
-
-          if (query) {
-            const results = this.filteredSearchResults();
-            this.searchState.set(
-              results.length > 0 ? 'searchResults' : 'noResults',
-            );
-          } else {
-            // Return to program list or course list based on selection state
-            this.searchState.set(
-              this.selectedProgram() ? 'courseList' : 'programSelection',
-            );
-          }
+          this.updateSearchState(query);
         }),
     );
   }
 
   /**
    * Event handler for search input changes.
-   * Blocks search when no program has been selected yet.
    *
    * @param query Search text entered by the user.
    */
   public onSearchInput(query: string): void {
-    // Require a program to be selected before searching
-    if (!this.selectedProgram()) {
-      this.showSnackBar('Choose a program first!');
-      return;
-    }
-
     this.searchQuerySubject.next(query);
     this.showPossiblePrograms.set(false);
   }
@@ -714,11 +712,19 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
    */
   private updateSearchState(query: string): void {
     if (query) {
-      this.searchState.set(
-        this.filteredSearchResults().length > 0
-          ? 'searchResults'
-          : 'noResults',
-      );
+      if (this.selectedProgram()) {
+        this.searchState.set(
+          this.filteredSearchResults().length > 0
+            ? 'searchResults'
+            : 'noResults',
+        );
+      } else {
+        this.searchState.set(
+          this.filteredPrograms().length > 0
+            ? 'programSelection'
+            : 'noResults',
+        );
+      }
     } else {
       // Fall back to the appropriate default view
       this.searchState.set(
@@ -1108,7 +1114,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       data: {
         title: 'How to Set Faculty Preferences',
         description: 'Learn how to select programs, courses, and preferred day and time slots step by step.',
-        youtubeUrl: 'https://youtu.be/2TPF8RWpOlc?si=OycBaWGh4ecbm7nd',
+        youtubeUrl: 'https://youtu.be/OsuiGXkxxKc?si=aNd90yEIZWjmgJVS',
       },
     });
   }
