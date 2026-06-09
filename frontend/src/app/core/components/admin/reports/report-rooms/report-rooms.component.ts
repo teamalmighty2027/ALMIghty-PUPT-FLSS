@@ -291,7 +291,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           saveAs(excelBlob, `${element.roomCode.replace(/\s+/g, '_')}_Schedule.xlsx`);
         },
       },
-      disableClose: true,
     });
   }
 
@@ -319,7 +318,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         },
         showViewToggle: false,
       },
-      disableClose: true,
     });
   }
 
@@ -329,7 +327,6 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
-      disableClose: true,
       data: {
         exportType: 'single',
         customTitle: `Room ${element.roomCode}`,

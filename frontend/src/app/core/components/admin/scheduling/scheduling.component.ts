@@ -619,7 +619,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           skippedEntries: conflicted,
           saveStream$: saveStream$.asObservable()
         },
-        disableClose: true,
         width: '500px'
       });
 
@@ -1191,7 +1190,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
   openInfoDialog(): void {
     const dialogRef = this.dialog.open(DialogInfoComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -1280,7 +1278,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           const dialogRef = this.dialog.open(DialogTemporaryCourseComponent, {
             maxWidth: '35rem',
             width: '100%',
-            disableClose: true,
             autoFocus: true,
             data: {
               programLabel: program.display,
@@ -1484,7 +1481,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           width: '95vw',
           height: 'auto',
           maxHeight: '90vh',
-          disableClose: true,
           autoFocus: true,
           data: {
             program: {
@@ -1522,9 +1518,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
-            selectedElectiveId: schedule.elective_id ?? null,
-            selectedElectiveSlotName: schedule.elective_slot_name ?? null,
-            isElectiveSlot: !!(schedule.elective_id) || (schedule.course_code || '').toLowerCase().includes('elective'),
           },
         });
 
@@ -1586,7 +1579,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         cancelText: 'Cancel',
         action: 'archive',
       },
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -1690,7 +1682,6 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         cancelText: 'Cancel',
         action: 'remove',
       },
-      disableClose: true,
       autoFocus: true,
     });
 

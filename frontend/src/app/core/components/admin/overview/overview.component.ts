@@ -299,7 +299,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     };
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-      data: dialogData, disableClose: true, autoFocus: false,
+      data: dialogData, autoFocus: false,
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
@@ -331,7 +331,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     };
 
     const dialogRef = this.dialog.open(DialogActionComponent, {
-      data: dialogData, disableClose: true,
+      data: dialogData
     });
 
     dialogRef.afterClosed().subscribe((result: boolean) => {
@@ -354,8 +354,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     }
 
     this.dialog.open(DialogActionComponent, {
-      data: { type: 'reports', academicYear: this.activeYear, semester: this.activeSemester, },
-      disableClose: true,
+      data: { type: 'reports', academicYear: this.activeYear, semester: this.activeSemester, }
     });
   }
 
@@ -417,7 +416,6 @@ export class OverviewComponent implements OnInit, OnDestroy {
           startDate: parseSqlDate(request.appeal_start_date),
           endDate: parseSqlDate(request.appeal_end_date)
         },
-        disableClose: true,
         autoFocus: false
       });
 
@@ -463,7 +461,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
       };
 
       const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-        data: dialogData, disableClose: true, autoFocus: true,
+        data: dialogData, autoFocus: true,
       });
 
       dialogRef.afterClosed().subscribe((result: boolean) => {

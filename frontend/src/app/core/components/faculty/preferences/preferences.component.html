@@ -19,18 +19,33 @@
       </div>
 
       @if(isPreferencesEnabled()) {
-      <div
-        class="total-container desktop"
-        [class.disabled]="!isPreferencesEnabled()">
-        <div class="total units" [@fadeAnimation]>
-          <h2>{{ totalUnits() }}</h2>
-          <span>Total Units Selected</span>
+      <div class="pref-header-actions">
+
+        <!-- Tutorial action card — sits LEFT of totals, same visual weight -->
+        <div class="tutorial-card" (click)="openTutorial()" [@fadeAnimation]
+             matRipple role="button" tabindex="0"
+             aria-label="Open faculty preferences tutorial"
+             (keydown.enter)="openTutorial()">
+          <span mat-symbol="menu_book" class="tutorial-card-icon"></span>
+          <div class="tutorial-card-text">
+            <span class="tutorial-card-title">Preferences Tutorial</span>
+            <span class="tutorial-card-sub">Guide &amp; Video</span>
+          </div>
         </div>
 
-        <!-- Total Hours -->
-        <div class="total hours" [@fadeAnimation]>
-          <h2>{{ totalHours() }}</h2>
-          <span>Total Hours Selected</span>
+        <div
+          class="total-container desktop"
+          [class.disabled]="!isPreferencesEnabled()">
+          <div class="total units" [@fadeAnimation]>
+            <h2>{{ totalUnits() }}</h2>
+            <span>Total Units Selected</span>
+          </div>
+
+          <!-- Total Hours -->
+          <div class="total hours" [@fadeAnimation]>
+            <h2>{{ totalHours() }}</h2>
+            <span>Total Hours Selected</span>
+          </div>
         </div>
       </div>
       }
@@ -54,7 +69,7 @@
             <button mat-icon-button matSuffix (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
-            } @if (showCourseSelection() && !searchQuery()) {
+            } @if (!showProgramSelection() && !searchQuery()) {
             <button
               mat-icon-button
               matSuffix
@@ -73,11 +88,11 @@
             (click)="openImportHistoryDialog()"
             matTooltip="Import courses from your history">
             <span mat-symbol="history"></span>
-            Import from History
+            Import Past Preferences
           </button>
         </div>
 
-        <mat-menu #filterMenu="matMenu">
+        <mat-menu #filterMenu="matMenu" panelClass="filter-year-menu">
           @for (year of dynamicYearLevels(); track year) {
           <button
             mat-menu-item
@@ -100,7 +115,7 @@
           </button>
         </mat-menu>
 
-        <!-- Add this block after the search input -->
+        <!-- Search results block -->
         @if (searchState() === 'searchResults') {
         <div id="search_results">
           <h3 class="cards-label">
@@ -115,7 +130,16 @@
                 matRipple>
                 <div class="course-info">
                   <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
+                    <span class="course-code">{{ getDisplayCode(course) }}</span>
+                    @if (getResolvedElective(course)) {
+                      <span
+                        class="elective-badge"
+                        [matTooltip]="'Original slot: ' +
+                                      course.course_code"
+                      >
+                        {{ course.course_code }}
+                      </span>
+                    }
                     @if (course.is_temporary) {
                     <span
                       class="temp-pill"
@@ -124,7 +148,7 @@
                     </span>
                     }
                   </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
                   <span mat-symbol="add" variant="outlined" size="20px"></span>
@@ -141,44 +165,41 @@
             >No results found for "{{ searchQuery() }}"</span
           >
         </div>
-        } @if (showCourseSelection() && !searchQuery() && selectedYearLevel() === null) {
+        }
+
+        <!-- Program selection (default view) -->
+        @if (showProgramSelection() && !searchQuery() && !showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>Select a Course
+            <span mat-symbol="school"></span>Select a Program
           </h3>
-          <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="courses().length">
-              @for (course of courses(); track course.course_id) {
+          <div class="programs-scroll-container">
+            <div [@cardEntranceAnimation]="programs().length">
+              @for (program of programs(); track program.program_id) {
               <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
+                class="program-card pop"
+                (click)="selectProgram(program)"
                 matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
-                    </span>
-                    }
-                  </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                <div class="program-info">
+                  <span class="program-code">{{ program.program_code }}</span>
+                  <span class="program-title">{{ program.program_title }}</span>
                 </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
               </div>
               }
             </div>
           </div>
         </div>
-        } @else if (showCourseSelection() && !searchQuery() && selectedYearLevel() !== null) {
+
+        <!-- Course list for the selected program -->
+        } @else if (!showProgramSelection() && !searchQuery()
+                   && !showPossiblePrograms()) {
         <div id="courses_list">
           <h3 class="cards-label">
-            <span mat-symbol="school"></span>
-            Year Level {{ selectedYearLevel() }} Courses
+            <span
+              class="arrow_back"
+              mat-symbol="arrow_back"
+              (click)="backToProgramSelection()"></span>
+            Select {{ selectedProgram()?.program_code }} Courses
           </h3>
           <div class="courses-scroll-container">
             <div [@cardEntranceAnimation]="filteredCourses().length">
@@ -189,7 +210,16 @@
                 matRipple>
                 <div class="course-info">
                   <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
+                    <span class="course-code">{{ getDisplayCode(course) }}</span>
+                    @if (getResolvedElective(course)) {
+                      <span
+                        class="elective-badge"
+                        [matTooltip]="'Original slot: ' +
+                                      course.course_code"
+                      >
+                        {{ course.course_code }}
+                      </span>
+                    }
                     @if (course.is_temporary) {
                     <span
                       class="temp-pill"
@@ -198,7 +228,7 @@
                     </span>
                     }
                   </div>
-                  <span class="course-title">{{ course.course_title }}</span>
+                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
                 </div>
                 <button mat-icon-button class="add-button">
                   <span mat-symbol="add" variant="outlined" size="20px"></span>
@@ -208,47 +238,15 @@
             </div>
           </div>
         </div>
-        } @else if (!showCourseSelection() && !searchQuery() && !showPossiblePrograms()) {
-        <div id="courses_list">
-          <h3 class="cards-label">
-            <span mat-symbol="school"></span>
-            Select a Course
-          </h3>
-          <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="filteredCourses().length">
-              @for (course of filteredCourses(); track course.course_id) {
-              <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
-                matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ course.course_code }}</span>
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
-                    </span>
-                    }
-                  </div>
-                  <span class="course-title">{{ course.course_title }}</span>
-                </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
-              </div>
-              }
-            </div>
-          </div>
-        </div>
-        } @else if (!showCourseSelection() && showPossiblePrograms()) {
+
+        <!-- Possible programs for a bridging course -->
+        } @else if (showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
             <span
               class="arrow_back"
               mat-symbol="arrow_back"
-              (click)="backToCourseSelection()">
+              (click)="backToProgramSelection()">
             </span>
             Possible Programs for this Course
           </h3>
@@ -320,7 +318,7 @@
               Program
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.program_details?.program_code || '—' }}
+              {{ element.program_details?.program_code || 'ΓÇö' }}
             </td>
           </ng-container> 
           
@@ -330,7 +328,7 @@
               Year & Section
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
-              {{ element.year_section || '—' }}
+              {{ element.year_section || 'ΓÇö' }}
             </td>
           </ng-container> 
 
@@ -341,7 +339,16 @@
             </th>
             <td mat-cell *matCellDef="let element" class="table-cell">
               <div class="course-code-cell">
-                <span>{{ element.course_code }}</span>
+                <span>{{ getDisplayCode(element) }}</span>
+                @if (getResolvedElective(element)) {
+                  <span
+                    class="elective-badge"
+                    [matTooltip]="'Original slot: ' +
+                                  element.course_code"
+                  >
+                    {{ element.course_code }}
+                  </span>
+                }
                 @if (element.is_temporary) {
                 <span
                   class="temp-pill"
@@ -362,7 +369,7 @@
               mat-cell
               *matCellDef="let element"
               class="table-cell title-cell">
-              {{ element.course_title }}
+              {{ getDisplayTitle(element) }}
             </td>
           </ng-container>
 

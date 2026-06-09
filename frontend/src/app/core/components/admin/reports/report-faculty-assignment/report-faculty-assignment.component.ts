@@ -232,7 +232,6 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       maxHeight: '95vh',
       panelClass: 'pdf-fullscreen-dialog',
       autoFocus: true, 
-      disableClose: true,
       data: {
         exportType: 'single', 
         entity: 'faculty', 
@@ -249,7 +248,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   onExportSingle(faculty: any): void {
     const baseFileName = `${faculty.faculty_name.replace(/\s+/g, '_')}_Assignment_SY_${this.academicYearLabel}`;
     this.dialog.open(DialogExportComponent, {
-      width: '90vw', maxWidth: '1200px', disableClose: true,
+      width: '90vw', maxWidth: '1200px',
       data: {
         exportType: 'single', customTitle: faculty.faculty_name,
         subtitle: `For Academic Year ${this.academicYearLabel}, ${this.semesterLabel}`,
@@ -266,7 +265,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     }
     const baseFileName = `All_Faculty_Assignments_${this.academicYearLabel}_${this.semesterLabel.replace(/\s+/g, '_')}`;
     this.dialog.open(DialogExportComponent, {
-      width: '90vw', maxWidth: '1200px', disableClose: true,
+      width: '90vw', maxWidth: '1200px',
       data: {
         exportType: 'all', customTitle: 'All Faculty Assignments',
         subtitle: `For Academic Year ${this.academicYearLabel}, ${this.semesterLabel}`,

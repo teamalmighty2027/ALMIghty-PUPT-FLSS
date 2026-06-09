@@ -285,7 +285,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const confirmDialogRef = this.dialog.open(DialogGenericComponent, {
       data: dialogConfig,
-      disableClose: true,
       panelClass: 'dialog-base',
       autoFocus: true,
     });
@@ -300,7 +299,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const loadingDialogRef = this.dialog.open(DialogGenericComponent, {
           data: loadingDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
 
@@ -319,7 +317,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -334,7 +331,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
       }

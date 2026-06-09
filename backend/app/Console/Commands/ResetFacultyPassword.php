@@ -16,7 +16,8 @@ class ResetFacultyPassword extends Command
      */
     protected $signature = 'user:reset-password
         {email? : The email of the faculty user to reset}
-        {--all : Reset passwords for ALL faculty users}';
+        {--all : Reset passwords for ALL faculty users}
+        {--default : Use a default password instead of a random one}';
 
     /**
      * The console command description.
@@ -36,6 +37,7 @@ class ResetFacultyPassword extends Command
     {
         $email = $this->argument('email');
         $all = $this->option('all');
+        $default = $this->option('default');
 
         if (!$email && !$all) {
             $this->error(
@@ -46,6 +48,14 @@ class ResetFacultyPassword extends Command
 
         if ($email && $all) {
             $this->error('Cannot use both an email and --all.');
+            return 1;
+        }
+
+        if ($default && !$this->confirm(
+            'Using a default password is less secure. Are you sure?',
+            false
+        )) {
+            $this->warn('Aborted.');
             return 1;
         }
 
@@ -108,7 +118,7 @@ class ResetFacultyPassword extends Command
      */
     private function resetPassword(User $user): void
     {
-        $password = $this->generatePassword();
+        $password = $this->option('default') ? 'puptfaculty123*' : $this->generatePassword();
 
         // Assign plaintext — model mutator in User.php handles hashing
         $user->password = $password;
@@ -121,6 +131,11 @@ class ResetFacultyPassword extends Command
         );
 
         try {
+            // Skip dispatching email job if using default password
+            if ($this->option('default')) {
+                return; 
+            }
+
             SendFacultyFirstLoginPasswordJob::dispatch($user, $password);
             $this->info("  ✓ Email job dispatched for {$user->email}");
 

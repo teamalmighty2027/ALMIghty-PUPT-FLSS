@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Faculty as FacultyModel;
 use App\Models\PreferencesSetting;
+use App\Models\Faculty;
+use App\Http\Controllers\PreferenceController;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
@@ -22,6 +24,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     protected $is_individual;
     protected $individual_deadline;
     protected $global_deadline;
+    protected $appUrl;
 
     public $tries = 10;
     public $timeout = 300;
@@ -36,6 +39,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     {
         $this->facultyId = $facultyId;
         $this->is_individual = $is_individual;
+        $this->appUrl = config('app.url');
 
         // Retrieve preference settings for the faculty.
         $settings = PreferencesSetting::where('faculty_id', $facultyId)->first();
@@ -52,98 +56,65 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
 
     /**
      * Execute the job.
-     *
-     * This method sends an email to the faculty member regarding their preference submission.
      */
     public function handle()
     {
-        // Retrieve the faculty model using the provided ID with eager loading of user relationship
-        $faculty = FacultyModel::with('user')->find($this->facultyId);
+        $previousPreferencesData = PreferenceController::
+            getFacultyPreviousPreferenceHistory(
+                $this->facultyId,
+                $this->is_individual
+            );
 
-        // Log an error and return if the faculty is not found
-        if (!$faculty) {
-            Log::error('Faculty not found with ID: ' . $this->facultyId);
+        if (!$previousPreferencesData) {
+            Log::warning(
+                "Skipping preference email for faculty ID: " .
+                $this->facultyId .
+                " because settings are disabled or faculty/user not found."
+            );
+
             return;
         }
 
-        // Log an error and return if the user relationship is not found
-        if (!$faculty->user) {
-            Log::error('User not found for faculty ID: ' . $this->facultyId);
-            return;
-        }
+        $previousPreferencesData['app_url'] = rtrim($this->appUrl, '/');
 
-        // Retrieve the preference settings for the faculty
-        $settings = PreferencesSetting::where('faculty_id', $this->facultyId)->first();
+        $template = $this->is_individual
+            ? 'emails.preferences_single_open'
+            : 'emails.preferences_all_open';
 
-        // Log an error and return if preference settings are not found
-        if (!$settings) {
-            Log::error('PreferencesSetting not found for faculty ID: ' . $this->facultyId);
-            return;
-        }
-
-        // Return early if preference emails are disabled for this faculty
-        if (!$settings->is_enabled) {
-            return;
-        }
-
-        // Determine the deadline based on whether it's an individual or global notification
-        $deadline = $this->is_individual && $this->individual_deadline
-        ? $this->individual_deadline
-        : $this->global_deadline;
-
-        // Format the deadline for display in the email
-        $formatted_deadline = $deadline ? $deadline->setTimezone('Asia/Manila')->format('M d, Y') : 'No deadline set';
-
-        // Calculate the number of days left until the deadline
-        $days_left = null;
-        if ($deadline) {
-            $today = Carbon::now('Asia/Manila');
-            $days_left = $today->diffInDays($deadline, false);
-
-            // Adjust days left if the deadline is today
-            if ($today->copy()->endOfDay()->gt($today)) {
-                $days_left++;
-            }
-
-            $days_left = floor($days_left);
-        }
-
-        // Prepare data to be passed to the email template with null checks
-        $dataPreference = [
-            'faculty_name' => $faculty->user->name ?? 'Faculty Member',
-            'email' => $faculty->user->email,
-            'faculty_units' => $faculty->faculty_units ?? 0,
-            'deadline' => $formatted_deadline,
-            'days_left' => $days_left,
-        ];
-
-        // Determine the email template to use based on whether it's an individual notification
-        $template = $this->is_individual ? 'emails.preferences_single_open' : 'emails.preferences_all_open';
-
-        // Attempt to send the email with proper error handling
         try {
-            if (!$dataPreference['email']) {
+            if (!$previousPreferencesData['email']) {
                 throw new \Exception('Faculty email address is missing');
             }
 
-            Mail::send($template, $dataPreference, function ($message) use ($dataPreference) {
-                $message->to($dataPreference['email'])
-                    ->subject('Faculty Load & Schedule Preferences Submission is now open');
-            });
+            Mail::send(
+                $template,
+                $previousPreferencesData,
+                function ($message) use ($previousPreferencesData) {
+                    $message->to($previousPreferencesData['email'])
+                        ->subject(
+                            'Faculty Load & Schedule Preferences ' .
+                            'Submission is now open'
+                        );
+                }
+            );
+
+            Log::info(
+                'Preference submission email sent to ' .
+                $previousPreferencesData['email']
+            );
         } catch (\Exception $e) {
-            Log::error('Failed to send email to ' . ($dataPreference['email'] ?? 'unknown email') . ': ' . $e->getMessage());
-            throw $e; // Re-throw to trigger job retry
+            Log::error(
+                'Failed to send email to ' .
+                ($previousPreferencesData['email'] ?? 'unknown email') .
+                ': ' . $e->getMessage()
+            );
+
+            throw $e;
         }
     }
 
-    /**
-     * Handle a job failure.
-     *
-     * @param  \Exception  $exception The exception that caused the failure.
-     */
     public function failed(Exception $exception)
     {
-        // Log the error message if the job fails.
         Log::error('Job failed: ' . $exception->getMessage());
     }
 }

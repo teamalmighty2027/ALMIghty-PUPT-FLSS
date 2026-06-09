@@ -8,6 +8,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatRippleModule } from '@angular/material/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs'; 
 
@@ -17,6 +18,7 @@ import { DialogAppealScheduleComponent } from '../../../../shared/dialog-appeal-
 import { DialogMyAppealsComponent } from '../../../../shared/dialog-my-appeals/dialog-my-appeals.component';
 import { DialogRequestAccessComponent } from '../../../../shared/dialog-request-access/dialog-request-access.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
+import { DialogVideoTutorialComponent } from '../../../../shared/dialog-video-tutorial/dialog-video-tutorial.component';
 
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { AuthService } from '../../../services/auth/auth.service';
@@ -54,6 +56,7 @@ export interface ScheduleBlock {
     MatButtonModule,
     MatIconModule,
     MatSnackBarModule,
+    MatRippleModule,
     FacultyScheduleTimetableComponent,
     LoadingComponent,
     MatSymbolDirective,
@@ -125,7 +128,59 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openScheduleHistory(): void {
     this.dialog.open(DialogScheduleHistoryComponent, {
-      maxWidth: '90vw', width: '100%', disableClose: true, autoFocus: true,
+      maxWidth: '90vw', width: '100%', autoFocus: true,
+    });
+  }
+
+  openRescheduleTutorial(): void {
+    this.dialog.open(DialogVideoTutorialComponent, {
+      width: '640px',
+      maxWidth: '95vw',
+      panelClass: 'dialog-base',
+      autoFocus: false,
+      data: {
+        title: 'How to Reschedule',
+        description: 'Learn how to submit a rescheduling appeal for your assigned classes.',
+        youtubeUrl: 'https://youtu.be/kiixp_kmtWA?si=CcekZQbx92bgs2S-',
+        steps: [
+          {
+            stepNumber: 1,
+            title: 'View Your Official Schedule',
+            description:
+              'Go to the Load and Schedule tab. Your official schedule will be displayed once it has been published by the admin.',
+            icon: 'event_note',
+            highlight: 'Make sure the schedule has been published before you can request a reschedule.',
+          },
+          {
+            stepNumber: 2,
+            title: 'Switch to Internal Arrangement',
+            description:
+              'Click the "Internal Arrangement" toggle at the top of the schedule view. This is where you can manage your rescheduling appeals.',
+            icon: 'event_available',
+          },
+          {
+            stepNumber: 3,
+            title: 'Click the Flag Icon',
+            description:
+              'Find the class you want to reschedule and click the Flag icon on that schedule block to open the rescheduling appeal form.',
+            icon: 'flag',
+          },
+          {
+            stepNumber: 4,
+            title: 'Fill in the Appeal Details',
+            description:
+              'Choose your preferred new day, start time, end time, and room. Add a reason for the reschedule request, then submit.',
+            icon: 'edit_calendar',
+          },
+          {
+            stepNumber: 5,
+            title: 'Wait for Admin Approval',
+            description:
+              'Your appeal will be reviewed by the admin. Once approved, the updated schedule will appear in your Internal Arrangement view.',
+            icon: 'check_circle',
+          },
+        ],
+      },
     });
   }
 
@@ -148,7 +203,7 @@ export class LoadAndScheduleComponent implements OnInit {
     );
 
     const dialogRef = this.dialog.open(DialogAppealScheduleComponent, {
-      width: '520px', maxWidth: '95vw', maxHeight: '90vh', disableClose: true,
+      width: '520px', maxWidth: '95vw', maxHeight: '90vh',
       autoFocus: true,
       data: {
         isEditMode: true,
@@ -181,7 +236,6 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openRequestAppealAccessDialog(): void {
   const dialogRef = this.dialog.open(DialogRequestAccessComponent, {
-    disableClose: true,
     data: {
       has_request: this.hasAppealRequest,
       facultyId: this.authService.getUserFacultyId(),
@@ -206,7 +260,7 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openMyAppealsDialog(block: any): void {
     this.dialog.open(DialogMyAppealsComponent, {
-      width: '620px', maxWidth: '95vw', maxHeight: '90vh', disableClose: true,
+      width: '620px', maxWidth: '95vw', maxHeight: '90vh',
       autoFocus: true,
       data: { scheduleId: block.schedule_id },
     });

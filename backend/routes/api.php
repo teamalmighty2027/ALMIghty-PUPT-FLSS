@@ -195,8 +195,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
-    Route::post('/academic-year-electives', [ElectiveController::class, 'storeAcademicYearElective']);
-    Route::get('/academic-year/{academicYearId}/electives', [ElectiveController::class, 'getAcademicYearElectives']);
 
     
 
@@ -405,6 +403,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/health', [ExternalController::class, 'healthCheck']);
 
     /**
+     * Faculty List Endpoint
      * General Faculty Data
      */
     Route::middleware(['check.hmac:orr,frrs,puptweb'])->group(function () {
@@ -412,6 +411,7 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
+     * Department List Endpoint
      * Accreditation System (Accred)
      */
     Route::middleware(['check.hmac:accred'])->group(function () {
@@ -419,12 +419,10 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
+     * Faculty Schedules Endpoints
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
-        // Legacy route (backward compatibility)
-        Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
-
         // RESTful faculty schedule routes
         Route::prefix('faculty-schedules')->group(function () {
             Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
@@ -433,13 +431,25 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
-     * Rooms endpoint, shared by multiple systems
+     * Rooms List Endpoint
+     * Shared by fas & frrs
      */
-      Route::middleware(['check.hmac:fas,frrs'])->group(function () {
-          Route::get('/rooms', [ExternalController::class, 'roomsList']);
-      });
+    Route::middleware(['check.hmac:fas,frrs'])->group(function () {
+        Route::get('/rooms', [ExternalController::class, 'roomsList']);
+    });
 
     /**
+     * Academic Year and Semester Endpoint
+     * Dental Management System (DMS)
+     */
+    Route::middleware(['check.hmac:dms'])->group(function () {
+        Route::get('/academic-year-semester', 
+          [ExternalController::class, 'academicYearAndSemester']
+        );
+    });
+
+    /**
+     * Course Schedules and Files endpoints
      * Faculty Reportorial Requirements System (FRRS)
      */
     Route::middleware(['check.hmac:frrs'])->group(function () {
@@ -448,6 +458,7 @@ Route::prefix('v1')->group(function () {
     });
 
     /**
+     * Faculty Profiles Endpoint
      * Dental Management System (DMS), Online Clinic Management System (OCMS)
      */
     Route::middleware(['check.hmac:dms,ocms'])->group(function () {

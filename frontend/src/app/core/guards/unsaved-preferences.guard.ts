@@ -34,7 +34,6 @@ export const unsavedPreferencesGuard: CanDeactivateFn<HasUnsavedPreferences> = (
   const dialogRef = dialog.open(DialogUnsavedPreferencesComponent, {
     width: '440px',
     maxWidth: '95vw',
-    disableClose: true,
     autoFocus: false,
     panelClass: 'dialog-base',
   });

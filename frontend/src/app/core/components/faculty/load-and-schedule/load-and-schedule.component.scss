@@ -51,6 +51,73 @@
     }
   }
 
+  // Wrapper: tutorial button + both schedule cards side by side
+  .schedule-overview-group {
+    @include mixins.flex-layout($align: stretch, $gap: var(--spacing-sm));
+    flex-shrink: 0;
+  }
+
+  // Tutorial card — same design as preferences tutorial card
+  .schedule-tutorial-card {
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
+    @include mixins.default-transition;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    min-width: 7rem;
+    cursor: pointer;
+    text-align: left;
+    border: 1.5px solid var(--primary-one-fade);
+    background: var(--primary-fade);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+
+    .schedule-tutorial-icon {
+      font-size: 2rem;
+      color: var(--primary-text);
+      flex-shrink: 0;
+      @include mixins.flex-layout;
+    }
+
+    .schedule-tutorial-text {
+      @include mixins.flex-layout($direction: column, $gap: 1px);
+
+      .schedule-tutorial-title {
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: var(--primary-text);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .schedule-tutorial-sub {
+        font-size: var(--font-size-sm);
+        color: var(--primary-text);
+        opacity: 0.6;
+        white-space: nowrap;
+      }
+    }
+
+    // arrow removed — cleaner look
+
+    &:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-one);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-level-1);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-one);
+      outline-offset: 2px;
+    }
+  }
+
   .schedule-overview {
     @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
     width: min(25rem, 100%);
@@ -340,6 +407,7 @@
       $gap: var(--spacing-md)
     );
     .schedule-overview { width: auto; }
+    .schedule-overview-group { width: auto; }
   }
 }
 

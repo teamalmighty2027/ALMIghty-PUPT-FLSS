@@ -586,7 +586,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -637,7 +636,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -686,7 +684,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
         }
       },
-      disableClose: true,
       autoFocus: true,
     });
   }
@@ -724,12 +721,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(true, this.allData, preview),
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(true, this.allData);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.xlsx`;
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.pdf`,
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.pdf`,
       },
-      disableClose: true,
     });
   }
 
@@ -785,12 +781,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateExcelFunction: async () => {
           const excelBlob = await this.generateProgramPreferencesExcelBlob(programsData, academic_year, semester_label);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.xlsx`;
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_by_program_preferences.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.pdf`,
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_by_program_preferences.pdf`,
       },
-      disableClose: true,
     });
   }
 
@@ -828,7 +823,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateFileNameFunction: () => `${fileNameBase}.pdf`
       },
-      disableClose: true,
     });
   }
 
@@ -910,7 +904,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             scheduleBlocks.push({ day: 'TBA', time: 'TBA' });
         }
 
-        const courseCode = course.course_details?.course_code || 'N/A';
+        const originalCode =
+          course.original_course_code ||
+          course.course_details?.original_course_code;
+
+        const courseCode = originalCode
+          ? `${course.course_details?.course_code} (${originalCode})`
+          : (course.course_details?.course_code || 'N/A');
+
         const courseTitle = course.course_details?.course_title || 'N/A';
         const lec = course.lec_hours || 0;
         const lab = course.lab_hours || 0;
@@ -999,61 +1000,94 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   private generateProgramPreferencesPDF(programsData: any[], academicYear: string, semesterLabel: string): Blob {
     const doc = new jsPDF('p', 'mm', 'legal') as any;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
     let isFirstPage = true;
 
+    const drawPageHeader = (programTitle: string): number => {
+      let currentY = 15;
+
+      // Let service draw ONLY the logo + university name
+      const subscription = this.reportHeaderService.addHeader(doc, '', currentY, '')
+        .subscribe((newY: number) => {
+          currentY = newY;
+        });
+      subscription.unsubscribe();
+
+      // Erase whatever line/text the service added below the logo
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, currentY - 8, pageWidth, 12, 'F');
+
+      // Program title — wrapped and centered
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const splitTitle = doc.splitTextToSize(programTitle, pageWidth - margin * 2);
+      doc.text(splitTitle, pageWidth / 2, currentY, { align: 'center' });
+      currentY += splitTitle.length * 7;
+
+      // Subtitle
+      const subtitle = `${semesterLabel.toUpperCase()} SY ${academicYear} | SECTION OFFERING`;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(subtitle, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 5;
+
+      // Horizontal rule
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 6;
+
+      return currentY;
+    };
+
     programsData.forEach((program: any) => {
+      const programTitle = program.program_title
+        ? program.program_title.toUpperCase()
+        : 'PROGRAM';
+
       program.year_levels.forEach((yl: any) => {
         yl.sections.forEach((sec: any) => {
           if (!isFirstPage) {
+            this.reportHeaderService.addStandardFooter(doc);
             doc.addPage();
           }
           isFirstPage = false;
 
-          let currentY = 20;
+          let currentY = drawPageHeader(programTitle);
 
-          doc.setFontSize(14);
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${semesterLabel.toUpperCase()} SY ${academicYear}`, 105, currentY, { align: 'center' });
-          currentY += 10;
-          
-          doc.setFontSize(12);
-          doc.text('SECTION OFFERING', 105, currentY, { align: 'center' });
-          currentY += 8;
-
-          doc.setFontSize(14); 
-          const fullTitle = `${program.program_title.toUpperCase()} (TAGUIG)`;
-          const splitTitle = doc.splitTextToSize(fullTitle, 180);
-          doc.text(splitTitle, 105, currentY, { align: 'center' });
-          currentY += (splitTitle.length * 6) + 6; 
-
-          const yearStr = yl.year_level.toString();
+          // --- YEAR + SECTION LABEL ---
+          const yearStr = yl.year_level?.toString() ?? '';
           let yearDisplay = '';
-          
-          if (yearStr === 'N/A' || yearStr === 'null' || !yearStr) {
-              yearDisplay = 'Unassigned Year';
+
+          if (!yearStr || yearStr === 'N/A' || yearStr === 'null') {
+            yearDisplay = 'Unassigned Year';
           } else {
-              let suffix = 'TH';
-              if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
-              else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
-              else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
-              yearDisplay = `${yearStr}${suffix} Year`;
+            let suffix = 'TH';
+            if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
+            else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
+            else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
+            yearDisplay = `${yearStr}${suffix} Year`;
           }
 
-          let secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null' 
-              ? ` - Section ${sec.section_name}` 
-              : '';
+          const secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null'
+            ? ` - Section ${sec.section_name}`
+            : '';
 
           doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${yearDisplay}${secDisplay}`, 15, currentY);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${yearDisplay}${secDisplay}`, margin, currentY);
           currentY += 5;
 
+          // --- TABLE BODY (unchanged) ---
           const tableBody: any[] = [];
-          
+
           sec.courses.forEach((c: any) => {
             let totalCourseRows = 0;
             c.teachers.forEach((t: any) => {
-                totalCourseRows += t.blocks.length;
+              totalCourseRows += t.blocks.length;
             });
 
             if (totalCourseRows === 0) return;
@@ -1061,32 +1095,30 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             let isFirstCourseRow = true;
 
             c.teachers.forEach((t: any) => {
-                const teacherRows = t.blocks.length;
-                let isFirstTeacherRow = true;
+              const teacherRows = t.blocks.length;
+              let isFirstTeacherRow = true;
 
-                t.blocks.forEach((b: any) => {
-                    const row: any[] = [];
+              t.blocks.forEach((b: any) => {
+                const row: any[] = [];
 
-                    // Apply rowSpan to the primary course details so they merge beautifully
-                    if (isFirstCourseRow) {
-                        row.push({ content: c.subject_code, rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        row.push({ content: c.description, rowSpan: totalCourseRows, styles: { valign: 'middle' } });
-                        row.push({ content: c.lec.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        row.push({ content: c.lab.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        isFirstCourseRow = false;
-                    }
+                if (isFirstCourseRow) {
+                  row.push({ content: c.subject_code, rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  row.push({ content: c.description, rowSpan: totalCourseRows, styles: { valign: 'middle' } });
+                  row.push({ content: c.lec.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  row.push({ content: c.lab.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  isFirstCourseRow = false;
+                }
 
-                    // Apply rowSpan to the teacher so horizontal lines appear correctly between their individual schedules
-                    if (isFirstTeacherRow) {
-                        row.push({ content: t.teacherName, rowSpan: teacherRows, styles: { valign: 'middle' } });
-                        isFirstTeacherRow = false;
-                    }
+                if (isFirstTeacherRow) {
+                  row.push({ content: t.teacherName, rowSpan: teacherRows, styles: { valign: 'middle' } });
+                  isFirstTeacherRow = false;
+                }
 
-                    row.push({ content: b.day, styles: { valign: 'middle', halign: 'center' } });
-                    row.push({ content: b.time, styles: { valign: 'middle', halign: 'center' } });
+                row.push({ content: b.day, styles: { valign: 'middle', halign: 'center' } });
+                row.push({ content: b.time, styles: { valign: 'middle', halign: 'center' } });
 
-                    tableBody.push(row);
-                });
+                tableBody.push(row);
+              });
             });
           });
 
@@ -1124,11 +1156,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
               5: { cellWidth: 16, halign: 'center' },
               6: { cellWidth: 27, halign: 'center' },
             },
-            margin: { left: 15, right: 15 }
+            margin: { left: margin, right: margin }
           });
         });
       });
     });
+
+    // Footer on the very last page
+    this.reportHeaderService.addStandardFooter(doc);
 
     return doc.output('blob');
   }
@@ -1332,17 +1367,33 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
       activeSemester.courses.forEach((course: any, index: number) => {
         const preferredDays = course.preferred_days || [];
-        const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+        const formattedDayTimes =
+          this.formatPreferredDaysAndTime(preferredDays);
 
-        const sectionName = course.section_details?.section_name || course.course_details?.section_name || '';
+        const sectionName =
+          course.section_details?.section_name ||
+          course.course_details?.section_name ||
+          '';
+
         const yearLevel = course.course_details?.year_level || '';
-        const yearSection = yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+        const yearSection =
+          yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+
+        const originalCode =
+          course.original_course_code ||
+          course.course_details?.original_course_code;
+
+        const displayCode = originalCode
+          ? `${course.course_details?.course_code} (${originalCode})`
+          : (course.course_details?.course_code || 'N/A');
 
         const row = worksheet.addRow([
           index + 1,
-          course.course_details?.program_code || course.program_details?.program_code || 'N/A',
+          course.course_details?.program_code ||
+            course.program_details?.program_code ||
+            'N/A',
           yearSection,
-          course.course_details?.course_code || 'N/A',
+          displayCode,
           course.course_details?.course_title || 'N/A',
           course.lec_hours || 0,
           course.lab_hours || 0,
@@ -1351,8 +1402,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         ]);
 
         row.eachCell((cell, colNum) => {
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
-          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal:
+              colNum === 5 || colNum === 9 ? 'left' : 'center',
+            wrapText: true
+          };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
         });
       });
     }
@@ -1417,13 +1478,29 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             const courseData = activeSemester.courses.map(
               (course: any, index: number) => {
                 const preferredDays = course.preferred_days || [];
-                const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+                const formattedDayTimes =
+                  this.formatPreferredDaysAndTime(preferredDays);
+
+                const originalCode =
+                  course.original_course_code ||
+                  course.course_details?.original_course_code;
+
+                const displayCode = originalCode
+                  ? `${course.course_details?.course_code} (${originalCode})`
+                  : (course.course_details?.course_code || 'N/A');
+
+                const yearSec =
+                  course.course_details?.year_level &&
+                  course.course_details?.section_name
+                    ? `${course.course_details.year_level}-` +
+                      `${course.course_details.section_name}`
+                    : 'N/A';
 
                 return [
                   (index + 1).toString(),
                   course.course_details?.program_code || 'N/A',
-                  course.course_details?.year_level + '-' + course.course_details?.section_name || 'N/A',                
-                  course.course_details?.course_code || 'N/A',
+                  yearSec,
+                  displayCode,
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
                   course.lab_hours.toString(),
@@ -1477,6 +1554,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                 8: { cellWidth: 40 },
               },
               margin: { left: 10, right: 10 },
+              // Footer on every page jsPDF-AutoTable creates internally
+              didDrawPage: () => {
+                this.reportHeaderService.addStandardFooter(doc);
+              },
             };
 
             (doc as any).autoTable(tableConfig);
@@ -1498,6 +1579,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             }
           });
 
+          // Footer on the very last page
           this.reportHeaderService.addStandardFooter(doc);
         });
 

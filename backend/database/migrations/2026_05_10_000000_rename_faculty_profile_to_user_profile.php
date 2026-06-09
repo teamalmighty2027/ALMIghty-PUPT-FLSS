@@ -45,15 +45,31 @@ return new class extends Migration
             
             $table->index('user_id');
 
-            // 6. Drop the old faculty_id column and its foreign key
-            $table->dropForeign(['faculty_id']);
+            // 6. Drop the old faculty_id foreign key if it exists
+            // Check using information_schema before attempting to drop
+            try {
+              $table->dropForeign('faculty_profile_faculty_id_foreign');
+            } catch (\Exception $e) {
+                // Foreign key doesn't exist, continue
+            }
             $table->dropColumn('faculty_id');
         });
 
         // 7. Remove faculty_profile_id from faculty table as it's no longer needed
         if (Schema::hasColumn('faculty', 'faculty_profile_id')) {
             Schema::table('faculty', function (Blueprint $table) {
-                $table->dropForeign(['faculty_profile_id']);
+                // Check if foreign key exists before dropping
+                $fk = DB::selectOne(
+                    "SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                    WHERE TABLE_NAME = 'faculty' AND COLUMN_NAME = 'faculty_profile_id'
+                    AND REFERENCED_TABLE_NAME IS NOT NULL"
+                );
+                if ($fk) {
+                    DB::statement(
+                        'ALTER TABLE faculty DROP FOREIGN KEY ' .
+                        $fk->CONSTRAINT_NAME
+                    );
+                }
                 $table->dropColumn('faculty_profile_id');
             });
         }
