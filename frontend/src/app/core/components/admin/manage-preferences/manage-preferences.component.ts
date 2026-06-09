@@ -640,7 +640,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
-      if (confirmed && !isScheduledClick) {
+      if (confirmed) {
         this.preferencesService.getPreferences().subscribe((response) => {
           const updatedFaculty = response?.preferences?.find(
             (item: any) => item.faculty_id === faculty.faculty_id,
@@ -649,6 +649,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           if (updatedFaculty) {
             faculty.is_enabled = updatedFaculty.is_enabled === 1;
             faculty.active_semesters = updatedFaculty.active_semesters;
+
+            this.facultyScheduledState.set(
+              faculty.faculty_id,
+              this.calculateIsIndividuallyScheduled(faculty)
+            );
 
             this.updateDisplayedData();
             this.checkToggleAllState();
