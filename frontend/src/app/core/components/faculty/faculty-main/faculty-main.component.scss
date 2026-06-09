@@ -65,17 +65,30 @@
       gap: var(--spacing-xxs);
     }
 
-    .university-name,
+    .university-name {
+      @include mixins.ellipsis;
+      font-family: var(--font-header);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      white-space: nowrap;
+      color: var(--primary-one);
+    }
+
+    .campus-name {
+      @include mixins.ellipsis;
+      font-family: var(--font-header);
+      font-size: var(--font-size-mdx);
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--primary-one);
+    }
+
     .system-name {
       @include mixins.ellipsis;
       font-family: var(--font-header);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-xsx);
       font-weight: 600;
       white-space: nowrap;
-    }
-
-    .university-name {
-      color: var(--primary-one);
     }
   }
 
@@ -297,16 +310,30 @@
       display: flex;
       flex-direction: column;
 
-      .university-name,
-      .system-name {
+      .university-name {
+        @include mixins.ellipsis;
+        font-family: var(--font-header);
+        font-size: var(--font-size-xs);
+        font-weight: 500;
+        color: var(--primary-one);
+        white-space: nowrap;
+      }
+
+      .campus-name {
         @include mixins.ellipsis;
         font-family: var(--font-header);
         font-size: var(--font-size-smx);
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--primary-one);
+        white-space: nowrap;
       }
 
-      .university-name {
-        color: var(--primary-one);
+      .system-name {
+        @include mixins.ellipsis;
+        font-family: var(--font-header);
+        font-size: var(--font-size-xsx);
+        font-weight: 600;
+        white-space: nowrap;
       }
     }
   }
