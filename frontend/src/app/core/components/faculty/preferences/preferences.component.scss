@@ -148,6 +148,11 @@
     position: relative;
     overflow: hidden;
 
+    // Clip the matRipple effect to the card's rounded corners
+    ::ng-deep .mat-ripple {
+      border-radius: inherit;
+    }
+
     .tutorial-card-icon {
       font-size: 2rem;
       color: var(--primary-text);

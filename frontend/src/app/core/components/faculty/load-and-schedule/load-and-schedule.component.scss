@@ -77,6 +77,11 @@
     overflow: hidden;
     flex-shrink: 0;
 
+    // Clip the matRipple effect to the card's rounded corners
+    ::ng-deep .mat-ripple {
+      border-radius: inherit;
+    }
+
     .schedule-tutorial-icon {
       font-size: 2rem;
       color: var(--primary-text);
