@@ -75,6 +75,49 @@ export class SchedulingService {
   }
 
   /**
+   * Saves the selected year to localStorage.
+   */
+  setSelectedYear(year: number): void {
+    localStorage.setItem('scheduling_selected_year', String(year));
+  }
+
+  /**
+   * Retrieves the cached selected year from localStorage.
+   */
+  getSelectedYear(): number | null {
+    const cached = localStorage.getItem('scheduling_selected_year');
+    return cached ? Number(cached) : null;
+  }
+
+  /**
+   * Clears the selected year from localStorage.
+   */
+  clearSelectedYear(): void {
+    localStorage.removeItem('scheduling_selected_year');
+  }
+
+  /**
+   * Saves the selected section to localStorage.
+   */
+  setSelectedSection(section: string): void {
+    localStorage.setItem('scheduling_selected_section', section);
+  }
+
+  /**
+   * Retrieves the cached selected section from localStorage.
+   */
+  getSelectedSection(): string | null {
+    return localStorage.getItem('scheduling_selected_section');
+  }
+
+  /**
+   * Clears the selected section from localStorage.
+   */
+  clearSelectedSection(): void {
+    localStorage.removeItem('scheduling_selected_section');
+  }
+
+  /**
    * Retrieves the sections for a given program and year.
    */
   getSections(program: string, year: number): Observable<string[]> {
@@ -455,6 +498,8 @@ export class SchedulingService {
           break;
         case CacheType.SelectedProgram:
           this.clearSelectedProgram();
+          this.clearSelectedYear();
+          this.clearSelectedSection();
           break;
         default:
           console.warn(`Unknown CacheType: ${type}`);
