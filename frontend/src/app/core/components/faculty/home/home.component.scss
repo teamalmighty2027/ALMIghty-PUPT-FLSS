@@ -7,11 +7,21 @@
   @include mixins.hide-scrollbar;
 }
 
-.faculty-home-container {
-  @include mixins.flex-layout($align: stretch,
-    $justify: center,
-    $gap: var(--spacing-lg));
+:host {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+}
+
+.faculty-home-container {
+  @include mixins.flex-layout(
+    $align: stretch,
+    $justify: center,
+    $gap: var(--spacing-lg)
+  );
+  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 
   @media screen and (max-width: 1000px) {
@@ -31,7 +41,7 @@
     $justify: flex-start,
     $gap: var(--spacing-lg));
   flex: 1;
-  height: 100%;
+  min-height: 0;
   width: 100%;
 
   #home_greetings {
@@ -78,7 +88,6 @@
     $align: stretch,
     $gap: var(--spacing-lg));
   flex: 0;
-  height: 100%;
   width: 100%;
 
   .active-year-sem-container {

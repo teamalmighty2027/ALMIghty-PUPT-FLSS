@@ -23,7 +23,6 @@ import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-
 
 import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
-import { CookieService } from 'ngx-cookie-service';
 
 // Added AdminService Import
 import { AdminService } from '../../../services/superadmin/management/admin/admin-profile.service';
@@ -90,7 +89,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private authService: AuthService,
     private dialog: MatDialog,
-    private cookieService: CookieService,
     private el: ElementRef,
     private renderer: Renderer2,
     private ngZone: NgZone,
@@ -111,7 +109,7 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.accountProfilePictureUrl = url);
     
-    if (this.cookieService.get('termsAccepted') !== 'true') {
+    if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
