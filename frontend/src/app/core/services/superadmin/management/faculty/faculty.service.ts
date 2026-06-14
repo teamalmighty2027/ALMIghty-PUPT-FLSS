@@ -113,6 +113,13 @@ export class FacultyService {
     );
   }
 
+  /**
+   * Fetches active programs for the department dropdown
+   */
+  getActivePrograms(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/programs/active`);
+  }
+
   getSuggestedCode(): Observable<string> {
     return this.http
       .get<{ suggested_code: string }>(`${this.baseUrl}/faculty/suggest-code`)
