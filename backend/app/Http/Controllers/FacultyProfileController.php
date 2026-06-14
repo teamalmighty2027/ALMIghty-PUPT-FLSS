@@ -28,7 +28,7 @@ class FacultyProfileController extends Controller
                 
                 // Convert raw database path into a full web URL
                 if ($profile->profile_picture) {
-                    $profileArray['profile_picture_url'] = url('storage/' . $profile->profile_picture);
+                    $profileArray['profile_picture_url'] = url('backend/public/storage/' . $profile->profile_picture);
                 }
             }
 
@@ -91,7 +91,7 @@ class FacultyProfileController extends Controller
             DB::commit();
 
             // Fallback added in case your model lacks a profile_picture_url accessor
-            $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
+            $pictureUrl = url('backend/public/storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
                 'message' => 'Profile updated successfully',
