@@ -19,16 +19,15 @@
     $justify: center,
     $gap: var(--spacing-lg)
   );
+  height: 100%;
   flex: 1;
   min-height: 0;
   overflow: auto;
 
   @media screen and (max-width: 1000px) {
-    @include mixins.flex-layout(
-      $justify: flex-start,
+    @include mixins.flex-layout($justify: flex-start,
       $direction: column,
-      $gap: var(--spacing-md)
-    );
+      $gap: var(--spacing-md));
   }
 
   @media screen and (max-width: bp.$breakpoint-sm) {
@@ -37,12 +36,10 @@
 }
 
 .home-row-one {
-  @include mixins.flex-layout(
-    $direction: column,
+  @include mixins.flex-layout($direction: column,
     $align: flex-start,
     $justify: flex-start,
-    $gap: var(--spacing-lg)
-  );
+    $gap: var(--spacing-lg));
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -54,7 +51,7 @@
     h1 {
       @include mixins.reset-styles;
       width: fit-content;
-      font-size: var(--font-size-2xxl);
+      font-size: var(--font-size-xl);
       font-weight: 700;
 
       @include mixins.gradient-primary-text(315deg);
@@ -68,7 +65,7 @@
 
     @media screen and (max-width: bp.$breakpoint-sm) {
       h1 {
-        font-size: var(--font-size-2xl);
+        font-size: var(--font-size-xl);
       }
     }
   }
@@ -87,23 +84,18 @@
 }
 
 .home-row-two {
-  @include mixins.flex-layout(
-    $direction: column,
+  @include mixins.flex-layout($direction: column,
     $align: stretch,
-    $gap: var(--spacing-lg)
-  );
+    $gap: var(--spacing-lg));
   flex: 0;
   width: 100%;
 
   .active-year-sem-container {
-    @include mixins.flex-layout(
-      $align: flex-start,
+    @include mixins.flex-layout($align: flex-start,
       $justify: flex-start,
-      $gap: var(--spacing-xs)
-    );
+      $gap: var(--spacing-xs));
     @include mixins.gradient-primary(315deg);
-    padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs)
-      var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-md) var(--spacing-xs) var(--spacing-xs);
     border-radius: var(--border-radius-md);
     color: white;
     flex-shrink: 0;
@@ -119,12 +111,10 @@
     .text-container {
       height: 100%;
 
-      @include mixins.flex-layout(
-        $direction: column,
+      @include mixins.flex-layout($direction: column,
         $align: flex-start,
         $justify: flex-start,
-        $gap: var(--spacing-xxxs)
-      );
+        $gap: var(--spacing-xxxs));
     }
 
     .text,
@@ -145,12 +135,10 @@
   }
 
   .faculty-announcement {
-    @include mixins.flex-layout(
-      $direction: column,
+    @include mixins.flex-layout($direction: column,
       $align: stretch,
       $justify: flex-start,
-      $gap: var(--spacing-md)
-    );
+      $gap: var(--spacing-md));
     flex: 1;
     min-height: 0;
     background-color: var(--admin-bg);
@@ -158,10 +146,8 @@
     padding: var(--spacing-md);
 
     .card-title {
-      @include mixins.flex-layout(
-        $justify: flex-start,
-        $gap: var(--spacing-xs)
-      );
+      @include mixins.flex-layout($justify: flex-start,
+        $gap: var(--spacing-xs));
       font-size: var(--font-size-mdx);
       font-weight: 600;
       flex-shrink: 0;
@@ -186,32 +172,26 @@
       @include mixins.flex-layout($align: stretch, $justify: flex-start);
 
       .announcements-list {
-        @include mixins.flex-layout(
-          $direction: column,
+        @include mixins.flex-layout($direction: column,
           $align: stretch,
           $justify: flex-start,
-          $gap: var(--spacing-md)
-        );
+          $gap: var(--spacing-md));
         width: 100%;
 
         .announcement-card {
-          @include mixins.flex-layout(
-            $direction: column,
+          @include mixins.flex-layout($direction: column,
             $align: stretch,
             $justify: flex-start,
-            $gap: var(--spacing-sm)
-          );
+            $gap: var(--spacing-sm));
           padding: var(--spacing-md);
           border-radius: var(--border-radius-md);
           background-color: var(--main-bg);
           box-shadow: var(--shadow-level-0);
 
           .header {
-            @include mixins.flex-layout(
-              $align: center,
+            @include mixins.flex-layout($align: center,
               $justify: flex-start,
-              $gap: var(--spacing-sm)
-            );
+              $gap: var(--spacing-sm));
 
             .icon-wrapper {
               display: flex;
@@ -290,38 +270,47 @@
 }
 
 @keyframes float-bounce {
+
   0%,
   100% {
     transform: translateY(0) rotate(0deg);
   }
+
   25% {
     transform: translateY(-4px) rotate(3deg);
   }
+
   50% {
     transform: translateY(-2px) rotate(-2deg);
   }
+
   75% {
     transform: translateY(-4px) rotate(1deg);
   }
 }
 
 @keyframes pulse-wiggle {
+
   0%,
   100% {
     transform: scale(1) rotate(0deg);
   }
+
   25% {
     transform: scale(1.1) rotate(-5deg);
   }
+
   50% {
     transform: scale(1.05) rotate(0deg);
   }
+
   75% {
     transform: scale(1.1) rotate(5deg);
   }
 }
 
 :host ::ng-deep {
+
   // Style for the event text in month view
   .fc-daygrid-event {
     white-space: nowrap;
