@@ -1,4 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { provideRouter } from '@angular/router';
 
 import { DialogChangePasswordComponent } from './dialog-change-password.component';
 
@@ -8,7 +12,15 @@ describe('DialogChangePasswordComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogChangePasswordComponent]
+      imports: [DialogChangePasswordComponent, HttpClientTestingModule],
+      providers: [
+        { provide: MatDialogRef, useValue: { close: () => {} } },
+        {
+          provide: MatSnackBar,
+          useValue: jasmine.createSpyObj('MatSnackBar', ['open'])
+        },
+        provideRouter([])
+      ]
     })
     .compileComponents();
 

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { AuthGuard } from './auth.guard';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
@@ -9,6 +10,7 @@ describe('AuthGuard', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
       providers: [
         AuthGuard,
         { provide: Router, useValue: { navigate: () => {} } } // Mock Router

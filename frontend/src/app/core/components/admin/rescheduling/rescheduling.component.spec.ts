@@ -3,6 +3,7 @@ import { ReschedulingComponent } from './rescheduling.component';
 import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { MatDialog } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 
 // 1. Create a Dummy Service
@@ -39,7 +40,8 @@ describe('ReschedulingComponent', () => {
     await TestBed.configureTestingModule({
       imports: [
         ReschedulingComponent,
-        NoopAnimationsModule // Important for Material components in tests
+        NoopAnimationsModule,
+        HttpClientTestingModule
       ],
       providers: [
         // Provide our mocks instead of real services

@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogAppealScheduleComponent } from './dialog-appeal-schedule.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('DialogAppealScheduleComponent', () => {
   let component: DialogAppealScheduleComponent;
@@ -22,7 +23,11 @@ describe('DialogAppealScheduleComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogAppealScheduleComponent, NoopAnimationsModule],
+      imports: [
+        DialogAppealScheduleComponent,
+        NoopAnimationsModule,
+        HttpClientTestingModule
+      ],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
         { provide: MAT_DIALOG_DATA, useValue: mockDialogData }
