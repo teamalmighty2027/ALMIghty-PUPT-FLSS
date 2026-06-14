@@ -5,7 +5,6 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 import { fadeAnimation } from '../../core/animations/animations';
 
 @Component({
@@ -22,8 +21,7 @@ export class DialogTermsConditionsComponent {
   constructor(
     public dialogRef: MatDialogRef<DialogTermsConditionsComponent>,
     private router: Router,
-    private authService: AuthService,
-    private cookieService: CookieService
+    private authService: AuthService
   ) {}
 
   /**
@@ -45,7 +43,7 @@ export class DialogTermsConditionsComponent {
   onContinue(): void {
     if (this.isAccepted) {
       this.dialogRef.close(true);
-      this.cookieService.set('termsAccepted', 'true', 365);
+      localStorage.setItem('termsAccepted', 'true');
     }
   }
 }

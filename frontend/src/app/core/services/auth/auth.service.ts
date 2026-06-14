@@ -317,6 +317,14 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('termsAccepted');
+    localStorage.removeItem('scheduling_selected_program');
+    localStorage.removeItem('scheduling_selected_year');
+    localStorage.removeItem('scheduling_selected_section');
+    localStorage.removeItem('curriculum_selected_category');
+    localStorage.removeItem('curriculum_selected_program');
+    localStorage.removeItem('curriculum_selected_year');
+    localStorage.removeItem('curriculum_selected_semester');
     this.userDataCache = null;
     this.clearExpiryTimer();
   }
