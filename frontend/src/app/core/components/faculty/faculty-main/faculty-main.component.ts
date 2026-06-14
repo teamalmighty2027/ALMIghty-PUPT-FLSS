@@ -16,7 +16,6 @@ import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-
 
 import { ThemeService } from '../../../services/theme/theme.service';
 import { AuthService } from '../../../services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 
 import { slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
@@ -70,7 +69,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private ngZone: NgZone,
     private authService: AuthService,
     private dialog: MatDialog,
-    private cookieService: CookieService,
     private facultyService: FacultyService
   ) {}
 
@@ -86,7 +84,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.facultyProfilePictureUrl = url);
 
-    if (this.cookieService.get('termsAccepted') !== 'true') {
+    if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
