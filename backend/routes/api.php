@@ -17,7 +17,6 @@ use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
 use App\Http\Controllers\LogoController;
-use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\RescheduleController;
@@ -474,10 +473,4 @@ Route::prefix('v1')->group(function () {
     // });
 });
 
-/**
- * Faculty Data Management and Evaluation System with Research Repository (FESR)
- * 
- * ! DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
- */
-Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']);
+// DEPRECATED: Webhook integration with FESR/HRIS is deprecated and has been removed.
