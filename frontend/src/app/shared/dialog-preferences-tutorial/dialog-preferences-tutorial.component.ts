@@ -110,7 +110,7 @@ export class DialogPreferencesTutorialComponent {
     private readonly sanitizer: DomSanitizer,
   ) {
     this.safeVideoUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      'https://www.youtube-nocookie.com/embed/2TPF8RWpOlc?rel=0&modestbranding=1',
+      'https://www.youtube-nocookie.com/embed/OsuiGXkxxKc?rel=0&modestbranding=1',
     );
   }
 

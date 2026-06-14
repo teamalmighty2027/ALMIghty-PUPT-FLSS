@@ -557,11 +557,13 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             catchError((error) => {
               console.error('Error adding faculty:', error);
 
-              this.snackBar.open(
-                'Error adding faculty. Please try again.',
-                'Close',
-                { duration: 3000 }
-              );
+              const errorMessage =
+                error.error?.message ||
+                'Error adding faculty. Please try again.';
+
+              this.snackBar.open(errorMessage, 'Close', {
+                duration: 5000,
+              });
 
               return of(null);
             })
@@ -631,11 +633,13 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             catchError((error) => {
               console.error('Error updating faculty:', error);
 
-              this.snackBar.open(
-                'Error updating faculty. Please try again.',
-                'Close',
-                { duration: 3000 }
-              );
+              const errorMessage =
+                error.error?.message ||
+                'Error updating faculty. Please try again.';
+
+              this.snackBar.open(errorMessage, 'Close', {
+                duration: 5000,
+              });
 
               return of(null);
             })

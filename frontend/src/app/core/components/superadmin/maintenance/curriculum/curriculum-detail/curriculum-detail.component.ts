@@ -997,10 +997,31 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
   }
 
-  isCourseDuplicate(courseCode: string, excludeCourseId?: number, isBridging: boolean = false): boolean {
+  isCourseDuplicate(
+    courseCode: string,
+    excludeCourseId?: number,
+    curriculaProgramId?: number,
+    isBridging: boolean = false
+  ): boolean {
     if (!this.curriculum || isBridging) return false;
     
     const codeToCheck = courseCode.trim().toLowerCase();
+
+    if (curriculaProgramId !== undefined) {
+      const prog = this.curriculum.programs.find(
+        p => p.curricula_program_id === curriculaProgramId
+      );
+      if (!prog) return false;
+
+      return prog.year_levels.some(yl =>
+        yl.semesters.some(sem =>
+          sem.courses.some(c =>
+            c.course_code.trim().toLowerCase() === codeToCheck && 
+            c.course_id !== excludeCourseId
+          )
+        )
+      );
+    }
 
     return this.curriculum.programs.some(prog =>
       prog.year_levels.some(yl =>
@@ -1022,8 +1043,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
-        if (this.isCourseDuplicate(result.course_code, course.course_id)) {
-          this.snackBar.open(`Error: Course Code '${result.course_code}' is already used!`, 'Close', { duration: 4000 });
+        if (
+          this.isCourseDuplicate(
+            result.course_code,
+            course.course_id,
+            group.program.curricula_program_id
+          )
+        ) {
+          this.snackBar.open(
+            `Error: Course Code '${result.course_code}' is already used!`,
+            'Close',
+            { duration: 4000 }
+          );
           return;
         }
 
@@ -1090,8 +1121,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
-        if (this.isCourseDuplicate(result.course_code)) {
-          this.snackBar.open(`Error: Course Code '${result.course_code}' is already used!`, 'Close', { duration: 4000 });
+        if (
+          this.isCourseDuplicate(
+            result.course_code,
+            undefined,
+            group.program.curricula_program_id
+          )
+        ) {
+          this.snackBar.open(
+            `Error: Course Code '${result.course_code}' is already used!`,
+            'Close',
+            { duration: 4000 }
+          );
           return;
         }
 

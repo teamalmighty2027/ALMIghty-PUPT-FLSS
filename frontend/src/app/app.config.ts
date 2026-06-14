@@ -35,7 +35,9 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([AuthHeaderInterceptor])),
+    provideHttpClient(
+      withInterceptors([AuthHeaderInterceptor])
+    ),
 
     /** Custom Providers */
     AuthGuard,
@@ -45,9 +47,10 @@ export const appConfig: ApplicationConfig = {
 
     /** Angular Material Configurations */
     { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
-    { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, provideServiceWorker('ngsw-worker.js', {
-            enabled: !isDevMode(),
-            registrationStrategy: 'registerWhenStable:30000'
-          }),
+    { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, 
+    provideServiceWorker('ngsw-worker.js', {
+        enabled: !isDevMode(),
+        registrationStrategy: 'registerWhenStable:30000'
+    }),
   ],
 };
