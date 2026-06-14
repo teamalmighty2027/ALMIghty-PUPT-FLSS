@@ -58,6 +58,9 @@ class AuthController extends Controller
         $token       = $tokenResult->plainTextToken;
         $expiration  = Carbon::now()->addHours(24);
 
+        $tokenResult->accessToken->expires_at = $expiration;
+        $tokenResult->accessToken->save();
+
         $faculty = $user->faculty;
 
         // Get permissions and allowed programs for response
@@ -148,13 +151,17 @@ class AuthController extends Controller
 
         $currentToken = $user->currentAccessToken();
 
-        if ($currentToken && method_exists($currentToken, 'delete')) {
-            $currentToken->delete();
+        if ($currentToken && method_exists($currentToken, 'save')) {
+            $currentToken->expires_at = Carbon::now()->addMinute();
+            $currentToken->save();
         }
 
         $tokenResult = $user->createToken('user-token');
         $token = $tokenResult->plainTextToken;
         $expiration = Carbon::now()->addHours(24);
+
+        $tokenResult->accessToken->expires_at = $expiration;
+        $tokenResult->accessToken->save();
 
         return response()->json([
             'message' => 'Token refreshed.',
@@ -333,6 +340,10 @@ class AuthController extends Controller
             // Use IDP token expiry for Sanctum token expiry
             $expiresIn = $token['expires_in'] ?? 3600;
             $expiration = (int) ceil($expiresIn / 60);
+
+            $expirationDateTime = Carbon::now()->addSeconds($expiresIn);
+            $tokenResult->accessToken->expires_at = $expirationDateTime;
+            $tokenResult->accessToken->save();
 
             // Get permissions and allowed programs for response
             $permissions = $user->permissions->pluck('permission_key')->toArray();
