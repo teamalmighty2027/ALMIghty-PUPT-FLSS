@@ -1,21 +1,36 @@
 <div class="dialog-import-container">
+  
+  <!-- Gradient header -->
   <div class="dialog-header">
-    <h2 mat-dialog-title>Import Preferences from History</h2>
-    <button mat-icon-button (click)="dialogRef.close()" class="close-btn">
-      <mat-icon>close</mat-icon>
-    </button>
+    <div class="header-top">
+      <div class="header-label">
+        <span mat-symbol="history" class="header-icon"></span>
+        <span class="header-eyebrow">Preferences</span>
+      </div>
+      <button mat-icon-button class="close-btn" (click)="dialogRef.close()" aria-label="Close dialog">
+        <span mat-symbol="close"></span>
+      </button>
+    </div>
+    <h2 class="dialog-title">Import from History</h2>
   </div>
 
-  <div mat-dialog-content class="dialog-content">
+  <!-- Content -->
+  <div class="dialog-content">
     <p class="description">
       Select an academic year to see courses you've previously preferred in the 
       <strong>{{ data.currentSemesterId === 1 ? 'First Semester' : data.currentSemesterId === 2 ? 'Second Semester' : 'Summer Semester' }}</strong>.
     </p>
 
     <div class="filters">
-      <mat-form-field appearance="outline" class="ay-select">
+      <mat-form-field appearance="outline" class="ay-select" subscriptSizing="dynamic">
         <mat-label>Select Academic Year</mat-label>
         <mat-select [(ngModel)]="selectedYear" (selectionChange)="onYearChange()">
+          <mat-select-trigger>
+            <div class="select-trigger-text">
+              <span mat-symbol="calendar_today" class="select-icon"></span>
+              {{ selectedYear()?.academic_year || 'Choose year' }}
+            </div>
+          </mat-select-trigger>
           @for (ay of academicYearList(); track ay.academic_year_id) {
             <mat-option [value]="ay">{{ ay.academic_year }}</mat-option>
           }
@@ -28,105 +43,112 @@
         <mat-spinner diameter="40"></mat-spinner>
       </div>
     } @else {
-      <div class="table-container">
-        <table mat-table [dataSource]="importableCourses()" class="import-table">
-          <!-- Checkbox Column -->
-          <ng-container matColumnDef="select">
-            <th mat-header-cell *matHeaderCellDef>
-              <mat-checkbox 
-                (change)="$event ? toggleAll() : null"
-                [checked]="isAllSelected()"
-                [indeterminate]="selectedCourses.size > 0 && !isAllSelected()">
-              </mat-checkbox>
-            </th>
-            <td mat-cell *matCellDef="let row">
-              <mat-checkbox 
-                (click)="$event.stopPropagation()"
-                (change)="$event ? toggleSelection(row.key) : null"
-                [checked]="selectedCourses.has(row.key)"
-                [disabled]="row.isAlreadyAdded || row.isSectionMissing">
-              </mat-checkbox>
-            </td>
-          </ng-container>
+      <div class="table-wrapper">
+        <div class="table-container">
+          <table mat-table [dataSource]="importableCourses()" class="import-table">
+            <!-- Checkbox Column -->
+            <ng-container matColumnDef="select">
+              <th mat-header-cell *matHeaderCellDef class="checkbox-col">
+                <mat-checkbox 
+                  (change)="$event ? toggleAll() : null"
+                  [checked]="isAllSelected()"
+                  [indeterminate]="selectedCourses.size > 0 && !isAllSelected()">
+                </mat-checkbox>
+              </th>
+              <td mat-cell *matCellDef="let row" class="checkbox-col">
+                <mat-checkbox 
+                  (click)="$event.stopPropagation()"
+                  (change)="$event ? toggleSelection(row.key) : null"
+                  [checked]="selectedCourses.has(row.key)"
+                  [disabled]="row.isAlreadyAdded || row.isSectionMissing">
+                </mat-checkbox>
+              </td>
+            </ng-container>
 
-          <!-- Program Column -->
-          <ng-container matColumnDef="program">
-            <th mat-header-cell *matHeaderCellDef>Program</th>
-            <td mat-cell *matCellDef="let row">
-              {{ row.course_details.program_code || '—' }}
-            </td>
-          </ng-container>
+            <!-- Program Column -->
+            <ng-container matColumnDef="program">
+              <th mat-header-cell *matHeaderCellDef>Program</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="program-badge">{{ row.course_details.program_code || '—' }}</span>
+              </td>
+            </ng-container>
 
-          <!-- Year Level Column -->
-          <ng-container matColumnDef="yearLevel">
-            <th mat-header-cell *matHeaderCellDef>Year Level</th>
-            <td mat-cell *matCellDef="let row">
-              {{ row.course_details.year_level || '—' }}
-            </td>
-          </ng-container>
+            <!-- Year Level Column -->
+            <ng-container matColumnDef="yearLevel">
+              <th mat-header-cell *matHeaderCellDef>Level</th>
+              <td mat-cell *matCellDef="let row">
+                {{ row.course_details.year_level || '—' }}
+              </td>
+            </ng-container>
 
-          <!-- Section Column -->
-          <ng-container matColumnDef="section">
-            <th mat-header-cell *matHeaderCellDef>Section</th>
-            <td mat-cell *matCellDef="let row">
-              {{ row.section_details.section_name || '—' }}
-              @if (row.isSectionMissing) {
-                <br />
-                <span 
-                  class="warning-tag" 
-                  title="Section not found in current semester">
-                  (Not Found)
-                </span>
-              }
-            </td>
-          </ng-container>
+            <!-- Section Column -->
+            <ng-container matColumnDef="section">
+              <th mat-header-cell *matHeaderCellDef>Section</th>
+              <td mat-cell *matCellDef="let row">
+                <div class="section-cell">
+                  <span>{{ row.section_details.section_name || '—' }}</span>
+                  @if (row.isSectionMissing) {
+                    <span class="warning-tag" title="Section not found in current semester">
+                      <span mat-symbol="warning" class="tag-icon"></span>
+                      Not Found
+                    </span>
+                  }
+                </div>
+              </td>
+            </ng-container>
 
-          <!-- Course Code Column -->
-          <ng-container matColumnDef="courseCode">
-            <th mat-header-cell *matHeaderCellDef>Code</th>
-            <td mat-cell *matCellDef="let row">
-              {{ row.course_details.course_code }}
-            </td>
-          </ng-container>
+            <!-- Course Code Column -->
+            <ng-container matColumnDef="courseCode">
+              <th mat-header-cell *matHeaderCellDef>Code</th>
+              <td mat-cell *matCellDef="let row" class="code-col">
+                <strong>{{ row.course_details.course_code }}</strong>
+              </td>
+            </ng-container>
 
-          <!-- Course Title Column -->
-          <ng-container matColumnDef="courseTitle">
-            <th mat-header-cell *matHeaderCellDef>Course Title</th>
-            <td mat-cell *matCellDef="let row">
-              {{ row.course_details.course_title }}
-              @if (row.isAlreadyAdded) {
-                <span class="already-added-tag">(Already Added)</span>
-              }
-            </td>
-          </ng-container>
+            <!-- Course Title Column -->
+            <ng-container matColumnDef="courseTitle">
+              <th mat-header-cell *matHeaderCellDef>Course Title</th>
+              <td mat-cell *matCellDef="let row" class="title-col">
+                <div class="title-cell">
+                  <span class="title-text" [title]="row.course_details.course_title">{{ row.course_details.course_title }}</span>
+                  @if (row.isAlreadyAdded) {
+                    <span class="already-added-tag">
+                      <span mat-symbol="check_circle" class="tag-icon"></span>
+                      Added
+                    </span>
+                  }
+                </div>
+              </td>
+            </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle']"></tr>
-          <tr mat-row *matRowDef="let row; columns: ['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle'];"
-              (click)="
-                !(row.isAlreadyAdded || row.isSectionMissing) && 
-                toggleSelection(row.key)
-              "
-              [class.row-selected]="selectedCourses.has(row.key)"
-              [class.row-disabled]="row.isAlreadyAdded || row.isSectionMissing">
-          </tr>
-        </table>
+            <tr mat-header-row *matHeaderRowDef="['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle']; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: ['select', 'program', 'yearLevel', 'section', 'courseCode', 'courseTitle'];"
+                (click)="!(row.isAlreadyAdded || row.isSectionMissing) && toggleSelection(row.key)"
+                [class.row-selected]="selectedCourses.has(row.key)"
+                [class.row-disabled]="row.isAlreadyAdded || row.isSectionMissing">
+            </tr>
+          </table>
 
-        @if (importableCourses().length === 0) {
-          <div class="no-data">
-            <span mat-symbol="info"></span>
-            <p>No matching courses found in history that can be imported to the current semester.</p>
-          </div>
-        }
+          @if (importableCourses().length === 0) {
+            <div class="no-data">
+              <div class="no-data-icon-bg">
+                <span mat-symbol="history" class="no-data-icon"></span>
+              </div>
+              <p>No matching courses found in history that can be imported to the current semester.</p>
+            </div>
+          }
+        </div>
       </div>
     }
   </div>
 
-  <div mat-dialog-actions class="dialog-actions">
-    <button mat-button (click)="dialogRef.close()">Cancel</button>
+  <div class="dialog-buttons">
+    <button mat-button class="cancel-btn" (click)="dialogRef.close()">Cancel</button>
     <button mat-flat-button class="import-btn"
             [disabled]="selectedCourses.size === 0"
             (click)="importSelected()">
-      Import {{ selectedCourses.size }} Courses
+      <span mat-symbol="download" class="btn-icon"></span>
+      Import {{ selectedCourses.size > 0 ? '(' + selectedCourses.size + ')' : '' }}
     </button>
   </div>
 </div>
