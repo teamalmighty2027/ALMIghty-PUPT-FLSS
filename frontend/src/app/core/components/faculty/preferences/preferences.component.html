@@ -55,12 +55,19 @@
       <!-- Courses List -->
       <div id="courses_container" [@fadeAnimation]>
         <div id="courses_search">
-          <mat-form-field appearance="fill" class="custom-mat-search" subscriptSizing="dynamic">
-            <mat-label>Search Courses</mat-label>
+          <mat-form-field
+            appearance="fill"
+            class="custom-mat-search"
+            subscriptSizing="dynamic">
+            <mat-label>
+              {{ selectedProgram() ? 'Search Courses' : 'Search Programs' }}
+            </mat-label>
             <input
               matInput
               maxlength="50"
-              placeholder="Enter a course code or course title"
+              [placeholder]="selectedProgram() ?
+                'Enter a course code or course title' :
+                'Enter a program code or title'"
               [ngModel]="searchQuery()"
               (ngModelChange)="onSearchInput($event)"
               #searchInput />
@@ -168,21 +175,25 @@
         }
 
         <!-- Program selection (default view) -->
-        @if (showProgramSelection() && !searchQuery() && !showPossiblePrograms()) {
+        @if (showProgramSelection() && !showPossiblePrograms()) {
         <div id="programs_list">
           <h3 class="cards-label">
             <span mat-symbol="school"></span>Select a Program
           </h3>
           <div class="programs-scroll-container">
-            <div [@cardEntranceAnimation]="programs().length">
-              @for (program of programs(); track program.program_id) {
+            <div [@cardEntranceAnimation]="filteredPrograms().length">
+              @for (program of filteredPrograms(); track program.program_id) {
               <div
                 class="program-card pop"
                 (click)="selectProgram(program)"
                 matRipple>
                 <div class="program-info">
-                  <span class="program-code">{{ program.program_code }}</span>
-                  <span class="program-title">{{ program.program_title }}</span>
+                  <span class="program-code">
+                    {{ program.program_code }}
+                  </span>
+                  <span class="program-title">
+                    {{ program.program_title }}
+                  </span>
                 </div>
               </div>
               }

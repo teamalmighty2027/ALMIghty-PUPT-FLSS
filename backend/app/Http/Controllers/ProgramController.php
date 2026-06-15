@@ -362,4 +362,17 @@ class ProgramController extends Controller
 
         return [];
     }
+
+    /**
+     * Fetch active programs for dropdowns.
+     */
+    public function getActivePrograms()
+    {
+        $programs = Program::where('status', 'Active')
+            ->select('program_id', 'program_title')
+            ->orderBy('program_title')
+            ->get();
+
+        return response()->json($programs);
+    }
 }

@@ -7,12 +7,10 @@
 }
 
 .faculty-main-container {
-  @include mixins.flex-layout(
-    $direction: column,
+  @include mixins.flex-layout($direction: column,
     $align: none,
     $justify: none,
-    $gap: var(--spacing-md)
-  );
+    $gap: var(--spacing-md));
   height: 100%;
   box-sizing: border-box;
   padding: var(--spacing-2xl);
@@ -22,8 +20,20 @@
 
 .faculty-main-content {
   @include mixins.hide-scrollbar;
-  height: 100%;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  > * {
+    flex: 1;
+    min-height: 0;
+  }
+
+  > router-outlet {
+    display: none;
+  }
 }
 
 // ==========================
@@ -31,11 +41,9 @@
 // ==========================
 
 .desktop-header {
-  @include mixins.flex-layout(
-    $align: stretch,
+  @include mixins.flex-layout($align: stretch,
     $justify: space-between,
-    $gap: var(--spacing-lg)
-  );
+    $gap: var(--spacing-lg));
   width: 100%;
 
   .header-name,
@@ -65,17 +73,30 @@
       gap: var(--spacing-xxs);
     }
 
-    .university-name,
+    .university-name {
+      @include mixins.ellipsis;
+      font-family: var(--font-header);
+      font-size: var(--font-size-mdx);
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--primary-one);
+    }
+
+    .campus-name {
+      @include mixins.ellipsis;
+      font-family: var(--font-header);
+      font-size: var(--font-size-smm);
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--primary-one);
+    }
+
     .system-name {
       @include mixins.ellipsis;
       font-family: var(--font-header);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-xsx);
       font-weight: 600;
       white-space: nowrap;
-    }
-
-    .university-name {
-      color: var(--primary-one);
     }
   }
 
@@ -167,8 +188,7 @@
         transform-origin: center center;
       }
 
-      &[routerLink='load-and-schedule'].active
-        span[mat-symbol='calendar_month'] {
+      &[routerLink='load-and-schedule'].active span[mat-symbol='calendar_month'] {
         animation: calendar-pulse 1.5s ease-in-out;
         animation-iteration-count: 2;
         animation-fill-mode: forwards;
@@ -297,16 +317,30 @@
       display: flex;
       flex-direction: column;
 
-      .university-name,
-      .system-name {
+      .university-name {
         @include mixins.ellipsis;
         font-family: var(--font-header);
         font-size: var(--font-size-smx);
-        font-weight: 600;
+        font-weight: 700;
+        color: var(--primary-one);
+        white-space: nowrap;
       }
 
-      .university-name {
+      .campus-name {
+        @include mixins.ellipsis;
+        font-family: var(--font-header);
+        font-size: var(--font-size-md);
+        font-weight: 700;
         color: var(--primary-one);
+        white-space: nowrap;
+      }
+
+      .system-name {
+        @include mixins.ellipsis;
+        font-family: var(--font-header);
+        font-size: var(--font-size-xsx);
+        font-weight: 600;
+        white-space: nowrap;
       }
     }
   }
@@ -378,7 +412,7 @@
     }
 
     span[mat-symbol] {
-      font-size: var(--font-size-xl);
+      font-size: var(--font-size-md);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -432,6 +466,7 @@
         font-weight: 600;
         font-size: var(--font-size-mdx);
       }
+
       .account-email {
         font-size: var(--font-size-mdx);
         opacity: var(--opacity-semi-opaque);
@@ -484,6 +519,12 @@
   }
 }
 
+@media screen and (max-width: bp.$breakpoint-md) {
+  .faculty-main-content {
+    overflow-y: auto;
+  }
+}
+
 @media screen and (max-width: bp.$breakpoint-sm) {
   .faculty-main-container {
     padding: var(--spacing-lg);
@@ -514,19 +555,13 @@
 }
 
 /* Mobile Navbar Icon Animations */
-.mobile-navbar
-  a[routerLink='home'].active
-  div.icon-container
-  span[mat-symbol='home'] {
+.mobile-navbar a[routerLink='home'].active div.icon-container span[mat-symbol='home'] {
   animation: home-welcome 1.5s ease-in-out;
   animation-iteration-count: 2;
   animation-fill-mode: forwards;
 }
 
-.mobile-navbar
-  a[routerLink='preferences'].active
-  div.icon-container
-  span[mat-symbol='settings'] {
+.mobile-navbar a[routerLink='preferences'].active div.icon-container span[mat-symbol='settings'] {
   animation: settings-rotate-clockwise 2s cubic-bezier(0.4, 0, 0.2, 1),
     settings-rotate-counterclockwise 2s cubic-bezier(0.4, 0, 0.2, 1);
   animation-iteration-count: 1, 1;
@@ -534,10 +569,7 @@
   animation-fill-mode: forwards;
 }
 
-.mobile-navbar
-  a[routerLink='load-and-schedule'].active
-  div.icon-container
-  span[mat-symbol='calendar_month'] {
+.mobile-navbar a[routerLink='load-and-schedule'].active div.icon-container span[mat-symbol='calendar_month'] {
   animation: calendar-pulse 1.5s ease-in-out;
   animation-iteration-count: 2;
   animation-fill-mode: forwards;
@@ -550,7 +582,7 @@
   @include mixins.flex-layout($direction: column, $align: center);
 
   .footer-divider {
-    width: 100%; 
+    width: 100%;
     height: 1px;
     background-color: #800000;
     opacity: 0.5;
@@ -569,14 +601,20 @@
 
     .privacy-links {
       @include mixins.flex-layout($gap: var(--spacing-sm), $justify: center);
-      
+
       .privacyNotice {
         color: #800000 !important;
         text-decoration: none !important;
         font-weight: 500;
-        &:hover { color: #b30000 !important; }
+
+        &:hover {
+          color: #b30000 !important;
+        }
       }
-      .separator { color: var(--neutral-option); }
+
+      .separator {
+        color: var(--neutral-option);
+      }
     }
   }
 }
@@ -592,22 +630,28 @@
 // ==========================
 
 @keyframes home-welcome {
+
   0%,
   100% {
     transform: scale(1.05) translateY(0);
   }
+
   20% {
     transform: scale(1.1) translateY(-2px);
   }
+
   35% {
     transform: scale(1.1) translateY(-2px) rotate(8deg);
   }
+
   50% {
     transform: scale(1.1) translateY(-2px) rotate(-8deg);
   }
+
   65% {
     transform: scale(1.1) translateY(-2px) rotate(4deg);
   }
+
   80% {
     transform: scale(1.1) translateY(-2px);
   }
@@ -617,6 +661,7 @@
   0% {
     transform: scale(1.05) rotate(0deg);
   }
+
   100% {
     transform: scale(1.05) rotate(360deg);
   }
@@ -626,19 +671,23 @@
   0% {
     transform: scale(1.05) rotate(360deg);
   }
+
   100% {
     transform: scale(1.05) rotate(0deg);
   }
 }
 
 @keyframes calendar-pulse {
+
   0%,
   100% {
     transform: scale(1.05) rotate(0deg);
   }
+
   25% {
     transform: scale(1.1) rotate(-5deg);
   }
+
   75% {
     transform: scale(1.1) rotate(5deg);
   }
@@ -649,6 +698,7 @@
     transform: translateY(100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -673,14 +723,14 @@
     @include mixins.flex-layout($direction: row, $align: center, $gap: var(--spacing-sm));
     padding: var(--spacing-md);
     cursor: default;
-    
+
     .menu-email-icon {
       color: var(--primary-one);
       font-size: 20px;
       display: flex;
       align-items: center;
     }
-    
+
     .menu-email-text {
       font-size: var(--font-size-sm);
       color: var(--neutral-base);
@@ -725,5 +775,3 @@
     }
   }
 }
-
-

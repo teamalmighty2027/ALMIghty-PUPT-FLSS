@@ -46,6 +46,7 @@ export class ProfilePageComponent implements OnInit {
   provinces: any[] = [];
   cities: any[] = [];
   barangays: any[] = [];
+  activePrograms: any[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -66,6 +67,7 @@ export class ProfilePageComponent implements OnInit {
     this.loadProvinces();
     this.setupAddressListeners();
     this.loadProfileData();
+    this.loadActivePrograms();
   }
 
   // Initialize reactive form controls
@@ -188,6 +190,20 @@ export class ProfilePageComponent implements OnInit {
         data.push({ code: '130000000', name: 'Metro Manila' });
       }
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
+    });
+  }
+  
+  /**
+   * Load active programs for the Department dropdown
+   */
+  loadActivePrograms(): void {
+    this.facultyService.getActivePrograms().subscribe({
+      next: (data) => {
+        this.activePrograms = data;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Failed to load active programs', err);
+      }
     });
   }
 

@@ -7,6 +7,9 @@
 
 :host {
   @include mixins.custom-spinner;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .faculty-preferences-container {
@@ -16,7 +19,8 @@
     $justify: flex-start
   );
   @include mixins.default-transition;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .preferences-content-wrapper {
@@ -26,7 +30,8 @@
     $justify: flex-start,
     $gap: var(--spacing-md)
   );
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 
   .total-container {
     @include mixins.flex-layout($gap: var(--spacing-md));
@@ -148,6 +153,11 @@
     position: relative;
     overflow: hidden;
 
+    // Clip the matRipple effect to the card's rounded corners
+    ::ng-deep .mat-ripple {
+      border-radius: inherit;
+    }
+
     .tutorial-card-icon {
       font-size: 2rem;
       color: var(--primary-text);
@@ -193,7 +203,9 @@
 /* Second Row - Course List and Table */
 .preferences-row-two {
   @include mixins.flex-layout($gap: var(--spacing-lg));
-  height: calc(100vh - 17rem);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
 
   .temp-pill {
@@ -228,6 +240,7 @@
   #table_container {
     border-radius: var(--border-radius-md);
     height: 100%;
+    min-height: 0;
   }
 
   /* Courses Picker Container */

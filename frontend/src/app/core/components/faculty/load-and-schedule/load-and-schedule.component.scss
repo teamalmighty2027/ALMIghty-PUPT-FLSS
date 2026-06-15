@@ -7,6 +7,12 @@
   @include mixins.hide-scrollbar;
 }
 
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 // ─── Page shell ────────────────────────────────────────────────
 .faculty-load-schedule-container {
   @include mixins.flex-layout(
@@ -15,7 +21,8 @@
     $justify: flex-start,
     $gap: var(--spacing-md)
   );
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 
   @media screen and (max-width: bp.$breakpoint-sm) {
     padding-bottom: var(--spacing-4xl);
@@ -76,6 +83,11 @@
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
+
+    // Clip the matRipple effect to the card's rounded corners
+    ::ng-deep .mat-ripple {
+      border-radius: inherit;
+    }
 
     .schedule-tutorial-icon {
       font-size: 2rem;

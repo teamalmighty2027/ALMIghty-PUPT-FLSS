@@ -36,10 +36,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(
-      withXsrfConfiguration({
-        cookieName: 'XSRF-TOKEN',
-        headerName: 'X-CSRF-TOKEN',
-      }),
       withInterceptors([AuthHeaderInterceptor])
     ),
 
@@ -51,9 +47,10 @@ export const appConfig: ApplicationConfig = {
 
     /** Angular Material Configurations */
     { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
-    { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, provideServiceWorker('ngsw-worker.js', {
-            enabled: !isDevMode(),
-            registrationStrategy: 'registerWhenStable:30000'
-          }),
+    { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, 
+    provideServiceWorker('ngsw-worker.js', {
+        enabled: !isDevMode(),
+        registrationStrategy: 'registerWhenStable:30000'
+    }),
   ],
 };

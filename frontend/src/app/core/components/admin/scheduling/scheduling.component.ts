@@ -861,7 +861,15 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         )!.options = this.yearLevelOptions.map((year) => year.year_level);
 
         if (this.yearLevelOptions.length > 0) {
-          const defaultYearLevel = this.yearLevelOptions[0];
+          const cachedYear = this.schedulingService.getSelectedYear();
+          const defaultYearLevel =
+            cachedYear &&
+            this.yearLevelOptions.some((y) => y.year_level === cachedYear)
+              ? this.yearLevelOptions.find(
+                  (y) => y.year_level === cachedYear
+                )!
+              : this.yearLevelOptions[0];
+
           this.selectedYear = defaultYearLevel.year_level;
           this.previousYear = defaultYearLevel.year_level;
           this.selectedCurriculumId = defaultYearLevel.curriculum_id;
@@ -877,7 +885,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           );
 
           if (this.sectionOptions.length > 0) {
-            this.selectedSection = this.sectionOptions[0].section_name;
+            const cachedSection = this.schedulingService.getSelectedSection();
+            const defaultSection =
+              cachedSection &&
+              this.sectionOptions.some((s) => s.section_name === cachedSection)
+                ? this.sectionOptions.find(
+                    (s) => s.section_name === cachedSection
+                  )!
+                : this.sectionOptions[0];
+
+            this.selectedSection = defaultSection.section_name;
 
             // Fetch courses with default selections
             const selectedProgram = this.programOptions.find(
@@ -1021,6 +1038,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       this.schedules = [];
       return;
     }
+
+    // Cache the selected year level and section
+    this.schedulingService.setSelectedYear(this.selectedYear);
+    this.schedulingService.setSelectedSection(this.selectedSection);
 
     this.fetchCourses(
       selectedProgram.id,

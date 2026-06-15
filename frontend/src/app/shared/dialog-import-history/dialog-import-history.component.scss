@@ -1,157 +1,103 @@
 @use "../../../styles/mixins";
 
-.dialog-import-container {
-  @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
-  padding: var(--spacing-md);
-  max-height: 85vh;
-  width: min(640px, 95vw);
+:host {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
 
-  .dialog-header {
+.dialog-import-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  background: var(--main-bg);
+}
+
+// ── Gradient header ───────────────────────────────────────────
+.dialog-header {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  background: linear-gradient(135deg, var(--primary-one) 0%, var(--primary-two) 100%);
+  flex-shrink: 0;
+
+  .header-top {
     @include mixins.flex-layout($align: center, $justify: space-between);
     margin-bottom: var(--spacing-xs);
-    
-    h2 {
-      margin: 0;
-      font-size: var(--font-size-lg);
-      font-weight: 700;
-      color: var(--primary-one);
+
+    .header-label {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+
+      .header-eyebrow {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+        letter-spacing: var(--letter-spacing-md);
+        text-transform: uppercase;
+      }
+
+      .header-icon {
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
     }
 
     .close-btn {
-      color: var(--text-secondary);
-      @include mixins.default-transition;
+      color: rgba(255, 255, 255, 0.8);
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
       &:hover {
-        color: var(--primary-warning);
-        background: var(--primary-fade);
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.15);
       }
     }
   }
 
-  .dialog-content {
+  .dialog-title {
     margin: 0;
-    padding: 0;
-    overflow: hidden;
-    @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.3;
+  }
+}
 
-    .description {
-      color: var(--neutral-button);
-      font-size: var(--font-size-sm);
-      margin: 0;
-      line-height: 1.4;
+// ── Content ───────────────────────────────────────────────────
+.dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  overflow: hidden;
+  flex: 1;
 
-      strong {
-        color: var(--primary-one);
-        font-weight: 600;
-      }
+  .description {
+    color: var(--neutral-base);
+    font-size: var(--font-size-sm);
+    margin: 0;
+    line-height: 1.5;
+    opacity: 0.85;
+
+    strong {
+      color: var(--primary-text);
+      font-weight: 600;
+    }
+  }
+
+  .filters {
+    .ay-select {
+      width: 100%;
+      max-width: 300px;
     }
 
-    .filters {
-      .ay-select {
-        width: 100%;
-        max-width: 300px;
-      }
-    }
-
-    .table-container {
-      flex: 1;
-      overflow: auto;
-      border: 1px solid var(--neutral-border);
-      border-radius: var(--border-radius-sm);
-      min-height: 200px;
-      max-height: calc(85vh - 250px);
-      @include mixins.custom-scrollbar;
-
-      .import-table {
-        width: 100%;
-
-        th.mat-header-cell {
-          background: var(--neutral-light);
-          color: var(--neutral-base);
-          font-weight: 700;
-          font-size: var(--font-size-xs);
-          text-transform: uppercase;
-          padding: var(--spacing-sm);
-        }
-
-        td.mat-cell {
-          padding: var(--spacing-sm);
-          font-size: var(--font-size-sm);
-        }
-
-        .mat-row {
-          cursor: pointer;
-          @include mixins.default-transition;
-
-          &:hover:not(.row-disabled) {
-            background: var(--neutral-hover);
-          }
-
-          &.row-selected {
-            background: var(--primary-fade);
-            td.mat-cell {
-                color: var(--primary-one);
-                font-weight: 600;
-            }
-          }
-
-          &.row-disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
-            background: var(--neutral-light);
-          }
-        }
-
-        .already-added-tag {
-          font-size: var(--font-size-xs);
-          color: var(--neutral-button-lighter);
-          margin-left: var(--spacing-xs);
-          font-style: italic;
-          background: var(--neutral-light);
-          padding: 2px 6px;
-          border-radius: 4px;
-        }
-
-        .warning-tag {
-          display: inline-block;
-          font-size: var(--font-size-xs);
-          color: var(--secondary-text);
-          margin-top: 4px;
-          font-style: italic;
-          background: var(--secondary-fade);
-          padding: 2px 6px;
-          border-radius: 4px;
-        }
-
-        .mat-column-select {
-          width: 40px;
-          padding-right: 0;
-        }
-
-        .mat-column-program,
-        .mat-column-yearLevel,
-        .mat-column-section,
-        .mat-column-courseCode {
-          text-align: center;
-          justify-content: center;
-        }
-      }
-
-      .no-data {
-        @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-sm));
-        padding: var(--spacing-2xl);
-        color: var(--neutral-button-lighter);
-        text-align: center;
-
-        span[mat-symbol] {
-          font-size: 48px;
-          opacity: 0.3;
-          color: var(--primary-one);
-        }
-
-        p {
-          font-size: var(--font-size-md);
-          max-width: 350px;
-        }
+    .select-trigger-text {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      .select-icon {
+        font-size: 1.1rem;
+        color: var(--primary-text);
       }
     }
   }
@@ -159,34 +105,201 @@
   .loading-wrapper {
     @include mixins.flex-layout($align: center, $justify: center);
     padding: var(--spacing-2xl);
+    flex: 1;
   }
 
-  .dialog-actions {
-    margin-top: var(--spacing-md);
-    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
-    padding: 0;
+  .table-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 200px;
+  }
 
-    button {
-      padding: 0 var(--spacing-lg);
-      height: 2.5rem;
-      border-radius: var(--border-radius-sm);
-      font-weight: 600;
-    }
-    
-    .import-btn {
-        background-color: var(--primary-one);
-        color: white !important;
-        &:disabled {
-            background: var(--neutral-light);
-            color: var(--neutral-button-lighter) !important;
+  .table-container {
+    flex: 1;
+    overflow: auto;
+    border: 1px solid var(--neutral-border);
+    border-radius: var(--border-radius-sm);
+    @include mixins.custom-scrollbar;
+    background: var(--main-bg);
+
+    .import-table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th.mat-header-cell {
+        background: var(--neutral-light);
+        color: var(--neutral-base);
+        font-weight: 700;
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        padding: var(--spacing-sm);
+        border-bottom: 2px solid var(--neutral-border);
+        white-space: nowrap;
+      }
+
+      td.mat-cell {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-sm);
+        border-bottom: 1px solid var(--neutral-fade);
+        color: var(--neutral-base);
+      }
+
+      .mat-row {
+        cursor: pointer;
+        @include mixins.default-transition;
+
+        &:hover:not(.row-disabled) {
+          background: var(--neutral-hover);
         }
+
+        &.row-selected {
+          background: var(--primary-fade);
+          td.mat-cell {
+            color: var(--primary-one);
+          }
+        }
+
+        &.row-disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+          background: var(--neutral-light);
+        }
+      }
+
+      .checkbox-col {
+        width: 48px;
+        text-align: center;
+        padding-left: var(--spacing-sm);
+        padding-right: 0;
+      }
+
+      .program-badge {
+        display: inline-block;
+        background: var(--neutral-fade);
+        color: var(--neutral-base);
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .section-cell {
+        @include mixins.flex-layout($direction: column, $align: flex-start, $gap: 2px);
+      }
+
+      .code-col {
+        white-space: nowrap;
+      }
+
+      .title-col {
+        width: 100%;
+        min-width: 200px;
+      }
+
+      .title-cell {
+        @include mixins.flex-layout($align: center, $justify: space-between, $gap: var(--spacing-xs));
+
+        .title-text {
+          @include mixins.ellipsis;
+          max-width: 250px;
+        }
+      }
+
+      .already-added-tag, .warning-tag {
+        @include mixins.flex-layout($align: center, $gap: 4px);
+        font-size: var(--font-size-xs);
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        font-weight: 500;
+
+        .tag-icon {
+          font-size: 0.9rem;
+        }
+      }
+
+      .already-added-tag {
+        color: var(--neutral-button);
+        background: var(--neutral-fade);
+      }
+
+      .warning-tag {
+        color: var(--primary-warning);
+        background: var(--primary-warning-fade);
+      }
+    }
+
+    .no-data {
+      @include mixins.flex-layout($direction: column, $align: center, $gap: var(--spacing-sm));
+      padding: var(--spacing-2xl) var(--spacing-md);
+      color: var(--neutral-button-lighter);
+      text-align: center;
+
+      .no-data-icon-bg {
+        @include mixins.flex-layout($align: center, $justify: center);
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--neutral-fade);
+        margin-bottom: var(--spacing-xs);
+
+        .no-data-icon {
+          font-size: 32px;
+          color: var(--neutral-base);
+          opacity: 0.5;
+        }
+      }
+
+      p {
+        margin: 0;
+        font-size: var(--font-size-md);
+        max-width: 350px;
+      }
     }
   }
 }
 
+// ── Footer buttons ────────────────────────────────────────────
+.dialog-buttons {
+  @include mixins.flex-layout($align: center, $justify: flex-end, $gap: var(--spacing-sm));
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  border-top: 1px solid var(--neutral-fade);
+  flex-shrink: 0;
+  background: var(--main-bg);
+
+  .cancel-btn {
+    color: var(--neutral-base);
+    opacity: 0.7;
+    font-size: var(--font-size-sm);
+    &:hover { opacity: 1; background-color: var(--neutral-hover); }
+  }
+
+  .import-btn {
+    @include mixins.gradient-primary(135deg);
+    color: #fff !important;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+
+    &:disabled {
+      background: var(--neutral-light);
+      color: var(--neutral-button-lighter) !important;
+      opacity: 0.7;
+    }
+
+    ::ng-deep .mdc-button__label { display: inline-flex; align-items: center; gap: 6px; }
+    .btn-icon { font-size: 1.1rem; line-height: 1; display: inline-flex; align-items: center; }
+  }
+}
+
 @media screen and (max-width: 600px) {
-  .dialog-import-container {
-    width: 100%;
+  .dialog-content {
+    padding: var(--spacing-sm);
+  }
+  
+  .dialog-buttons {
     padding: var(--spacing-sm);
   }
 }

@@ -205,6 +205,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         next: (curriculum) => {
           if (curriculum) {
             this.curriculum = curriculum;
+            this.loadSelectionCaches();
             this.updateHeaderInputFields();
             this.updateRenderGroups();
             this.updateCustomExportOptions();
@@ -224,6 +225,63 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
           this.isLoading = false;
         },
       });
+  }
+
+  /**
+   * Restores cached filter selections from localStorage with safety checks.
+   */
+  private loadSelectionCaches(): void {
+    const cachedCategory =
+      localStorage.getItem('curriculum_selected_category');
+    if (cachedCategory === 'Regular' || cachedCategory === 'Bridging') {
+      this.selectedCategory = cachedCategory;
+    }
+
+    const cachedProgram =
+      localStorage.getItem('curriculum_selected_program');
+    if (cachedProgram) {
+      const programExists =
+        cachedProgram === 'All' ||
+        (this.curriculum?.programs.some(
+          (p) => p.curricula_program_id === Number(cachedProgram)
+        ));
+      this.selectedProgram = programExists
+        ? (cachedProgram === 'All' ? 'All' : Number(cachedProgram))
+        : 'All';
+    }
+
+    const cachedYear =
+      localStorage.getItem('curriculum_selected_year');
+    if (cachedYear) {
+      let yearExists = cachedYear === 'All';
+      if (!yearExists && this.selectedProgram !== 'All' && this.curriculum) {
+        const programData = this.curriculum.programs.find(
+          (p) => p.curricula_program_id === Number(this.selectedProgram)
+        );
+        if (programData) {
+          const programYears = (programData.year_levels || []).map(
+            (l) => l.year
+          );
+          yearExists =
+            programYears.includes(Number(cachedYear)) ||
+            Number(cachedYear) <= programData.number_of_years;
+        }
+      }
+      this.selectedYear = yearExists
+        ? (cachedYear === 'All' ? 'All' : Number(cachedYear))
+        : 'All';
+    }
+
+    const cachedSemester =
+      localStorage.getItem('curriculum_selected_semester');
+    if (cachedSemester) {
+      const semExists =
+        cachedSemester === 'All' ||
+        [1, 2, 3].includes(Number(cachedSemester));
+      this.selectedSemester = semExists
+        ? (cachedSemester === 'All' ? 'All' : Number(cachedSemester))
+        : 'All';
+    }
   }
 
   updateHeaderInputFields() {
@@ -952,13 +1010,25 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.searchQuery$.next(values['courseSearch']);
     }
 
-    const categoryChanged = values['category'] !== undefined && values['category'] !== this.selectedCategory;
-    const programChanged = values['program'] !== undefined && values['program'] !== this.selectedProgram;
-    const yearChanged = values['yearLevel'] !== undefined && values['yearLevel'] !== this.selectedYear;
-    const semesterChanged = values['semester'] !== undefined && values['semester'] !== this.selectedSemester;
+    const categoryChanged =
+      values['category'] !== undefined &&
+      values['category'] !== this.selectedCategory;
+    const programChanged =
+      values['program'] !== undefined &&
+      values['program'] !== this.selectedProgram;
+    const yearChanged =
+      values['yearLevel'] !== undefined &&
+      values['yearLevel'] !== this.selectedYear;
+    const semesterChanged =
+      values['semester'] !== undefined &&
+      values['semester'] !== this.selectedSemester;
 
     if (categoryChanged) {
       this.selectedCategory = values['category'];
+      localStorage.setItem(
+        'curriculum_selected_category',
+        this.selectedCategory
+      );
       this.renderGroups = []; // Immediate clear
       needsRender = true;
       if (this.selectedCategory === 'Bridging') {
@@ -971,16 +1041,36 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       this.selectedProgram = values['program'];
       this.selectedYear = 'All';
       this.selectedSemester = 'All';
+      localStorage.setItem(
+        'curriculum_selected_program',
+        String(this.selectedProgram)
+      );
+      localStorage.setItem(
+        'curriculum_selected_year',
+        String(this.selectedYear)
+      );
+      localStorage.setItem(
+        'curriculum_selected_semester',
+        String(this.selectedSemester)
+      );
       refreshBridging = true;
       needsRender = true;
     } else {
       if (yearChanged) {
         this.selectedYear = values['yearLevel'];
+        localStorage.setItem(
+          'curriculum_selected_year',
+          String(this.selectedYear)
+        );
         refreshBridging = true;
         needsRender = true;
       }
       if (semesterChanged) {
         this.selectedSemester = values['semester'];
+        localStorage.setItem(
+          'curriculum_selected_semester',
+          String(this.selectedSemester)
+        );
         refreshBridging = true;
         needsRender = true;
       }
@@ -1000,10 +1090,31 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   // ===========================
   // Duplicate Detection Logic
   // ===========================
-  isCourseDuplicate(courseCode: string, excludeCourseId?: number, isBridging: boolean = false): boolean {
+  isCourseDuplicate(
+    courseCode: string,
+    excludeCourseId?: number,
+    curriculaProgramId?: number,
+    isBridging: boolean = false
+  ): boolean {
     if (!this.curriculum || isBridging) return false;
     
     const codeToCheck = courseCode.trim().toLowerCase();
+
+    if (curriculaProgramId !== undefined) {
+      const prog = this.curriculum.programs.find(
+        p => p.curricula_program_id === curriculaProgramId
+      );
+      if (!prog) return false;
+
+      return prog.year_levels.some(yl =>
+        yl.semesters.some(sem =>
+          sem.courses.some(c =>
+            c.course_code.trim().toLowerCase() === codeToCheck && 
+            c.course_id !== excludeCourseId
+          )
+        )
+      );
+    }
 
     return this.curriculum.programs.some(prog =>
       prog.year_levels.some(yl =>
@@ -1025,8 +1136,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
-        if (this.isCourseDuplicate(result.course_code, course.course_id)) {
-          this.snackBar.open(`Error: Course Code '${result.course_code}' is already used!`, 'Close', { duration: 4000 });
+        if (
+          this.isCourseDuplicate(
+            result.course_code,
+            course.course_id,
+            group.program.curricula_program_id
+          )
+        ) {
+          this.snackBar.open(
+            `Error: Course Code '${result.course_code}' is already used!`,
+            'Close',
+            { duration: 4000 }
+          );
           return;
         }
 
@@ -1093,8 +1214,18 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
-        if (this.isCourseDuplicate(result.course_code)) {
-          this.snackBar.open(`Error: Course Code '${result.course_code}' is already used!`, 'Close', { duration: 4000 });
+        if (
+          this.isCourseDuplicate(
+            result.course_code,
+            undefined,
+            group.program.curricula_program_id
+          )
+        ) {
+          this.snackBar.open(
+            `Error: Course Code '${result.course_code}' is already used!`,
+            'Close',
+            { duration: 4000 }
+          );
           return;
         }
 
