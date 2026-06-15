@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('auth')->group(function () {
     Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
     Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
+    Route::get('/redirect', [AuthController::class, 'handleOnePortalRedirect']);
 });
 
 
