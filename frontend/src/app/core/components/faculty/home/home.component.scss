@@ -19,7 +19,7 @@
     $justify: center,
     $gap: var(--spacing-lg)
   );
-  height: 100%;
+  min-height: 100vh;
   flex: 1;
   min-height: 0;
   overflow: auto;

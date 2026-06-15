@@ -292,6 +292,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Programs
      */
+    Route::get('/programs/active', [ProgramController::class, 'getActivePrograms']);
     Route::get('/programs', [ProgramController::class, 'getPrograms']);
     Route::post('/addProgram', [ProgramController::class, 'addProgram']);
     Route::get('/programs/{id}', [ProgramController::class, 'getProgramDetails']);
