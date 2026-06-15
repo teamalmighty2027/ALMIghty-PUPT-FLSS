@@ -23,7 +23,7 @@ const buildAuthRequest = (
   });
 
   if (token) {
-    authReq = authReq.clone({
+    req = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`,
       },
