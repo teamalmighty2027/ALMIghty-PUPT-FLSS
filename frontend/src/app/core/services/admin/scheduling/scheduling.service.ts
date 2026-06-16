@@ -544,11 +544,16 @@ export class SchedulingService {
     yearLevel: number,
     sectionId: number
   ): Observable<SmartSuggestion> {
-    return this.getSubmittedPreferencesForActiveSemester().pipe(
-      switchMap(response => {
-        const preferences = response.preferences || [];
+    return forkJoin({
+      prefResponse: this.getSubmittedPreferencesForActiveSemester(),
+      facultyResponse: this.getFacultyDetails()
+    }).pipe(
+      switchMap(({ prefResponse, facultyResponse }) => {
+        const preferences = prefResponse.preferences || [];
+        const facultyList = facultyResponse.faculty || [];
         const candidates: any[] = [];
-        
+
+        // 1. Gather preference candidates
         preferences.forEach(pref => {
           const activeSem = pref.active_semesters.find(s => 
             s.academic_year_id === academicYearId && 
@@ -565,8 +570,6 @@ export class SchedulingService {
                 candidates.push({
                   faculty_id: pref.faculty_id,
                   faculty_name: pref.faculty_name,
-                  course_assignment_id: coursePref.course_assignment_id,
-                  is_ignored: !!coursePref.is_ignored,
                   day: dayPref.day,
                   start_time: dayPref.start_time,
                   end_time: dayPref.end_time
@@ -574,6 +577,47 @@ export class SchedulingService {
               });
             }
           }
+        });
+
+        // 2. Gather general grid candidates
+        const DAYS = [
+          'Monday', 'Tuesday', 'Wednesday', 
+          'Thursday', 'Friday', 'Saturday'
+        ];
+
+        const TIME_SLOTS = [
+          { start: '07:30 AM', end: '10:30 AM' },
+          { start: '10:30 AM', end: '01:30 PM' },
+          { start: '01:30 PM', end: '04:30 PM' },
+          { start: '04:30 PM', end: '07:30 PM' },
+          { start: '06:00 PM', end: '09:00 PM' },
+          { start: '07:00 AM', end: '10:00 AM' },
+          { start: '10:00 AM', end: '01:00 PM' },
+          { start: '01:00 PM', end: '04:00 PM' },
+          { start: '04:00 PM', end: '07:00 PM' },
+          { start: '07:00 PM', end: '10:00 PM' }
+        ];
+
+        facultyList.forEach(f => {
+          DAYS.forEach(day => {
+            TIME_SLOTS.forEach(slot => {
+              const exists = candidates.some(c => 
+                c.faculty_id === f.faculty_id &&
+                c.day === day &&
+                c.start_time === slot.start &&
+                c.end_time === slot.end
+              );
+              if (!exists) {
+                candidates.push({
+                  faculty_id: f.faculty_id,
+                  faculty_name: f.name,
+                  day: day,
+                  start_time: slot.start,
+                  end_time: slot.end
+                });
+              }
+            });
+          });
         });
 
         if (candidates.length === 0) {
@@ -585,40 +629,48 @@ export class SchedulingService {
           );
         }
 
-        return from(candidates).pipe(
-          mergeMap(c => {
-            const startMin = this.timeToMinutes(c.start_time);
-            const endMin = this.timeToMinutes(c.end_time);
+        const predictCandidates = candidates.map(c => {
+          const startMin = this.timeToMinutes(c.start_time);
+          const endMin = this.timeToMinutes(c.end_time);
+          return {
+            faculty_id: c.faculty_id,
+            academic_year_id: academicYearId,
+            semester_id: semesterId,
+            active_semester_id: activeSemesterId,
+            course_id: courseId,
+            program_id: programId,
+            year_level: yearLevel,
+            day: c.day,
+            start_time_min: startMin,
+            end_time_min: endMin,
+            c
+          };
+        });
 
-            return this.mlService.predict(
-              c.faculty_id,
-              academicYearId,
-              semesterId,
-              activeSemesterId,
-              c.course_assignment_id,
-              0,
-              c.is_ignored,
-              c.day,
-              startMin,
-              endMin
-            ).pipe(
-              map(ml => ({ ...c, ml }))
-            );
-          }, 4), // Run up to 4 predictions in parallel
-          reduce((best: any, current: any) => {
-            const currentConfidence = current.ml?.confidence || 0;
-            const bestConfidence = best?.ml?.confidence || 0;
-            return currentConfidence > bestConfidence ? current : best;
-          }, null),
-          map(bestMatch => {
-            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+        return this.mlService.predictBatch(predictCandidates).pipe(
+          map(predictions => {
+            let bestMatch: any = null;
+            let maxConfidence = -1;
+
+            for (let i = 0; i < predictions.length; i++) {
+              const pred = predictions[i];
+              if (pred && pred.confidence > maxConfidence) {
+                maxConfidence = pred.confidence;
+                bestMatch = {
+                  ...predictCandidates[i].c,
+                  confidence: pred.confidence
+                };
+              }
+            }
+
+            if (bestMatch && maxConfidence >= 0.6) {
               return {
                 faculty_id: bestMatch.faculty_id,
                 faculty_name: bestMatch.faculty_name,
                 day: bestMatch.day,
                 start_time: bestMatch.start_time,
                 end_time: bestMatch.end_time,
-                confidence: bestMatch.ml!.confidence,
+                confidence: maxConfidence,
                 isMl: true,
                 success: true
               } as SmartSuggestion;
@@ -627,7 +679,9 @@ export class SchedulingService {
             return null;
           }),
           switchMap(mlSuggestion => {
-            if (mlSuggestion) return of(mlSuggestion);
+            if (mlSuggestion) {
+              return of(mlSuggestion);
+            }
             return this.runBackendFallback(
               programId, 
               yearLevel, 

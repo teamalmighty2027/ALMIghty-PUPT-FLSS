@@ -15,7 +15,12 @@ describe('ScheduleSuggestionService', () => {
     training_years: ['2025-2026'],
     training_semesters: [1, 2],
     day_encoding: { 'Monday': 0, 'Tuesday': 1 },
-    schema: ['faculty_id', 'preferred_day_encoded', 'preferred_start_min', 'match_score']
+    schema: [
+      'faculty_id', 
+      'day_encoded', 
+      'start_time_min', 
+      'match_score'
+    ]
   };
 
   beforeEach(() => {
@@ -37,14 +42,14 @@ describe('ScheduleSuggestionService', () => {
 
     // faculty_id=10, day=Monday(0), start=08:00(480)
     const features = (service as any).encodeFeatures(
-      10, 1, 1, 1, 1, 1, false, 'Monday', 480, 600
+      10, 1, 1, 1, 100, 1, 1, 'Monday', 480, 600
     );
 
     expect(features).toBeInstanceOf(Float32Array);
     expect(features.length).toBe(3); // match_score is filtered out
     expect(features[0]).toBe(10);  // faculty_id
-    expect(features[1]).toBe(0);   // preferred_day_encoded
-    expect(features[2]).toBe(480); // preferred_start_min
+    expect(features[1]).toBe(0);   // day_encoded
+    expect(features[2]).toBe(480); // start_time_min
     done();
   });
 
@@ -52,7 +57,7 @@ describe('ScheduleSuggestionService', () => {
     (service as any).encoders = mockEncoders;
 
     const features = (service as any).encodeFeatures(
-      10, 1, 1, 1, 1, 1, false, 'Sunday', 480, 600
+      10, 1, 1, 1, 100, 1, 1, 'Sunday', 480, 600
     );
 
     expect(features[1]).toBe(-1); // Unknown day

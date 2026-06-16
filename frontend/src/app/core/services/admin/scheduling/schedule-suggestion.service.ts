@@ -62,17 +62,14 @@ export class ScheduleSuggestionService {
     return this.initPromise;
   }
 
-  /**
-   * Predicts a match score for a given schedule slot using the ONNX model.
-   */
   public predict(
     faculty_id: number,
     academic_year_id: number,
     semester_id: number,
     active_semester_id: number,
-    course_assignment_id: number,
-    sections_per_program_year_id: number,
-    is_ignored: boolean,
+    course_id: number,
+    program_id: number,
+    year_level: number,
     day: string,
     start_time_min: number,
     end_time_min: number
@@ -88,9 +85,9 @@ export class ScheduleSuggestionService {
           academic_year_id,
           semester_id,
           active_semester_id,
-          course_assignment_id,
-          sections_per_program_year_id,
-          is_ignored,
+          course_id,
+          program_id,
+          year_level,
           day,
           start_time_min,
           end_time_min
@@ -126,6 +123,80 @@ export class ScheduleSuggestionService {
   }
 
   /**
+   * Predicts match scores for a batch of candidates using ONNX.
+   */
+  public predictBatch(
+    candidates: {
+      faculty_id: number;
+      academic_year_id: number;
+      semester_id: number;
+      active_semester_id: number;
+      course_id: number;
+      program_id: number;
+      year_level: number;
+      day: string;
+      start_time_min: number;
+      end_time_min: number;
+    }[]
+  ): Observable<(MlSuggestion | null)[]> {
+    return from(this.ensureInitialized()).pipe(
+      switchMap(() => {
+        if (!this.session || !this.encoders || candidates.length === 0) {
+          return of([]);
+        }
+
+        const featureCount = this.encoders.schema
+          .filter(k => k !== 'match_score').length;
+        const flatFeatures = new Float32Array(
+          candidates.length * featureCount
+        );
+
+        for (let i = 0; i < candidates.length; i++) {
+          const c = candidates[i];
+          const features = this.encodeFeatures(
+            c.faculty_id,
+            c.academic_year_id,
+            c.semester_id,
+            c.active_semester_id,
+            c.course_id,
+            c.program_id,
+            c.year_level,
+            c.day,
+            c.start_time_min,
+            c.end_time_min
+          );
+          flatFeatures.set(features, i * featureCount);
+        }
+
+        const inputTensor = new ort.Tensor(
+          'float32',
+          flatFeatures,
+          [candidates.length, featureCount]
+        );
+
+        return from(this.session.run({ float_input: inputTensor })).pipe(
+          map(output => {
+            const result = output[Object.keys(output)[0]];
+            const scores = Array.from(result.data as Float32Array);
+
+            return candidates.map((c, i) => ({
+              preferredDay: c.day,
+              preferredStartMin: c.start_time_min,
+              preferredEndMin: c.end_time_min,
+              confidence: Math.max(0, Math.min(1, scores[i] ?? 0)),
+              modelVersion: this.encoders?.model_version || 'unknown'
+            }));
+          })
+        );
+      }),
+      catchError(err => {
+        console.error('Batch prediction failed:', err);
+        return of([]);
+      })
+    );
+  }
+
+  /**
    * Encodes raw inputs into a numeric feature array matching the model schema.
    */
   private encodeFeatures(
@@ -133,9 +204,9 @@ export class ScheduleSuggestionService {
     academic_year_id: number,
     semester_id: number,
     active_semester_id: number,
-    course_assignment_id: number,
-    sections_per_program_year_id: number,
-    is_ignored: boolean,
+    course_id: number,
+    program_id: number,
+    year_level: number,
     day: string,
     start_time_min: number,
     end_time_min: number
@@ -155,12 +226,12 @@ export class ScheduleSuggestionService {
       'academic_year_id': academic_year_id,
       'semester_id': semester_id,
       'active_semester_id': active_semester_id,
-      'course_assignment_id': course_assignment_id,
-      'sections_per_program_year_id': sections_per_program_year_id,
-      'is_ignored': is_ignored ? 1 : 0,
-      'preferred_day_encoded': dayEncoded,
-      'preferred_start_min': start_time_min,
-      'preferred_end_min': end_time_min,
+      'course_id': course_id,
+      'program_id': program_id,
+      'year_level': year_level,
+      'day_encoded': dayEncoded,
+      'start_time_min': start_time_min,
+      'end_time_min': end_time_min,
       'duration_min': duration
     };
 
