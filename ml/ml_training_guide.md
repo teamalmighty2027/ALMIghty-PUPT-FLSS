@@ -140,26 +140,12 @@ consistent when comparing one full year to the next.
 > Splitting by Year is the "Gold Standard" for this model.
 
 ```python
-# Cell 4: Temporal split by Academic Year
-# Train on the earlier year, test on the latest year
-unique_years = sorted(df['academic_year_id'].unique())
+# Cell 4: Robust train/test split
+from sklearn.model_selection import train_test_split
 
-if len(unique_years) > 1:
-    train_year = unique_years[-2]
-    test_year  = unique_years[-1]
-    
-    train_mask = df['academic_year_id'] <= train_year
-    test_mask  = df['academic_year_id'] == test_year
-    
-    print(f"✅ Splitting by Year: Training on <= {train_year}, Testing on {test_year}")
-else:
-    # Fallback if you only have ONE year of data
-    print("⚠️ Only one year found. Falling back to Semester Split (S1 -> S2)")
-    train_mask = df['semester_id'] == 1
-    test_mask  = df['semester_id'] == 2
-
-X_train, y_train = X[train_mask], y[train_mask]
-X_test,  y_test  = X[test_mask],  y[test_mask]
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
 print(f"🎓 Training rows  : {len(X_train)}")
 print(f"🧪 Test rows      : {len(X_test)}")
@@ -369,6 +355,7 @@ Update this table each time you retrain:
 | Date | Train Rows | Test Rows | Split | RMSE | R² | Notes |
 |---|---|---|---|---|---|---|
 | 2026-05-04 | 1,021 | 698 | S1→S2 | 0.3063 | -0.2610 | Fallback split used; negative R² found |
+| 2026-06-16 | 1,057 | 265 | 80→20 | 0.3114 | 0.6080  | 80% to 20% split used; v2 model |
 
 > [!WARNING]
 > **Interpreting a Negative R² Score:**

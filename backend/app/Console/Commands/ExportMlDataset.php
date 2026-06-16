@@ -62,12 +62,12 @@ class ExportMlDataset extends Command
         }
 
         if ($all) {
-            $this->info('🔄 Querying ALL preference-schedule data...');
+            $this->info('🔄 Querying ALL schedule data...');
         } elseif ($year && $semester) {
-            $this->info("🔄 Querying preference-schedule data for " . 
+            $this->info("🔄 Querying schedule data for " . 
                 "Year: {$year}, Semester: {$semester}...");
         } else {
-            $this->info('🔄 Querying ALL preference-schedule data (default)...');
+            $this->info('🔄 Querying ALL schedule data (default)...');
         }
 
         $rows = $this->buildQuery($all ? null : $year, $all ? null : $semester);
@@ -87,20 +87,56 @@ class ExportMlDataset extends Command
 
         $this->info('🧪 Processing and encoding features...');
 
-        foreach ($rows as $row) {
-            $score = $this->computeMatchScore($row);
+        $rawRows = $rows->all();
+        $frequencyMap = [];
+        $positiveKeys = [];
+
+        foreach ($rawRows as $row) {
+            $key = "{$row->faculty_id}_{$row->course_id}_{$row->day}" .
+                   "_{$row->start_time}_{$row->end_time}";
+            $frequencyMap[$key] = ($frequencyMap[$key] ?? 0) + 1;
+            $positiveKeys[$key] = true;
+        }
+
+        $maxOccurrences = empty($frequencyMap) ? 1 : max($frequencyMap);
+        $negativeRows = $this->generateNegativeSamples($rawRows, $positiveKeys);
+        $this->info("🧪 Generated " . count($negativeRows) . 
+            " negative samples.");
+
+        foreach ($rawRows as $row) {
+            $key = "{$row->faculty_id}_{$row->course_id}_{$row->day}" .
+                   "_{$row->start_time}_{$row->end_time}";
+            $occurrences = $frequencyMap[$key] ?? 1;
+
+            $baseScore = 0.5;
+            $bonus = min(0.5, ($occurrences / $maxOccurrences) * 0.5);
+            $score = round($baseScore + $bonus, 2);
+
             $totalScore += $score;
 
-            // Track distribution for summary
-            if ($score >= 1.0) $buckets['1.0']++;
-            elseif ($score >= 0.7) $buckets['0.7+']++;
-            elseif ($score >= 0.4) $buckets['0.4']++;
-            else $buckets['0.0']++;
+            if ($score >= 1.0) {
+                $buckets['1.0']++;
+            } elseif ($score >= 0.7) {
+                $buckets['0.7+']++;
+            } elseif ($score >= 0.4) {
+                $buckets['0.4']++;
+            } else {
+                $buckets['0.0']++;
+            }
 
             $processedRows[] = $this->encodeRow($row, $score);
         }
 
-        $avgScore = $totalScore / $count;
+        foreach ($negativeRows as $row) {
+            $score = 0.0;
+            $totalScore += $score;
+            $buckets['0.0']++;
+
+            $processedRows[] = $this->encodeRow($row, $score);
+        }
+
+        $totalCount = count($processedRows);
+        $avgScore = $totalCount > 0 ? ($totalScore / $totalCount) : 0;
 
         $this->info('💾 Writing dataset files...');
 
@@ -115,16 +151,16 @@ class ExportMlDataset extends Command
             str_replace('scheduling_dataset', 'encoders', $outputPath)
         );
 
-        $this->writeEncoders($processedRows, $avgScore, $encoderPath, $rows);
+        $this->writeEncoders($processedRows, $avgScore, $encoderPath, $rawRows);
 
         $this->displaySummary(
-            $count, 
+            $totalCount, 
             $avgScore, 
             $buckets, 
             $processedRows, 
             $outputPath, 
             $encoderPath, 
-            $rows
+            $rawRows
         );
 
         $this->info('✅ Export completed successfully.');
@@ -212,37 +248,73 @@ class ExportMlDataset extends Command
     }
 
     /**
-     * Compute the continuous match score (0.0 - 1.0) for a row.
+     * Generate synthetic negative samples (score 0.0) from existing data.
      * 
-     * @param object $row
-     * @return float
+     * @param array $rawRows
+     * @param array $positiveKeys
+     * @return array
      */
-    private function computeMatchScore($row)
+    private function generateNegativeSamples($rawRows, $positiveKeys)
     {
-        if (!$row->schedule_id) {
-            return 0.0;
+        $negatives = [];
+        
+        $allFacultyIds = collect($rawRows)
+            ->pluck('faculty_id')
+            ->unique()
+            ->toArray();
+
+        $allDays = [
+            'Monday', 'Tuesday', 'Wednesday', 
+            'Thursday', 'Friday', 'Saturday'
+        ];
+
+        $allTimeSlots = collect($rawRows)
+            ->map(fn($r) => ['start' => $r->start_time, 'end' => $r->end_time])
+            ->unique()
+            ->values()
+            ->toArray();
+
+        if (empty($allFacultyIds) || empty($allTimeSlots)) {
+            return [];
         }
 
-        $score = 0.40; // Base: assigned the course/section
+        $positiveCount = count($rawRows);
+        $attempts = 0;
+        $maxAttempts = $positiveCount * 5;
 
-        // Day match bonus (30%)
-        if ($row->actual_day === $row->preferred_day) {
-            $score += 0.30;
+        while (count($negatives) < $positiveCount && $attempts < $maxAttempts) {
+            $attempts++;
+            $baseRow = $rawRows[array_rand($rawRows)];
 
-            // Time match bonus (30%) - only if day matches
-            if ($row->actual_start_time && $row->preferred_start_time) {
-                $actualSec = strtotime($row->actual_start_time);
-                $prefSec = strtotime($row->preferred_start_time);
-                $diff = abs($actualSec - $prefSec);
+            $randomFacultyId = $allFacultyIds[array_rand($allFacultyIds)];
+            $randomDay = $allDays[array_rand($allDays)];
+            $randomSlot = $allTimeSlots[array_rand($allTimeSlots)];
 
-                // Within 2 hours
-                if ($diff <= 7200) { 
-                    $score += 0.30 * (1 - ($diff / 7200));
-                }
+            $key = "{$randomFacultyId}_{$baseRow->course_id}_{$randomDay}" .
+                   "_{$randomSlot['start']}_{$randomSlot['end']}";
+
+            if (!isset($positiveKeys[$key])) {
+                $negRow = (object) [
+                    'faculty_id' => $randomFacultyId,
+                    'academic_year_id' => $baseRow->academic_year_id,
+                    'semester_id' => $baseRow->semester_id,
+                    'active_semester_id' => $baseRow->active_semester_id,
+                    'course_id' => $baseRow->course_id,
+                    'program_id' => $baseRow->program_id,
+                    'year_level' => $baseRow->year_level,
+                    'day' => $randomDay,
+                    'start_time' => $randomSlot['start'],
+                    'end_time' => $randomSlot['end'],
+                    'year_start' => $baseRow->year_start,
+                    'year_end' => $baseRow->year_end,
+                ];
+
+                $negatives[] = $negRow;
+                $positiveKeys[$key] = true;
             }
         }
 
-        return round($score, 2);
+        return $negatives;
     }
 
     /**
@@ -254,20 +326,20 @@ class ExportMlDataset extends Command
      */
     private function encodeRow($row, $score)
     {
-        $startMin = $this->timeToMinutes($row->preferred_start_time);
-        $endMin = $this->timeToMinutes($row->preferred_end_time);
+        $startMin = $this->timeToMinutes($row->start_time);
+        $endMin = $this->timeToMinutes($row->end_time);
 
         return [
             'faculty_id' => $row->faculty_id,
             'academic_year_id' => $row->academic_year_id,
             'semester_id' => $row->semester_id,
             'active_semester_id' => $row->active_semester_id,
-            'course_assignment_id' => $row->course_assignment_id,
-            'sections_per_program_year_id' => $row->sections_per_program_year_id,
-            'is_ignored' => (int) $row->is_ignored,
-            'preferred_day_encoded' => $this->dayEncoding[$row->preferred_day] ?? -1,
-            'preferred_start_min' => $startMin,
-            'preferred_end_min' => $endMin,
+            'course_id' => $row->course_id,
+            'program_id' => $row->program_id,
+            'year_level' => (int) $row->year_level,
+            'day_encoded' => $this->dayEncoding[$row->day] ?? -1,
+            'start_time_min' => $startMin,
+            'end_time_min' => $endMin,
             'duration_min' => max(0, $endMin - $startMin),
             'match_score' => $score
         ];
@@ -341,7 +413,7 @@ class ExportMlDataset extends Command
             ->all();
 
         $metadata = [
-            'model_version' => '2026-S1',
+            'model_version' => '2026-v2',
             'exported_at' => now()->toIso8601String(),
             'total_rows' => count($rows),
             'average_match_score' => round($avgScore, 4),
@@ -355,63 +427,70 @@ class ExportMlDataset extends Command
     }
 
     /**
-     * Build the raw SQL query to extract preference-schedule matches.
+     * Build the raw SQL query to extract schedule records.
      * 
      * @param string|null $year
      * @param string|null $semester
-     * @return mixed
+     * @return \Illuminate\Support\Collection
      */
     private function buildQuery($year = null, $semester = null)
     {
-        $query = Preference::query()
-            ->from('preferences as p')
-            ->select([
-                'p.faculty_id',
-                'asem.academic_year_id',
-                'asem.semester_id',
-                'p.active_semester_id',
-                'p.course_assignment_id',
-                'p.sections_per_program_year_id',
-                'p.is_ignored',
-                'pd.preferred_day',
-                'pd.preferred_start_time',
-                'pd.preferred_end_time',
-                's.schedule_id',
-                's.day as actual_day',
-                's.start_time as actual_start_time',
-                'ay.year_start',
-                'ay.year_end'
-            ])
+        $query = DB::table('schedules as s')
             ->join(
-                'active_semesters as asem', 
-                'p.active_semester_id', 
-                '=', 
-                'asem.active_semester_id'
+                'section_courses as sc',
+                's.section_course_id',
+                '=',
+                'sc.section_course_id'
             )
             ->join(
-                'academic_years as ay', 
-                'asem.academic_year_id', 
-                '=', 
+                'course_assignments as ca',
+                'sc.course_assignment_id',
+                '=',
+                'ca.course_assignment_id'
+            )
+            ->join(
+                'semesters as sem',
+                'ca.semester_id',
+                '=',
+                'sem.semester_id'
+            )
+            ->join(
+                'sections_per_program_year as spy',
+                'sc.sections_per_program_year_id',
+                '=',
+                'spy.sections_per_program_year_id'
+            )
+            ->join(
+                'active_semesters as asem',
+                'spy.academic_year_id',
+                '=',
+                'asem.academic_year_id'
+            )
+            ->whereColumn('sem.semester', 'asem.semester_id')
+            ->join(
+                'academic_years as ay',
+                'asem.academic_year_id',
+                '=',
                 'ay.academic_year_id'
             )
-            ->join(
-                'preference_days as pd', 
-                'p.preferences_id', 
-                '=', 
-                'pd.preference_id'
-            )
-            ->leftJoin('section_courses as sc', function($join) {
-                $join->on('p.course_assignment_id', '=', 'sc.course_assignment_id')
-                     ->on(
-                        'p.sections_per_program_year_id', 
-                        '=', 
-                        'sc.sections_per_program_year_id'
-                    );
-            })
-            ->leftJoin('schedules as s', function($join) {
-                $join->on('sc.section_course_id', '=', 's.section_course_id')
-                     ->on('s.faculty_id', '=', 'p.faculty_id');
-            });
+            ->whereNotNull('s.faculty_id')
+            ->whereNotNull('s.day')
+            ->whereNotNull('s.start_time')
+            ->whereNotNull('s.end_time')
+            ->select([
+                's.faculty_id',
+                'asem.academic_year_id',
+                'asem.semester_id',
+                'asem.active_semester_id',
+                'ca.course_id',
+                'spy.program_id',
+                'spy.year_level',
+                's.day',
+                's.start_time',
+                's.end_time',
+                'ay.year_start',
+                'ay.year_end',
+            ]);
 
         if ($year && $semester) {
             $query->where('ay.year_start', $year)
