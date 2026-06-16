@@ -1422,15 +1422,33 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return `${daysString}, Any Time`;
     }
 
-    // Default: format each day individually with its time range
-    const sortedDays = filteredDays
-      .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
-      .map(
-        (pd) =>
-          `${pd.day} (${this.formatTime(pd.start_time)} - ${this.formatTime(
-            pd.end_time,
-          )})`,
+    // Default: format each day individually, grouping multiple slots per day
+    const grouped: { [key: string]: typeof filteredDays } = {};
+    filteredDays.forEach((pd) => {
+      if (!grouped[pd.day]) {
+        grouped[pd.day] = [];
+      }
+      grouped[pd.day].push(pd);
+    });
+
+    const sortedDays = Object.keys(grouped)
+      .sort((a, b) =>
+        this.daysOfWeek.indexOf(a) - this.daysOfWeek.indexOf(b)
       )
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pd) =>
+              `${this.formatTime(pd.start_time)} - ${this.formatTime(
+                pd.end_time
+              )}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
+      })
       .join('\n');
 
     return sortedDays || 'Click to select day and time';
