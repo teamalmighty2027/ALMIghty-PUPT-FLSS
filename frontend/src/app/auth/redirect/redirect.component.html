@@ -1,0 +1,38 @@
+<div class="redirect-container">
+
+  <!-- Checking state -->
+  <ng-container *ngIf="state === 'checking'">
+    <app-custom-spinner
+      [size]="75"
+      color="var(--primary-one)"
+      type="cube-grid"
+    ></app-custom-spinner>
+    <p class="redirect-text">Checking your OnePortal session</p>
+  </ng-container>
+
+  <!-- Role selection state -->
+  <ng-container *ngIf="state === 'role-selection'">
+    <div class="role-selection">
+      <h2 class="role-title">Continue as</h2>
+      <div class="role-cards">
+        <button
+          *ngFor="let role of availableRoles"
+          mat-raised-button
+          class="role-card"
+          (click)="selectRole(role)"
+        >
+          <span class="role-label">{{ role | titlecase }}</span>
+        </button>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Error state -->
+  <ng-container *ngIf="state === 'error'">
+    <p class="error-text">{{ errorMessage }}</p>
+    <button mat-stroked-button (click)="goToLogin()">
+      Return to Login
+    </button>
+  </ng-container>
+
+</div>

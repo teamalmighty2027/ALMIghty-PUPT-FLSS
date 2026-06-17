@@ -1670,12 +1670,39 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       return `${daysString}, Any Time`;
     }
 
-    return preferredDays
-      .map((pref) => {
-        const time = `${this.formatTimeTo12Hour(
-          pref.start_time,
-        )} - ${this.formatTimeTo12Hour(pref.end_time)}`;
-        return `${pref.day} (${time})`;
+    const daysOrder = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    const grouped: { [key: string]: any[] } = {};
+    preferredDays.forEach((pref) => {
+      if (!grouped[pref.day]) {
+        grouped[pref.day] = [];
+      }
+      grouped[pref.day].push(pref);
+    });
+
+    return Object.keys(grouped)
+      .sort((a, b) => daysOrder.indexOf(a) - daysOrder.indexOf(b))
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pref) =>
+              `${this.formatTimeTo12Hour(
+                pref.start_time
+              )} - ${this.formatTimeTo12Hour(pref.end_time)}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
       })
       .join('\n');
   }

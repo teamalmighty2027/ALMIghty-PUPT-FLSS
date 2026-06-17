@@ -159,7 +159,17 @@ export class AuthService {
     );
   }
 
-// ==============================
+  /**
+   * Proxy-check existing IDP session via the backend redirect endpoint.
+   */
+  checkOnePortalSession(idpToken: string): Observable<any> {
+    return this.http.get<any>(
+      `${this.baseUrl}/auth/redirect`,
+      { params: { idp_token: idpToken } }
+    );
+  }
+
+  // ==============================
   // Internal FLSS auth methods
   // ==============================
   // Submit FLSS login credentials.

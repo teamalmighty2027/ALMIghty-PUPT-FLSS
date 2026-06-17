@@ -158,25 +158,76 @@
   }
 
   .time-fields-container {
-    @include mixins.flex-layout($direction: column, $gap: var(--spacing-xs));
+    @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
     position: relative;
     width: 100%;
     transform-origin: top;
+    margin-bottom: 0;
+    transition: margin 0.3s ease-in-out;
+
+    &.visible-container {
+      margin-bottom: var(--spacing-md);
+    }
 
     .day-label-wrapper {
       width: 100%;
-      @include mixins.flex-layout($align: flex-start, $justify: flex-start);
+      @include mixins.flex-layout($align: center, $justify: space-between);
 
       .day-label {
         color: var(--primary-text);
         font-size: var(--font-size-sm);
         font-weight: 500;
       }
+
+      .add-slot-btn {
+        font-size: var(--font-size-sm);
+        color: var(--primary-text);
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        padding: 0 var(--spacing-xs);
+        font-weight: 500;
+        @include mixins.default-transition;
+
+        &:hover {
+          opacity: var(--opacity-semi-opaque);
+        }
+      }
+    }
+
+    .slots-list {
+      @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+      width: 100%;
     }
 
     .time-fields-wrapper {
-      @include mixins.flex-layout($gap: var(--spacing-sm));
+      @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
       width: 100%;
+
+      .dialog-field {
+        flex: 1;
+      }
+
+      .remove-slot-btn {
+        color: var(--primary-text);
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        padding: var(--spacing-xs);
+        border-radius: var(--border-radius-xs);
+        @include mixins.flex-layout;
+        @include mixins.default-transition;
+        width: 40px;
+        height: 40px;
+
+        &:hover {
+          background-color: var(--neutral-fade);
+        }
+
+        span[mat-symbol] {
+          font-size: var(--font-size-mdx);
+        }
+      }
     }
   }
 }

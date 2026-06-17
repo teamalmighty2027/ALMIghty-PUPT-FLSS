@@ -767,12 +767,39 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return `${daysString}, Any Time`;
     }
 
-    return course.preferred_days
-      .map((pref) => {
-        const time = `${this.convertTo12HourFormat(
-          pref.start_time,
-        )} - ${this.convertTo12HourFormat(pref.end_time)}`;
-        return `${pref.day} (${time})`;
+    const daysOrder = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    const grouped: { [key: string]: any[] } = {};
+    course.preferred_days.forEach((pref) => {
+      if (!grouped[pref.day]) {
+        grouped[pref.day] = [];
+      }
+      grouped[pref.day].push(pref);
+    });
+
+    return Object.keys(grouped)
+      .sort((a, b) => daysOrder.indexOf(a) - daysOrder.indexOf(b))
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pref) =>
+              `${this.convertTo12HourFormat(
+                pref.start_time
+              )} - ${this.convertTo12HourFormat(pref.end_time)}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
       })
       .join('\n');
   }

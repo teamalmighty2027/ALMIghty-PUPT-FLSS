@@ -22,6 +22,12 @@ class AuditLogger
     ): void {
         $user = Auth::user();
         $request = request();
+        $url = $request?->fullUrl();
+
+        // Safely truncate URL to fit database column limit
+        if ($url && strlen($url) > 255) {
+            $url = substr($url, 0, 255);
+        }
 
         AuditLog::create([
             'user_id'     => $user?->id,
@@ -37,7 +43,7 @@ class AuditLogger
             'metadata'    => $metadata,
             'ip_address'  => $request?->ip(),
             'user_agent'  => $request?->userAgent(),
-            'url'         => $request?->fullUrl(),
+            'url'         => $url,
             'method'      => $request?->method(),
         ]);
     }
