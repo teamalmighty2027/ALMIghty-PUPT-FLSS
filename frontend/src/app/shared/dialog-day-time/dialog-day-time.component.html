@@ -61,37 +61,65 @@
     <div class="time-fields-scroll-container">
       @if (anyDayMode) {
         <!-- Single time pair for all days -->
-        <div class="time-fields-container">
+        <div class="time-fields-container visible-container">
           <div class="day-label-wrapper">
             <span class="day-label">Time for All Days</span>
+            <button
+              mat-button
+              class="add-slot-btn"
+              (click)="addTimeSlot(dayButtons[0])"
+              type="button"
+            >
+              + Add Time Slot
+            </button>
           </div>
-          <div class="time-fields-wrapper">
-            <!-- Start Time Selection -->
-            <mat-form-field appearance="fill" class="dialog-field">
-              <mat-label>Start Time</mat-label>
-              <mat-select
-                [(ngModel)]="dayButtons[0].startTime"
-                (selectionChange)="onStartTimeChange(dayButtons[0]); applyTimeToAllDays()"
-              >
-                @for (time of timeOptions; track time) {
-                <mat-option [value]="time">
-                  {{ time }}
-                </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+          <div class="slots-list">
+            @for (slot of dayButtons[0].timeSlots; track $index) {
+            <div class="time-fields-wrapper">
+              <!-- Start Time Selection -->
+              <mat-form-field appearance="fill" class="dialog-field" subscriptSizing="dynamic">
+                <mat-label>Start Time</mat-label>
+                <mat-select
+                  [(ngModel)]="slot.startTime"
+                  (selectionChange)="onSlotStartTimeChange(slot); applyTimeToAllDays()"
+                >
+                  @for (time of timeOptions; track time) {
+                  <mat-option [value]="time">
+                    {{ time }}
+                  </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <!-- End Time Selection -->
-            <mat-form-field appearance="fill" class="dialog-field">
-              <mat-label>End Time</mat-label>
-              <mat-select [(ngModel)]="dayButtons[0].endTime" [disabled]="!dayButtons[0].startTime" (selectionChange)="applyTimeToAllDays()">
-                @for (time of dayButtons[0].endTimeOptions; track time) {
-                <mat-option [value]="time">
-                  {{ time }}
-                </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <!-- End Time Selection -->
+              <mat-form-field appearance="fill" class="dialog-field" subscriptSizing="dynamic">
+                <mat-label>End Time</mat-label>
+                <mat-select
+                  [(ngModel)]="slot.endTime"
+                  [disabled]="!slot.startTime"
+                  (selectionChange)="applyTimeToAllDays()"
+                >
+                  @for (time of slot.endTimeOptions; track time) {
+                  <mat-option [value]="time">
+                    {{ time }}
+                  </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Remove Slot Button -->
+              @if (dayButtons[0].timeSlots.length > 1) {
+              <button
+                mat-icon-button
+                class="remove-slot-btn"
+                (click)="removeTimeSlot(dayButtons[0], $index); applyTimeToAllDays()"
+                type="button"
+              >
+                <span mat-symbol="delete"></span>
+              </button>
+              }
+            </div>
+            }
           </div>
         </div>
       } @else {
@@ -99,39 +127,69 @@
         @for (day of dayButtons; track day.name) {
         <div
           class="time-fields-container"
+          [class.visible-container]="day.selected"
           [@showHideFieldsAnimation]="day.selected ? 'visible' : 'hidden'"
         >
           <div class="day-label-wrapper">
             <span class="day-label">{{ day.name }}</span>
+            @if (day.selected) {
+            <button
+              mat-button
+              class="add-slot-btn"
+              (click)="addTimeSlot(day)"
+              type="button"
+            >
+              + Add Time Slot
+            </button>
+            }
           </div>
           @if (day.selected) {
-          <div class="time-fields-wrapper">
-            <!-- Start Time Selection -->
-            <mat-form-field appearance="fill" class="dialog-field">
-              <mat-label>Start Time</mat-label>
-              <mat-select
-                [(ngModel)]="day.startTime"
-                (selectionChange)="onStartTimeChange(day)"
-              >
-                @for (time of timeOptions; track time) {
-                <mat-option [value]="time">
-                  {{ time }}
-                </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+          <div class="slots-list">
+            @for (slot of day.timeSlots; track $index) {
+            <div class="time-fields-wrapper">
+              <!-- Start Time Selection -->
+              <mat-form-field appearance="fill" class="dialog-field" subscriptSizing="dynamic">
+                <mat-label>Start Time</mat-label>
+                <mat-select
+                  [(ngModel)]="slot.startTime"
+                  (selectionChange)="onSlotStartTimeChange(slot)"
+                >
+                  @for (time of timeOptions; track time) {
+                  <mat-option [value]="time">
+                    {{ time }}
+                  </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <!-- End Time Selection -->
-            <mat-form-field appearance="fill" class="dialog-field">
-              <mat-label>End Time</mat-label>
-              <mat-select [(ngModel)]="day.endTime" [disabled]="!day.startTime">
-                @for (time of day.endTimeOptions; track time) {
-                <mat-option [value]="time">
-                  {{ time }}
-                </mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <!-- End Time Selection -->
+              <mat-form-field appearance="fill" class="dialog-field" subscriptSizing="dynamic">
+                <mat-label>End Time</mat-label>
+                <mat-select
+                  [(ngModel)]="slot.endTime"
+                  [disabled]="!slot.startTime"
+                >
+                  @for (time of slot.endTimeOptions; track time) {
+                  <mat-option [value]="time">
+                    {{ time }}
+                  </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <!-- Remove Slot Button -->
+              @if (day.timeSlots.length > 1) {
+              <button
+                mat-icon-button
+                class="remove-slot-btn"
+                (click)="removeTimeSlot(day, $index)"
+                type="button"
+              >
+                <span mat-symbol="delete"></span>
+              </button>
+              }
+            </div>
+            }
           </div>
           }
         </div>
