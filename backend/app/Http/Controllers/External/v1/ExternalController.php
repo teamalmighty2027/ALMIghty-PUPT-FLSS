@@ -458,11 +458,39 @@ class ExternalController extends Controller
             ->distinct()
             ->get();
 
-        $assignedUnits = $rows->groupBy('faculty_id')->map(fn($items) => (int) $items->sum('units'))->toArray();
+        $assignedUnits = $rows->groupBy('faculty_id')
+            ->map(fn($items) => (int) $items->sum('units'))
+            ->toArray();
 
-        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem, $assignedUnits) {
-            // Format assigned units as integer, defaulting to 0 if not found
-            $facultyAssignedUnits = (int) ($assignedUnits[$faculty->faculty_id] ?? 0);
+        $profiles = UserProfile::whereIn(
+            'user_id',
+            $faculties->pluck('user_id')
+        )->get()->keyBy('user_id');
+
+        $formattedFaculties = $faculties->map(function ($faculty) use (
+            $clientSystem,
+            $assignedUnits,
+            $profiles
+        ) {
+            $facultyAssignedUnits = (int) (
+                $assignedUnits[$faculty->faculty_id] ?? 0
+            );
+
+            // Get or create user profile for this faculty
+            $profile = $profiles->get($faculty->user_id);
+
+            if (! $profile) {
+                $profile = UserProfile::firstOrCreate([
+                    'user_id' => $faculty->user_id,
+                ]);
+            }
+
+            $department = $profile->department;
+
+            // If department is missing, try to infer and save permanently
+            if (empty($department)) {
+                $department = $this->assignDepartmentFromSchedules($profile);
+            }
 
             $data = [
                 'faculty_id'    => $faculty->faculty_id,
@@ -473,6 +501,7 @@ class ExternalController extends Controller
                 'suffix_name'   => $faculty->suffix_name ?? null,
                 'faculty_code'  => $faculty->faculty_code,
                 'faculty_type'  => $faculty->faculty_type,
+                'department'    => $department,
                 'email'         => $faculty->email,
                 'status'        => $faculty->status,                
                 'assigned_units'=> $facultyAssignedUnits,
