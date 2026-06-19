@@ -323,7 +323,14 @@ class ExternalController extends Controller
             ->values();
 
         return response()->json([
-            'course_schedules' => $groupedSchedules,
+            'semester'         => $this->formatSemesterLabel(
+                $activeSemester->semester
+            ),
+            'academic_year'      => $activeSemester->year_start . 
+                '-' . $activeSemester->year_end,
+            'start_date'        => $activeSemester->start_date,
+            'end_date'          => $activeSemester->end_date,
+            'course_schedules'  => $groupedSchedules,
         ]);
     }
 
@@ -415,6 +422,13 @@ class ExternalController extends Controller
             ->get();
 
         return response()->json([
+            'semester'         => $this->formatSemesterLabel(
+                $activeSemester->semester
+            ),
+            'academic_year'      => $activeSemester->year_start . 
+                '-' . $activeSemester->year_end,
+            'start_date'        => $activeSemester->start_date,
+            'end_date'          => $activeSemester->end_date,
             'courses_files' => $courseFiles,
         ]);
     }
