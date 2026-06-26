@@ -378,6 +378,25 @@
         height: 100%;
         @include mixins.flex-layout;
       }
+
+      .year-level-group {
+        margin-bottom: var(--spacing-md);
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .year-level-header {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--neutral-base);
+        margin: var(--spacing-sm) 0 var(--spacing-xs) 0;
+        padding-bottom: var(--spacing-xxs);
+        border-bottom: 1px solid var(--accent-light);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
     }
 
     .course-card,

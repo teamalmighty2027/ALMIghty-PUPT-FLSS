@@ -213,37 +213,50 @@
             Select {{ selectedProgram()?.program_code }} Courses
           </h3>
           <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="filteredCourses().length">
-              @for (course of filteredCourses(); track course.course_id) {
-              <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
-                matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ getDisplayCode(course) }}</span>
-                    @if (getResolvedElective(course)) {
-                      <span
-                        class="elective-badge"
-                        [matTooltip]="'Original slot: ' +
-                                      course.course_code"
-                      >
-                        {{ course.course_code }}
+            <div [@cardEntranceAnimation]="groupedCourses().length">
+              @for (group of groupedCourses(); track group.yearLevel) {
+              <div class="year-level-group">
+                <h4 class="year-level-header">Year {{ group.yearLevel }}</h4>
+                @for (course of group.courses; track course.course_id) {
+                <div
+                  class="course-card pop"
+                  (click)="addCourseToTable(course)"
+                  matRipple>
+                  <div class="course-info">
+                    <div class="course-meta">
+                      <span class="course-code">
+                        {{ getDisplayCode(course) }}
                       </span>
-                    }
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
+                      @if (getResolvedElective(course)) {
+                        <span
+                          class="elective-badge"
+                          [matTooltip]="'Original slot: ' +
+                                        course.course_code"
+                        >
+                          {{ course.course_code }}
+                        </span>
+                      }
+                      @if (course.is_temporary) {
+                      <span
+                        class="temp-pill"
+                        [matTooltip]="getTemporaryTooltip(course)">
+                        {{ getTemporaryBadgeText(course) }}
+                      </span>
+                      }
+                    </div>
+                    <span class="course-title">
+                      {{ getDisplayTitle(course) }}
                     </span>
-                    }
                   </div>
-                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
+                  <button mat-icon-button class="add-button">
+                    <span
+                      mat-symbol="add"
+                      variant="outlined"
+                      size="20px"
+                    ></span>
+                  </button>
                 </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
+                }
               </div>
               }
             </div>
