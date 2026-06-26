@@ -18,25 +18,33 @@ class CheckPreferencesDeadline extends Command
     {
         $today = Carbon::now('Asia/Manila');
 
-        // Enable preferences IF NOT ALREADY ENABLED and it's past the global start date
+        // Enable preferences if not enabled and past global start date
         PreferencesSetting::query()
             ->where('is_enabled', false)
-            ->whereDate('global_start_date', '<=', $today->copy()->startOfDay())
-            ->whereNotNull('global_start_date') // Add this condition
+            ->whereDate(
+                'global_start_date',
+                '<=',
+                $today->copy()->startOfDay()
+            )
+            ->whereNotNull('global_start_date')
             ->update([
                 'is_enabled' => true,
             ]);
 
-        // Enable preferences IF NOT ALREADY ENABLED and it's past the individual start date
+        // Enable preferences if not enabled and past individual start date
         PreferencesSetting::query()
             ->where('is_enabled', false)
-            ->whereDate('individual_start_date', '<=', $today->copy()->startOfDay())
-            ->whereNotNull('individual_start_date') // Add this condition
+            ->whereDate(
+                'individual_start_date',
+                '<=',
+                $today->copy()->startOfDay()
+            )
+            ->whereNotNull('individual_start_date')
             ->update([
                 'is_enabled' => true,
             ]);
 
-        // Disable preferences and clear the global deadlines
+        // Disable preferences and clear global deadlines if past
         PreferencesSetting::query()
             ->where('is_enabled', true)
             ->whereDate('global_deadline', '<', $today)
@@ -45,7 +53,7 @@ class CheckPreferencesDeadline extends Command
                 'global_deadline' => null,
             ]);
 
-        // Disable preferences and clear individual deadlines
+        // Disable preferences and clear individual deadlines if past
         PreferencesSetting::query()
             ->where('is_enabled', true)
             ->whereDate('individual_deadline', '<', $today)
