@@ -680,6 +680,52 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   });
 
   /**
+   * Groups filtered courses by year level and sorts them alphabetically.
+   */
+  public groupedCourses = computed(() => {
+    const courses = this.filteredCourses();
+    const groupsMap = new Map<number, Course[]>();
+
+    courses.forEach((course) => {
+      const year = course.year_level ?? 0;
+      if (!groupsMap.has(year)) {
+        groupsMap.set(year, []);
+      }
+      groupsMap.get(year)!.push(course);
+    });
+
+    const groups: { yearLevel: number; courses: Course[] }[] = [];
+
+    groupsMap.forEach((groupCourses, yearLevel) => {
+      // Sort alphabetically by course code within the year level group
+      groupCourses.sort((a, b) =>
+        a.course_code.localeCompare(b.course_code)
+      );
+      groups.push({ yearLevel, courses: groupCourses });
+    });
+
+    // Sort groups by year level ascending
+    groups.sort((a, b) => a.yearLevel - b.yearLevel);
+
+    return groups;
+  });
+
+  /**
+   * Returns the formatted ordinal label for a year level.
+   */
+  public getYearLevelLabel(year: number): string {
+    const labels: { [key: number]: string } = {
+      1: '1st Year',
+      2: '2nd Year',
+      3: '3rd Year',
+      4: '4th Year',
+    };
+    return labels[year] || `${year}th Year`;
+  }
+
+
+
+  /**
    * Keeps the search query stream synchronized with the search state.
    * Falls back to 'programSelection' or 'courseList' depending on whether
    * a program is already selected.
