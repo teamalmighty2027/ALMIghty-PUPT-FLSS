@@ -1,24 +1,53 @@
 <div class="dialog-pref-section-container">
-  <h3 class="dialog-title">Select Section</h3>
-  <div class="course-context">
+
+  <!-- Header -->
+  <div class="dialog-header">
+    <div class="header-icon-wrap">
+      <span mat-symbol class="header-icon">group</span>
+    </div>
+    <div class="header-text">
+      <h3 class="dialog-title">Select Section</h3>
+      <p class="dialog-subtitle">Choose a section to assign for this course</p>
+    </div>
+  </div>
+
+  <!-- Course Info Card -->
+  <div class="course-info-card">
     <span class="program-badge">{{ data.programCode }}</span>
-    <span class="course-details">
-      <strong>{{ data.courseCode }}</strong>: {{ data.courseTitle }}
+    <div class="course-details">
+      <span class="course-code">{{ data.courseCode }}</span>
+      <span class="course-title">{{ data.courseTitle }}</span>
+    </div>
+  </div>
+
+  <!-- Section Picker -->
+  <div class="section-picker-area">
+    <span class="section-label">
+      <span mat-symbol class="label-icon">grid_view</span>
+      Available Sections
     </span>
+
+    <mat-button-toggle-group [(ngModel)]="selectedSection" class="section-toggle-group">
+      @for (section of data.sections; track section.section_id) {
+        <mat-button-toggle [value]="section" class="section-card">
+          <span class="section-name">{{ section.section_name }}</span>
+        </mat-button-toggle>
+      }
+    </mat-button-toggle-group>
   </div>
 
-  <span class="section-label">Available Sections</span>
-
-  <mat-button-toggle-group [(ngModel)]="selectedSection">
-    @for (section of data.sections; track section.section_id) {
-      <mat-button-toggle [value]="section">
-        {{ section.section_name }}  
-      </mat-button-toggle>  
-    }
-  </mat-button-toggle-group>
-
+  <!-- Footer Actions -->
   <div class="dialog-actions">
-    <button mat-button (click)="cancel()">Cancel</button>
-    <button mat-flat-button class="confirm-btn" (click)="confirm()" [disabled]="!selectedSection">Add</button>
+    <button mat-button class="cancel-btn" (click)="cancel()">Cancel</button>
+    <button
+      mat-flat-button
+      class="confirm-btn"
+      (click)="confirm()"
+      [disabled]="!selectedSection"
+    >
+      <span mat-symbol class="btn-icon">add</span>
+      Add Section
+    </button>
   </div>
+
 </div>
