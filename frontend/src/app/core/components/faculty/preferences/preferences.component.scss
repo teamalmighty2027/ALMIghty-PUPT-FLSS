@@ -388,14 +388,24 @@
       }
 
       .year-level-header {
-        font-size: var(--font-size-sm);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: var(--font-size-xs);
         font-weight: 600;
         color: var(--neutral-base);
-        margin: var(--spacing-sm) 0 var(--spacing-xs) 0;
-        padding-bottom: var(--spacing-xxs);
-        border-bottom: 1px solid var(--accent-light);
+        margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        background-color: var(--neutral-bar);
+        border-radius: var(--border-radius-xs);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        border-left: 3px solid var(--accent-base);
+
+        span[mat-symbol] {
+          font-size: var(--font-size-md);
+          color: var(--accent-base);
+        }
       }
     }
 
@@ -644,10 +654,13 @@
 }
 
 .year-level-item {
+  white-space: nowrap !important;
+
   .menu-item-content {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
+    white-space: nowrap !important;
 
     .mat-icon {
       margin-right: 0;

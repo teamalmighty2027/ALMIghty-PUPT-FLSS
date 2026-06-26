@@ -710,6 +710,20 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     return groups;
   });
 
+  /**
+   * Returns the formatted ordinal label for a year level.
+   */
+  public getYearLevelLabel(year: number): string {
+    const labels: { [key: number]: string } = {
+      1: '1st Year',
+      2: '2nd Year',
+      3: '3rd Year',
+      4: '4th Year',
+    };
+    return labels[year] || `${year}th Year`;
+  }
+
+
 
   /**
    * Keeps the search query stream synchronized with the search state.
