@@ -308,10 +308,16 @@ class AuthController extends Controller
             $lastName = $userData['last_name'] ?? '';
 
             // Query user by email
-            $user = User::with(['faculty.facultyType'])
-              ->where('email', $email)
+            $user = User::where('email', $email)
               ->whereIn('role', $requestedRole)
               ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found in system.',
+                    'error'   => true
+                ], 401);
+            }
 
             // Persist the IDP user ID on the faculty record only if it has changed
             if ($user && $user->faculty && $id && strlen($id) <= 36) {
@@ -322,13 +328,6 @@ class AuthController extends Controller
 
             // Collect the roles of the user
             $roles = $user ? [$user->role] : [];
-
-            if (!$user) {
-                return response()->json([
-                    'message' => 'User not found in system.',
-                    'error'   => true
-                ], 401);
-            }
 
             if (! in_array($user->role, $requestedRole)) {
                 return response()->json([

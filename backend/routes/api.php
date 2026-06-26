@@ -424,6 +424,9 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
+        // Legacy route (backward compatibility)
+        Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+
         // RESTful faculty schedule routes
         Route::prefix('faculty-schedules')->group(function () {
             Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);

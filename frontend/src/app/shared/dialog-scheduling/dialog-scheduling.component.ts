@@ -155,10 +155,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Elective resolution is now handled automatically by the backend.
-    // The dialog no longer needs to display an elective selector.
-    console.log('Selected course info:', this.data);
-
     this.setupDayButtons();
     this.setupCustomValidators();
     this.populateExistingSchedule();

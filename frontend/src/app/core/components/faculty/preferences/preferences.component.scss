@@ -378,6 +378,35 @@
         height: 100%;
         @include mixins.flex-layout;
       }
+
+      .year-level-group {
+        margin-bottom: var(--spacing-md);
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .year-level-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: var(--neutral-base);
+        margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        background-color: var(--neutral-bar);
+        border-radius: var(--border-radius-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-left: 3px solid var(--accent-base);
+
+        span[mat-symbol] {
+          font-size: var(--font-size-md);
+          color: var(--accent-base);
+        }
+      }
     }
 
     .course-card,
@@ -625,10 +654,13 @@
 }
 
 .year-level-item {
+  white-space: nowrap !important;
+
   .menu-item-content {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
+    white-space: nowrap !important;
 
     .mat-icon {
       margin-right: 0;
