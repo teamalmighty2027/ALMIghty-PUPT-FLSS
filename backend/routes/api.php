@@ -53,10 +53,19 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
  * (Identity ) IDP Routes
  */
 Route::prefix('auth')->group(function () {
-    Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+    // Exchange OAuth code for a login token
+    Route::post('/callback', [AuthController::class, 'handleIdpCallback']);
+
+    // Log out proxy session on IDP
     Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
+
+    // Handle token verify redirect
     Route::get('/redirect', [AuthController::class, 'handleOnePortalRedirect']);
+
+    // Get the login redirect URL containing client ID (securely server-side)
+    Route::get('/idp-login', [AuthController::class, 'getIdpLoginUrl']);
 });
+
 
 
 // Password reset routes — throttled to prevent email flooding/enumeration

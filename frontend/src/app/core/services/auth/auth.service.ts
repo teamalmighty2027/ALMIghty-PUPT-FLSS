@@ -7,7 +7,7 @@ import { map, tap, switchMap, finalize, catchError, shareReplay } from 'rxjs/ope
 import { CookieService } from 'ngx-cookie-service';
 
 import { environment } from '../../../../environments/environment.dev';
-import { environmentOAuth } from '../../../../environments/env.auth';
+
 
 export interface LoginError {
   message: string;
@@ -58,10 +58,11 @@ export class AuthService {
   // IDP auth methods 
   // ==============================
 
-  // Check the IDP health endpoint.
+  // Check the IDP health status via backend proxy.
   checkIdpHealth(): Observable<boolean> {
-    return this.http.get(`${environmentOAuth.idpUrl}/auth/authorize`).pipe(
-      map((response: any) => response.error === 'no client id given'),
+    const url = `${this.baseUrl}/auth/idp-health`;
+    return this.http.get<{ healthy: boolean }>(url).pipe(
+      map((response) => response.healthy),
       catchError((error) => {
         console.error('Error checking IDP health:', error);
         return of(false);
@@ -69,19 +70,26 @@ export class AuthService {
     );
   }
 
-  // Call the IDP's authorization endpoint to initiate login.
+  // Redirect to IDP login using URL retrieved from the backend.
   initiateIdpLogin(intendedRole: string[]): void {
-    const clientId = environmentOAuth.clientId;
     this.cookieService.set(
       'intended_role',
       JSON.stringify(intendedRole),
       undefined,
       '/',
     );
-    window.location.href =
-      `${environmentOAuth.idpUrl}` +
-      `/api/v1/auth/authorize?client_id=${clientId}`;
+
+    const url = `${this.baseUrl}/auth/idp-login`;
+    this.http.get<{ url: string }>(url).subscribe({
+      next: (response) => {
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('Failed to initiate IDP login:', error);
+      },
+    });
   }
+
 
   // Pass the IDP callback parameters to the backend for processing.
   handleIdpCallback(params: any): Observable<any> {
