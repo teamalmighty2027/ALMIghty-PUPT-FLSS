@@ -104,6 +104,7 @@ export interface DialogFieldConfig {
     | 'date';
   options?: string[] | number[] | SelectOption[];
   maxLength?: number;
+  minLength?: number;
   required?: boolean;
   min?: number;
   max?: number;
@@ -496,6 +497,7 @@ export class TableDialogComponent {
 
     if (field.required) validators.push(Validators.required);
     if (field.maxLength) validators.push(Validators.maxLength(field.maxLength));
+    if (field.minLength) validators.push(Validators.minLength(field.minLength));
     if (field.type === 'text') validators.push(this.noWhitespaceValidator);
     if (field.type === 'number')
       validators.push(Validators.pattern(/^\d{1,2}$/));

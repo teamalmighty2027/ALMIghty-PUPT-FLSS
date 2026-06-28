@@ -250,6 +250,7 @@ export class AdminComponent implements OnInit, OnDestroy {
             formControlName: 'password',
             type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
@@ -257,6 +258,7 @@ export class AdminComponent implements OnInit, OnDestroy {
             formControlName: 'confirmPassword',
             type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
             confirmPassword: true,
           },
