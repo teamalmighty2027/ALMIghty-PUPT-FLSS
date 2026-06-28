@@ -43,7 +43,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
@@ -59,9 +59,18 @@ Route::prefix('auth')->group(function () {
 });
 
 
-Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
-Route::post('/password/reset', [PasswordResetController::class, 'reset']);
-Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+// Password reset routes — throttled to prevent email flooding/enumeration
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/password/email', [
+        PasswordResetController::class, 'sendResetLinkEmail'
+    ]);
+    Route::post('/password/reset', [
+        PasswordResetController::class, 'reset'
+    ]);
+    Route::post('/password/verify-token', [
+        PasswordResetController::class, 'verifyToken'
+    ]);
+});
 
 // Fallback route for Philippine Addresses (Publicly accessible)
 Route::get('/addresses/fallback/{file}', function ($file) {
@@ -77,7 +86,8 @@ Route::get('/addresses/fallback/{file}', function ($file) {
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
+    ->group(function () {
     Route::get('/showAccounts', [AccountController::class, 'index']);
     Route::post('/addAccount', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
@@ -122,7 +132,7 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 | General Protected Routes
 |--------------------------
  */
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /**
      * Academic Year

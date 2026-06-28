@@ -2,6 +2,14 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Pass /api/* requests through to Laravel's index.php router.
+  RewriteRule ^api(/.*)?$ index.php [L]
+
+  # Pass /storage/* requests through to Laravel (file serving)
+  RewriteRule ^storage(/.*)?$ index.php [L]
+
+  # Angular SPA fallback: serve index.html for all other routes
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
