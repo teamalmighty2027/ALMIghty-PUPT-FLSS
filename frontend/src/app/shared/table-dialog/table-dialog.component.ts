@@ -163,6 +163,7 @@ export class TableDialogComponent {
   customExportOptions: { all: string; current: string } | null = null;
   filteredOptions: { [key: string]: (string | number | SelectOption)[] } = {};
   initialFormValues: any;
+  showPassword: { [key: string]: boolean } = {};
 
   @Output() startTimeChange = new EventEmitter<string>();
 

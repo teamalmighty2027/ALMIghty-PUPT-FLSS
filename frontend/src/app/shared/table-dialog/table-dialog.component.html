@@ -199,6 +199,7 @@
                 <mat-form-field class="form-field" appearance="fill">
                   <mat-label>{{ field.label }}</mat-label>
 
+                  <ng-container [ngSwitch]="field.type">
                   @switch (field.type) {
                     @case ("text") {
                       <input
@@ -210,16 +211,45 @@
                     @case ("password") {
                       <input
                         matInput
-                        type="password"
+                        [type]="
+                          showPassword[field.formControlName] === false
+                            ? 'text'
+                            : 'password'
+                        "
                         [formControlName]="field.formControlName"
+                        class="password-input"
                       />
-                      <button
-                        type="button"
-                        mat-icon-button
-                        (click)="form.get(field.formControlName)?.setValue(generatePassword())"
-                      >
-                        <mat-icon>autorenew</mat-icon>
-                      </button>
+                      <div class="password-buttons-suffix">
+                        <button
+                          type="button"
+                          class="password-action-btn"
+                          (click)="
+                            showPassword[field.formControlName] =
+                              !showPassword[field.formControlName]
+                          "
+                          [attr.aria-label]="'Toggle password visibility'"
+                        >
+                          <mat-icon>
+                            {{
+                              showPassword[field.formControlName] === false
+                                ? "visibility"
+                                : "visibility_off"
+                            }}
+                          </mat-icon>
+                        </button>
+                        <button
+                          type="button"
+                          class="password-action-btn"
+                          (click)="
+                            form
+                              .get(field.formControlName)
+                              ?.setValue(generatePassword())
+                          "
+                          [attr.aria-label]="'Generate password'"
+                        >
+                          <mat-icon>autorenew</mat-icon>
+                        </button>
+                      </div>
                     }
                     @case ("number") {
                       <input
@@ -286,6 +316,8 @@
                       </mat-autocomplete>
                     }
                   }
+                  </ng-container>
+
                   <mat-error>{{
                     getErrorMessage(field.formControlName, field.label)
                   }}</mat-error>
