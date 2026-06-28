@@ -676,4 +676,20 @@ export class TableDialogComponent {
     if (j == 3 && k != 13) return 'rd';
     return 'th';
   }
+
+  /** 
+   * Helper method to generate a random password 
+   * @param length The desired length of the password (default is 12)
+  */
+  public generatePassword(length: number = 12): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' +
+        '0123456789';
+    let password = '';
+
+    for (let i = 0; i < length; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    return password;
+  }
 }

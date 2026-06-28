@@ -248,14 +248,14 @@ export class AdminComponent implements OnInit, OnDestroy {
           {
             label: 'Password',
             formControlName: 'password',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
           },
           {
             label: 'Confirm Password',
             formControlName: 'confirmPassword',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
             required: true,
             confirmPassword: true,

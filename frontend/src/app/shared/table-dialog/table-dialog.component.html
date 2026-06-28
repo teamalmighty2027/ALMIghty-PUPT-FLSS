@@ -213,6 +213,13 @@
                         type="password"
                         [formControlName]="field.formControlName"
                       />
+                      <button
+                        type="button"
+                        mat-icon-button
+                        (click)="form.get(field.formControlName)?.setValue(generatePassword())"
+                      >
+                        <mat-icon>autorenew</mat-icon>
+                      </button>
                     }
                     @case ("number") {
                       <input
