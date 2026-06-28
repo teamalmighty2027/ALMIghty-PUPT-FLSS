@@ -6,6 +6,11 @@
   // max-width: none; // Remove max-width constraint
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 :host {
   @include mixins.custom-spinner(var(--primary-text));
 }
