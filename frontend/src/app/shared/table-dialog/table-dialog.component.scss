@@ -129,6 +129,11 @@ input[type="password"]::-ms-clear {
 .password-input {
   width: calc(100% - 64px) !important;
   display: inline-block !important;
+
+  &::-ms-reveal,
+  &::-ms-clear {
+    display: none !important;
+  }
 }
 
 .password-buttons-suffix {
