@@ -2,17 +2,10 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-
-  # Pass /api/* requests through to Laravel's index.php router.
-  RewriteRule ^api(/.*)?$ index.php [L]
-
-  # Pass /storage/* requests through to Laravel (file serving)
-  RewriteRule ^storage(/.*)?$ index.php [L]
-
-  # Angular SPA fallback: serve index.html for all other routes
+  RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
+  RewriteRule ^ index.html [L]
 </IfModule>
 
 # Cache Control Headers
@@ -51,6 +44,16 @@
   Header set X-XSS-Protection "1; mode=block"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  
+  # CORS Headers
+  # Dynamically set Access-Control-Allow-Origin based on incoming Origin request header.
+  # This supports both the test site and the main production site without hardcoding.
+  SetEnvIf Origin "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" AccessControlAllowOrigin=$0
+  Header set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
+  Header set Access-Control-Allow-Credentials "true"
+  Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
+
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
@@ -89,4 +92,13 @@
   AddType text/css css
   AddType image/svg+xml svg
   AddType image/webp webp
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Force the browser to NEVER cache the index.html file
+    <FilesMatch "^index\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires 0
+    </FilesMatch>
 </IfModule>
