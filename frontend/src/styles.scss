@@ -525,6 +525,12 @@ html body div.asw-container div.asw-widget a.asw-menu-btn {
     z-index: 9999 !important;
 }
 
+@media screen and (max-width: 512px) {
+  html body div.asw-container div.asw-widget a.asw-menu-btn {
+    bottom: 5.5rem !important;
+  }
+}
+
 /* Ensure the icon is white, but IGNORE the invisible square bounding box */
 html body div.asw-container div.asw-widget a.asw-menu-btn svg path:not([fill="none"]) {
     fill: #ffffff !important;
