@@ -20,6 +20,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\PreferenceSubmittedNotification;
 
 class PreferenceController extends Controller
 {
@@ -152,6 +154,35 @@ class PreferenceController extends Controller
             $preferenceRecord = $preference;
 
             DB::commit();
+
+            // ═══════════════════════════════════════════════════════
+            // NOTIFY ADMIN: Preference Submitted/Updated (Optimized)
+            // ═══════════════════════════════════════════════════════
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
+
+            $faculty = Faculty::find($facultyId);
+
+            foreach ($admins as $admin) {
+                // 1. Check if the admin already has an UNREAD notification for this specific faculty
+                $existingNotification = $admin->unreadNotifications()
+                    ->where('type', \App\Notifications\PreferenceSubmittedNotification::class)
+                    ->where('data->faculty_id', $facultyId)
+                    ->first();
+
+                if (!$existingNotification) {
+                    // 2. Only notify if there isn't an unread one already
+                    $admin->notify(new \App\Notifications\PreferenceSubmittedNotification($faculty));
+                    
+                    // Note: If you truly want emails sent for this, dispatch the job here.
+                    // However, to keep the UI fast (under 1 second), it's highly recommended 
+                    // to only rely on the Bell Notification for course-by-course additions.
+                } else {
+                    // 3. Prevent spam: Just update the timestamp to bump it to the top of the dropdown
+                    $existingNotification->update(['created_at' => now()]);
+                }
+            }
 
             // ═══════════════════════════════════════════════════════
             // AUDIT LOG: Preference Submitted/Updated

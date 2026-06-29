@@ -168,6 +168,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/admins', [AccountController::class, 'storeAdmin']);
     Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
     Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
+    
+    Route::get('/admin/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'index']);
+    Route::post('/admin/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead']);
+    Route::post('/admin/notifications/read-all', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead']);
+    Route::delete('/admin/notifications/clear-all', [\App\Http\Controllers\AdminNotificationController::class, 'clearAll']);
 
     /**
      * Buildings

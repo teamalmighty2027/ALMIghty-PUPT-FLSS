@@ -586,3 +586,38 @@
     }
   }
 }
+
+// ============================================================
+// NOTIFICATION STYLES
+// ============================================================
+
+.mobile-notification-container {
+  @include mixins.flex-layout;
+  margin-left: auto; // Pushes it to the right on mobile
+
+  button {
+    color: var(--primary-text);
+  }
+}
+
+::ng-deep .admin-notification-menu {
+  width: 350px;
+  max-width: 95vw;
+  border-radius: var(--border-radius-lg) !important;
+  background-color: var(--main-bg);
+
+  .notif-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--neutral-option);
+    cursor: default;
+    color: var(--primary-text);
+  }
+
+  .unread-notif {
+    // A faint PUP Red background to indicate unread status
+    background-color: rgba(128, 0, 0, 0.04); 
+  }
+}

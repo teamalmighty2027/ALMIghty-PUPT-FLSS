@@ -1087,6 +1087,10 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
               ),
             );
 
+            this.showSnackBar(
+              `Your schedule for ${element.course_code} has been automatically submitted to the admin.`
+            );
+
             // If no more unsaved rows remain, clear any saved draft
             if (!this.hasUnsavedPreferences()) {
               const key = this.getDraftKey();

@@ -324,6 +324,14 @@
 
       <!-- Preferences Table -->
       <div id="table_container" #tableContainer [@fadeAnimation]>
+        @if (isPreferencesEnabled()) {
+          <div class="pref-loaded-note-banner auto-save-banner" [@fadeAnimation]>
+            <mat-icon class="info-icon">info</mat-icon>
+            <div class="note-content">
+              <strong>Note:</strong> Once you assign a day and time to a course, your preference is <strong>automatically saved and submitted</strong> to the administrator.
+            </div>
+          </div>
+        }
         <table
           mat-table
           [dataSource]="dataSource()"
