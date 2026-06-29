@@ -52,7 +52,6 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Input() tableHeadingButtonIcon: string = '';
   @Input() tableName: string = '';
 
-  // --- NEW PAGINATION INPUTS ---
   @Input() totalItems: number = 0;
   @Input() pageSize: number = 25;
   @Input() isServerSidePagination: boolean = false;
@@ -63,8 +62,7 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Output() view = new EventEmitter<T>();
   @Output() tableHeadingButtonClick = new EventEmitter<void>();
   @Output() customAction = new EventEmitter<{ action: string; row: T }>();
-  
-  // --- NEW PAGINATION OUTPUT ---
+
   @Output() pageChange = new EventEmitter<any>();
 
   private _data: T[] = [];
@@ -123,7 +121,6 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
     this.customAction.emit({ action, row: item });
   }
 
-  // --- NEW PAGINATION HANDLER ---
   onPageChange(event: any) {
     this.pageChange.emit(event);
   }
