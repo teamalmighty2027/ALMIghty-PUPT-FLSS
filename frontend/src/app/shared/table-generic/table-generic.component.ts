@@ -12,7 +12,7 @@ import { DialogGenericComponent } from '../dialog-generic/dialog-generic.compone
 
 @Component({
   selector: 'app-table-generic',
-  standalone: true, // Ensure standalone is true if using imports array
+  standalone: true,
   imports: [
     CommonModule,
     MatTableModule,
@@ -52,11 +52,20 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Input() tableHeadingButtonIcon: string = '';
   @Input() tableName: string = '';
 
+  // --- NEW PAGINATION INPUTS ---
+  @Input() totalItems: number = 0;
+  @Input() pageSize: number = 25;
+  @Input() isServerSidePagination: boolean = false;
+  @Input() pageIndex: number = 0;
+
   @Output() edit = new EventEmitter<T>();
   @Output() delete = new EventEmitter<T>();
   @Output() view = new EventEmitter<T>();
   @Output() tableHeadingButtonClick = new EventEmitter<void>();
   @Output() customAction = new EventEmitter<{ action: string; row: T }>();
+  
+  // --- NEW PAGINATION OUTPUT ---
+  @Output() pageChange = new EventEmitter<any>();
 
   private _data: T[] = [];
   public dataSource = new MatTableDataSource<T>([]);
@@ -74,15 +83,18 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // FIX: Using setTimeout to wait for the view to fully initialize
-    setTimeout(() => {
-      if (this.paginator) {
+  setTimeout(() => {
+    if (this.paginator) {
+      // ONLY attach the paginator to the data source if we are doing client-side pagination.
+      // If it's server-side, we leave them detached so our custom [length] binding isn't overwritten.
+      if (!this.isServerSidePagination) {
         this.dataSource.paginator = this.paginator;
-      } else {
-        console.error('Paginator is not defined');
       }
-    });
-  }
+    } else {
+      console.error('Paginator is not defined');
+    }
+  });
+}
 
   getIndex(index: number): number {
     if (this.paginator) {
@@ -109,6 +121,11 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
 
   onCustomAction(action: string, item: T) {
     this.customAction.emit({ action, row: item });
+  }
+
+  // --- NEW PAGINATION HANDLER ---
+  onPageChange(event: any) {
+    this.pageChange.emit(event);
   }
 
   onDelete(item: T) {
