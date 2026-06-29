@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SwUpdate } from '@angular/service-worker';
@@ -34,6 +34,16 @@ export class AppComponent implements OnInit {
       outlet?.activatedRouteData?.['animation'] ||
       'default';
     return parentPath;
+  }
+
+  // Trigger update checks when tab becomes active (focused)
+  @HostListener('document:visibilitychange', [])
+  onVisibilityChange() {
+    if (this.swUpdate.isEnabled && document.visibilityState === 'visible') {
+      this.swUpdate.checkForUpdate().catch((err) => {
+        console.error('Error checking for updates:', err);
+      });
+    }
   }
 
   private checkForUpdates() {
