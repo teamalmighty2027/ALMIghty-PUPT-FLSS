@@ -70,10 +70,28 @@
       }
 
       &.mobile {
-        @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
+        @include mixins.flex-layout(
+          $align: center,
+          $gap: var(--spacing-sm)
+        );
 
         & .total {
           flex: 1;
+          @include mixins.flex-layout(
+            $direction: row,
+            $align: center,
+            $justify: center,
+            $gap: var(--spacing-xs)
+          );
+          padding: var(--spacing-xs) var(--spacing-sm);
+
+          h2 {
+            font-size: var(--font-size-mdx);
+          }
+
+          span {
+            font-size: var(--font-size-xs);
+          }
         }
       }
     }
@@ -136,6 +154,10 @@
 
   // Standalone tutorial card — ~half height of adjacent cards
   .tutorial-card {
+    &.mobile-only {
+      display: none !important;
+    }
+
     @include mixins.flex-layout(
       $direction: row,
       $align: center,
@@ -260,6 +282,33 @@
         flex: 1;
         min-width: 250px;
 
+        ::ng-deep {
+          /* Keep default top padding so floating label sits correctly */
+          .mat-mdc-text-field-wrapper {
+            border-radius: var(--border-radius-md) !important;
+
+            .mat-mdc-form-field-flex {
+              height: 3.5rem;
+              align-items: center;
+            }
+          }
+
+          .mat-mdc-form-field-infix {
+            padding-top: 1.2rem !important;
+            padding-bottom: 0.3rem !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+
+          .mdc-floating-label {
+            top: 1.5rem !important;
+
+            &.mdc-floating-label--float-above {
+              top: 0.8rem !important;
+            }
+          }
+        }
+
         input::placeholder {
           color: var(--neutral-button-lighter);
         }
@@ -284,42 +333,46 @@
         }
       }
 
-      .import-history-btn {
-        height: 3.5rem;
-        padding: 0 var(--spacing-md);
-        border-radius: var(--border-radius-md);
-        border: 1.5px solid var(--primary-one);
-        color: white;
-        background-color: var(--primary-one);
-        font-weight: 600;
-        @include mixins.flex-layout($gap: var(--spacing-xs));
-        @include mixins.default-transition;
-        box-shadow: var(--shadow-sm);
+      .courses-search-buttons {
+        width: 100%;
+        @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
+        flex-wrap: wrap;
 
-        ::ng-deep .mdc-button__label {
+        .tutorial-card.mobile-only {
+          display: none !important;
+        }
+
+        .import-history-btn {
+          height: 3.5rem;
+          padding: 0 var(--spacing-md);
+          border-radius: var(--border-radius-md);
+          border: 1.5px solid var(--primary-one);
+          color: white;
+          background-color: var(--primary-one);
+          font-weight: 600;
           @include mixins.flex-layout($gap: var(--spacing-xs));
-        }
-
-        span[mat-symbol] {
-          font-size: var(--font-size-lg);
-        }
-
-        &:hover {
-          background-color: var(--primary-one-hover);
-          border-color: var(--primary-one-hover);
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-        }
-
-        &:active {
-          transform: translateY(0);
+          @include mixins.default-transition;
           box-shadow: var(--shadow-sm);
-        }
 
-        @media screen and (max-width: bp.$breakpoint-sm) {
-          width: 100%;
-          justify-content: center;
-          margin-top: var(--spacing-xs);
+          ::ng-deep .mdc-button__label {
+            @include mixins.flex-layout($gap: var(--spacing-xs));
+          }
+
+          span[mat-symbol] {
+            font-size: var(--font-size-lg);
+          }
+
+          &:hover {
+            background-color: var(--primary-one-hover);
+            border-color: var(--primary-one-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+          }
+
+          &:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
+          }
         }
       }
     }
@@ -692,50 +745,181 @@
   }
 }
 
-/* Media Query */
+/* ─── Mobile overhaul: viewport-fit layout (≤ breakpoint-md) ─────────────── */
 @media screen and (max-width: bp.$breakpoint-md) {
-  #courses_container {
-    max-height: 25rem;
+
+  // Show tutorial card in header on mobile too
+  .pref-header-actions .tutorial-card.desktop-only {
+    display: flex !important;
   }
 
+  // Host fills the viewport — no page scroll
+  :host {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .faculty-preferences-container {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  // Content wrapper becomes a fixed-height flex column
+  .preferences-content-wrapper {
+    height: 100%;
+    overflow: hidden;
+    gap: var(--spacing-xs) !important;
+    padding-bottom: 0;
+  }
+
+  // ── Row one: compact header strip ──────────────────────────────────────────
   .preferences-row-one {
+    flex-shrink: 0;
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
 
-    #total_container {
-      .total {
-        flex: 1;
-      }
+    // Title text shrinks
+    #preferences_title {
+      h1 { font-size: var(--font-size-xl) !important; }
+      .pref-description { font-size: var(--font-size-sm); }
     }
+
+    // Totals row stays compact (already handled by .mobile class)
+    #total_container .total { flex: 1; }
   }
 
+  // ── Row two: fills remaining space, internal scroll per panel ──────────────
   .preferences-row-two {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
 
-    height: auto;
-
+    // Courses/programs picker — fixed slice
     #courses_container {
+      flex: 0 0 auto;
+      height: 16rem !important;
+      min-height: 16rem !important;
+      max-height: 18rem !important;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      // Search bar row
+      #courses_search {
+        flex-shrink: 0;
+        gap: var(--spacing-xs) !important;
+        row-gap: var(--spacing-xs) !important;
+        margin-bottom: var(--spacing-xs) !important;
+
+        // Search input fills remaining width
+        .custom-mat-search {
+          min-width: 0 !important;
+
+          ::ng-deep {
+            .mat-mdc-form-field-flex {
+              height: 3rem !important;
+            }
+
+            .mat-mdc-form-field-infix {
+              padding-top: 1rem !important;
+              padding-bottom: 0.2rem !important;
+            }
+
+            .mdc-floating-label {
+              top: 1.3rem !important;
+
+              &.mdc-floating-label--float-above {
+                top: 0.75rem !important;
+              }
+            }
+          }
+        }
+
+        // Button pair below the search input
+        .courses-search-buttons {
+          width: 100%;
+          display: flex;
+          flex-direction: row;
+          gap: var(--spacing-xs);
+
+          // Hide mobile-only button on medium screens; shown on sm below
+          .tutorial-card.mobile-only {
+            display: none !important;
+          }
+
+          // Import button full-width on md
+          .import-history-btn {
+            width: 100% !important;
+            height: 2.4rem !important;
+            padding: 0 var(--spacing-sm) !important;
+            font-size: var(--font-size-sm) !important;
+            justify-content: center;
+
+            span[mat-symbol] {
+              font-size: var(--font-size-md) !important;
+            }
+          }
+        }
+      }
+
+      // Card list scrolls internally
       .courses-scroll-container,
       .programs-scroll-container {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
         padding-right: var(--spacing-xs);
+      }
+    }
+
+    // Preferences table — fills remaining height, scrolls both axes
+    #table_container {
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+
+      .table-main {
+        table-layout: auto !important;
+        min-width: 520px;
       }
     }
   }
 }
 
+/* ─── Extra-small mobile (≤ breakpoint-sm) ───────────────────────────────── */
 @media screen and (max-width: bp.$breakpoint-sm) {
-  .preferences-row-two {
-    padding-bottom: var(--spacing-5xxl);
+
+  // Title even more compact
+  .preferences-row-one {
+    #preferences_title {
+      h1 { font-size: var(--font-size-lg) !important; }
+    }
+  }
+
+  // Full-width buttons on mobile
+  .courses-search-buttons {
+    .import-history-btn {
+      width: 100% !important;
+    }
   }
 
   .preferences-closed .button-options {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+  }
+
+  /* Hide less critical columns to save horizontal space */
+  .mat-column-lec_hours,
+  .mat-column-lab_hours,
+  .mat-column-program {
+    display: none !important;
   }
 }

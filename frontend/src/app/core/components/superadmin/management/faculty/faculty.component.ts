@@ -466,6 +466,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             formControlName: 'password',
             type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
@@ -474,6 +475,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             type: 'password',
             maxLength: 100,
             required: true,
+            minLength: 12,
             confirmPassword: true,
           },
         ]

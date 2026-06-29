@@ -655,5 +655,26 @@ class AuthController extends Controller
             ]);
         }
     }
-}
 
+    /**
+     * Generates and returns the IDP authorization redirect URL.
+     */
+    public function getIdpLoginUrl()
+    {
+        $baseUrl = config('services.idp.base_url');
+        $clientId = config('services.idp.client_id');
+
+        if (!$baseUrl || !$clientId) {
+            Log::error('IDP configuration missing for generating authorization URL');
+            return response()->json([
+                'message' => 'Authentication configuration error.',
+            ], 500);
+        }
+
+        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id=' . $clientId;
+
+        return response()->json([
+            'url' => $url,
+        ]);
+    }
+}
