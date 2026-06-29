@@ -278,6 +278,32 @@
         flex: 1;
         min-width: 250px;
 
+        ::ng-deep {
+          /* Hide floating label to prevent overlapping text */
+          .mdc-floating-label,
+          .mat-mdc-floating-label {
+            display: none !important;
+          }
+
+          /* Center input text and placeholder vertically */
+          .mat-mdc-form-field-infix {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            min-height: auto;
+            display: flex;
+            align-items: center;
+          }
+
+          .mat-mdc-text-field-wrapper {
+            border-radius: var(--border-radius-md) !important;
+
+            .mat-mdc-form-field-flex {
+              height: 3.5rem;
+              align-items: center;
+            }
+          }
+        }
+
         input::placeholder {
           color: var(--neutral-button-lighter);
         }
@@ -717,6 +743,10 @@
 
 /* Media Query */
 @media screen and (max-width: bp.$breakpoint-md) {
+  .preferences-content-wrapper {
+    gap: var(--spacing-xs) !important;
+  }
+
   #courses_container {
     height: 28rem !important;
     max-height: 28rem;
@@ -739,8 +769,21 @@
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
+
+    #preferences_title {
+      height: auto !important;
+    }
+
+    .pref-header-actions {
+      width: 100% !important;
+      justify-content: center !important;
+
+      .tutorial-card {
+        width: 100% !important;
+      }
+    }
 
     #total_container {
       .total {
@@ -753,7 +796,7 @@
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
 
     height: auto;
@@ -764,11 +807,25 @@
       .programs-scroll-container {
         padding-right: var(--spacing-xs);
       }
+
+      #courses_search {
+        gap: var(--spacing-xs) !important;
+        row-gap: var(--spacing-xs) !important;
+        margin-bottom: var(--spacing-xs) !important;
+      }
     }
   }
 }
 
 @media screen and (max-width: bp.$breakpoint-sm) {
+  #courses_container {
+    height: 20rem !important;
+    max-height: 20rem !important;
+  }
+
+  .preferences-row-two {
+    padding-bottom: var(--spacing-5xxl);
+  }
 
   .preferences-closed .button-options {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
