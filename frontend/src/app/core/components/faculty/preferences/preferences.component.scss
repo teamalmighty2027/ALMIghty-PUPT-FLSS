@@ -283,27 +283,28 @@
         min-width: 250px;
 
         ::ng-deep {
-          /* Hide floating label to prevent overlapping text */
-          .mdc-floating-label,
-          .mat-mdc-floating-label {
-            display: none !important;
-          }
-
-          /* Center input text and placeholder vertically */
-          .mat-mdc-form-field-infix {
-            padding-top: 0 !important;
-            padding-bottom: 0 !important;
-            min-height: auto;
-            display: flex;
-            align-items: center;
-          }
-
+          /* Keep default top padding so floating label sits correctly */
           .mat-mdc-text-field-wrapper {
             border-radius: var(--border-radius-md) !important;
 
             .mat-mdc-form-field-flex {
               height: 3.5rem;
               align-items: center;
+            }
+          }
+
+          .mat-mdc-form-field-infix {
+            padding-top: 1.2rem !important;
+            padding-bottom: 0.3rem !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+
+          .mdc-floating-label {
+            top: 1.5rem !important;
+
+            &.mdc-floating-label--float-above {
+              top: 0.8rem !important;
             }
           }
         }
@@ -747,9 +748,9 @@
 /* ─── Mobile overhaul: viewport-fit layout (≤ breakpoint-md) ─────────────── */
 @media screen and (max-width: bp.$breakpoint-md) {
 
-  // Hide desktop-only tutorial card in the header
+  // Show tutorial card in header on mobile too
   .pref-header-actions .tutorial-card.desktop-only {
-    display: none !important;
+    display: flex !important;
   }
 
   // Host fills the viewport — no page scroll
@@ -804,8 +805,8 @@
     // Courses/programs picker — fixed slice
     #courses_container {
       flex: 0 0 auto;
-      height: 14rem !important;
-      min-height: 14rem !important;
+      height: 16rem !important;
+      min-height: 16rem !important;
       max-height: 18rem !important;
       overflow: hidden;
       display: flex;
@@ -822,8 +823,23 @@
         .custom-mat-search {
           min-width: 0 !important;
 
-          ::ng-deep .mat-mdc-form-field-flex {
-            height: 2.6rem !important;
+          ::ng-deep {
+            .mat-mdc-form-field-flex {
+              height: 3rem !important;
+            }
+
+            .mat-mdc-form-field-infix {
+              padding-top: 1rem !important;
+              padding-bottom: 0.2rem !important;
+            }
+
+            .mdc-floating-label {
+              top: 1.3rem !important;
+
+              &.mdc-floating-label--float-above {
+                top: 0.75rem !important;
+              }
+            }
           }
         }
 
@@ -889,28 +905,10 @@
     }
   }
 
-  // Show mobile-only User Guide button, side-by-side with Import
+  // Full-width buttons on mobile
   .courses-search-buttons {
-    .tutorial-card.mobile-only {
-      display: flex !important;
-      flex: 1;
-      height: 2.4rem;
-      padding: 0 var(--spacing-xs);
-      align-items: center;
-      gap: var(--spacing-xs);
-
-      .tutorial-card-icon { font-size: var(--font-size-md); margin: 0; }
-
-      .tutorial-card-text .tutorial-card-title {
-        font-size: var(--font-size-xs);
-        font-weight: 700;
-        white-space: nowrap;
-      }
-    }
-
     .import-history-btn {
-      flex: 1 !important;
-      width: auto !important;
+      width: 100% !important;
     }
   }
 
