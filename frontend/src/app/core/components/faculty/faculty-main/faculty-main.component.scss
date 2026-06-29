@@ -519,16 +519,17 @@
   }
 }
 
-@media screen and (max-width: bp.$breakpoint-md) {
-  .faculty-main-content {
-    overflow-y: auto;
-  }
-}
+// overflow-y: auto removed — preferences uses viewport-fit layout on mobile
+
 
 @media screen and (max-width: bp.$breakpoint-sm) {
   .faculty-main-container {
+    // Compact side padding; bottom accounts for fixed mobile navbar (~4.5rem)
     padding: var(--spacing-md);
     padding-bottom: 5rem;
+    height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .desktop-header {
