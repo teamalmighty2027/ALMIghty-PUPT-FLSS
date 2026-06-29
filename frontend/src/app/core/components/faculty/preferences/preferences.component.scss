@@ -335,9 +335,14 @@
         }
 
         @media screen and (max-width: bp.$breakpoint-sm) {
-          width: 100%;
-          justify-content: center;
-          margin-top: var(--spacing-xs);
+          width: fit-content !important;
+          height: 2.8rem;
+          padding: 0 var(--spacing-sm);
+          font-size: var(--font-size-sm);
+
+          span[mat-symbol] {
+            font-size: var(--font-size-md);
+          }
         }
       }
     }
@@ -712,6 +717,24 @@
 
 /* Media Query */
 @media screen and (max-width: bp.$breakpoint-md) {
+  #courses_container {
+    height: 28rem !important;
+    max-height: 28rem;
+    flex: none !important;
+  }
+
+  #table_container {
+    height: auto !important;
+    flex: none !important;
+    min-height: 15rem;
+    overflow-x: auto !important;
+
+    .table-main {
+      table-layout: auto !important;
+      min-width: 650px;
+    }
+  }
+
   .preferences-row-one {
     @include mixins.flex-layout(
       $direction: column,
@@ -733,41 +756,19 @@
       $gap: var(--spacing-lg)
     );
 
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
+    height: auto;
+    overflow: visible !important;
 
     #courses_container {
-      flex: 1.2 !important;
-      min-height: 0 !important;
-      height: auto !important;
-      max-height: none !important;
-
       .courses-scroll-container,
       .programs-scroll-container {
         padding-right: var(--spacing-xs);
-      }
-    }
-
-    #table_container {
-      flex: 1.5 !important;
-      min-height: 0 !important;
-      height: auto !important;
-      max-height: none !important;
-      overflow-x: auto !important;
-
-      .table-main {
-        table-layout: auto !important;
-        min-width: 650px;
       }
     }
   }
 }
 
 @media screen and (max-width: bp.$breakpoint-sm) {
-  .preferences-row-two {
-    padding-bottom: var(--spacing-5xxl);
-  }
 
   .preferences-closed .button-options {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
