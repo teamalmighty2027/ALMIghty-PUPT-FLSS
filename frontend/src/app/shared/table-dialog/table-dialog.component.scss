@@ -126,9 +126,15 @@ input[type="password"]::-ms-clear {
   }
 }
 
+.password-field-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .password-input {
-  width: calc(100% - 64px) !important;
-  display: inline-block !important;
+  flex: 1;
+  min-width: 0;
 
   &::-ms-reveal,
   &::-ms-clear {
@@ -140,7 +146,8 @@ input[type="password"]::-ms-clear {
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-xxs, 4px);
-  vertical-align: middle;
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .password-action-btn {

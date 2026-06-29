@@ -698,6 +698,21 @@ export class TableDialogComponent {
     return 'th';
   }
 
+  // Generate password and set values for password and confirmPassword controls
+  public onGeneratePassword(formControlName: string): void {
+    const pwd = this.generatePassword();
+
+    this.form.get(formControlName)?.setValue(pwd);
+
+    if (formControlName === 'password') {
+      const confirmCtrl = this.form.get('confirmPassword');
+
+      if (confirmCtrl) {
+        confirmCtrl.setValue(pwd);
+      }
+    }
+  }
+
   /** 
    * Helper method to generate a random password 
    * @param length The desired length of the password (default is 12)

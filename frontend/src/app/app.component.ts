@@ -52,10 +52,18 @@ export class AppComponent implements OnInit {
         
         if (event.type === 'VERSION_READY') {
           this.swUpdate.activateUpdate().then(() => {
-            document.location.reload();
+            // Wait 250ms for cache swap completion before reload
+            setTimeout(() => {
+              document.location.reload();
+            }, 250);
           });
         }
         
+      });
+
+      // Force update check on startup
+      this.swUpdate.checkForUpdate().catch((err) => {
+        console.error('Error checking updates on startup:', err);
       });
     }
   }
