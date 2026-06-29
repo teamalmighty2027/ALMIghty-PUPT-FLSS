@@ -70,10 +70,28 @@
       }
 
       &.mobile {
-        @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
+        @include mixins.flex-layout(
+          $align: center,
+          $gap: var(--spacing-sm)
+        );
 
         & .total {
           flex: 1;
+          @include mixins.flex-layout(
+            $direction: row,
+            $align: center,
+            $justify: center,
+            $gap: var(--spacing-xs)
+          );
+          padding: var(--spacing-xs) var(--spacing-sm);
+
+          h2 {
+            font-size: var(--font-size-mdx);
+          }
+
+          span {
+            font-size: var(--font-size-xs);
+          }
         }
       }
     }
@@ -694,28 +712,6 @@
 
 /* Media Query */
 @media screen and (max-width: bp.$breakpoint-md) {
-  .preferences-content-wrapper {
-    overflow-y: auto;
-  }
-
-  #courses_container {
-    height: 28rem !important;
-    max-height: 28rem;
-    flex: none !important;
-  }
-
-  #table_container {
-    height: auto !important;
-    flex: none !important;
-    min-height: 15rem;
-    overflow-x: auto !important;
-
-    .table-main {
-      table-layout: auto !important;
-      min-width: 650px;
-    }
-  }
-
   .preferences-row-one {
     @include mixins.flex-layout(
       $direction: column,
@@ -737,12 +733,32 @@
       $gap: var(--spacing-lg)
     );
 
-    height: auto;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
 
     #courses_container {
+      flex: 1.2 !important;
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: none !important;
+
       .courses-scroll-container,
       .programs-scroll-container {
         padding-right: var(--spacing-xs);
+      }
+    }
+
+    #table_container {
+      flex: 1.5 !important;
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow-x: auto !important;
+
+      .table-main {
+        table-layout: auto !important;
+        min-width: 650px;
       }
     }
   }
