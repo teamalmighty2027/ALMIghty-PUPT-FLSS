@@ -694,8 +694,26 @@
 
 /* Media Query */
 @media screen and (max-width: bp.$breakpoint-md) {
+  .preferences-content-wrapper {
+    overflow-y: auto;
+  }
+
   #courses_container {
-    max-height: 25rem;
+    height: 28rem !important;
+    max-height: 28rem;
+    flex: none !important;
+  }
+
+  #table_container {
+    height: auto !important;
+    flex: none !important;
+    min-height: 15rem;
+    overflow-x: auto !important;
+
+    .table-main {
+      table-layout: auto !important;
+      min-width: 650px;
+    }
   }
 
   .preferences-row-one {
@@ -738,4 +756,12 @@
   .preferences-closed .button-options {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
   }
+
+  /* Hide less critical columns to optimize space on small screens */
+  .mat-column-lec_hours,
+  .mat-column-lab_hours,
+  .mat-column-program {
+    display: none !important;
+  }
 }
+

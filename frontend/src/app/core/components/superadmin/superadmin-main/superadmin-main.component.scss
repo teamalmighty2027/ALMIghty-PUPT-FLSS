@@ -299,4 +299,8 @@
     padding: var(--spacing-md);
     .sidenav-main { padding: var(--spacing-md); }
   }
+
+  .admin-footer {
+    display: none !important;
+  }
 }

@@ -528,6 +528,7 @@
 @media screen and (max-width: bp.$breakpoint-sm) {
   .faculty-main-container {
     padding: var(--spacing-lg);
+    padding-bottom: 5rem;
   }
 
   .desktop-header {
@@ -619,9 +620,9 @@
   }
 }
 
-@media screen and (max-width: bp.$breakpoint-sm) {
+@media screen and (max-width: bp.$breakpoint-md) {
   .admin-footer {
-    padding-bottom: 5rem;
+    display: none !important;
   }
 }
 
