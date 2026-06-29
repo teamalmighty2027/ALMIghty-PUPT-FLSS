@@ -1787,7 +1787,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(() => {});
   }
 
-  // --- NEW: EXCEL GENERATOR LOGIC ---
+  // EXCEL GENERATOR LOGIC
   private async generateExcel(exportAll: boolean): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const yearFilter = exportAll ? 'All' : this.selectedYear;

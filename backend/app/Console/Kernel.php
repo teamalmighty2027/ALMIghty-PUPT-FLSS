@@ -33,7 +33,7 @@ class Kernel extends ConsoleKernel
             ->dailyAt('02:00')
             ->timezone('Asia/Manila');
 
-        // ---> NEW: Auto-disable appeals when the deadline passes <---
+        // Auto-disable appeals when the deadline passes
         $schedule->call(function () {
             DB::table('faculty')
                 ->where('is_appeal_enabled', 1)

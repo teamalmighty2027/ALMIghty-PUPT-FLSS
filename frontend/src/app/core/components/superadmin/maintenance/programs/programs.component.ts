@@ -388,7 +388,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- NEW: EXCEL EXPORT LOGIC ---
+  // EXCEL EXPORT LOGIC
   private async generateExcelBlob(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Programs Offered');
