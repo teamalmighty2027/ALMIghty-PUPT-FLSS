@@ -134,7 +134,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.setPageTitle();
 
-    // --- NEW: Start Notification Polling ---
     this.fetchNotifications();
     this.pollingInterval = setInterval(() => {
       this.fetchNotifications();
@@ -148,12 +147,12 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
     this.removeDocumentClickListener();
 
-    // --- NEW: Clear Polling ---
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
     }

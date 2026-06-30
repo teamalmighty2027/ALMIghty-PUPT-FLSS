@@ -167,17 +167,13 @@ class PreferenceController extends Controller
             foreach ($admins as $admin) {
                 // 1. Check if the admin already has an UNREAD notification for this specific faculty
                 $existingNotification = $admin->unreadNotifications()
-                    ->where('type', \App\Notifications\PreferenceSubmittedNotification::class)
+                    ->where('type', PreferenceSubmittedNotification::class)
                     ->where('data->faculty_id', $facultyId)
                     ->first();
 
                 if (!$existingNotification) {
                     // 2. Only notify if there isn't an unread one already
-                    $admin->notify(new \App\Notifications\PreferenceSubmittedNotification($faculty));
-                    
-                    // Note: If you truly want emails sent for this, dispatch the job here.
-                    // However, to keep the UI fast (under 1 second), it's highly recommended 
-                    // to only rely on the Bell Notification for course-by-course additions.
+                    $admin->notify(new PreferenceSubmittedNotification($faculty));
                 } else {
                     // 3. Prevent spam: Just update the timestamp to bump it to the top of the dropdown
                     $existingNotification->update(['created_at' => now()]);
