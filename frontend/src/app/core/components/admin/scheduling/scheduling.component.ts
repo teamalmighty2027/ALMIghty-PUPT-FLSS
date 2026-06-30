@@ -1515,7 +1515,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
                 const facultyPref: SuggestedFaculty = {
                   faculty_id: facultyDetails.faculty_id,
-                  name: pref.faculty_name,
+                  name: facultyDetails.name,
                   type: facultyDetails.faculty_type,
                   preferences: course.preferred_days.map((prefDay: any) => ({
                     day: prefDay.day,

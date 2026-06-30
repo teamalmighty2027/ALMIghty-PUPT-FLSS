@@ -687,3 +687,45 @@
     }
   }
 }
+
+.prof-option {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .prof-name {
+    flex-grow: 1;
+  }
+
+  .faculty-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--border-radius-xl);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: var(--spacing-sm);
+
+    &.full-time {
+      background-color: var(--blue-fade-lighter);
+      color: var(--blue-primary);
+    }
+
+    &.part-time {
+      background-color: var(--purple-fade-lighter);
+      color: var(--purple-primary);
+    }
+
+    &.designee {
+      background-color: var(--pink-fade-lighter);
+      color: var(--pink-primary);
+    }
+
+    &.temporary {
+      background-color: var(--aqua-fade-lighter);
+      color: var(--aqua-primary);
+    }
+  }
+}

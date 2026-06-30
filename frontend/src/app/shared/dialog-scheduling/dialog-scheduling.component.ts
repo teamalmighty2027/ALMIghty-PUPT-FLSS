@@ -42,6 +42,7 @@ interface SuggestedFaculty {
 interface ProfessorOption {
   id: number;
   name: string;
+  type?: string;
 }
 
 interface DialogData {
@@ -299,9 +300,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   private setupAutocomplete(): void {
     const professorOptions: ProfessorOption[] =
-      this.data.options.professorOptions.map((name, index) => ({
+      this.data.facultyOptions.map((f, index) => ({
         id: index,
-        name: name,
+        name: f.name,
+        type: f.faculty_type,
       }));
 
     this.filteredProfessors$ = this.scheduleForm
@@ -681,7 +683,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       this.dialogRef.close({
         isDraft: true,
         faculty_id: selectedFaculty?.faculty_id ?? null,
-        faculty_name: formValues.professor || 'Not set',
+        faculty_name: selectedFaculty?.name || 'Not set',
         room_id: selectedRoomId,
         room_code: formValues.room || 'Not set',
         day: formValues.day ?? null,
