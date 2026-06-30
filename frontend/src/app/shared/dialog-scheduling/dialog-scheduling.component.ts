@@ -128,6 +128,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   conflictMessage: string = '';
   remainingHoursMessage: string = '';
   facultyBreakMessage: string = '';
+  isValidating = false;
 
   pendingCombinedLabel: string | null = null;
   pendingMatchingProgramCode: string | null = null;
@@ -464,6 +465,20 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   initiateConflictValidation(): Observable<void> {
     const formValues = this.scheduleForm.value;
     const { day, startTime, endTime, professor, room } = formValues;
+
+    if (!day || !startTime || !endTime) {
+      this.hasConflicts = false;
+      this.conflictMessage = '';
+      this.remainingHoursMessage = '';
+      this.facultyBreakMessage = '';
+      this.isValidating = false;
+      this.cdr.detectChanges();
+      return of(undefined);
+    }
+
+    this.isValidating = true;
+    this.cdr.detectChanges();
+
     const formattedStartTime = this.convertTimeToBackendFormat(startTime);
     const formattedEndTime = this.convertTimeToBackendFormat(endTime);
 
@@ -517,7 +532,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             `${this.pendingMatchingProgramCode}. ` +
             `You must combine them to save.`
           : '';
-        this.cdr.markForCheck();
+        this.isValidating = false;
+        this.cdr.detectChanges();
       }
     } else if (this.data.isTemporaryCourse && this.populatedSchedules) {
       matchingResult =
@@ -547,6 +563,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.pendingMatchingProgramCode = null;
         this.pendingMatchingProgramId = null;
       }
+      this.isValidating = false;
+      this.cdr.detectChanges();
       return of(undefined);
     }
 
@@ -576,6 +594,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       )
       .pipe(
         tap((conflictResult) => {
+          this.isValidating = false;
           this.hasConflicts = conflictResult.hasConflicts;
           this.conflictMessage = this.hasConflicts
             ? conflictResult.messages[0]
@@ -609,13 +628,14 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             this.remainingHoursMessage = '';
           }
 
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
         }),
         catchError(() => {
+          this.isValidating = false;
           this.conflictMessage =
             'An error occurred during validation. Please try again.';
           this.hasConflicts = true;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
           return of(undefined);
         }),
         map(() => undefined)

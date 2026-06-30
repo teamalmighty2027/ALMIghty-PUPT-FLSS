@@ -618,7 +618,7 @@
     gap: var(--spacing-xs);
     padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
-    width: fit-content;
+    width: 100%;
 
     &.no-conflict {
       background-color: var(--secondary-fade);

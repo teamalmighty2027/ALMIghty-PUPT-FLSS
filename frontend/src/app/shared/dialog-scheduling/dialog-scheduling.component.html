@@ -296,12 +296,12 @@
               Combine with {{ pendingMatchingProgramCode }}?
               (Will be listed as <strong>{{ pendingCombinedLabel }}</strong>)
             </mat-checkbox>
-            @if (!userConfirmedCombine) {
-              <div class="combine-warning-message">
+          @if (!userConfirmedCombine) {
+            <div class="combine-warning-message">
                 <span mat-symbol="warning"></span>
                 <span>You must confirm the combination to save this schedule.</span>
-              </div>
-            }
+            </div>
+          }
           </div>
         } @else if (conflictMessage) {
           <div class="validation-message conflict">
@@ -341,7 +341,9 @@
         <button
           class="action-button"
           mat-flat-button
-          [disabled]="hasConflicts || isLoading || scheduleForm.invalid"
+          [disabled]="
+            hasConflicts || isLoading || isValidating || scheduleForm.invalid
+          "
           (click)="assignValidatedSchedule()"
         >
           @if (isLoading) {

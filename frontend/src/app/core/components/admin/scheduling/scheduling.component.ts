@@ -132,6 +132,20 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.generateTimeOptions();
     this.schedulingService.resetCaches([CacheType.Schedules]);
 
+    // Pre-fetch scheduling metadata to optimize dialog opening speed
+    this.schedulingService
+      .getAllRooms()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getFacultyDetails()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getSubmittedPreferencesForActiveSemester()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+
     forkJoin({
       activeYearSemester: this.loadActiveYearAndSemester(),
       programs: this.loadPrograms(),
