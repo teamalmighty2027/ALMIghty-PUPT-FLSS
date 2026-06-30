@@ -206,46 +206,70 @@
 
     <mat-menu #notificationMenu="matMenu" yPosition="below" xPosition="before" class="admin-notification-menu">
       <div class="notif-header" (click)="$event.stopPropagation()">
-        <h3 style="margin: 0; font-size: 16px; font-family: var(--font-header);">Notifications</h3>
+        <h3>Notifications</h3>
         
-        <div style="display: flex; align-items: center; gap: 4px;">
+        <div class="notif-header-actions">
           @if (unreadCount > 0) {
-            <button mat-icon-button color="primary" (click)="markAllRead()" matTooltip="Mark all as read" style="width: 36px; height: 36px; line-height: 36px;">
-              <mat-icon style="font-size: 20px; width: 20px; height: 20px;">done_all</mat-icon>
+            <button
+              mat-icon-button
+              color="primary"
+              (click)="markAllRead()"
+              matTooltip="Mark all as read">
+              <mat-icon>done_all</mat-icon>
             </button>
           }
           
           @if (notifications.length > 0) {
-            <button mat-icon-button color="warn" (click)="clearAllNotifs()" matTooltip="Clear all notifications" style="width: 36px; height: 36px; line-height: 36px;">
-              <mat-icon style="font-size: 20px; width: 20px; height: 20px;">delete_sweep</mat-icon>
+            <button
+              mat-icon-button
+              color="warn"
+              (click)="clearAllNotifs()"
+              matTooltip="Clear all notifications">
+              <mat-icon>delete_sweep</mat-icon>
             </button>
           }
         </div>
       </div>
 
-      <div class="notif-list" style="max-height: 400px; overflow-y: auto;">
+      <div class="notif-list">
         @if (notifications.length > 0) {
           @for (notif of notifications; track notif.id) {
-            <button mat-menu-item 
-                    (click)="onNotificationClick(notif)"
-                    [ngClass]="{'unread-notif': !notif.read_at}"
-                    style="height: auto; padding: 12px 16px; line-height: normal; white-space: normal;">
+            <button
+              mat-menu-item 
+              class="notif-item"
+              (click)="onNotificationClick(notif)"
+              [ngClass]="{'unread-notif': !notif.read_at}">
               
-              <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <span mat-symbol="check_circle" [ngStyle]="{'color': !notif.read_at ? 'var(--primary-one)' : 'var(--neutral-base)'}" style="margin-top: 4px; font-size: 24px;"></span>
+              <div class="notif-item-content">
+                <span
+                  mat-symbol="check_circle"
+                  class="notif-item-icon"
+                  [ngStyle]="{
+                    'color': !notif.read_at
+                      ? 'var(--primary-one)'
+                      : 'var(--neutral-base)'
+                  }">
+                </span>
                 
-                <div style="display: flex; flex-direction: column;">
-                  <strong style="font-size: 14px; margin-bottom: 4px; font-family: var(--font-base);">{{ notif.data.title }}</strong>
-                  <span style="font-size: 13px; color: var(--secondary-text); margin-bottom: 6px; font-family: var(--font-base);">{{ notif.data.message }}</span>
-                  <span style="font-size: 11px; color: var(--neutral-base);">{{ notif.created_at | date:'short' }}</span>
+                <div class="notif-details">
+                  <strong>{{ notif.data.title }}</strong>
+                  <span class="notif-message">
+                    {{ notif.data.message }}
+                  </span>
+                  <span class="notif-date">
+                    {{ notif.created_at | date:'short' }}
+                  </span>
                 </div>
               </div>
             </button>
           }
         } @else {
-          <div style="padding: 32px 16px; text-align: center; color: var(--secondary-text);">
-            <span mat-symbol="notifications_off" style="font-size: 32px; height: 32px; width: 32px; margin-bottom: 8px; opacity: 0.5;"></span>
-            <p style="margin: 0; font-family: var(--font-base);">You're all caught up!</p>
+          <div class="notif-empty-state">
+            <span
+              mat-symbol="notifications_off"
+              class="notif-empty-icon">
+            </span>
+            <p>You're all caught up!</p>
           </div>
         }
       </div>
