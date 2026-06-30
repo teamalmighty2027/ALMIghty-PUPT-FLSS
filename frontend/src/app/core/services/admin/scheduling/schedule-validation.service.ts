@@ -187,6 +187,7 @@ export class ScheduleValidationService {
     rooms: { rooms: Room[] },
     arrangements: ScheduleArrangementOverride[],
     params: {
+      course_id?: number;
       schedule_id: number;
       program_id: number;
       year_level: number;
@@ -204,7 +205,10 @@ export class ScheduleValidationService {
       arrangements
     );
 
-    return this.validateScheduleConflicts(mergedSchedules, rooms, params);
+    return this.validateScheduleConflicts(mergedSchedules, rooms, {
+      course_id: params.course_id || 0,
+      ...params,
+    });
   }
 
   /**
@@ -555,9 +559,11 @@ export class ScheduleValidationService {
 
     let hoursAlreadyScheduled = 0;
     allCourseSchedules.forEach((course) => {
-      const startMins = this.timeToMinutes(course.schedule.start_time);
-      const endMins = this.timeToMinutes(course.schedule.end_time);
-      hoursAlreadyScheduled += (endMins - startMins) / 60;
+      if (course.schedule) {
+        const startMins = this.timeToMinutes(course.schedule.start_time);
+        const endMins = this.timeToMinutes(course.schedule.end_time);
+        hoursAlreadyScheduled += (endMins - startMins) / 60;
+      }
     });
 
     const remainingHours = totalRequiredHours - hoursAlreadyScheduled;

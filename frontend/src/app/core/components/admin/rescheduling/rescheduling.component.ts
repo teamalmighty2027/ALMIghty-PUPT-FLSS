@@ -381,6 +381,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param scheduleId The schedule identifier to locate in the cached tree.
    */
   private getScheduleContext(scheduleId: number): {
+    course_id: number;
     schedule_id: number;
     program_id: number;
     year_level: number;
@@ -396,6 +397,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             for (const course of section.courses) {
               if (course.schedule?.schedule_id === scheduleId) {
                 return {
+                  course_id: course.course_id,
                   schedule_id: scheduleId,
                   program_id: program.program_id,
                   year_level: yearLevel.year_level,
@@ -1517,7 +1519,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
     const validation = this.reschedulingService.validateAppealBeforeApproval(
-      this.selectedAppeal?.rawAppealId ?? 0,
       this.newSchedule.preferredDay,
       this.newSchedule.preferredStartTime,
       this.newSchedule.preferredEndTime,
@@ -1718,7 +1719,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
     const validation = this.reschedulingService.validateAppealBeforeApproval(
-      this.selectedAppeal.rawAppealId,
       this.newSchedule.preferredDay ?? '',
       this.newSchedule.preferredStartTime ?? '',
       this.newSchedule.preferredEndTime ?? '',

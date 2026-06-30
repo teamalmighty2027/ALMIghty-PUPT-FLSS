@@ -374,34 +374,46 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    * @returns An observable that completes when the conflict check is done.
    */
   private runConflictCheck(entry: DraftEntry): Observable<void> {
-    const program = this.programOptions.find(p => p.display === this.selectedProgram);
-    const section = this.sectionOptions.find(s => s.section_name === this.selectedSection);
-    
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
     if (!program || !section) return of(void 0);
 
-    return this.schedulingService.checkForScheduleConflicts(
-      entry.schedule_id,
-      program.id,
-      this.selectedYear,
-      entry.day || '',
-      entry.start_time || '',
-      entry.end_time || '',
-      section.section_id,
-      entry.faculty_id,
-      entry.room_id
-    ).pipe(
-      tap(result => {
-        const currentEntry = this.draftStateService.get(entry.schedule_id);
-        if (currentEntry) {
-          this.draftStateService.set(entry.schedule_id, {
-            ...currentEntry,
-            hasConflict: result.hasConflicts
-          });
-        }
-      }),
-      map(() => void 0),
-      catchError(() => of(void 0))
+    const draftSchedule = this.draftSchedules.find(
+      (s) => s.schedule_id === entry.schedule_id
     );
+    const courseId = draftSchedule?.course_id || 0;
+
+    return this.schedulingService
+      .checkForScheduleConflicts(
+        courseId,
+        entry.schedule_id,
+        program.id,
+        this.selectedYear,
+        entry.day || '',
+        entry.start_time || '',
+        entry.end_time || '',
+        section.section_id,
+        entry.faculty_id,
+        entry.room_id
+      )
+      .pipe(
+        tap((result) => {
+          const currentEntry = this.draftStateService.get(entry.schedule_id);
+          if (currentEntry) {
+            this.draftStateService.set(entry.schedule_id, {
+              ...currentEntry,
+              hasConflict: result.hasConflicts,
+            });
+          }
+        }),
+        map(() => void 0),
+        catchError(() => of(void 0))
+      );
   }
 
   /**
