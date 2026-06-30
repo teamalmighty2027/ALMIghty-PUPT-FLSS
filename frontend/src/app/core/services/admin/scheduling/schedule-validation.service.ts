@@ -23,6 +23,7 @@ export class ScheduleValidationService {
     schedules: PopulateSchedulesResponse,
     rooms: { rooms: Room[] },
     params: {
+      course_id: number;
       schedule_id: number;
       program_id: number;
       year_level: number;
@@ -77,13 +78,27 @@ export class ScheduleValidationService {
       if (!roomAvailability.isValid) conflicts.push(roomAvailability.message);
     }
   
+    // Resolve course_id from params or from schedules by schedule_id
+    let courseId = params.course_id;
+
+    if (!courseId && params.schedule_id) {
+      const courseWithSchedule = this.flattenCourses(schedules).find(
+        ({ course }) => course.schedule?.schedule_id === params.schedule_id
+      );
+      if (courseWithSchedule) {
+        courseId = courseWithSchedule.course.course_id;
+      }
+    }
+
     // Check course hours against selected time range
-    if (params.start_time && params.end_time) {
+    if (params.start_time && params.end_time && courseId) {
       const courseHoursValidation = this.validateCourseHours(
         schedules,
         params.schedule_id,
+        courseId,
         params.start_time,
-        params.end_time
+        params.end_time,
+        params.section_id
       );
       if (!courseHoursValidation.isValid) {
         conflicts.push(courseHoursValidation.message);
@@ -356,7 +371,9 @@ export class ScheduleValidationService {
     currentScheduleId: number,
     section_id: number
   ): ConflictingCourseDetail | undefined {
-    const program = schedules.programs.find((p) => p.program_id === program_id);
+    const program = schedules.programs.find(
+      (p) => p.program_id === program_id
+    );
     if (!program) return undefined;
 
     const yearLevel = program.year_levels.find(
@@ -364,30 +381,27 @@ export class ScheduleValidationService {
     );
     if (!yearLevel) return undefined;
 
-    for (const semester of yearLevel.semesters) {
-      for (const section of semester.sections) {
-        if (section.section_per_program_year_id !== section_id) continue;
-        for (const course of section.courses) {
-          if (
-            course.schedule?.day !== day ||
-            course.schedule?.schedule_id === currentScheduleId
-          )
-            continue;
-          if (
-            this.doTimesOverlap(
-              start_time,
-              end_time,
-              course.schedule?.start_time,
-              course.schedule?.end_time
-            )
-          ) {
-            return { course, sectionName: section.section_name };
-          }
-        }
-        return undefined;
-      }
-    }
-    return undefined;
+    const section = yearLevel.semesters
+      .flatMap((s) => s.sections)
+      .find((sec) => sec.section_per_program_year_id === section_id);
+
+    if (!section) return undefined;
+
+    const conflictingCourse = section.courses.find(
+      (course) =>
+        course.schedule?.day === day &&
+        course.schedule?.schedule_id !== currentScheduleId &&
+        this.doTimesOverlap(
+          start_time,
+          end_time,
+          course.schedule?.start_time,
+          course.schedule?.end_time
+        )
+    );
+
+    return conflictingCourse
+      ? { course: conflictingCourse, sectionName: section.section_name }
+      : undefined;
   }
 
   /**
@@ -493,13 +507,15 @@ export class ScheduleValidationService {
   }
 
   /**
-   * Validates if the selected time range matches the required course hours
+   * Validates if the selected time range matches the required course hours.
    */
   private validateCourseHours(
     schedules: PopulateSchedulesResponse,
     schedule_id: number,
+    course_id: number,
     start_time: string,
-    end_time: string
+    end_time: string,
+    section_id: number,
   ): { isValid: boolean; message: string } {
 
     // Skip hours validation for Summer term (semester_id === 3)
@@ -508,38 +524,34 @@ export class ScheduleValidationService {
       return { isValid: true, message: '' };
     }
 
-    let targetCourse: any;
-    let allCourseSchedules: any[] = [];
+    const section = schedules.programs
+      .flatMap((p) => p.year_levels)
+      .flatMap((y) => y.semesters)
+      .flatMap((s) => s.sections)
+      .find((sec) => sec.section_per_program_year_id === section_id);
 
-    for (const program of schedules.programs) {
-      for (const yearLevel of program.year_levels) {
-        for (const semester of yearLevel.semesters) {
-          for (const section of semester.sections) {
-            const course = section.courses.find(
-              (c) => c.schedule?.schedule_id === schedule_id
-            );
-            if (course) {
-              targetCourse = course;
-
-              allCourseSchedules = section.courses.filter(
-                (c) =>
-                  c.course_id === course.course_id &&
-                  c.schedule?.schedule_id !== schedule_id &&
-                  c.schedule?.start_time &&
-                  c.schedule?.end_time
-              );
-              break;
-            }
-          }
-        }
-      }
+    if (!section) {
+      return { isValid: true, message: 'Section not found' };
     }
+
+    const targetCourse = section.courses.find(
+      (c) => c.course_id === course_id
+    );
 
     if (!targetCourse) {
       return { isValid: true, message: 'Course not found' };
     }
 
-    const totalRequiredHours = targetCourse.lec_hours + targetCourse.lab_hours;
+    const allCourseSchedules = section.courses.filter(
+      (c) =>
+        c.course_id === course_id &&
+        c.schedule?.schedule_id !== schedule_id &&
+        c.schedule?.start_time &&
+        c.schedule?.end_time
+    );
+
+    const totalRequiredHours =
+      targetCourse.lec_hours + targetCourse.lab_hours;
 
     let hoursAlreadyScheduled = 0;
     allCourseSchedules.forEach((course) => {
@@ -555,12 +567,12 @@ export class ScheduleValidationService {
     const selectedDurationHours = (endMinutes - startMinutes) / 60;
 
     if (selectedDurationHours > remainingHours) {
-      const totalScheduledHours = hoursAlreadyScheduled + selectedDurationHours;
       return {
         isValid: false,
-        message: `The selected time range (${selectedDurationHours} hours)
-        exceeds the remaining allowed hours (${remainingHours} hours) for
-        this course.`,
+        message:
+          `The selected time range (${selectedDurationHours} hours) ` +
+          `exceeds the remaining allowed hours (${remainingHours} hours) ` +
+          `for this course.`,
       };
     }
 

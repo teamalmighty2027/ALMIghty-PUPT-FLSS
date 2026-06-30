@@ -433,6 +433,7 @@ export class SchedulingService {
    * Checks for schedule conflicts based on provided parameters.
    */
   checkForScheduleConflicts(
+    course_id: number,
     schedule_id: number,
     program_id: number,
     year_level: number,
@@ -449,6 +450,7 @@ export class SchedulingService {
           schedules,
           rooms,
           {
+            course_id,
             schedule_id,
             program_id,
             year_level,

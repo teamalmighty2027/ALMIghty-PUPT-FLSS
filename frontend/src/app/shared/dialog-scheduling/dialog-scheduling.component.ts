@@ -552,6 +552,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
     return this.schedulingService
       .checkForScheduleConflicts(
+        this.data.course_id,
         this.data.schedule_id,
         this.data.program.id,
         this.data.academic.year_level,
