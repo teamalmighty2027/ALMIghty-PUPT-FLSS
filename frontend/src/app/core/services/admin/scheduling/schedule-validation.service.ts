@@ -33,9 +33,11 @@ export class ScheduleValidationService {
       section_id: number;
       faculty_id: number | null;
       room_id: number | null;
+      hoursAlreadyAssigned?: number;
     }
-  ): { hasConflicts: boolean; messages: string[] } {
+  ): { hasConflicts: boolean; messages: string[]; warnings: string[] } {
     const conflicts: string[] = [];
+    const warnings: string[] = [];
 
     // Check program overlap
     const programOverlap = this.checkProgramTimeOverlap(
@@ -98,14 +100,35 @@ export class ScheduleValidationService {
         courseId,
         params.start_time,
         params.end_time,
-        params.section_id
+        params.section_id,
+        params.day,
+        params.hoursAlreadyAssigned
       );
       if (!courseHoursValidation.isValid) {
         conflicts.push(courseHoursValidation.message);
       }
     }
 
-    return { hasConflicts: conflicts.length > 0, messages: conflicts };
+    // Check faculty breaks
+    if (params.faculty_id) {
+      const facultyBreakWarning = this.checkFacultyBreaks(
+        schedules,
+        params.faculty_id,
+        params.day,
+        params.start_time,
+        params.end_time,
+        params.schedule_id
+      );
+      if (facultyBreakWarning) {
+        warnings.push(facultyBreakWarning);
+      }
+    }
+
+    return {
+      hasConflicts: conflicts.length > 0,
+      messages: conflicts,
+      warnings: warnings,
+    };
   }
 
   /**
@@ -197,8 +220,9 @@ export class ScheduleValidationService {
       section_id: number;
       faculty_id: number | null;
       room_id: number | null;
+      hoursAlreadyAssigned?: number;
     }
-  ): { hasConflicts: boolean; messages: string[] } {
+  ): { hasConflicts: boolean; messages: string[]; warnings: string[] } {
     const mergedSchedules = this.mergeSchedulesWithArrangements(
       schedules,
       rooms,
@@ -520,6 +544,8 @@ export class ScheduleValidationService {
     start_time: string,
     end_time: string,
     section_id: number,
+    day: string,
+    hoursAlreadyAssigned?: number,
   ): { isValid: boolean; message: string } {
 
     // Skip hours validation for Summer term (semester_id === 3)
@@ -546,27 +572,80 @@ export class ScheduleValidationService {
       return { isValid: true, message: 'Course not found' };
     }
 
-    const allCourseSchedules = section.courses.filter(
+    // Check for contiguous slots on the same day exceeding 6 hours
+    const sameDaySlots = section.courses.filter(
       (c) =>
         c.course_id === course_id &&
         c.schedule?.schedule_id !== schedule_id &&
+        c.schedule?.day === day &&
         c.schedule?.start_time &&
         c.schedule?.end_time
     );
 
-    const totalRequiredHours =
-      targetCourse.lec_hours + targetCourse.lab_hours;
+    const intervals: [number, number][] = [
+      [this.timeToMinutes(start_time), this.timeToMinutes(end_time)],
+    ];
 
-    let hoursAlreadyScheduled = 0;
-    allCourseSchedules.forEach((course) => {
-      if (course.schedule) {
-        const startMins = this.timeToMinutes(course.schedule.start_time);
-        const endMins = this.timeToMinutes(course.schedule.end_time);
-        hoursAlreadyScheduled += (endMins - startMins) / 60;
+    sameDaySlots.forEach((c) => {
+      if (c.schedule) {
+        intervals.push([
+          this.timeToMinutes(c.schedule.start_time),
+          this.timeToMinutes(c.schedule.end_time),
+        ]);
       }
     });
 
-    const remainingHours = totalRequiredHours - hoursAlreadyScheduled;
+    intervals.sort((a, b) => a[0] - b[0]);
+
+    const mergedIntervals: [number, number][] = [];
+    
+    for (const interval of intervals) {
+      if (mergedIntervals.length === 0) {
+        mergedIntervals.push(interval);
+      } else {
+        const last = mergedIntervals[mergedIntervals.length - 1];
+        if (interval[0] <= last[1]) {
+          last[1] = Math.max(last[1], interval[1]);
+        } else {
+          mergedIntervals.push(interval);
+        }
+      }
+    }
+
+    for (const [start, end] of mergedIntervals) {
+      if ((end - start) > 360) {
+        return {
+          isValid: false,
+          message:
+            `The course cannot be continuously scheduled for more than ` +
+            `6 hours on the same day.`,
+        };
+      }
+    }
+
+    let calculatedHoursAlreadyScheduled = 0;
+    if (hoursAlreadyAssigned !== undefined) {
+      calculatedHoursAlreadyScheduled = hoursAlreadyAssigned;
+    } else {
+      const allCourseSchedules = section.courses.filter(
+        (c) =>
+          c.course_id === course_id &&
+          c.schedule?.schedule_id !== schedule_id &&
+          c.schedule?.start_time &&
+          c.schedule?.end_time
+      );
+      allCourseSchedules.forEach((course) => {
+        if (course.schedule) {
+          const startMins = this.timeToMinutes(course.schedule.start_time);
+          const endMins = this.timeToMinutes(course.schedule.end_time);
+          calculatedHoursAlreadyScheduled += (endMins - startMins) / 60;
+        }
+      });
+    }
+
+    const totalRequiredHours =
+      targetCourse.lec_hours + targetCourse.lab_hours;
+    const remainingHours = totalRequiredHours - calculatedHoursAlreadyScheduled;
 
     const startMinutes = this.timeToMinutes(start_time);
     const endMinutes = this.timeToMinutes(end_time);
@@ -583,6 +662,59 @@ export class ScheduleValidationService {
     }
 
     return { isValid: true, message: '' };
+  }
+
+  /**
+   * Checks if scheduling creates breaks of 3 hours or more for the faculty.
+   */
+  private checkFacultyBreaks(
+    schedules: PopulateSchedulesResponse,
+    faculty_id: number,
+    day: string,
+    start_time: string,
+    end_time: string,
+    currentScheduleId: number
+  ): string | null {
+    if (!faculty_id || !day || !start_time || !end_time) {
+      return null;
+    }
+
+    const facultyCourses = this.flattenCourses(schedules).filter(
+      ({ course }) =>
+        course.faculty_id === faculty_id &&
+        course.schedule?.day === day &&
+        course.schedule?.schedule_id !== currentScheduleId &&
+        course.schedule?.start_time &&
+        course.schedule?.end_time
+    );
+
+    const intervals: [number, number][] = [
+      [this.timeToMinutes(start_time), this.timeToMinutes(end_time)],
+    ];
+
+    facultyCourses.forEach(({ course }) => {
+      if (course.schedule) {
+        intervals.push([
+          this.timeToMinutes(course.schedule.start_time),
+          this.timeToMinutes(course.schedule.end_time),
+        ]);
+      }
+    });
+
+    intervals.sort((a, b) => a[0] - b[0]);
+
+    for (let i = 0; i < intervals.length - 1; i++) {
+      const currentEnd = intervals[i][1];
+      const nextStart = intervals[i + 1][0];
+      const gap = nextStart - currentEnd;
+
+      if (gap >= 180) {
+        return `This schedule creates a break of ` +
+          `${(gap / 60).toFixed(1)} hours for the assigned faculty.`;
+      }
+    }
+
+    return null;
   }
 
   /**

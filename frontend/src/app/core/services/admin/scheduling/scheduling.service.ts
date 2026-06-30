@@ -442,8 +442,13 @@ export class SchedulingService {
     end_time: string,
     section_id: number,
     faculty_id: number | null,
-    room_id: number | null
-  ): Observable<{ hasConflicts: boolean; messages: string[] }> {
+    room_id: number | null,
+    hoursAlreadyAssigned?: number
+  ): Observable<{
+    hasConflicts: boolean;
+    messages: string[];
+    warnings: string[];
+  }> {
     return forkJoin([this.populateSchedules(), this.getAllRooms()]).pipe(
       map(([schedules, rooms]) => {
         return this.scheduleValidationService.validateScheduleConflicts(
@@ -460,6 +465,7 @@ export class SchedulingService {
             section_id,
             faculty_id,
             room_id,
+            hoursAlreadyAssigned,
           }
         );
       }),

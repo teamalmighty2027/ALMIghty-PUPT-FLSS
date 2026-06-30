@@ -309,6 +309,20 @@
             <span>{{ conflictMessage }}</span>
           </div>
         }
+
+        @if (remainingHoursMessage) {
+          <div class="validation-message info">
+            <span mat-symbol="info"></span>
+            <span>{{ remainingHoursMessage }}</span>
+          </div>
+        }
+
+        @if (facultyBreakMessage) {
+          <div class="validation-message warning">
+            <span mat-symbol="warning"></span>
+            <span>{{ facultyBreakMessage }}</span>
+          </div>
+        }
       </div>
     </mat-dialog-content>
 

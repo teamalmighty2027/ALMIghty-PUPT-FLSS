@@ -629,6 +629,18 @@
       background-color: var(--primary-fade);
       color: var(--primary-text);
     }
+
+    &.warning {
+      background-color: rgba(230, 162, 60, 0.1);
+      color: var(--primary-warning);
+      margin-top: var(--spacing-xs);
+    }
+
+    &.info {
+      background-color: rgba(64, 158, 255, 0.1);
+      color: #409eff;
+      margin-top: var(--spacing-xs);
+    }
   }
 }
 

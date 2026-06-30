@@ -83,6 +83,9 @@ interface DialogData {
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
   combined_with_program_code?: string | null;
+  hoursAlreadyAssigned?: number;
+  lec_hours?: number;
+  lab_hours?: number;
 }
 
 @Component({
@@ -123,6 +126,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   hasConflicts = false;
   conflictMessage: string = '';
+  remainingHoursMessage: string = '';
+  facultyBreakMessage: string = '';
 
   pendingCombinedLabel: string | null = null;
   pendingMatchingProgramCode: string | null = null;
@@ -550,6 +555,11 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.pendingMatchingProgramCode = null;
     this.pendingMatchingProgramId = null;
 
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
     return this.schedulingService
       .checkForScheduleConflicts(
         this.data.course_id,
@@ -561,7 +571,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         formattedEndTime || '',
         this.data.academic.section_id,
         facultyId,
-        roomId
+        roomId,
+        this.data.hoursAlreadyAssigned
       )
       .pipe(
         tap((conflictResult) => {
@@ -569,6 +580,35 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
           this.conflictMessage = this.hasConflicts
             ? conflictResult.messages[0]
             : '';
+
+          this.facultyBreakMessage =
+            conflictResult.warnings && conflictResult.warnings.length > 0
+              ? conflictResult.warnings[0]
+              : '';
+
+          const lecHours = this.data.lec_hours || 0;
+          const labHours = this.data.lab_hours || 0;
+          const totalRequired = lecHours + labHours;
+          const assignedBefore = this.data.hoursAlreadyAssigned || 0;
+
+          if (formattedStartTime && formattedEndTime && totalRequired > 0) {
+            const startMins = timeToMinutes(formattedStartTime);
+            const endMins = timeToMinutes(formattedEndTime);
+            const proposedDuration = (endMins - startMins) / 60;
+            const remaining =
+              totalRequired - assignedBefore - proposedDuration;
+
+            if (remaining > 0) {
+              this.remainingHoursMessage =
+                `Note: There are still ${remaining.toFixed(1)} hours left ` +
+                `to be assigned for this course.`;
+            } else {
+              this.remainingHoursMessage = '';
+            }
+          } else {
+            this.remainingHoursMessage = '';
+          }
+
           this.cdr.markForCheck();
         }),
         catchError(() => {

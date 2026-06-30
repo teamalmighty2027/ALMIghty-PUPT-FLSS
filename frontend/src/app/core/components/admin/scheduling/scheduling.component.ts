@@ -388,6 +388,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     );
     const courseId = draftSchedule?.course_id || 0;
 
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const courseSchedules = (
+      this.isDraftMode ? this.draftSchedules : this.schedules
+    ).filter(
+      (s) =>
+        s.course_id === courseId &&
+        s.schedule_id !== entry.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    let hoursAlreadyAssigned = 0;
+    courseSchedules.forEach((s) => {
+      if (s.start_time && s.end_time) {
+        hoursAlreadyAssigned +=
+          (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+      }
+    });
+
     return this.schedulingService
       .checkForScheduleConflicts(
         courseId,
@@ -399,7 +422,8 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         entry.end_time || '',
         section.section_id,
         entry.faculty_id,
-        entry.room_id
+        entry.room_id,
+        hoursAlreadyAssigned
       )
       .pipe(
         tap((result) => {
@@ -1509,6 +1533,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             null;
         }
 
+        const timeToMinutes = (timeStr: string): number => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+
+        const courseSchedules = (
+          this.isDraftMode ? this.draftSchedules : this.schedules
+        ).filter(
+          (s) =>
+            s.course_id === schedule.course_id &&
+            s.schedule_id !== schedule.schedule_id &&
+            s.day &&
+            s.day !== 'Not set'
+        );
+
+        let hoursAlreadyAssigned = 0;
+        courseSchedules.forEach((s) => {
+          if (s.start_time && s.end_time) {
+            hoursAlreadyAssigned +=
+              (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+          }
+        });
+
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
           maxWidth: '80rem',
           width: '95vw',
@@ -1551,6 +1598,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
+            hoursAlreadyAssigned,
+            lec_hours: schedule.lec_hours,
+            lab_hours: schedule.lab_hours,
           },
         });
 
