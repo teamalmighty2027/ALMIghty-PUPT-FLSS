@@ -191,7 +191,6 @@ toggleAllFacultyAppealAccess(
 
   // ── VALIDATION ────────────────────────────────────────────────
   validateAppealBeforeApproval(
-    appealId: number,
     proposedDay: string,
     proposedStartTime: string,
     proposedEndTime: string,
@@ -200,6 +199,7 @@ toggleAllFacultyAppealAccess(
     rooms: { rooms: Room[] },
     arrangements: ScheduleArrangementOverride[],
     scheduleContext: {
+      course_id: number,
       schedule_id: number;
       program_id: number;
       year_level: number;
@@ -212,6 +212,7 @@ toggleAllFacultyAppealAccess(
       rooms,
       arrangements,
       {
+        course_id: scheduleContext.course_id,
         schedule_id: scheduleContext.schedule_id,
         program_id: scheduleContext.program_id,
         year_level: scheduleContext.year_level,

@@ -433,6 +433,7 @@ export class SchedulingService {
    * Checks for schedule conflicts based on provided parameters.
    */
   checkForScheduleConflicts(
+    course_id: number,
     schedule_id: number,
     program_id: number,
     year_level: number,
@@ -441,14 +442,20 @@ export class SchedulingService {
     end_time: string,
     section_id: number,
     faculty_id: number | null,
-    room_id: number | null
-  ): Observable<{ hasConflicts: boolean; messages: string[] }> {
+    room_id: number | null,
+    hoursAlreadyAssigned?: number
+  ): Observable<{
+    hasConflicts: boolean;
+    messages: string[];
+    warnings: string[];
+  }> {
     return forkJoin([this.populateSchedules(), this.getAllRooms()]).pipe(
       map(([schedules, rooms]) => {
         return this.scheduleValidationService.validateScheduleConflicts(
           schedules,
           rooms,
           {
+            course_id,
             schedule_id,
             program_id,
             year_level,
@@ -458,6 +465,7 @@ export class SchedulingService {
             section_id,
             faculty_id,
             room_id,
+            hoursAlreadyAssigned,
           }
         );
       }),

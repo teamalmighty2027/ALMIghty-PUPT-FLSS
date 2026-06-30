@@ -132,6 +132,20 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.generateTimeOptions();
     this.schedulingService.resetCaches([CacheType.Schedules]);
 
+    // Pre-fetch scheduling metadata to optimize dialog opening speed
+    this.schedulingService
+      .getAllRooms()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getFacultyDetails()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getSubmittedPreferencesForActiveSemester()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+
     forkJoin({
       activeYearSemester: this.loadActiveYearAndSemester(),
       programs: this.loadPrograms(),
@@ -318,11 +332,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         const filledEntries: DraftEntry[] = [];
 
         emptySlots.forEach(slot => {
-          const matchedCourse = section.courses.find(c => c.course_id === slot.course_id);
+          const matchedCourse = section.courses.find(c => Number(c.course_id) === Number(slot.course_id));
           if (matchedCourse && matchedCourse.schedule && matchedCourse.schedule.day !== 'Not set') {
             const entry: DraftEntry = {
               schedule_id: slot.schedule_id!,
               faculty_id: matchedCourse.faculty_id || null,
+
               faculty_name: matchedCourse.professor || 'Not set',
               room_id: matchedCourse.schedule.room_id || null,
               room_code: matchedCourse.room?.room_code || 'Not set',
@@ -374,34 +389,70 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    * @returns An observable that completes when the conflict check is done.
    */
   private runConflictCheck(entry: DraftEntry): Observable<void> {
-    const program = this.programOptions.find(p => p.display === this.selectedProgram);
-    const section = this.sectionOptions.find(s => s.section_name === this.selectedSection);
-    
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
     if (!program || !section) return of(void 0);
 
-    return this.schedulingService.checkForScheduleConflicts(
-      entry.schedule_id,
-      program.id,
-      this.selectedYear,
-      entry.day || '',
-      entry.start_time || '',
-      entry.end_time || '',
-      section.section_id,
-      entry.faculty_id,
-      entry.room_id
-    ).pipe(
-      tap(result => {
-        const currentEntry = this.draftStateService.get(entry.schedule_id);
-        if (currentEntry) {
-          this.draftStateService.set(entry.schedule_id, {
-            ...currentEntry,
-            hasConflict: result.hasConflicts
-          });
-        }
-      }),
-      map(() => void 0),
-      catchError(() => of(void 0))
+    const draftSchedule = this.draftSchedules.find(
+      (s) => s.schedule_id === entry.schedule_id
     );
+    const courseId = draftSchedule?.course_id || 0;
+
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const courseSchedules = (
+      this.isDraftMode ? this.draftSchedules : this.schedules
+    ).filter(
+      (s) =>
+        s.course_id === courseId &&
+        s.schedule_id !== entry.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    let hoursAlreadyAssigned = 0;
+    courseSchedules.forEach((s) => {
+      if (s.start_time && s.end_time) {
+        hoursAlreadyAssigned +=
+          (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+      }
+    });
+
+    return this.schedulingService
+      .checkForScheduleConflicts(
+        courseId,
+        entry.schedule_id,
+        program.id,
+        this.selectedYear,
+        entry.day || '',
+        entry.start_time || '',
+        entry.end_time || '',
+        section.section_id,
+        entry.faculty_id,
+        entry.room_id,
+        hoursAlreadyAssigned
+      )
+      .pipe(
+        tap((result) => {
+          const currentEntry = this.draftStateService.get(entry.schedule_id);
+          if (currentEntry) {
+            this.draftStateService.set(entry.schedule_id, {
+              ...currentEntry,
+              hasConflict: result.hasConflicts,
+            });
+          }
+        }),
+        map(() => void 0),
+        catchError(() => of(void 0))
+      );
   }
 
   /**
@@ -1464,7 +1515,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
                 const facultyPref: SuggestedFaculty = {
                   faculty_id: facultyDetails.faculty_id,
-                  name: pref.faculty_name,
+                  name: facultyDetails.name,
                   type: facultyDetails.faculty_type,
                   preferences: course.preferred_days.map((prefDay: any) => ({
                     day: prefDay.day,
@@ -1496,6 +1547,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           combinedProgramCode = combinedProgram?.display?.split(' ')[0] ||
             null;
         }
+
+        const timeToMinutes = (timeStr: string): number => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+
+        const courseSchedules = (
+          this.isDraftMode ? this.draftSchedules : this.schedules
+        ).filter(
+          (s) =>
+            s.course_id === schedule.course_id &&
+            s.schedule_id !== schedule.schedule_id &&
+            s.day &&
+            s.day !== 'Not set'
+        );
+
+        let hoursAlreadyAssigned = 0;
+        courseSchedules.forEach((s) => {
+          if (s.start_time && s.end_time) {
+            hoursAlreadyAssigned +=
+              (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+          }
+        });
 
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
           maxWidth: '80rem',
@@ -1539,6 +1613,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
+            hoursAlreadyAssigned,
+            lec_hours: schedule.lec_hours,
+            lab_hours: schedule.lab_hours,
           },
         });
 
