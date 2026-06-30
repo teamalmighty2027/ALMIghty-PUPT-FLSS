@@ -548,12 +548,6 @@ export class ScheduleValidationService {
     hoursAlreadyAssigned?: number,
   ): { isValid: boolean; message: string } {
 
-    // Skip hours validation for Summer term (semester_id === 3)
-    // as subjects may be scheduled multiple times a week
-    if (schedules.semester_id === 3) {
-      return { isValid: true, message: '' };
-    }
-
     const section = schedules.programs
       .flatMap((p) => p.year_levels)
       .flatMap((y) => y.semesters)
@@ -621,6 +615,12 @@ export class ScheduleValidationService {
             `6 hours on the same day.`,
         };
       }
+    }
+
+    // Skip remaining hours validation for Summer term (semester_id === 3)
+    // as subjects may be scheduled multiple times a week
+    if (schedules.semester_id === 3) {
+      return { isValid: true, message: '' };
     }
 
     let calculatedHoursAlreadyScheduled = 0;
