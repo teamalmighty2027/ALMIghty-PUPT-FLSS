@@ -209,7 +209,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         }
 
         const facultyId = suggestion.faculty_id;
-        const name = suggestion.faculty_name;
+        const facultyDetails = this.data.facultyOptions.find(
+          (f) => f.faculty_id === facultyId
+        );
+        const name = facultyDetails ? facultyDetails.name : suggestion.faculty_name;
         
         const prefs: Preference[] = [];
         if (suggestion.day && suggestion.start_time && 
