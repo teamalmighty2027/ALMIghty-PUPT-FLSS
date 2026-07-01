@@ -17,74 +17,94 @@
     </app-table-header>
   </div>
 
-  <!-- Compact Filter Bar -->
-  <div class="filter-bar" [@fadeAnimation]>
+  <!-- Filter Toolbar -->
+  <div class="filter-toolbar" [@fadeAnimation]>
+    @if (isMobileView) {
+      <button
+        class="mobile-filter-trigger"
+        type="button"
+        (click)="openMobileFilterPanel()"
+        matRipple
+        [class.active]="hasActiveFilters">
+        <span class="material-symbols-rounded">tune</span>
+        <span>Filter</span>
+        @if (hasActiveFilters) {
+          <span class="mobile-filter-trigger__badge">{{ getActiveFilterCount() }}</span>
+        }
+      </button>
+    } @else {
+      <div class="filter-toolbar__main">
+        <div class="filter-group">
+          <span class="filter-label">Status</span>
+          <div class="chip-row">
+            <button
+              *ngFor="let s of statusOptions"
+              class="filter-chip"
+              [class.active]="filterStatus === s"
+              [class.chip-active]="s === 'Active'"
+              [class.chip-inactive]="s === 'Inactive'"
+              [class.chip-retired]="s === 'Retired'"
+              (click)="toggleStatus(s)"
+              matRipple>
+              {{ s }}
+            </button>
+          </div>
+        </div>
 
-    <!-- Status chips -->
-    <div class="filter-group">
-      <span class="filter-label">Status</span>
-      <div class="chip-row">
+        <div class="filter-group" *ngIf="facultyTypeOptions.length">
+          <span class="filter-label">Type</span>
+          <div class="chip-row">
+            <button
+              class="filter-chip"
+              [class.active]="filterFacultyType === ''"
+              (click)="toggleFacultyType('')"
+              matRipple>
+              All
+            </button>
+            <button
+              *ngFor="let t of facultyTypeOptions"
+              class="filter-chip"
+              [class.active]="filterFacultyType === t"
+              (click)="toggleFacultyType(t)"
+              matRipple>
+              {{ t }}
+            </button>
+          </div>
+        </div>
+
+        <div class="filter-group sort-group">
+          <span class="filter-label">Sort</span>
+          <div class="sort-select-wrapper">
+            <span class="sort-icon material-symbols-rounded" aria-hidden="true">sort</span>
+            <mat-select
+              class="sort-select"
+              [(ngModel)]="sortBy"
+              (selectionChange)="onSortChange($event.value)"
+              panelClass="sort-select-panel"
+              disableOptionCentering
+              aria-label="Sort faculty list">
+              <mat-option value="">Default</mat-option>
+              <mat-option *ngFor="let opt of sortOptions" [value]="opt.key">
+                {{ opt.label }}
+              </mat-option>
+            </mat-select>
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-toolbar__actions">
         <button
-          *ngFor="let s of statusOptions"
-          class="filter-chip"
-          [class.active]="filterStatus === s"
-          [class.chip-active]="s === 'Active'"
-          [class.chip-inactive]="s === 'Inactive'"
-          [class.chip-retired]="s === 'Retired'"
-          (click)="toggleStatus(s)"
-          matRipple>
-          {{ s }}
+          class="clear-btn"
+          type="button"
+          [disabled]="!hasActiveFilters"
+          (click)="clearAllFilters()"
+          matRipple
+          [matTooltip]="hasActiveFilters ? 'Clear all filters' : ''">
+          <span class="material-symbols-rounded">filter_alt_off</span>
+          <span>Clear</span>
         </button>
       </div>
-    </div>
-
-    <!-- Faculty type chips -->
-    <div class="filter-group" *ngIf="facultyTypeOptions.length">
-      <span class="filter-label">Type</span>
-      <div class="chip-row">
-        <!-- All option -->
-        <button
-          class="filter-chip"
-          [class.active]="filterFacultyType === ''"
-          (click)="toggleFacultyType('')"
-          matRipple>
-          All
-        </button>
-        <button
-          *ngFor="let t of facultyTypeOptions"
-          class="filter-chip"
-          [class.active]="filterFacultyType === t"
-          (click)="toggleFacultyType(t)"
-          matRipple>
-          {{ t }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Sort compact select -->
-    <div class="filter-group sort-group">
-      <span class="filter-label">Sort</span>
-      <div class="sort-select-wrapper">
-        <span class="sort-icon material-symbols-rounded">sort</span>
-        <select class="sort-select" [(ngModel)]="sortBy" (ngModelChange)="onSortChange($event)">
-          <option value="">Default</option>
-          <option *ngFor="let opt of sortOptions" [value]="opt.key">{{ opt.label }}</option>
-        </select>
-        <span class="sort-arrow material-symbols-rounded">expand_more</span>
-      </div>
-    </div>
-
-    <!-- Clear all -->
-    <button
-      *ngIf="hasActiveFilters"
-      class="clear-btn"
-      (click)="clearAllFilters()"
-      matRipple
-      matTooltip="Clear all filters">
-      <span class="material-symbols-rounded">filter_alt_off</span>
-      Clear
-    </button>
-
+    }
   </div>
 
   <!-- Result count -->
@@ -121,5 +141,87 @@
 <ng-template #facultyUnitsTemplate let-element>
   <div class="faculty-units">
     {{ (element.faculty?.faculty_type?.regular_units ?? 0) + (element.faculty?.faculty_type?.additional_units ?? 0) }}
+  </div>
+</ng-template>
+
+<!-- Mobile Filter Dialog -->
+<ng-template #mobileFilterTemplate>
+  <div class="mobile-filter-panel">
+    <div class="mobile-filter-panel__header">
+      <div>
+        <h3>Filters</h3>
+        <p>Refine the faculty list</p>
+      </div>
+      <button class="mobile-filter-panel__close" type="button" (click)="closeMobileFilterPanel()" matRipple>
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+
+    <div class="mobile-filter-panel__body">
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Status</span>
+        <div class="mobile-chip-row">
+          <button
+            *ngFor="let s of statusOptions"
+            class="filter-chip"
+            [class.active]="mobileFilterStatus === s"
+            [class.chip-active]="s === 'Active'"
+            [class.chip-inactive]="s === 'Inactive'"
+            [class.chip-retired]="s === 'Retired'"
+            (click)="toggleMobileStatus(s)"
+            matRipple>
+            {{ s }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mobile-filter-group" *ngIf="facultyTypeOptions.length">
+        <span class="mobile-filter-group__label">Type</span>
+        <div class="mobile-chip-row">
+          <button
+            class="filter-chip"
+            [class.active]="mobileFilterFacultyType === ''"
+            (click)="toggleMobileFacultyType('')"
+            matRipple>
+            All
+          </button>
+          <button
+            *ngFor="let t of facultyTypeOptions"
+            class="filter-chip"
+            [class.active]="mobileFilterFacultyType === t"
+            (click)="toggleMobileFacultyType(t)"
+            matRipple>
+            {{ t }}
+          </button>
+        </div>
+      </div>
+
+      <div class="mobile-filter-group">
+        <span class="mobile-filter-group__label">Sort</span>
+        <div class="mobile-sort-select-wrapper">
+          <span class="mobile-sort-icon material-symbols-rounded" aria-hidden="true">sort</span>
+          <mat-select
+            class="mobile-sort-select"
+            [(ngModel)]="mobileSortBy"
+            panelClass="sort-select-panel"
+            disableOptionCentering
+            aria-label="Sort faculty list">
+            <mat-option value="">Default</mat-option>
+            <mat-option *ngFor="let opt of sortOptions" [value]="opt.key">
+              {{ opt.label }}
+            </mat-option>
+          </mat-select>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-filter-panel__actions">
+      <button class="mobile-action-btn mobile-action-btn--secondary" type="button" (click)="clearMobileFilters()">
+        Clear
+      </button>
+      <button class="mobile-action-btn mobile-action-btn--primary" type="button" (click)="applyMobileFilters()">
+        Apply
+      </button>
+    </div>
   </div>
 </ng-template>
