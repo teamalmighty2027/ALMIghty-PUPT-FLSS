@@ -28,6 +28,7 @@ import { ReportsService } from '../../../../services/admin/reports/reports.servi
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -1081,11 +1082,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'), designee: type.includes('designee'),
-      'part-time': type.includes('part-time'), temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
 }

@@ -20,6 +20,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -215,15 +216,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   }
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-
-    return {
-      'Permanent': type.includes('designee'),
-      'Regular': type.includes('full-time'),
-      'Part-time': type.includes('part-time'), 
-      'Special Lecturer': type.includes('special lecturer'),
-      'Temporary': type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   updateDisplayedData() {}

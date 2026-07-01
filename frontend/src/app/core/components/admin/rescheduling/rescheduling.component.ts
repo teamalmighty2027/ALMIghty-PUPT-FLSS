@@ -28,6 +28,7 @@ import { ReschedulingService, AppealResponse } from '../../../services/faculty/r
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import { getFacultyTypeClass } from '../../../../shared/utils/faculty-type.utils';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
 
 import {
@@ -571,13 +572,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param facultyType The faculty type label from the report.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = (facultyType || '').toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      'designee': type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      'temporary': type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   // ── Toggle Methods ──────────────────────────────────────────────
