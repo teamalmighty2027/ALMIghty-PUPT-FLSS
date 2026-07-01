@@ -8,6 +8,7 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\DesigneeRoleController;
 use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
@@ -255,6 +256,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
      * Faculty Type
      */
     Route::apiResource('faculty-types', FacultyTypeController::class);
+    Route::apiResource('designee-roles', DesigneeRoleController::class);
 
     /**
      * Logos
