@@ -258,8 +258,22 @@
           <mat-icon matPrefix>person</mat-icon>
           <input type="text" matInput formControlName="professor" [matAutocomplete]="professorAuto" />
           <mat-autocomplete #professorAuto="matAutocomplete">
-            @for (professor of filteredProfessors$ | async; track professor.id) {
-              <mat-option [value]="professor.name">{{ professor.name }}</mat-option>
+            @for (
+              professor of filteredProfessors$ | async; track professor.id
+            ) {
+              <mat-option [value]="professor.name" class="prof-option">
+                <span class="prof-name">{{ professor.name }}</span>
+                @if (professor.type) {
+                  <span
+                    class="faculty-badge"
+                    [ngClass]="
+                      professor.type.toLowerCase().replace(' ', '-')
+                    "
+                  >
+                    {{ professor.type }}
+                  </span>
+                }
+              </mat-option>
             }
           </mat-autocomplete>
           @if (scheduleForm.get('professor')?.hasError('invalidOption')) {
@@ -296,17 +310,31 @@
               Combine with {{ pendingMatchingProgramCode }}?
               (Will be listed as <strong>{{ pendingCombinedLabel }}</strong>)
             </mat-checkbox>
-            @if (!userConfirmedCombine) {
-              <div class="combine-warning-message">
+          @if (!userConfirmedCombine) {
+            <div class="combine-warning-message">
                 <span mat-symbol="warning"></span>
                 <span>You must confirm the combination to save this schedule.</span>
-              </div>
-            }
+            </div>
+          }
           </div>
         } @else if (conflictMessage) {
           <div class="validation-message conflict">
             <span mat-symbol="error"></span>
             <span>{{ conflictMessage }}</span>
+          </div>
+        }
+
+        @if (remainingHoursMessage) {
+          <div class="validation-message info">
+            <span mat-symbol="info"></span>
+            <span>{{ remainingHoursMessage }}</span>
+          </div>
+        }
+
+        @if (facultyBreakMessage) {
+          <div class="validation-message warning">
+            <span mat-symbol="warning"></span>
+            <span>{{ facultyBreakMessage }}</span>
           </div>
         }
       </div>
@@ -327,7 +355,9 @@
         <button
           class="action-button"
           mat-flat-button
-          [disabled]="hasConflicts || isLoading || scheduleForm.invalid"
+          [disabled]="
+            hasConflicts || isLoading || isValidating || scheduleForm.invalid
+          "
           (click)="assignValidatedSchedule()"
         >
           @if (isLoading) {

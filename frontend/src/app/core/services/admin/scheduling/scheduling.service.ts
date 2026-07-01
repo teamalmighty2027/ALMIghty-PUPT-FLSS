@@ -387,7 +387,8 @@ export class SchedulingService {
     program_id: number,
     year_level: number,
     section_id: number,
-    elective_id: number | null = null
+    elective_id: number | null = null,
+    assignment_type: string | null = null
   ): Observable<any> {
     const payload = {
       schedule_id,
@@ -397,11 +398,21 @@ export class SchedulingService {
       start_time,
       end_time,
       elective_id,
+      assignment_type,
     };
     return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
       catchError(this.handleError)
     );
+  }
+
+  updateAssignmentType(scheduleId: number, assignmentType: string): Observable<any> {
+    return this.http
+      .patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, { assignment_type: assignmentType })
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
   }
 
   /**
@@ -433,6 +444,7 @@ export class SchedulingService {
    * Checks for schedule conflicts based on provided parameters.
    */
   checkForScheduleConflicts(
+    course_id: number,
     schedule_id: number,
     program_id: number,
     year_level: number,
@@ -441,14 +453,20 @@ export class SchedulingService {
     end_time: string,
     section_id: number,
     faculty_id: number | null,
-    room_id: number | null
-  ): Observable<{ hasConflicts: boolean; messages: string[] }> {
+    room_id: number | null,
+    hoursAlreadyAssigned?: number
+  ): Observable<{
+    hasConflicts: boolean;
+    messages: string[];
+    warnings: string[];
+  }> {
     return forkJoin([this.populateSchedules(), this.getAllRooms()]).pipe(
       map(([schedules, rooms]) => {
         return this.scheduleValidationService.validateScheduleConflicts(
           schedules,
           rooms,
           {
+            course_id,
             schedule_id,
             program_id,
             year_level,
@@ -458,6 +476,7 @@ export class SchedulingService {
             section_id,
             faculty_id,
             room_id,
+            hoursAlreadyAssigned,
           }
         );
       }),

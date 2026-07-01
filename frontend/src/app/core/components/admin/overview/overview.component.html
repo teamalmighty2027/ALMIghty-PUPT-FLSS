@@ -28,11 +28,7 @@
         <div class="quick-stats">
           <!-- Content for Active Faculty -->
           <div class="stats active-faculty card">
-            <img
-              src="../../../../../assets/images/faculty.svg"
-              alt="Faculty Icon"
-              class="stats-icon"
-            />
+            <span mat-symbol="groups" class="stats-icon" size="24px"></span>
             <div class="stats-info">
               <h2 class="card-title">Active Faculty</h2>
               <div class="card-content">{{ activeFacultyCount }}</div>
@@ -40,11 +36,7 @@
           </div>
           <!-- Content for Active Programs -->
           <div class="stats programs card">
-            <img
-              src="../../../../../assets/images/schedule.svg"
-              alt="Programs Icon"
-              class="stats-icon"
-            />
+            <span mat-symbol="school" class="stats-icon" size="24px"></span>
             <div class="stats-info">
               <h2 class="card-title">Active Programs</h2>
               <div class="card-content">{{ activeProgramsCount }}</div>
@@ -52,11 +44,7 @@
           </div>
           <!-- Content for Active Curricula -->
           <div class="stats active-curricula card">
-            <img
-              src="../../../../../assets/images/curriculum.svg"
-              alt="Curriculum Icon"
-              class="stats-icon"
-            />
+            <span mat-symbol="description" class="stats-icon" size="24px"></span>
             <div class="stats-info">
               <h2 class="card-title">Active Curricula</h2>
               <div class="card-content">
@@ -293,14 +281,10 @@
               <div class="requests-loading"></div>
             } @else if (!requestNotifications.length && !isAnimatingOut) {
               <div class="no-requests">
-                <img
-                  alt="empty image"
-                  class="no-img"
-                  src="../../../../../assets/images/empty.svg"
-                />
+                <span mat-symbol="mark_email_read" class="no-img" size="48px"></span>
                 <div class="no-text">
-                  <span mat-symbol="info"></span>
-                  <em>No pending requests.</em>
+                  <strong>No pending faculty requests.</strong>
+                  <span>All requests have been processed.</span>
                 </div>
               </div>
             } @else {

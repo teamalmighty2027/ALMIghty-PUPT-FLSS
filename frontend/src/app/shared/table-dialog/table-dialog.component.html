@@ -209,46 +209,48 @@
                       />
                     }
                     @case ("password") {
-                      <input
-                        matInput
-                        [type]="
-                          showPassword[field.formControlName] === false
-                            ? 'text'
-                            : 'password'
-                        "
-                        [formControlName]="field.formControlName"
-                        class="password-input"
-                      />
-                      <div class="password-buttons-suffix">
-                        <button
-                          type="button"
-                          class="password-action-btn"
-                          (click)="
-                            showPassword[field.formControlName] =
-                              !showPassword[field.formControlName]
+                      <div class="password-field-wrapper">
+                        <input
+                          matInput
+                          [type]="
+                            showPassword[field.formControlName]
+                              ? 'text'
+                              : 'password'
                           "
-                          [attr.aria-label]="'Toggle password visibility'"
-                        >
-                          <mat-icon>
-                            {{
-                              showPassword[field.formControlName] === false
-                                ? "visibility"
-                                : "visibility_off"
-                            }}
-                          </mat-icon>
-                        </button>
-                        <button
-                          type="button"
-                          class="password-action-btn"
-                          (click)="
-                            form
-                              .get(field.formControlName)
-                              ?.setValue(generatePassword())
-                          "
-                          [attr.aria-label]="'Generate password'"
-                        >
-                          <mat-icon>autorenew</mat-icon>
-                        </button>
+                          [formControlName]="field.formControlName"
+                          class="password-input"
+                        />
+                        <div class="password-buttons-suffix">
+                          @if (field.formControlName !== "confirmPassword") {
+                            <button
+                              type="button"
+                              class="password-action-btn"
+                              (click)="
+                                onGeneratePassword(field.formControlName)
+                              "
+                              [attr.aria-label]="'Generate password'"
+                            >
+                              <mat-icon>autorenew</mat-icon>
+                            </button>
+                          }
+                          <button
+                            type="button"
+                            class="password-action-btn"
+                            (click)="
+                              showPassword[field.formControlName] =
+                                !showPassword[field.formControlName]
+                            "
+                            [attr.aria-label]="'Toggle password visibility'"
+                          >
+                            <mat-icon>
+                              {{
+                                showPassword[field.formControlName]
+                                  ? "visibility"
+                                  : "visibility_off"
+                              }}
+                            </mat-icon>
+                          </button>
+                        </div>
                       </div>
                     }
                     @case ("number") {

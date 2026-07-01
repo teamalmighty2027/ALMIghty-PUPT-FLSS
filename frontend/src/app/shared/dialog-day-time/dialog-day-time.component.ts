@@ -440,7 +440,8 @@ export class DialogDayTimeComponent implements OnInit {
     this.preferencesService.submitSinglePreference(preferenceData).subscribe({
       next: () => {
         this.snackBar.open(
-          'Your preferences has been saved successfully.',
+          `Your schedule for ${this.courseCode} ` +
+            `has been automatically submitted to the admin.`,
           'Close',
           {
             duration: 3000,

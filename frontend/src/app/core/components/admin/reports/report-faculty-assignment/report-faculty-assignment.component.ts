@@ -161,7 +161,17 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         this.academicYearLabel = `${report.year_start}-${report.year_end}`;
         this.semesterLabel = this.getSemesterName(report.semester);
         
-        const facultyData = report.faculties;
+        // ADD THIS MAPPING: Ensure assignmentType is initialized for the dropdowns
+        const facultyData = report.faculties.map((f: any) => {
+          if (f.schedules) {
+            f.schedules = f.schedules.map((s: any) => ({
+              ...s,
+              assignmentType: s.assignment_type || 'Regular Load' // Default to Regular Load
+            }));
+          }
+          return f;
+        });
+
         this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
@@ -219,13 +229,37 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   updateDisplayedData() {}
 
   hasSchedules(faculty: any): boolean {
-    return faculty.schedules && faculty.schedules.length > 0;
+      return faculty.schedules && faculty.schedules.length > 0;
   }
 
   // --- MODAL AND EXPORT LOGIC ---
 
   onView(faculty: any): void {
-    this.dialog.open(DialogViewScheduleComponent, {
+    const dayOrder: Record<string, number> = { 
+      'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7 
+    };
+
+    // Always work off the latest data by ID, not the row's captured reference
+    const facultyId = faculty.faculty_id;
+
+    const getLatestFaculty = () => this.filteredData.find(f => f.faculty_id === facultyId) || faculty;
+
+    const currentFaculty = getLatestFaculty();
+
+    if (currentFaculty.schedules) {
+      currentFaculty.schedules.forEach((s: any) => {
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular Load';
+      });
+
+      currentFaculty.schedules.sort((a: any, b: any) => {
+        const dayA = dayOrder[a.day] || 99;
+        const dayB = dayOrder[b.day] || 99;
+        if (dayA !== dayB) return dayA - dayB;
+        return this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time);
+      });
+    }
+
+    const dialogRef = this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '95vw',
       width: '95vw',
       height: 'auto',
@@ -235,24 +269,42 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       data: {
         exportType: 'single', 
         entity: 'faculty', 
-        entityData: faculty.schedules,
-        customTitle: `${faculty.faculty_name}`, 
+        entityData: currentFaculty.schedules, 
+        customTitle: `${currentFaculty.faculty_name}`, 
         academicYear: this.academicYearLabel, 
         semester: this.semesterLabel,
         showViewToggle: false,
-        generatePdfFunction: () => this.generateAssignmentPdfBlob(faculty)
+        showAssignmentSummary: true, 
+        generatePdfFunction: (preview: boolean, currentDialogData?: any[]) => {
+          // Always re-fetch latest faculty at generation time too
+          const latest = getLatestFaculty();
+          if (currentDialogData) {
+            latest.schedules = [...currentDialogData]; 
+          }
+          return this.generateAssignmentPdfBlob(latest);
+        }
       },
+    });
+
+    dialogRef.afterClosed().subscribe((wasSaved: boolean) => {
+      if (wasSaved) {
+        this.reportsService.clearCache('faculty');
+        this.fetchFacultyData(this.selectedTermId);
+      }
     });
   }
 
   onExportSingle(faculty: any): void {
+    const facultyId = faculty.faculty_id;
+    const getLatestFaculty = () => this.filteredData.find(f => f.faculty_id === facultyId) || faculty;
+
     const baseFileName = `${faculty.faculty_name.replace(/\s+/g, '_')}_Assignment_SY_${this.academicYearLabel}`;
     this.dialog.open(DialogExportComponent, {
       width: '90vw', maxWidth: '1200px',
       data: {
         exportType: 'single', customTitle: faculty.faculty_name,
         subtitle: `For Academic Year ${this.academicYearLabel}, ${this.semesterLabel}`,
-        generatePdfFunction: () => this.generateAssignmentPdfBlob(faculty),
+        generatePdfFunction: () => this.generateAssignmentPdfBlob(getLatestFaculty()),
         generateFileNameFunction: () => `${baseFileName}.pdf`
       }
     });
@@ -394,34 +446,39 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   getSplitSchedules(facultyType: string, schedules: any[]) {
     const regular: any[] = [];
     const partTime: any[] = [];
-    let currentUnits = 0;
+    const tempSub: any[] = [];
     
-    const isSummerSemester = (this.semesterLabel || '').toLowerCase().includes('summer');
-    const isPartTimeFaculty = (facultyType || '').toLowerCase().includes('part-time') || isSummerSemester;
-
     schedules.forEach((sched: any) => {
-      const units = Number(sched.course_details?.units) || 0;
+      // Look at the assignmentType changed from the UI
+      const type = sched.assignment_type || sched.assignmentType || 'Regular Load';
 
-      if (isPartTimeFaculty) {
+      if (type === 'Part Time') {
         partTime.push(sched);
+      } else if (type === 'Temporary Substitution') {
+        tempSub.push(sched);
       } else {
-        if (currentUnits + units <= 15) {
-          regular.push(sched);
-          currentUnits += units;
-        } else {
-          partTime.push(sched);
-        }
+        regular.push(sched);
       }
     });
     
-    return { regular, partTime };
+    return { regular, partTime, tempSub };
   }
+
 
   getTotalUnits(schedules: any[]): number {
     return schedules.reduce((acc, curr) => acc + (Number(curr.course_details?.units) || 0), 0);
   }
 
   // --- HELPER LOGIC: TIME AND DAYS ---
+
+  private timeToMinutes(time: string): number {
+    if (!time) return 0;
+    const parts = time.split(':');
+    if (parts.length < 2) return 0;
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    return (hours * 60) + minutes;
+  }
 
   private formatDateString(dateString: string): string {
     if (!dateString) return '';
@@ -555,12 +612,11 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     // Trackers
     let regDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
     let ptDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
+    let tsDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
 
     const headers = [['SUBJECT\nCODE', 'SUBJECT DESCRIPTION', 'UNITS', 'YEAR &\nSECTION', 'SUBJ\nREF', 'TIME', 'TIME\nCODE', 'DAY/S', 'ROOM', 'EFFTVTY.']];
 
     const mapRowAndTrackHours = (row: any, tracker: any) => {
-      
-      // Calculate teaching load using unique physical blocks to avoid double counting combined classes
       const uniquePhysicalSchedules = new Map();
       row._rawSchedules.forEach((rawSched: any) => {
         const physicalKey = `${rawSched.day}_${rawSched.start_time}_${rawSched.end_time}`;
@@ -587,12 +643,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         }
       });
 
-      // Prepare row formatting for the PDF table
       const cleanProgram = (row.program_code || '').replace('-TG', '');
       const subjRef = (row.course_details?.offering_type === 'ITech' || cleanProgram.includes('DIT')) ? 'T' : 'C';
 
       let yearSection = `${cleanProgram} ${row.year_level}-${row.section_name}`;
-      
       if (row.is_combined) {
         const courseCode = row.course_details?.course_code || '';
         yearSection = `1TGBRANCH\n${courseCode}`; 
@@ -601,29 +655,25 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       return [
         row.course_details?.course_code || '',
         row.course_details?.course_title || '',
-        row.course_details?.units || 0, // Counted once because the row is merged
+        row.course_details?.units || 0,
         yearSection,
         subjRef,
         row._displayTime, 
         '', 
         row._displayDay, 
-        row._displayRoom, // Output condensed or mapped rooms
+        row._displayRoom,
         this.effectivityDate
       ];
     };
 
     const fixedColumnStyles: any = {
-      0: { cellWidth: 20 },                      
-      1: { cellWidth: 46, halign: 'left' },      
-      2: { cellWidth: 11 },                      
-      3: { cellWidth: 22 },                      
-      4: { cellWidth: 10 },                      
-      5: { cellWidth: 27 },                      
-      6: { cellWidth: 11 },                      
-      7: { cellWidth: 11 },                      
-      8: { cellWidth: 13 },                      
-      9: { cellWidth: 17 }                       
+      0: { cellWidth: 20 }, 1: { cellWidth: 46, halign: 'left' }, 2: { cellWidth: 11 }, 
+      3: { cellWidth: 22 }, 4: { cellWidth: 10 }, 5: { cellWidth: 27 }, 6: { cellWidth: 11 }, 
+      7: { cellWidth: 11 }, 8: { cellWidth: 13 }, 9: { cellWidth: 17 }  
     };
+
+    const tableStyles = { fontSize: 8.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', valign: 'middle' };
+    const headerStyles = { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 };
 
     // 3. REGULAR LOAD TABLE
     let currentY = (doc as any).lastAutoTable.finalY + 4;
@@ -631,16 +681,11 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('REGULAR LOAD', 14, currentY);
 
     let regularBody = splitSchedules.regular.map((s: any) => mapRowAndTrackHours(s, regDailyHours));
-    
-    while (regularBody.length < 5) {
-      regularBody.push(Array(10).fill('')); 
-    }
+    while (regularBody.length < 5) regularBody.push(Array(10).fill('')); 
 
     autoTable(doc, {
       startY: currentY + 1.5, head: headers, body: regularBody, theme: 'grid',
-      styles: { fontSize: 8.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', valign: 'middle' },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
-      columnStyles: fixedColumnStyles 
+      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles 
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 4;
@@ -652,23 +697,41 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     doc.text('PART-TIME', 14, currentY);
 
     let partTimeBody = splitSchedules.partTime.map((s: any) => mapRowAndTrackHours(s, ptDailyHours));
-
-    while (partTimeBody.length < 5) {
-      partTimeBody.push(Array(10).fill(''));
-    }
+    while (partTimeBody.length < 5) partTimeBody.push(Array(10).fill(''));
 
     autoTable(doc, {
       startY: currentY + 1.5, head: headers, body: partTimeBody, theme: 'grid',
-      styles: { fontSize: 8.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', valign: 'middle' },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
-      columnStyles: fixedColumnStyles
+      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 4;
     doc.setFontSize(8); doc.text(`Total PART-TIME: ${this.getTotalUnits(splitSchedules.partTime)}`, 14, currentY);
 
-    // 5. HOURS GRIDS
+    // 5. TEMPORARY SUBSTITUTION TABLE (NEW)
+    currentY += 6;
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('TEMPORARY SUBSTITUTION', 14, currentY);
+
+    let tempSubBody = splitSchedules.tempSub.map((s: any) => mapRowAndTrackHours(s, tsDailyHours));
+    while (tempSubBody.length < 3) tempSubBody.push(Array(10).fill('')); // Shorter minimum rows to save space
+
+    autoTable(doc, {
+      startY: currentY + 1.5, head: headers, body: tempSubBody, theme: 'grid',
+      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 4;
+    doc.setFontSize(8); doc.text(`Total TEMP. SUBSTITUTION: ${this.getTotalUnits(splitSchedules.tempSub)}`, 14, currentY);
+
+    // 6. HOURS GRIDS
     currentY += 7;
+    
+    // Page break prevention for the bottom tables
+    if (currentY + 40 > doc.internal.pageSize.getHeight()) {
+      doc.addPage();
+      currentY = 20;
+    }
+
     doc.setFontSize(9); doc.setFont('helvetica', 'bold');
     doc.text('TEACHING LOAD PER DAY (HOURS)', 105, currentY, { align: 'center' });
 
@@ -677,12 +740,13 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     const regRow = ['REGULAR', ...days.map(d => formatHour(regDailyHours[d]))];
     const ptRow = ['PART-TIME', ...days.map(d => formatHour(ptDailyHours[d]))];
-    const totalRow = ['TOTAL', ...days.map(d => formatHour(regDailyHours[d] + ptDailyHours[d]))];
+    const tsRow = ['TEMP. SUB.', ...days.map(d => formatHour(tsDailyHours[d]))];
+    const totalRow = ['TOTAL', ...days.map(d => formatHour(regDailyHours[d] + ptDailyHours[d] + tsDailyHours[d]))];
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
       head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']],
-      body: [regRow, ptRow, totalRow],
+      body: [regRow, ptRow, tsRow, totalRow],
       styles: { fontSize: 8, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
       columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
@@ -703,11 +767,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
     });
 
-    // 6. FOOTER
+    // 7. FOOTER
     currentY = (doc as any).lastAutoTable.finalY + 8;
     
-    const pageHeight = doc.internal.pageSize.getHeight();
-    if (currentY + 25 > pageHeight) {
+    if (currentY + 25 > doc.internal.pageSize.getHeight()) {
       doc.addPage();
       currentY = 20;
     }

@@ -381,6 +381,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param scheduleId The schedule identifier to locate in the cached tree.
    */
   private getScheduleContext(scheduleId: number): {
+    course_id: number;
     schedule_id: number;
     program_id: number;
     year_level: number;
@@ -389,24 +390,28 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   } | null {
     if (!this.cachedSchedules) return null;
 
-    for (const program of this.cachedSchedules.programs) {
-      for (const yearLevel of program.year_levels) {
-        for (const semester of yearLevel.semesters) {
-          for (const section of semester.sections) {
-            for (const course of section.courses) {
-              if (course.schedule?.schedule_id === scheduleId) {
-                return {
-                  schedule_id: scheduleId,
-                  program_id: program.program_id,
-                  year_level: yearLevel.year_level,
-                  section_id: section.section_per_program_year_id,
-                  faculty_id: course.faculty_id ?? null,
-                };
-              }
-            }
-          }
-        }
-      }
+    const allSchedules = this.cachedSchedules.programs.flatMap((program) =>
+      program.year_levels.flatMap((yearLevel) =>
+        yearLevel.semesters.flatMap((semester) =>
+          semester.sections.flatMap((section) =>
+            section.courses.map(
+              (course) => course.schedule).filter((s): s is any => !!s
+            )
+          )
+        )
+      )
+    );
+
+    const schedule = allSchedules.find((s) => s.schedule_id === scheduleId);
+    if (schedule) {
+      return {
+        course_id: schedule.course_id,
+        schedule_id: schedule.schedule_id,
+        program_id: schedule.program_id,
+        year_level: schedule.year_level,
+        section_id: schedule.section_id,
+        faculty_id: schedule.faculty_id ?? null,
+      };
     }
 
     return null;
@@ -1517,7 +1522,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
     const validation = this.reschedulingService.validateAppealBeforeApproval(
-      this.selectedAppeal?.rawAppealId ?? 0,
       this.newSchedule.preferredDay,
       this.newSchedule.preferredStartTime,
       this.newSchedule.preferredEndTime,
@@ -1718,7 +1722,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const proposedRoomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
     const validation = this.reschedulingService.validateAppealBeforeApproval(
-      this.selectedAppeal.rawAppealId,
       this.newSchedule.preferredDay ?? '',
       this.newSchedule.preferredStartTime ?? '',
       this.newSchedule.preferredEndTime ?? '',

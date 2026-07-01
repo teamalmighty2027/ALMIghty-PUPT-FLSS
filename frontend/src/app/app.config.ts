@@ -50,7 +50,7 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, 
     provideServiceWorker('ngsw-worker.js', {
         enabled: !isDevMode(),
-        registrationStrategy: 'registerWhenStable:30000'
+        registrationStrategy: 'registerImmediately'
     }),
   ],
 };

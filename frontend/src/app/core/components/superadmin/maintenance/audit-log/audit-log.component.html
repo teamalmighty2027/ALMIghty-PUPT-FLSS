@@ -17,7 +17,13 @@
         [columns]="columns"
         [displayedColumns]="displayedColumns"
         [showViewButton]="true"
-        [showEditButton]="false"  [showDeleteButton]="false"
+        [showEditButton]="false"  
+        [showDeleteButton]="false"
+        [totalItems]="totalLogs"
+        [pageSize]="pageSize"
+        
+        [pageIndex]="currentPage - 1" [isServerSidePagination]="true" 
+        (pageChange)="onPageChange($event)"
         (view)="onViewDetails($event)"> 
       </app-table-generic>
       

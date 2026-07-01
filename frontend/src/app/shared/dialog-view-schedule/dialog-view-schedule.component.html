@@ -4,6 +4,7 @@
     <app-loading></app-loading>
   </div>
   } @else {
+  
   <div class="entity-info" [@fadeAnimation]>
     <div class="schedule-title">
       <h2 class="dialog-title">{{ title }}</h2>
@@ -15,8 +16,7 @@
       <mat-button-toggle-group
         name="viewOption"
         [(ngModel)]="selectedView"
-        (ngModelChange)="onViewChange($event)"
-        aria-label="Select view option">
+        (ngModelChange)="onViewChange($event)">
         <mat-button-toggle value="table-view">
           <mat-icon class="icon-spacing">table_chart</mat-icon>
           <span>Table view</span>
@@ -30,71 +30,136 @@
     }
   </div>
 
-  @if (selectedView === 'table-view' && data.exportType !== 'all') {
-    @if (scheduleGroups && scheduleGroups.length > 0) {
-    <div class="multiple-schedules-container">
-      @for (group of scheduleGroups; track group) {
-      <div class="schedule-group">
-        <h3 class="group-title">{{ group.title }}</h3>
+  <div class="scrollable-modal-body">
+    
+    @if (data.entity === 'faculty' && selectedView === 'table-view') {
+      <div class="summary-table-container" [@fadeAnimation]>
+        <h3 class="summary-title">Faculty Load Assignment</h3>
+        
+        <table mat-table [dataSource]="summaryDataSource" class="custom-table summary-table">
+          <ng-container matColumnDef="subjectCode">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Subject Code </th>
+            <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_code }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Description </th>
+            <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_title }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="hrs">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Hrs </th>
+            <td mat-cell *matCellDef="let element"> {{ calculateHours(element.start_time, element.end_time) }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="yearSection">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Year & Section </th>
+            <td mat-cell *matCellDef="let element"> {{ element.program_code }} {{ element.year_level }}-{{ element.section_name }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="day">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Day </th>
+            <td mat-cell *matCellDef="let element"> {{ element.day }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Time </th>
+            <td mat-cell *matCellDef="let element"> {{ formatTimeDisplay(element.start_time) }} - {{ formatTimeDisplay(element.end_time) }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="assignmentType">
+            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Load Type </th>
+            <td mat-cell *matCellDef="let element">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dense-dropdown">
+                <mat-select 
+                  [(ngModel)]="element.assignment_type" 
+                  (selectionChange)="onAssignmentTypeChange(element, $event)">
+                  <mat-option value="Regular Load">Regular Load</mat-option>
+                  <mat-option value="Part Time">Part Time</mat-option>
+                  <mat-option value="Temporary Substitution">Temporary Substitution</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="summaryColumns" style="background-color: #f5f5f5;"></tr>
+          <tr mat-row *matRowDef="let row; columns: summaryColumns;"></tr>
+        </table>
+      </div>
+    }
+
+    @if (selectedView === 'table-view' && data.exportType !== 'all') {
+      @if (scheduleGroups && scheduleGroups.length > 0) {
+      <div class="multiple-schedules-container">
+        @for (group of scheduleGroups; track group) {
+        <div class="schedule-group">
+          <h3 class="group-title">{{ group.title }}</h3>
+          <app-schedule-timeline
+            [scheduleData]="group.scheduleData"
+            [entity]="data.entity"
+            [@fadeAnimation]></app-schedule-timeline>
+        </div>
+        }
+      </div>
+      }
+
+      @if (!scheduleGroups) {
+      <div class="single-schedule-container">
         <app-schedule-timeline
-          [scheduleData]="group.scheduleData"
+          [scheduleData]="scheduleDataCopy"
           [entity]="data.entity"
           [@fadeAnimation]></app-schedule-timeline>
       </div>
       }
-    </div>
     }
 
-    @if (!scheduleGroups) {
-    <div class="single-schedule-container">
-      <app-schedule-timeline
-        [scheduleData]="scheduleDataCopy"
-        [entity]="data.entity"
-        [@fadeAnimation]></app-schedule-timeline>
-    </div>
-    }
-  }
-
-  @if (selectedView === 'pdf-view' || data.exportType === 'all') {
-  <div class="dialog-pref-pdf-container">
-    @if (pdfBlobUrl) {
-    <div class="pdf-container">
-      <iframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
-    </div>
-    } @else {
-    <div class="pdf-container">
-      <span>No PDF available. Schedules are incomplete.</span>
-    </div>
-    }
-  </div>
-  }
-
-  <div class="pdf-warning">
-    <span class="warning-icon" mat-symbol="error"></span>
-    <span class="warning-text">
-      PDF preview may not work on some devices. Click the download button to
-      view the PDF.
-    </span>
-  </div>
-
-  <div class="dialog-actions" [@fadeAnimation]>
-    <button mat-button class="close-button" (click)="closeDialog()">
-      Close
-    </button>
-    
     @if (selectedView === 'pdf-view' || data.exportType === 'all') {
-      @if (data.generateExcelFunction) {
-        <button mat-flat-button class="excel-button" (click)="downloadExcel()">
-          <mat-icon>table_chart</mat-icon>
-          Download Excel
+    <div class="dialog-pref-pdf-container">
+      @if (pdfBlobUrl) {
+      <div class="pdf-container">
+        <iframe [src]="pdfBlobUrl" class="pdf-iframe" style="background-color: #525659;"></iframe>
+      </div>
+      } @else {
+      <div class="pdf-container">
+        <span>No PDF available. Schedules are incomplete.</span>
+      </div>
+      }
+    </div>
+    }
+  </div>
+
+  <!-- 3. FOOTER ACTIONS (Pinned) -->
+  <div class="dialog-actions" [@fadeAnimation]>
+    <div class="pdf-warning" style="display: flex; align-items: center; gap: 8px; flex-grow: 1;">
+      <span class="warning-icon" mat-symbol="error" style="color: #666;"></span>
+      <span class="warning-text" style="color: #666; font-size: 0.9rem;">PDF preview may not work on some devices.</span>
+    </div>
+
+    <div class="action-buttons-wrapper" style="display: flex; gap: 8px;">
+      
+      <!-- NEW CLEAR AND SAVE BUTTONS -->
+      @if (data.entity === 'faculty' && selectedView === 'table-view') {
+        <button mat-stroked-button color="warn" (click)="clearAll()" [disabled]="isSaving">
+          Clear All
+        </button>
+        <button mat-flat-button color="primary" (click)="saveChanges()" [disabled]="!hasChanges || isSaving">
+          @if(isSaving) { Saving... } @else { Save Changes }
         </button>
       }
 
-      <button mat-flat-button (click)="downloadPdf()">
-        <mat-icon>print</mat-icon>
-        Download PDF
-      </button>
-    }
+      <button mat-button class="close-button" (click)="closeDialog()">Close</button>
+      
+      @if (selectedView === 'pdf-view' || data.exportType === 'all') {
+        @if (data.generateExcelFunction) {
+          <button mat-flat-button class="excel-button" style="background-color: #1d6f42; color: white;" (click)="downloadExcel()">
+            <mat-icon>table_chart</mat-icon> Download Excel
+          </button>
+        }
+        <button mat-flat-button color="primary" (click)="downloadPdf()">
+          <mat-icon>print</mat-icon> Download PDF
+        </button>
+      }
+    </div>
   </div>
   }
 </div>
