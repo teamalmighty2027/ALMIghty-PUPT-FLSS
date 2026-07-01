@@ -50,7 +50,15 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     { type: 'text', label: 'Search Faculty', key: 'search' },
   ];
 
-  displayedColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action'];
+  displayedColumns: string[] = [
+    'index',
+    'facultyName',
+    'facultyCode',
+    'facultyType',
+    'facultyUnits',
+    'maxLoad',
+    'action',
+  ];
 
   dataSource = new MatTableDataSource<any>();
   filteredData: any[] = [];
@@ -639,6 +647,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         [{ content: 'EMP NO', fontStyle: 'bold' }, faculty.faculty_code, { content: 'COLLEGE', fontStyle: 'bold' }, 'TAGUIG CAMPUS'],
         [{ content: 'EMP NAME', fontStyle: 'bold' }, faculty.faculty_name.toUpperCase(), { content: 'DEPT CODE', fontStyle: 'bold' }, ''],
         [{ content: 'EMP STATUS', fontStyle: 'bold' }, faculty.faculty_type, { content: 'DEPARTMENT', fontStyle: 'bold' }, 'TAGUIG CAMPUS'],
+        [
+          { content: 'REG LOAD LIMIT', fontStyle: 'bold' },
+          `${faculty.regular_units || 0} Hours`,
+          { content: 'PT LOAD LIMIT', fontStyle: 'bold' },
+          `${faculty.additional_units || 0} Hours`
+        ]
       ],
       columnStyles: { 
         0: { cellWidth: 28, fillColor: [240, 240, 240] }, 

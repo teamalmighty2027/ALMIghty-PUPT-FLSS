@@ -89,6 +89,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     'facultyCode',
     'facultyType',
     'facultyUnits',
+    'maxLoad',
     'action',
     'toggle',
   ];
@@ -226,6 +227,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
             facultyCode: faculty.faculty_code,
             facultyType: faculty.faculty_type,
             facultyUnits: faculty.assigned_units,
+            regularUnits: faculty.regular_units,
+            additionalUnits: faculty.additional_units,
             isEnabled: faculty.is_published === 1,
             facultyId: faculty.faculty_id,
             schedules: faculty.schedules || [],
@@ -544,7 +547,11 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     worksheet.getCell('A1').value = `Faculty: ${faculty.facultyName.toUpperCase()}`;
     worksheet.getCell('E1').value = `Faculty Type: ${faculty.facultyType}`;
     worksheet.getCell('A2').value = `School Year: ${faculty.academicYear} | Semester: ${faculty.semester}`;
-    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Hours`;
+    const maxLoadStr = faculty.additionalUnits > 0
+      ? `${faculty.regularUnits} Reg / ${faculty.additionalUnits} PT`
+      : `${faculty.regularUnits}`;
+    worksheet.getCell('E2').value =
+      `Total Load: ${faculty.facultyUnits} / Max: ${maxLoadStr} Hours`;
 
     ['A1', 'E1', 'A2', 'E2'].forEach(c => {
       const cell = worksheet.getCell(c);
