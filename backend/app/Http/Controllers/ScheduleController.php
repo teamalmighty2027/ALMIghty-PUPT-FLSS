@@ -648,6 +648,7 @@ class ScheduleController extends Controller
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
             'elective_id' => 'nullable|exists:electives,elective_id',
+            'assignment_type' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -683,6 +684,7 @@ class ScheduleController extends Controller
                 'start_time' => $schedule->start_time,
                 'end_time'   => $schedule->end_time,
                 'elective_id' => $schedule->elective_id,
+                'assignment_type' => $schedule->assignment_type,
             ];
 
             // 2. APPLY UPDATES
@@ -692,6 +694,7 @@ class ScheduleController extends Controller
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
             $schedule->elective_id = $request->input('elective_id');
+            $schedule->assignment_type = $request->input('assignment_type', 'Regular Load');
             
             // 3. TRACK HUMAN READABLE CHANGES
             $changes = [];
@@ -748,6 +751,11 @@ class ScheduleController extends Controller
                 $changes[] = "Elective: {$oldElectiveLabel} → {$newElectiveLabel}";
             }
 
+            if ($oldData['assignment_type'] != $schedule->assignment_type) {
+                $changes[] = "Assignment Type: {$oldData['assignment_type']} → {$schedule->assignment_type}";
+            }
+
+            // NOW the guard runs after all checks are complete:
             if (empty($changes)) {
                 DB::rollBack();
                 return response()->json(['message' => 'No changes detected'], 422);
@@ -790,6 +798,39 @@ class ScheduleController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Failed to assign schedule', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Updates the assignment type of a schedule.
+     */
+    public function updateAssignmentType(Request $request, $scheduleId)
+    {
+        $validator = Validator::make($request->all(), [
+            'assignment_type' => 'required|string|in:Regular Load,Part Time,Temporary Substitution',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation Error', 'errors' => $validator->errors()], 422);
+        }
+
+        $schedule = Schedule::find($scheduleId);
+        if (!$schedule) {
+            return response()->json(['message' => 'Schedule not found'], 404);
+        }
+
+        $oldValue = $schedule->assignment_type;
+        $schedule->assignment_type = $request->input('assignment_type');
+        $schedule->save();
+
+        AuditLogger::logUpdate(
+            model: 'Schedule',
+            modelId: $schedule->schedule_id,
+            oldData: ['assignment_type' => $oldValue],
+            newData: ['assignment_type' => $schedule->assignment_type],
+            description: "Updated Assignment Type: {$oldValue} → {$schedule->assignment_type}"
+        );
+
+        return response()->json(['message' => 'Assignment type updated', 'schedule' => $schedule]);
     }
 
     /**

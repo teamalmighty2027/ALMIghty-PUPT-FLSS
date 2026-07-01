@@ -17,6 +17,7 @@ class Schedule extends Model
         'day',
         'start_time',
         'end_time',
+        'assignment_type',
         'faculty_id',
         'room_id',
     ];
