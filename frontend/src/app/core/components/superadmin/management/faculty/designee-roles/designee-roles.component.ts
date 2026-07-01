@@ -43,7 +43,7 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
   columns = [
     { key: 'role_name', label: 'Role Name' },
     { key: 'regular_units', label: 'Regular Units' },
-    { key: 'additional_units', label: 'Additional Units' },
+    { key: 'additional_units', label: 'Part-time Units' },
     { key: 'total_units', label: 'Total Units' },
   ];
 
@@ -175,7 +175,7 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
           },
           {
             name: 'additional_units',
-            label: 'Additional Units',
+            label: 'Part-time Units',
             type: 'number',
             required: true,
             formControlName: 'additional_units',

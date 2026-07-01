@@ -49,7 +49,7 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
   columns = [
     { key: 'faculty_type', label: 'Faculty Type' },
     { key: 'regular_units', label: 'Regular Units' },
-    { key: 'additional_units', label: 'Additional Units' },
+    { key: 'additional_units', label: 'Part-time Units' },
     { key: 'total_units', label: 'Total Units' },
     { key: 'designee_role_name', label: 'Designee Role' },
   ];
@@ -192,7 +192,7 @@ export class FacultyTypesComponent implements OnInit, OnDestroy {
           },
           {
             name: 'additional_units',
-            label: 'Additional Units',
+            label: 'Part-time Units',
             type: 'number',
             required: true,
             formControlName: 'additional_units',

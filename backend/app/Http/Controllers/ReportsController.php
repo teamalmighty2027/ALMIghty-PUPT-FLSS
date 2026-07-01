@@ -322,6 +322,8 @@ class ReportsController extends Controller
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
+                'faculty_type.regular_units',
+                'faculty_type.additional_units',
                 'current_schedules.schedule_id',
                 'current_schedules.assignment_type',
                 'current_schedules.day',
@@ -387,6 +389,8 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'regular_units' => $schedule->regular_units,
+                    'additional_units' => $schedule->additional_units,
                     'is_appeal_enabled' => $schedule->is_appeal_enabled,
                     'has_appeal_request' => $schedule->has_appeal_request,
                     'appeal_start_date' => $schedule->appeal_start_date,
@@ -415,8 +419,12 @@ class ReportsController extends Controller
                     $courseKey,
                     $faculties[$schedule->faculty_id]['tracked_courses']
                 )) {
+                    $tuition = (float) $schedule->tuition_hours;
+                    $units = (float) $schedule->units;
+                    $hours = $tuition > 0 ? $tuition : $units;
+
                     $faculties[$schedule->faculty_id]['assigned_units'] +=
-                        $schedule->units;
+                        $hours;
                     $faculties[$schedule->faculty_id]['tracked_courses'][] =
                         $courseKey;
                 }

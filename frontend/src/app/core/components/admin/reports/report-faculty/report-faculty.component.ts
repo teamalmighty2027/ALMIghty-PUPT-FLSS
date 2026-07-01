@@ -544,7 +544,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     worksheet.getCell('A1').value = `Faculty: ${faculty.facultyName.toUpperCase()}`;
     worksheet.getCell('E1').value = `Faculty Type: ${faculty.facultyType}`;
     worksheet.getCell('A2').value = `School Year: ${faculty.academicYear} | Semester: ${faculty.semester}`;
-    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Units`;
+    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Hours`;
 
     ['A1', 'E1', 'A2', 'E2'].forEach(c => {
       const cell = worksheet.getCell(c);
