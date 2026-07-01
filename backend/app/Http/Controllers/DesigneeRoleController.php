@@ -22,6 +22,8 @@ class DesigneeRoleController extends Controller
     {
         $validatedData = $request->validate([
             'role_name' => 'required|string|unique:designee_role',
+            'regular_units' => 'required|numeric|min:0',
+            'additional_units' => 'required|numeric|min:0',
         ]);
 
         $role = DesigneeRole::create($validatedData);
@@ -52,25 +54,44 @@ class DesigneeRoleController extends Controller
         $validatedData = $request->validate([
             'role_name' => 'required|string|unique:designee_role,role_name,' .
                 $designeeRole->designee_role_id . ',designee_role_id',
+            'regular_units' => 'required|numeric|min:0',
+            'additional_units' => 'required|numeric|min:0',
         ]);
 
-        if ($oldData['role_name'] === $validatedData['role_name']) {
+        $changes = [];
+        if ($oldData['role_name'] != $validatedData['role_name']) {
+            $designeeRole->role_name = $validatedData['role_name'];
+            $changes[] = "Name: {$oldData['role_name']} → " .
+                $validatedData['role_name'];
+        }
+        if ($oldData['regular_units'] != $validatedData['regular_units']) {
+            $designeeRole->regular_units = $validatedData['regular_units'];
+            $changes[] = "Regular Units: {$oldData['regular_units']} → " .
+                $validatedData['regular_units'];
+        }
+        if ($oldData['additional_units'] != $validatedData['additional_units']) {
+            $designeeRole->additional_units = $validatedData['additional_units'];
+            $changes[] = "Additional Units: {$oldData['additional_units']} → " .
+                $validatedData['additional_units'];
+        }
+
+        if (empty($changes)) {
             return response()->json(
                 ['message' => 'No changes detected'],
                 422
             );
         }
 
-        $designeeRole->role_name = $validatedData['role_name'];
         $designeeRole->save();
 
+        $changesSummary = implode(', ', $changes);
         AuditLogger::logUpdate(
             model: 'DesigneeRole',
             modelId: $designeeRole->designee_role_id,
             oldData: $oldData,
             newData: $designeeRole->toArray(),
-            description: "Updated Designee Role: {$oldData['role_name']}" .
-                " → {$designeeRole->role_name}"
+            description: "Updated Designee Role: {$oldData['role_name']} - " .
+                $changesSummary
         );
 
         return response()->json($designeeRole);

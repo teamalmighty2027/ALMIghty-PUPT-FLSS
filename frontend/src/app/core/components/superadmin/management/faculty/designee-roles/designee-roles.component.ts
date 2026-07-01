@@ -16,6 +16,7 @@ import { LoadingComponent } from '../../../../../../shared/loading/loading.compo
 import { DesigneeRoleService } from '../../../../../services/superadmin/management/faculty/designee-role.service';
 import { DesigneeRole } from '../../../../../services/superadmin/management/faculty/faculty-type.service';
 
+import { RouterLink } from '@angular/router';
 import { fadeAnimation } from '../../../../../animations/animations';
 
 @Component({
@@ -26,24 +27,31 @@ import { fadeAnimation } from '../../../../../animations/animations';
     TableGenericComponent,
     TableHeaderComponent,
     LoadingComponent,
+    RouterLink,
   ],
   templateUrl: './designee-roles.component.html',
   styleUrl: './designee-roles.component.scss',
   animations: [fadeAnimation],
 })
 export class DesigneeRolesComponent implements OnInit, OnDestroy {
-  designeeRoles: DesigneeRole[] = [];
-  filteredDesigneeRoles: DesigneeRole[] = [];
+  designeeRoles: any[] = [];
+  filteredDesigneeRoles: any[] = [];
   isLoading = true;
   searchControl = new FormControl('');
   private destroy$ = new Subject<void>();
 
   columns = [
     { key: 'role_name', label: 'Role Name' },
+    { key: 'regular_units', label: 'Regular Units' },
+    { key: 'additional_units', label: 'Additional Units' },
+    { key: 'total_units', label: 'Total Units' },
   ];
 
   displayedColumns: string[] = [
     'role_name',
+    'regular_units',
+    'additional_units',
+    'total_units',
     'action',
   ];
 
@@ -52,7 +60,7 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
       type: 'text',
       label: 'Search Designee Roles',
       key: 'search',
-      placeholder: 'Search by role name...',
+      placeholder: 'Search by role name or units...',
     },
   ];
 
@@ -94,7 +102,13 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
       this.filteredDesigneeRoles = [...this.designeeRoles];
     } else {
       this.filteredDesigneeRoles = this.designeeRoles.filter(
-        (role) => role.role_name.toLowerCase().includes(lowerSearch)
+        (role) =>
+          role.role_name.toLowerCase().includes(lowerSearch) ||
+          role.regular_units.toString().includes(lowerSearch) ||
+          role.additional_units.toString().includes(lowerSearch) ||
+          (role.regular_units + role.additional_units)
+            .toString()
+            .includes(lowerSearch)
       );
     }
   }
@@ -120,7 +134,10 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (roles) => {
-          this.designeeRoles = roles;
+          this.designeeRoles = roles.map((role) => ({
+            ...role,
+            total_units: role.regular_units + role.additional_units,
+          }));
           this.filteredDesigneeRoles = [...this.designeeRoles];
 
           const currentSearch = this.searchControl.value;
@@ -149,11 +166,33 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
             required: true,
             formControlName: 'role_name',
           },
+          {
+            name: 'regular_units',
+            label: 'Regular Units',
+            type: 'number',
+            required: true,
+            formControlName: 'regular_units',
+          },
+          {
+            name: 'additional_units',
+            label: 'Additional Units',
+            type: 'number',
+            required: true,
+            formControlName: 'additional_units',
+          },
         ],
         action,
         initialValue: data
-          ? { role_name: data.role_name }
-          : { role_name: '' },
+          ? {
+              role_name: data.role_name,
+              regular_units: data.regular_units,
+              additional_units: data.additional_units,
+            }
+          : {
+              role_name: '',
+              regular_units: 0,
+              additional_units: 0,
+            },
       },
       autoFocus: true,
     });
@@ -169,7 +208,12 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
               .pipe(takeUntil(this.destroy$))
               .subscribe({
                 next: (newRole) => {
-                  this.designeeRoles = [...this.designeeRoles, newRole];
+                  const roleWithTotal = {
+                    ...newRole,
+                    total_units:
+                      newRole.regular_units + newRole.additional_units,
+                  };
+                  this.designeeRoles = [...this.designeeRoles, roleWithTotal];
                   this.filteredDesigneeRoles = [...this.designeeRoles];
                   this.snackBar.open(
                     'Designee role added successfully',
@@ -195,7 +239,13 @@ export class DesigneeRolesComponent implements OnInit, OnDestroy {
                     (role) => role.designee_role_id === data.designee_role_id
                   );
                   if (index !== -1) {
-                    this.designeeRoles[index] = updatedRole;
+                    const roleWithTotal = {
+                      ...updatedRole,
+                      total_units:
+                        updatedRole.regular_units +
+                        updatedRole.additional_units,
+                    };
+                    this.designeeRoles[index] = roleWithTotal;
                     this.designeeRoles = [...this.designeeRoles];
                     this.filteredDesigneeRoles = [...this.designeeRoles];
                   }

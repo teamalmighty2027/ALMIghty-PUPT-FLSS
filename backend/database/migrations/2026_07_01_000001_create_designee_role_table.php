@@ -13,6 +13,8 @@ return new class extends Migration
         Schema::create('designee_role', function (Blueprint $table) {
             $table->id('designee_role_id');
             $table->string('role_name')->unique();
+            $table->integer('regular_units')->default(0);
+            $table->integer('additional_units')->default(0);
             $table->timestamps();
         });
 
@@ -20,11 +22,15 @@ return new class extends Migration
         DB::table('designee_role')->insert([
             [
                 'role_name' => 'Director',
+                'regular_units' => 6,
+                'additional_units' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
                 'role_name' => 'HAP',
+                'regular_units' => 6,
+                'additional_units' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

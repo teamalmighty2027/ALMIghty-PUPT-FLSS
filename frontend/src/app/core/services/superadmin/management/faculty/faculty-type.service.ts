@@ -6,6 +6,8 @@ import { environment } from '../../../../../../environments/environment.dev';
 export interface DesigneeRole {
   designee_role_id: number;
   role_name: string;
+  regular_units: number;
+  additional_units: number;
   created_at: string;
   updated_at: string;
 }
