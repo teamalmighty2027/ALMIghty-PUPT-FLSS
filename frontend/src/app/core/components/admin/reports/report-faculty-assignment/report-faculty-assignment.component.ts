@@ -784,7 +784,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     });
 
     currentY = (doc as any).lastAutoTable.finalY + 4;
-    doc.setFontSize(8); doc.text(`Total TEMP. SUBSTITUTION: ${this.getTotalUnits(splitSchedules.tempSub)}`, 14, currentY);
+    doc.setFontSize(8); doc.text(`Total TEMP. SUBSTITUTION: ${this.getTotalHours(splitSchedules.tempSub)}`, 14, currentY);
 
     // 6. HOURS GRIDS
     currentY += 7;
