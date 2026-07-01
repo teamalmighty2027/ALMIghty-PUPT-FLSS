@@ -800,6 +800,9 @@ class ScheduleController extends Controller
         }
     }
 
+    /**
+     * Updates the assignment type of a schedule.
+     */
     public function updateAssignmentType(Request $request, $scheduleId)
     {
         $validator = Validator::make($request->all(), [
