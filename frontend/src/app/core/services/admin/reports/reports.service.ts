@@ -10,6 +10,12 @@ import { catchError, shareReplay } from 'rxjs/operators';
 
 import { environment } from '../../../../../environments/environment.dev';
 
+export type AssignmentType =
+  | 'Regular Load'
+  | 'Overload'
+  | 'Extra Load'
+  | 'Honorarium';
+  
 @Injectable({
   providedIn: 'root',
 })

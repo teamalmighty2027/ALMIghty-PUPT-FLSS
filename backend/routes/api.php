@@ -382,6 +382,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/get-available-rooms', [RoomController::class, 'getAllRooms']);
     Route::post('/toggle-all-schedule', [ScheduleController::class, 'toggleAllSchedules']);
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
+    Route::patch('/schedules/{schedule}/assignment-type', [ScheduleController::class, 'updateAssignmentType']);
 
     /**
      * Temporary Course Offerings

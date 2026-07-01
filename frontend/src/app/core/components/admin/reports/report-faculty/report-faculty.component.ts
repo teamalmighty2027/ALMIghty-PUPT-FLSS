@@ -299,25 +299,29 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   onView(faculty: Faculty): void {
-    const sanitizedSchedules = (faculty.schedules || []).map((s: any) => ({
-      ...s,
-      day: s.day || 'TBA',
-      start_time: s.start_time || '07:00',
-      end_time: s.end_time || '08:00'
-    }));
+    // 1. Mutate the original schedule references directly instead of creating a shallow copy
+    if (faculty.schedules) {
+      faculty.schedules.forEach((s: any) => {
+        s.day = s.day || 'TBA';
+        s.start_time = s.start_time || '07:00';
+        s.end_time = s.end_time || '08:00';
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular Load';
+      });
+    }
 
     const generatePdfFunction = (): Blob | void => {
       return this.createPdfBlob(faculty);
     };
 
-    this.dialog.open(DialogViewScheduleComponent, {
+    const dialogRef = this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
       autoFocus: true,
       data: {
         exportType: 'single',
         entity: 'faculty',
-        entityData: sanitizedSchedules,
+        // 2. Pass the direct reference to the dialog
+        entityData: faculty.schedules, 
         customTitle: `${faculty.facultyName}`,
         academicYear: faculty.academicYear,
         semester: faculty.semester,
@@ -328,7 +332,15 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           saveAs(excelBlob, `${formattedName}_Schedule.xlsx`);
         },
         previewMode: true,
+        showAssignmentSummary: true
       },
+    });
+
+    dialogRef.afterClosed().subscribe((wasSaved: boolean) => {
+      if (wasSaved) {
+        this.reportsService.clearCache('faculty');
+        this.fetchFacultyData(this.selectedTermId);
+      }
     });
   }
 

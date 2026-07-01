@@ -2,14 +2,12 @@
 @use '../../../styles/breakpoints.scss' as bp;
 
 .dialog-view-schedule-container {
-  @include mixins.flex-layout(
-    $direction: column,
-    $align: stretch,
-    $justify: flex-start,
-    $gap: var(--spacing-md)
-  );
-  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  max-height: 85vh; 
+  overflow: hidden; 
+  padding: var(--spacing-lg);
 }
 
 .pdf-warning {
@@ -22,6 +20,8 @@
     $justify: space-between,
     $gap: var(--spacing-xxs)
   );
+  flex-shrink: 0; 
+  margin-bottom: var(--spacing-md);
 
   .schedule-title {
     .dialog-title {
@@ -36,6 +36,25 @@
   }
 }
 
+/* THE MODAL SCROLL CONTAINER */
+.scrollable-modal-body {
+  flex: 1 1 auto; 
+  overflow-y: auto; 
+  overflow-x: hidden;
+  padding-right: 8px; 
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md); 
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+}
+
 .multiple-schedules-container {
   @include mixins.flex-layout(
     $direction: column,
@@ -43,9 +62,8 @@
     $justify: flex-start,
     $gap: var(--spacing-xl)
   );
-  max-height: var(--dialog-base-height);
-  overflow: auto;
-  padding-right: var(--spacing-md);
+  flex-shrink: 0;
+  height: auto;
 
   .schedule-group {
     @include mixins.flex-layout(
@@ -69,20 +87,17 @@
     $align: stretch,
     $justify: flex-start
   );
-
-  min-height: var(--dialog-base-height);
-}
-
-iframe {
-  width: 100%;
-  max-height: var(--dialog-base-height);
-  border: none;
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-level-1);
+  flex-shrink: 0;
+  height: auto;
 }
 
 .dialog-actions {
   @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+  flex-shrink: 0; 
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid rgba(0,0,0,0.05);
+  
   .close-button {
     color: var(--primary-text);
   }
@@ -94,15 +109,8 @@ iframe {
     background-color: var(--primary-fade);
     border-radius: var(--border-radius-md);
     padding: var(--spacing-xs);
-
-    .warning-text {
-      font-size: var(--font-size-sm);
-    }
-
-    .warning-icon,
-    .warning-text {
-      color: var(--primary-text);
-    }
+    .warning-text { font-size: var(--font-size-sm); }
+    .warning-icon, .warning-text { color: var(--primary-text); }
   }
 
   .dialog-view-schedule-container {
@@ -110,81 +118,33 @@ iframe {
     gap: var(--spacing-sm);
   }
 
-  // Title + toggle stack vertically
   .entity-info {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
 
     .schedule-title {
-      .dialog-title {
-        font-size: var(--font-size-lg);
-        line-height: 1.3;
-      }
-
-      .dialog-subtitle {
-        font-size: var(--font-size-sm);
-      }
+      .dialog-title { font-size: var(--font-size-lg); line-height: 1.3; }
+      .dialog-subtitle { font-size: var(--font-size-sm); }
     }
 
-    // View toggle — full width, both options equal
     .view-option {
       width: 100%;
-
       mat-button-toggle-group {
         width: 100%;
         display: flex;
-
-        mat-button-toggle {
-          flex: 1;
-          text-align: center;
-        }
+        mat-button-toggle { flex: 1; text-align: center; }
       }
     }
   }
 
-  // Schedule containers — constrained height so footer stays visible
-  .multiple-schedules-container {
-    max-height: 40vh;
-    padding-right: var(--spacing-xs);
-  }
-
-  .single-schedule-container {
-    min-height: 0;
-    max-height: 40vh;
-    overflow: auto;
-  }
-
-  // PDF iframe — smaller on mobile so Close button is always visible
-  iframe,
-  pdf-viewer {
-    min-height: 35vh !important;
-    max-height: 40vh !important;
-  }
-
-  // Action buttons — all visible, properly sized
   .dialog-actions {
     flex-wrap: wrap;
     justify-content: stretch;
     gap: var(--spacing-xs);
     padding-top: var(--spacing-xs);
-
-    button {
-      flex: 1 1 auto;
-      min-height: 44px;
-      justify-content: center;
-    }
-
-    // Close button stays in the row — do NOT push to bottom
-    .close-button {
-      flex: 1 1 auto;
-      order: 0;
-    }
-  }
-
-  mat-dialog-actions,
-  .mat-mdc-dialog-actions {
-    padding: 8px 12px !important;
+    button { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+    .close-button { flex: 1 1 auto; order: 0; }
   }
 }
 
@@ -193,26 +153,9 @@ iframe {
     padding: var(--spacing-sm);
     gap: var(--spacing-xs);
   }
-
-  iframe,
-  pdf-viewer {
-    min-height: 28vh !important;
-    max-height: 32vh !important;
-  }
-
-  .multiple-schedules-container {
-    max-height: 35vh;
-  }
-
-  .single-schedule-container {
-    max-height: 35vh;
-  }
-
-  .dialog-actions {
-    button {
-      flex: 1 1 100%;
-      width: 100%;
-    }
+  .dialog-actions button {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 
@@ -222,51 +165,83 @@ iframe {
   margin-right: 8px;
 }
 
-/* Force dialog content to flex column so footer stays visible */
-mat-dialog-content,
-.mat-mdc-dialog-content {
-  display: flex !important;
-  flex-direction: column !important;
-  flex-grow: 1 !important;
-  min-height: 0 !important;
-  padding-bottom: 0 !important;
+// --- Summary Table Styles ---
+.summary-table-container {
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  .summary-title {
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-text);
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .summary-table {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05); 
+    border-radius: 4px;
+  }
 }
 
-.view-container,
-.table-responsive-container,
-.pdf-viewer-container {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  height: 100%;
-  min-height: 0;
+.section-divider {
+  border: 0;
+  height: 1px;
+  background: rgba(0,0,0,0.1);
+  margin: 24px 0;
+}
+
+// Let Material handle the height naturally, just hide the bottom margin
+::ng-deep .dense-dropdown {
   width: 100%;
+  min-width: 190px;
+  
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none; // Hides the empty space reserved for hints/errors
+  }
+
+  // Adjust padding slightly to make it compact without breaking the text
+  .mat-mdc-text-field-wrapper {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
 }
 
-full-calendar,
-.fc,
-.fc-view-harness {
-  flex-grow: 1 !important;
-  height: 100% !important;
-  min-height: 50vh;
+/* ==========================================================================
+   SAFE CALENDAR OVERRIDES: Forces height & hides internal scroll
+   ========================================================================== */
+
+::ng-deep app-schedule-timeline,
+::ng-deep .schedule-timeline-container {
+  height: auto !important;
+  overflow-y: visible !important;
+  max-height: unset !important;
 }
 
-/* PDF iframe — reasonable default, overridden on mobile */
-pdf-viewer,
-iframe,
-object,
-embed {
-  flex-grow: 1 !important;
-  height: 100% !important;
-  width: 100% !important;
-  min-height: 50vh !important;
-  border: none !important;
+/* ==========================================================================
+   PDF VIEWER FIX
+   ========================================================================== */
+
+.dialog-pref-pdf-container {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 80vh; 
+  min-height: 600px;
+  display: block; /* Prevents flexbox collapsing */
+}
+
+.pdf-container {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
-mat-dialog-actions,
-.mat-mdc-dialog-actions {
-  margin-top: auto !important;
-  padding: 12px 16px !important;
-  flex-shrink: 0 !important;
+.pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
 }
