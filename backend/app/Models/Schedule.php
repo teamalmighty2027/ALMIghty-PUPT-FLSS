@@ -20,6 +20,7 @@ class Schedule extends Model
         'assignment_type',
         'faculty_id',
         'room_id',
+        'assignment_type_id',
     ];
 
     public function sectionCourse()
@@ -35,5 +36,10 @@ class Schedule extends Model
     public function room()
     {
         return $this->belongsTo(Room::class, 'room_id', 'room_id');
+    }
+
+    public function assignmentType()
+    {
+        return $this->belongsTo(AssignmentType::class, 'assignment_type_id');
     }
 }

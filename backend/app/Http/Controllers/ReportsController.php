@@ -99,6 +99,12 @@ class ReportsController extends Controller
                 'temporary_course_offerings' .
                 '.temporary_course_offering_id'
             )
+            ->leftJoin(
+                'assignment_types',
+                'schedules.assignment_type_id',
+                '=',
+                'assignment_types.id'
+            )
             ->where(
                 'sections_per_program_year.academic_year_id',
                 '=',
@@ -182,8 +188,9 @@ class ReportsController extends Controller
                 'schedules.end_time',
                 'schedules.room_id',
                 'schedules.section_course_id',
-                'schedules.assignment_type'
-            );
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type'
+            );  
 
         // Step 3: Join faculties with schedules
         $facultySchedules = DB::table('faculty')
@@ -325,6 +332,7 @@ class ReportsController extends Controller
                 'faculty_type.regular_units',
                 'faculty_type.additional_units',
                 'current_schedules.schedule_id',
+                'current_schedules.assignment_type_id',
                 'current_schedules.assignment_type',
                 'current_schedules.day',
                 'current_schedules.start_time',
@@ -432,6 +440,7 @@ class ReportsController extends Controller
                 $faculties[$schedule->faculty_id]['is_published'] = $schedule->is_published;
                 $faculties[$schedule->faculty_id]['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
+                    'assignment_type_id' => $schedule->assignment_type_id,
                     'assignment_type' => $schedule->assignment_type,
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
@@ -1169,7 +1178,8 @@ class ReportsController extends Controller
             })
             ->select(
                 'schedules.schedule_id',
-                'schedules.assignment_type',
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type',
                 'schedules.day',
                 'schedules.start_time',
                 'schedules.end_time',
@@ -1258,6 +1268,7 @@ class ReportsController extends Controller
             foreach ($facultySchedules as $schedule) {
                 $response['faculty_schedule']['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
+                    'assignment_type_id' => $schedule->assignment_type_id,
                     'assignment_type' => $schedule->assignment_type,
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
@@ -1369,7 +1380,8 @@ class ReportsController extends Controller
             ->where('schedules.faculty_id', '=', $faculty_id)
             ->select(
                 'schedules.schedule_id',
-                'schedules.assignment_type',
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type',
                 'schedules.faculty_id',
                 'schedules.room_id',
                 'schedules.day',
@@ -1513,6 +1525,7 @@ class ReportsController extends Controller
         $schedules = $schedules
             ->select(
                 'schedules.schedule_id',
+                'schedules.assignment_type_id',
                 'schedules.assignment_type',
                 'schedules.day',
                 'schedules.start_time',
@@ -1586,6 +1599,7 @@ class ReportsController extends Controller
         $transformedSchedules = $schedules->map(function ($schedule) {
             return [
                 'schedule_id' => $schedule->schedule_id,
+                'assignment_type_id' => $schedule->assignment_type_id,
                 'assignment_type' => $schedule->assignment_type,
                 'day' => $schedule->day,
                 'start_time' => $schedule->start_time,
