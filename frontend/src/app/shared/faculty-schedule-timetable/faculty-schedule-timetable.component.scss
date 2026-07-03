@@ -187,3 +187,58 @@ $day-colors: (
     &:hover { background-color: rgba(0,0,0,0.06); }
   }
 }
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .faculty-schedule-timetable-container {
+    min-height: 0;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    overflow-y: visible;
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--neutral-fade);
+    background-color: var(--main-bg);
+  }
+
+  .faculty-schedule-timetable-table {
+    min-width: 980px;
+    font-size: 0.82rem;
+  }
+
+  .faculty-schedule-timetable-table-header th,
+  .faculty-schedule-timetable-table-body td {
+    white-space: nowrap;
+  }
+
+  .time-slot {
+    min-width: 96px !important;
+    max-width: 96px !important;
+    font-size: 0.76rem;
+  }
+
+  .schedule-content {
+    font-size: 0.78rem;
+    padding: 0.35rem;
+
+    .course-text {
+      font-size: 0.82rem;
+      line-height: 1.18;
+    }
+
+    .time {
+      font-size: 0.72rem;
+      font-weight: 500;
+      line-height: 1.15;
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      display: inline-block;
+      max-width: 100%;
+    }
+
+    .time-actions {
+      gap: 0.25rem;
+    }
+  }
+}

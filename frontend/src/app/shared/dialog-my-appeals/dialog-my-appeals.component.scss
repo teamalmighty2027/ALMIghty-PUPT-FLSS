@@ -1,8 +1,9 @@
 .dialog-container {
   display: flex;
   flex-direction: column;
-  min-width: 520px;
-  max-width: 620px;
+  min-width: min(520px, 92vw);
+  max-width: min(620px, 92vw);
+  width: min(620px, 92vw);
 }
 
 .dialog-header {
@@ -22,8 +23,10 @@
 
 mat-dialog-content {
   padding: 1rem 1.5rem;
-  max-height: 70vh;
+  max-height: min(72dvh, 560px);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 // ── Loading ──────────────────────────────────────────
@@ -51,11 +54,12 @@ mat-dialog-content {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  padding: 2rem;
+  padding: 1.25rem 1rem 1.5rem;
   color: var(--secondary-text);
-  opacity: 0.6;
+  opacity: 0.7;
+  text-align: center;
 
-  mat-icon { font-size: 2.5rem; width: 2.5rem; height: 2.5rem; }
+  mat-icon { font-size: 2.25rem; width: 2.25rem; height: 2.25rem; }
   p { margin: 0; }
 }
 
@@ -196,4 +200,49 @@ mat-dialog-content {
   justify-content: flex-end;
   padding-top: 0.25rem;
   border-top: 1px solid var(--neutral-fade);
+}
+
+@media screen and (max-width: 600px) {
+  .dialog-container {
+    min-width: min(92vw, 100%);
+    max-width: min(92vw, 100%);
+    width: min(92vw, 100%);
+  }
+
+  .dialog-header {
+    padding: 0.9rem 1rem 0.6rem;
+  }
+
+  mat-dialog-content {
+    padding: 0.9rem 1rem 1rem;
+    max-height: min(76dvh, 560px);
+  }
+
+  .empty-state {
+    padding: 1rem 0.5rem 1.25rem;
+  }
+
+  .appeal-card {
+    padding: 0.8rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .info-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+  }
+
+  .info-row .label {
+    min-width: 0;
+  }
+
+  .doc-row {
+    flex-wrap: wrap;
+  }
 }

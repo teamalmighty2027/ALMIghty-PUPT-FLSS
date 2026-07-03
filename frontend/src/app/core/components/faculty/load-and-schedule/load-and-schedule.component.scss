@@ -418,24 +418,224 @@
       $align: stretch,
       $gap: var(--spacing-md)
     );
-    .schedule-overview { width: auto; }
-    .schedule-overview-group { width: auto; }
+
+    .page-header {
+      width: 100%;
+    }
+
+    .schedule-overview-group {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--spacing-sm);
+    }
+
+    .schedule-tutorial-card {
+      width: 100%;
+      min-height: 64px;
+      justify-content: flex-start;
+      padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .schedule-overview {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: var(--spacing-sm);
+
+      .schedule-summary,
+      .schedule-history {
+        min-height: 96px;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+    }
   }
 }
 
 @media screen and (max-width: bp.$breakpoint-sm) {
-  .row-two { margin-bottom: var(--spacing-lg); }
+  .faculty-load-schedule-container {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .row-two {
+    margin-bottom: var(--spacing-lg);
+    overflow: visible;
+  }
+
+  .view-wrapper {
+    overflow: visible;
+    height: auto;
+  }
 
   .row-one {
-    .schedule-overview {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: stretch,
-        $gap: var(--spacing-sm)
-      );
-      .summary-numbers {
-        @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-md));
+    .page-header {
+      p {
+        font-size: var(--font-size-smx);
+        line-height: 1.6;
       }
     }
+
+    .schedule-overview-group {
+      gap: var(--spacing-sm);
+      align-items: stretch;
+    }
+
+
+    .schedule-overview {
+      grid-template-columns: 1fr;
+      gap: var(--spacing-sm);
+
+      .schedule-summary,
+      .schedule-history {
+        min-height: 88px;
+        padding: 0.8rem 1rem;
+        align-items: flex-start;
+        justify-content: center;
+      }
+
+      .mini-heading {
+        margin: 0 0 0.35rem;
+        width: 100%;
+        font-size: 0.95rem;
+        gap: 0.35rem;
+      }
+
+      .summary-numbers {
+        @include mixins.flex-layout($direction: column, $align: flex-start, $gap: 0.25rem);
+        width: 100%;
+        margin-top: 0.2rem;
+
+        p {
+          margin: 0;
+          font-size: 0.88rem;
+          line-height: 1.45;
+        }
+      }
+
+      .schedule-history p {
+        margin: 0.15rem 0 0;
+        font-size: 0.88rem;
+        line-height: 1.45;
+      }
+    }
+  }
+
+  .view-toggle-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+
+    .toggle-left-section {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--spacing-sm);
+    }
+
+    .toggle-right-section {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: var(--spacing-sm);
+    }
+
+    .export-excel-btn {
+      background-color: #1d6f42 !important;
+      color: white !important;
+    }
+
+    .export-pdf-btn {
+      background-color: var(--primary-one) !important;
+      color: white !important;
+    }
+
+    .schedule-toggle {
+      width: 100%;
+      display: flex;
+
+      ::ng-deep .mat-button-toggle {
+        flex: 1 1 0;
+      }
+
+      ::ng-deep .mat-button-toggle-button {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 var(--spacing-sm);
+      }
+    }
+
+    .toggle-hint {
+      display: none;
+    }
+  }
+
+  .mobile-quick-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.45rem;
+    width: 100%;
+    margin: 0 0 0.7rem;
+    padding: 0.2rem 0 0.3rem;
+    border-bottom: 1px solid var(--neutral-fade);
+  }
+
+  .mobile-action-block {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    min-width: 0;
+  }
+
+  .mobile-action-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--secondary-text);
+    text-align: center;
+    line-height: 1;
+    margin: 0;
+  }
+
+  .mobile-action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+  }
+
+  .action-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+
+    .btn-icon {
+      margin: 0;
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .export-excel-btn {
+    background-color: #1d6f42 !important;
+    color: white !important;
+  }
+
+  .export-pdf-btn,
+  .tutorial-action-btn {
+    background-color: var(--primary-one) !important;
+    color: white !important;
   }
 }
