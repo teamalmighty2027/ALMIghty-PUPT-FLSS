@@ -23,6 +23,7 @@ import { ScheduleValidationService } from '../../core/services/admin/scheduling/
 import { Faculty, Room, ConflictingScheduleDetail } from '../../core/models/scheduling.model';
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
+import { getFacultyTypeClass } from '../utils/faculty-type.utils';
 
 interface Preference {
   day: string;
@@ -877,12 +878,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   }
 
   public getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 }

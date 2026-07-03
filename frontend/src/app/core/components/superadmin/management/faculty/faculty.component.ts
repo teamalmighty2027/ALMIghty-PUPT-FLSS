@@ -53,6 +53,7 @@ import {
 } from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 interface Column {
   key: string;
@@ -756,14 +757,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * @returns An object mapping class names to boolean values.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   /**

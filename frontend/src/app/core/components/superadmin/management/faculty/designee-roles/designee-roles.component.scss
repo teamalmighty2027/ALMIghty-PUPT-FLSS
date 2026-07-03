@@ -1,6 +1,6 @@
 @use "../../../../../../../styles/mixins.scss";
 
-.faculty-types-management-container {
+.designee-roles-management-container {
   @include mixins.default-transition;
   display: flex;
   flex-direction: column;
@@ -12,14 +12,14 @@
   margin-bottom: 20px;
   padding: 0 10px;
 
-  .designee-roles-link {
+  .back-link {
     text-decoration: none;
     color: #1976d2;
     font-weight: 500;
   }
 }
 
-.faculty-types-table-container {
+.designee-roles-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;
   flex: 1;

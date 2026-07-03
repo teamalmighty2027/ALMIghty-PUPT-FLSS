@@ -444,6 +444,18 @@ class AnalyticsController extends Controller
         foreach ($semesters as $sem) {
             $totalCourses = DB::table('section_courses')
                 ->join(
+                    'course_assignments',
+                    'section_courses.course_assignment_id',
+                    '=',
+                    'course_assignments.course_assignment_id'
+                )
+                ->join(
+                    'semesters',
+                    'course_assignments.semester_id',
+                    '=',
+                    'semesters.semester_id'
+                )
+                ->join(
                     'sections_per_program_year', 
                     'section_courses.sections_per_program_year_id', 
                     '=', 

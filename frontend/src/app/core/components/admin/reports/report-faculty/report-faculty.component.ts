@@ -28,6 +28,7 @@ import { ReportsService } from '../../../../services/admin/reports/reports.servi
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -39,6 +40,8 @@ interface Faculty {
   facultyCode: string;
   facultyType: string;
   facultyUnits: number;
+  regularUnits?: number;
+  additionalUnits?: number;
   isEnabled: boolean;
   facultyId: number;
   schedules?: any[];
@@ -88,6 +91,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     'facultyCode',
     'facultyType',
     'facultyUnits',
+    'maxLoad',
     'action',
     'toggle',
   ];
@@ -225,6 +229,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
             facultyCode: faculty.faculty_code,
             facultyType: faculty.faculty_type,
             facultyUnits: faculty.assigned_units,
+            regularUnits: faculty.regular_units,
+            additionalUnits: faculty.additional_units,
             isEnabled: faculty.is_published === 1,
             facultyId: faculty.faculty_id,
             schedules: faculty.schedules || [],
@@ -543,7 +549,11 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     worksheet.getCell('A1').value = `Faculty: ${faculty.facultyName.toUpperCase()}`;
     worksheet.getCell('E1').value = `Faculty Type: ${faculty.facultyType}`;
     worksheet.getCell('A2').value = `School Year: ${faculty.academicYear} | Semester: ${faculty.semester}`;
-    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Units`;
+    const maxLoadStr = (faculty.additionalUnits ?? 0) > 0
+      ? `${faculty.regularUnits ?? 0} Reg / ${faculty.additionalUnits ?? 0} PT`
+      : `${faculty.regularUnits ?? 0}`;
+    worksheet.getCell('E2').value =
+      `Total Load: ${faculty.facultyUnits} / Max: ${maxLoadStr} Hours`;
 
     ['A1', 'E1', 'A2', 'E2'].forEach(c => {
       const cell = worksheet.getCell(c);
@@ -1081,11 +1091,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'), designee: type.includes('designee'),
-      'part-time': type.includes('part-time'), temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
 }
