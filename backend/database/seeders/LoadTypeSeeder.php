@@ -2,19 +2,21 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\AssignmentType;
+use Illuminate\Database\Seeder;
 
-class AssignmentTypeSeeder extends Seeder
+class LoadTypeSeeder extends Seeder
 {
-    public function run()
+    /**
+     * Run the database seeds to create the default load types.
+     */
+    public function run(): void
     {
         $types = [
-            'Regular Load',
-            'Part Time',
+            'Regular',
+            'Part-Time',
             'Temporary Substitution',
             'Tutorial',
-            'Dynamic'
         ];
 
         foreach ($types as $type) {
