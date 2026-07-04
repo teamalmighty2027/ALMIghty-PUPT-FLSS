@@ -309,13 +309,44 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           const display = `${p.program_code} - ${p.program_title}`;
           return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
         });
-        const yearLevel = program?.year_levels.find(y => y.year_level === Number(this.selectedYear));
-        
-        // Since the backend already filters by semester, we take the first available semester entry
-        const semester = yearLevel?.semesters[0];
-        const section = semester?.sections.find(s => 
-          s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
-        );
+
+        let section: any = null;
+        if (program && program.year_levels) {
+          // 1. Try to find a match with the exact same curriculum_id
+          const exactYearLvl = program.year_levels.find(y => 
+            y.year_level === Number(this.selectedYear) && 
+            y.curriculum_id === this.selectedCurriculumId
+          );
+          if (exactYearLvl) {
+            for (const sem of exactYearLvl.semesters) {
+              const matchedSec = sem.sections.find(s => 
+                s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
+              );
+              if (matchedSec) {
+                section = matchedSec;
+                break;
+              }
+            }
+          }
+
+          // 2. If no exact curriculum match, fallback to any matching year level that has the section
+          if (!section) {
+            for (const y of program.year_levels) {
+              if (y.year_level === Number(this.selectedYear)) {
+                for (const sem of y.semesters) {
+                  const matchedSec = sem.sections.find(s => 
+                    s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
+                  );
+                  if (matchedSec) {
+                    section = matchedSec;
+                    break;
+                  }
+                }
+              }
+              if (section) break;
+            }
+          }
+        }
 
         if (!section || !section.courses || section.courses.length === 0) {
           const msg = 'No matching historical data found for this section.';
@@ -332,12 +363,14 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         const filledEntries: DraftEntry[] = [];
 
         emptySlots.forEach(slot => {
-          const matchedCourse = section.courses.find(c => Number(c.course_id) === Number(slot.course_id));
+          const matchedCourse = section.courses.find((c: any) => 
+            c.course_code.trim().toLowerCase() === slot.course_code.trim().toLowerCase() &&
+            Number(c.is_copy) === Number(slot.is_copy)
+          );
           if (matchedCourse && matchedCourse.schedule && matchedCourse.schedule.day !== 'Not set') {
             const entry: DraftEntry = {
               schedule_id: slot.schedule_id!,
               faculty_id: matchedCourse.faculty_id || null,
-
               faculty_name: matchedCourse.professor || 'Not set',
               room_id: matchedCourse.schedule.room_id || null,
               room_code: matchedCourse.room?.room_code || 'Not set',
