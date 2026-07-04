@@ -105,6 +105,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   /* Draft mode state */
   isDraftMode: boolean = false;
   draftSchedules: Schedule[] = [];
+  copyConflicts = new Set<number>();
   isAiFilling: boolean = false;
   aiFillProgress: { current: number; total: number } = { current: 0, total: 0 };
   isHistoricalLoading: boolean = false;
@@ -809,6 +810,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     return this.draftStateService.get(schedule.schedule_id)?.hasConflict ?? false;
   }
 
+  // Checks if a given schedule has an active copy conflict
+  protected hasCopyConflict(schedule: Schedule): boolean {
+    return this.copyConflicts.has(schedule.section_course_id);
+  }
+
+
   /**
    * Rebuilds the draft schedules from the draft state service
    */
@@ -1280,6 +1287,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         });
 
         this.cdr.detectChanges();
+        this.checkAllCopyConflicts();
       }),
       map(() => this.schedules),
       catchError((error) => {
@@ -1288,6 +1296,57 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       })
     );
   }
+
+  // Checks all duplicated schedule copies for conflicts
+  private checkAllCopyConflicts(): void {
+    this.copyConflicts.clear();
+
+    const copies = this.schedules.filter(
+      (s) =>
+        s.is_copy === 1 &&
+        s.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
+    if (!program || !section || copies.length === 0) {
+      this.cdr.markForCheck();
+      return;
+    }
+
+    copies.forEach((copy) => {
+      this.schedulingService
+        .checkForScheduleConflicts(
+          copy.course_id,
+          copy.schedule_id!,
+          program.id,
+          this.selectedYear,
+          copy.day || '',
+          copy.start_time || '',
+          copy.end_time || '',
+          section.section_id,
+          copy.faculty_id || null,
+          copy.room_id || null,
+          0
+        )
+        .subscribe((result) => {
+          if (result.hasConflicts) {
+            this.copyConflicts.add(copy.section_course_id);
+          } else {
+            this.copyConflicts.delete(copy.section_course_id);
+          }
+          this.cdr.markForCheck();
+        });
+    });
+  }
+
 
   // ====================
   // Dialog Methods

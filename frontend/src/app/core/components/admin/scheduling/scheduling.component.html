@@ -370,6 +370,7 @@
             [class.last-copy]="isLastCopy(row, i)"
             [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
             [class.draft-conflict]="isDraftMode && isDraftConflict(row)"
+            [class.copy-conflict]="!isDraftMode && hasCopyConflict(row)"
             [@fadeAnimation]
           ></tr>
 
