@@ -68,6 +68,17 @@ export class DialogConfigureLoadTypeComponent implements OnInit {
     const trimmedName = this.newTypeName.trim();
     if (!trimmedName) return;
 
+    // Check if the load type already exists to prevent duplicate entries
+    const isDuplicate = this.dataSource.data.some(
+      (type: any) =>
+        type.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      this.snackBar.open('Load type already exists.', 'Close', { duration: 3000 });
+      return;
+    }
+
     this.isSaving = true;
     this.schedulingService.addAssignmentType(trimmedName).subscribe({
       next: (res) => {
