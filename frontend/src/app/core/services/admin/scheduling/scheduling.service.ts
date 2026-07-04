@@ -406,13 +406,11 @@ export class SchedulingService {
     );
   }
 
-  updateAssignmentType(scheduleId: number, assignmentType: string): Observable<any> {
-    return this.http
-      .patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, { assignment_type: assignmentType })
-      .pipe(
-        tap(() => this.resetCaches([CacheType.Schedules])),
-        catchError(this.handleError)
-      );
+// Change the payload key to match the database column
+  updateAssignmentType(scheduleId: number, assignmentTypeId: number | null): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, {
+      assignment_type_id: assignmentTypeId
+    });
   }
 
   /**
@@ -438,6 +436,21 @@ export class SchedulingService {
         body: { section_course_id },
       })
       .pipe(catchError(this.handleError));
+  }
+  
+  // Fetch dynamic load types
+  getAssignmentTypes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/assignment-types`);
+  }
+
+  // Add a new dynamic load type
+  addAssignmentType(name: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/assignment-types`, { name });
+  }
+
+  // Delete a load type
+  deleteAssignmentType(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/assignment-types/${id}`);
   }
 
   /**

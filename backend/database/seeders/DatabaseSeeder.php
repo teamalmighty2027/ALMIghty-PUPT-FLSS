@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             // RoomsTableSeeder::class,
             SectionsPerProgramYearTableSeeder::class,
             SectionCoursesTableSeeder::class,
+            LoadTypeSeeder::class,
             SchedulesTableSeeder::class,
             // ApiKeysTableSeeder::class, 
         ]);

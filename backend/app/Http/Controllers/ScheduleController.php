@@ -806,7 +806,9 @@ class ScheduleController extends Controller
     public function updateAssignmentType(Request $request, $scheduleId)
     {
         $validator = Validator::make($request->all(), [
-            'assignment_type' => 'required|string|in:Regular Load,Part Time,Temporary Substitution',
+            // Changed from a hardcoded string to checking the new database table.
+            // Made it nullable so users can revert back to the empty "Select Load Type" state.
+            'assignment_type_id' => 'nullable|integer|exists:assignment_types,id',
         ]);
 
         if ($validator->fails()) {
@@ -818,16 +820,23 @@ class ScheduleController extends Controller
             return response()->json(['message' => 'Schedule not found'], 404);
         }
 
-        $oldValue = $schedule->assignment_type;
-        $schedule->assignment_type = $request->input('assignment_type');
+        $oldId = $schedule->assignment_type_id;
+        $newId = $request->input('assignment_type_id');
+
+        // Fetch names for the Audit Logger so humans can read it
+        $oldName = $oldId ? DB::table('assignment_types')->where('id', $oldId)->value('name') : 'None';
+        $newName = $newId ? DB::table('assignment_types')->where('id', $newId)->value('name') : 'None';
+
+        // Update the new foreign key
+        $schedule->assignment_type_id = $newId;
         $schedule->save();
 
         AuditLogger::logUpdate(
             model: 'Schedule',
             modelId: $schedule->schedule_id,
-            oldData: ['assignment_type' => $oldValue],
-            newData: ['assignment_type' => $schedule->assignment_type],
-            description: "Updated Assignment Type: {$oldValue} → {$schedule->assignment_type}"
+            oldData: ['assignment_type_id' => $oldId],
+            newData: ['assignment_type_id' => $newId],
+            description: "Updated Assignment Type: {$oldName} → {$newName}"
         );
 
         return response()->json(['message' => 'Assignment type updated', 'schedule' => $schedule]);
