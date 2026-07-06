@@ -44,6 +44,13 @@ export const SUPERADMIN_ROUTES: Routes = [
               ).then((m) => m.FacultyTypesComponent),
             data: { pageTitle: 'Faculty Types' },
           },
+          {
+            path: 'designee-roles',
+            loadComponent: () => import(
+              './management/faculty/designee-roles/designee-roles.component'
+            ).then((m) => m.DesigneeRolesComponent),
+            data: { pageTitle: 'Designee Roles' },
+          },
         ],
       },
       {

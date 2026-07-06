@@ -1,4 +1,4 @@
-<div class="faculty-types-management-container">
+<div class="designee-roles-management-container">
   @if (isLoading) {
   <div class="loading-wrapper">
     <app-loading></app-loading>
@@ -6,11 +6,11 @@
   } @else {
 
   <!-- Table Header -->
-  <div class="faculty-types-header-container" [@fadeAnimation]>
+  <div class="designee-roles-header-container" [@fadeAnimation]>
     <app-table-header
-      title="Faculty Types"
-      subtitle="Manage faculty types and their unit allocations"
-      [addButtonLabel]="'Add Faculty Type'"
+      title="Designee Roles"
+      subtitle="Manage designee sub-roles (Director, HAP, etc.)"
+      [addButtonLabel]="'Add Designee Role'"
       [inputFields]="headerInputFields"
       [showExportButton]="false"
       (inputChange)="onInputChange($event)"
@@ -18,20 +18,20 @@
     ></app-table-header>
   </div>
 
-  <!-- Navigation to Designee Roles -->
+  <!-- Back button to Faculty Types -->
   <div class="navigation-actions" [@fadeAnimation]>
-    <a routerLink="/superadmin/faculty/designee-roles" class="designee-roles-link">
-      Manage Designee Roles →
+    <a routerLink="/superadmin/faculty/types" class="back-link">
+      ← Back to Faculty Types
     </a>
   </div>
 
-  <!-- Faculty Management Table -->
-  <div class="faculty-types-table-container" [@fadeAnimation]>
+  <!-- Designee Roles Table -->
+  <div class="designee-roles-table-container" [@fadeAnimation]>
     <app-table-generic
-      [data]="filteredFacultyTypes"
+      [data]="filteredDesigneeRoles"
       [columns]="columns"
       [displayedColumns]="displayedColumns"
-      [tableName]="'faculty-types'"
+      [tableName]="'designee-roles'"
       (edit)="openDialog('Edit', $event)"
       (delete)="onDelete($event)"
     ></app-table-generic>

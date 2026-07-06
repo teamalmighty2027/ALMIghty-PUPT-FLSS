@@ -20,6 +20,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -49,7 +50,15 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     { type: 'text', label: 'Search Faculty', key: 'search' },
   ];
 
-  displayedColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action'];
+  displayedColumns: string[] = [
+    'index',
+    'facultyName',
+    'facultyCode',
+    'facultyType',
+    'facultyUnits',
+    'maxLoad',
+    'action',
+  ];
 
   dataSource = new MatTableDataSource<any>();
   filteredData: any[] = [];
@@ -215,15 +224,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   }
 
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-
-    return {
-      'Permanent': type.includes('designee'),
-      'Regular': type.includes('full-time'),
-      'Part-time': type.includes('part-time'), 
-      'Special Lecturer': type.includes('special lecturer'),
-      'Temporary': type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   updateDisplayedData() {}
@@ -443,14 +444,56 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     });
   }
 
-  getSplitSchedules(facultyType: string, schedules: any[]) {
+  // Calculates the total teaching hours for a merged schedule row.
+  getRowHours(row: any): number {
+    if (!row._rawSchedules || row._rawSchedules.length === 0) {
+      const tuition = Number(row.course_details?.tuition_hours);
+      const units = Number(row.course_details?.units || 0);
+      return tuition > 0 ? tuition : units;
+    }
+
+    const uniquePhysicalSchedules = new Map();
+    row._rawSchedules.forEach((rawSched: any) => {
+      const physicalKey = `${rawSched.day}_${rawSched.start_time}_${rawSched.end_time}`;
+      if (!uniquePhysicalSchedules.has(physicalKey)) {
+        uniquePhysicalSchedules.set(physicalKey, rawSched);
+      }
+    });
+
+    let totalHours = 0;
+    uniquePhysicalSchedules.forEach((rawSched: any) => {
+      let diff = this.getHoursDiff(rawSched.start_time, rawSched.end_time);
+      if (isNaN(diff) || diff <= 0) {
+        const tuition = Number(rawSched.course_details?.tuition_hours);
+        const units = Number(rawSched.course_details?.units || 0);
+        diff = tuition > 0 ? tuition : units;
+      }
+      totalHours += diff;
+    });
+
+    return totalHours;
+  }
+
+  // Splits faculty schedules into regular and part-time load based on weekly hours.
+  getSplitSchedules(
+    facultyType: string,
+    schedules: any[],
+    regularUnitsAllowed: number = 15
+  ) {
     const regular: any[] = [];
     const partTime: any[] = [];
     const tempSub: any[] = [];
-    
+    let currentHours = 0;
+
+    const isSummerSemester = (this.semesterLabel || '')
+      .toLowerCase().includes('summer');
+    const isPartTimeFaculty = (facultyType || '')
+      .toLowerCase().includes('part-time') || isSummerSemester;
+
     schedules.forEach((sched: any) => {
       // Look at the assignmentType changed from the UI
       const type = sched.assignment_type || sched.assignmentType || 'Regular Load';
+      const hours = this.getRowHours(sched);
 
       if (type === 'Part Time') {
         partTime.push(sched);
@@ -458,15 +501,23 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         tempSub.push(sched);
       } else {
         regular.push(sched);
+        if (currentHours + hours <= regularUnitsAllowed) {
+          regular.push(sched);
+          currentHours += hours;
+        } else {
+          partTime.push(sched);
+        }
       }
     });
     
     return { regular, partTime, tempSub };
   }
 
-
-  getTotalUnits(schedules: any[]): number {
-    return schedules.reduce((acc, curr) => acc + (Number(curr.course_details?.units) || 0), 0);
+  getTotalHours(schedules: any[]): number {
+    return schedules.reduce(
+      (acc, curr) => acc + this.getRowHours(curr),
+      0
+    );
   }
 
   // --- HELPER LOGIC: TIME AND DAYS ---
@@ -596,6 +647,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         [{ content: 'EMP NO', fontStyle: 'bold' }, faculty.faculty_code, { content: 'COLLEGE', fontStyle: 'bold' }, 'TAGUIG CAMPUS'],
         [{ content: 'EMP NAME', fontStyle: 'bold' }, faculty.faculty_name.toUpperCase(), { content: 'DEPT CODE', fontStyle: 'bold' }, ''],
         [{ content: 'EMP STATUS', fontStyle: 'bold' }, faculty.faculty_type, { content: 'DEPARTMENT', fontStyle: 'bold' }, 'TAGUIG CAMPUS'],
+        [
+          { content: 'REG LOAD LIMIT', fontStyle: 'bold' },
+          `${faculty.regular_units || 0} Hours`,
+          { content: 'PT LOAD LIMIT', fontStyle: 'bold' },
+          `${faculty.additional_units || 0} Hours`
+        ]
       ],
       columnStyles: { 
         0: { cellWidth: 28, fillColor: [240, 240, 240] }, 
@@ -607,12 +664,32 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     // Merge logic applied to faculty schedules
     const mergedSchedules = this.mergeSchedules(faculty.schedules || []);
-    const splitSchedules = this.getSplitSchedules(faculty.faculty_type, mergedSchedules);
 
-    // Trackers
-    let regDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
-    let ptDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
-    let tsDailyHours: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
+    // 3. DYNAMIC SETUP
+    // Find all unique assignment types assigned to this specific faculty
+    let uniqueTypes = [...new Set(mergedSchedules.map(s => s.assignment_type || 'Unassigned'))];
+    
+    // Define the exact order for standard types (Custom types default to 99 so they go to the bottom)
+    const priorityOrder: Record<string, number> = {
+      'Regular Load': 1,
+      'Part Time': 2,
+      'Temporary Substitution': 3
+    };
+
+    // Sort the types so Regular Load is always at the top!
+    uniqueTypes.sort((a, b) => {
+      const orderA = priorityOrder[a] || 99; 
+      const orderB = priorityOrder[b] || 99;
+
+      // If both are custom types (both are 99), sort them alphabetically
+      if (orderA === orderB) {
+        return a.localeCompare(b);
+      }
+      return orderA - orderB;
+    });
+
+    // Object to track hours per day for EACH dynamic load type
+    const dynamicDailyHours: Record<string, any> = {};
 
     const headers = [['SUBJECT\nCODE', 'SUBJECT DESCRIPTION', 'UNITS', 'YEAR &\nSECTION', 'SUBJ\nREF', 'TIME', 'TIME\nCODE', 'DAY/S', 'ROOM', 'EFFTVTY.']];
 
@@ -675,58 +752,39 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     const tableStyles = { fontSize: 8.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', valign: 'middle' };
     const headerStyles = { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 };
 
-    // 3. REGULAR LOAD TABLE
     let currentY = (doc as any).lastAutoTable.finalY + 4;
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text('REGULAR LOAD', 14, currentY);
 
-    let regularBody = splitSchedules.regular.map((s: any) => mapRowAndTrackHours(s, regDailyHours));
-    while (regularBody.length < 5) regularBody.push(Array(10).fill('')); 
+    // 4. DYNAMIC TABLES LOOP
+    uniqueTypes.forEach(typeName => {
+      // Initialize hours tracker for this type
+      dynamicDailyHours[typeName] = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TBA: 0, TOTAL: 0 };
 
-    autoTable(doc, {
-      startY: currentY + 1.5, head: headers, body: regularBody, theme: 'grid',
-      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles 
+      // Filter schedules for this specific load type
+      const typeSchedules = mergedSchedules.filter(s => (s.assignment_type || 'Unassigned') === typeName);
+
+      // Draw Title (e.g., "TUTORIAL")
+      doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+      doc.text(typeName.toUpperCase(), 14, currentY);
+
+      // Populate Table Body
+      let bodyData = typeSchedules.map((s: any) => mapRowAndTrackHours(s, dynamicDailyHours[typeName]));
+      while (bodyData.length < 3) bodyData.push(Array(10).fill('')); // Keep uniform spacing
+
+      autoTable(doc, {
+        startY: currentY + 1.5, head: headers, body: bodyData, theme: 'grid',
+        styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles 
+      });
+
+      // Total Hours for this Type
+      currentY = (doc as any).lastAutoTable.finalY + 4;
+      const totalTypeHours = typeSchedules.reduce((acc, curr) => acc + this.getRowHours(curr), 0);
+      doc.setFontSize(8); doc.text(`Total ${typeName.toUpperCase()}: ${totalTypeHours}`, 14, currentY);
+
+      currentY += 6;
     });
 
-    currentY = (doc as any).lastAutoTable.finalY + 4;
-    doc.setFontSize(8); doc.text(`Total REGULAR LOAD: ${this.getTotalUnits(splitSchedules.regular)}`, 14, currentY);
 
-    // 4. PART-TIME TABLE
-    currentY += 6;
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text('PART-TIME', 14, currentY);
-
-    let partTimeBody = splitSchedules.partTime.map((s: any) => mapRowAndTrackHours(s, ptDailyHours));
-    while (partTimeBody.length < 5) partTimeBody.push(Array(10).fill(''));
-
-    autoTable(doc, {
-      startY: currentY + 1.5, head: headers, body: partTimeBody, theme: 'grid',
-      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 4;
-    doc.setFontSize(8); doc.text(`Total PART-TIME: ${this.getTotalUnits(splitSchedules.partTime)}`, 14, currentY);
-
-    // 5. TEMPORARY SUBSTITUTION TABLE (NEW)
-    currentY += 6;
-    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-    doc.text('TEMPORARY SUBSTITUTION', 14, currentY);
-
-    let tempSubBody = splitSchedules.tempSub.map((s: any) => mapRowAndTrackHours(s, tsDailyHours));
-    while (tempSubBody.length < 3) tempSubBody.push(Array(10).fill('')); // Shorter minimum rows to save space
-
-    autoTable(doc, {
-      startY: currentY + 1.5, head: headers, body: tempSubBody, theme: 'grid',
-      styles: tableStyles as any, headStyles: headerStyles as any, columnStyles: fixedColumnStyles
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 4;
-    doc.setFontSize(8); doc.text(`Total TEMP. SUBSTITUTION: ${this.getTotalUnits(splitSchedules.tempSub)}`, 14, currentY);
-
-    // 6. HOURS GRIDS
-    currentY += 7;
-    
-    // Page break prevention for the bottom tables
+    // 5. DYNAMIC HOURS GRIDS (Teaching Load Per Day)
     if (currentY + 40 > doc.internal.pageSize.getHeight()) {
       doc.addPage();
       currentY = 20;
@@ -738,15 +796,27 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     const formatHour = (val: number) => val > 0 ? parseFloat(val.toFixed(2)).toString() : '';
     const days = ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']; 
 
-    const regRow = ['REGULAR', ...days.map(d => formatHour(regDailyHours[d]))];
-    const ptRow = ['PART-TIME', ...days.map(d => formatHour(ptDailyHours[d]))];
-    const tsRow = ['TEMP. SUB.', ...days.map(d => formatHour(tsDailyHours[d]))];
-    const totalRow = ['TOTAL', ...days.map(d => formatHour(regDailyHours[d] + ptDailyHours[d] + tsDailyHours[d]))];
+    const hoursGridBody: any[] = [];
+    let grandTotals: any = { MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TOTAL: 0 };
+
+    // Create a row for each dynamically loaded type
+    uniqueTypes.forEach(typeName => {
+      const tracker = dynamicDailyHours[typeName];
+      const row = [typeName.toUpperCase(), ...days.map(d => formatHour(tracker[d]))];
+      hoursGridBody.push(row);
+
+      // Accumulate Grand Totals
+      days.forEach(d => { grandTotals[d] += tracker[d]; });
+    });
+
+    // Add Final Total Row
+    const totalRow = ['TOTAL', ...days.map(d => formatHour(grandTotals[d]))];
+    hoursGridBody.push(totalRow);
 
     autoTable(doc, {
       startY: currentY + 1.5, theme: 'grid',
       head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']],
-      body: [regRow, ptRow, tsRow, totalRow],
+      body: hoursGridBody,
       styles: { fontSize: 8, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
       headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
       columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
@@ -767,7 +837,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
     });
 
-    // 7. FOOTER
+    // 6. FOOTER
     currentY = (doc as any).lastAutoTable.finalY + 8;
     
     if (currentY + 25 > doc.internal.pageSize.getHeight()) {

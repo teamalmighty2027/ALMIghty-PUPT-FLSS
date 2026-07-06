@@ -20,6 +20,9 @@ import { LoadingComponent } from '../loading/loading.component';
 import { ScheduleTimelineComponent } from '../schedule-timeline/schedule-timeline.component';
 import { fadeAnimation } from '../../core/animations/animations';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
+import { MatDialog } from '@angular/material/dialog';
+import { DialogConfigureLoadTypeComponent } from '../dialog-configure-load-type/dialog-configure-load-type.component';
+import { MatDividerModule } from '@angular/material/divider';
 
 interface ScheduleGroup {
   title: string;
@@ -55,7 +58,8 @@ interface ViewScheduleDialogData {
     MatSymbolDirective,
     ScheduleTimelineComponent,
     MatSelectModule,
-    MatFormFieldModule 
+    MatFormFieldModule,
+    MatDividerModule
   ],
   templateUrl: './dialog-view-schedule.component.html',
   styleUrls: ['./dialog-view-schedule.component.scss'],
@@ -71,6 +75,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   showViewToggle: boolean = true;
   summaryColumns: string[] = ['subjectCode', 'description', 'hrs', 'yearSection', 'day', 'time', 'assignmentType'];
   summaryDataSource = new MatTableDataSource<any>([]);
+  dynamicLoadTypes: { id: number, name: string }[] = [];
 
   // State trackers for Save workflow
   isSaving = false;
@@ -84,10 +89,9 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     return Array.isArray(this.data.entityData) ? [...this.data.entityData] : [];
   }
 
-  // Checks if user made unsaved changes
   get hasChanges(): boolean {
     if (!this.summaryDataSource.data) return false;
-    return this.summaryDataSource.data.some(s => s.assignmentType !== s.originalAssignmentType);
+    return this.summaryDataSource.data.some(s => s.assignment_type_id !== s.originalAssignmentTypeId);
   }
 
   private currentRawBlobUrl: string | null = null;
@@ -98,7 +102,8 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
     private schedulingService: SchedulingService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog
   ) {
     this.showViewToggle = data.showViewToggle ?? true;
     if (!this.showViewToggle) {
@@ -107,19 +112,21 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Fetch dynamic load types from database
+    this.schedulingService.getAssignmentTypes().subscribe({
+      next: (types) => {
+        this.dynamicLoadTypes = types;
+      },
+      error: (err) => console.error('Failed to load assignment types', err)
+    });
+
     this.initializeScheduleTitle();
     
     if (this.data.entity === 'faculty' && Array.isArray(this.data.entityData)) {
-      const validTypes = ['Regular Load', 'Part Time', 'Temporary Substitution'];
-      
       this.data.entityData.forEach(s => {
-        let type = s.assignmentType || s.assignment_type;
-        if (type === 'Part-Time') type = 'Part Time';
-        if (!validTypes.includes(type)) type = 'Regular Load'; 
-        
-        s.assignmentType = type;
-        s.assignment_type = type;
-        s.originalAssignmentType = type;
+        // Track the ID instead of the string name
+        s.assignment_type_id = s.assignment_type_id || null; 
+        s.originalAssignmentTypeId = s.assignment_type_id; 
       });
 
       this.summaryDataSource.data = this.data.entityData;
@@ -258,31 +265,66 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   onAssignmentTypeChange(schedule: any, event: any): void {
-    schedule.assignmentType = event.value;
-    schedule.assignment_type = event.value; 
+    if (event.value === 'CONFIGURE') {
+      // Use setTimeout to force Angular to update the UI and remove the selection
+      setTimeout(() => {
+        schedule.assignment_type_id = schedule.originalAssignmentTypeId || null;
+      });
+      
+      this.openConfigureDialog();
+      return;
+    }
+
+    schedule.assignment_type_id = event.value;
+    
+    // Find and map the string name so the local object stays fully updated
+    const selectedType = this.dynamicLoadTypes.find(t => t.id === event.value);
+    schedule.assignment_type = selectedType ? selectedType.name : null;
   }
 
   clearAll(): void {
     this.summaryDataSource.data.forEach(s => {
-      s.assignmentType = 'Regular Load';
-      s.assignment_type = 'Regular Load';
+      s.assignment_type_id = null;
+      s.assignment_type = null;
+    });
+  }
+
+  openConfigureDialog(): void {
+    const configDialog = this.dialog.open(DialogConfigureLoadTypeComponent, {
+      width: '500px',
+      autoFocus: false,
+      disableClose: true // Force them to use the close button
+    });
+
+    configDialog.afterClosed().subscribe((wasChanged: boolean) => {
+      if (wasChanged) {
+        // If they added or deleted something, re-fetch the list for the dropdown!
+        this.schedulingService.getAssignmentTypes().subscribe(types => {
+          this.dynamicLoadTypes = types;
+        });
+      }
     });
   }
 
   saveChanges(): void {
+    // 1. Check against the new ID
     const changedSchedules = this.summaryDataSource.data.filter(
-      s => s.assignmentType !== s.originalAssignmentType
+      s => s.assignment_type_id !== s.originalAssignmentTypeId
     );
 
     if (changedSchedules.length === 0) return;
 
     this.isSaving = true;
 
-    // Build API requests for everything that changed
     const requests = changedSchedules.map(s => {
       const scheduleId = s.schedule_id || s.id;
-      return this.schedulingService.updateAssignmentType(scheduleId, s.assignmentType).pipe(
-        tap(() => s.originalAssignmentType = s.assignmentType) 
+      
+      // 2. Pass the ID, not the string!
+      return this.schedulingService.updateAssignmentType(scheduleId, s.assignment_type_id).pipe(
+        tap(() => {
+          s.originalAssignmentTypeId = s.assignment_type_id; 
+          s.originalAssignmentType = s.assignment_type; // keep string synced just in case
+        }) 
       );
     });
 

@@ -8,6 +8,7 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\DesigneeRoleController;
 use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\AssignmentTypeController;
 
 /*
 |----------------------------
@@ -255,6 +257,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
      * Faculty Type
      */
     Route::apiResource('faculty-types', FacultyTypeController::class);
+    Route::apiResource('designee-roles', DesigneeRoleController::class);
 
     /**
      * Logos
@@ -383,6 +386,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/toggle-all-schedule', [ScheduleController::class, 'toggleAllSchedules']);
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
     Route::patch('/schedules/{schedule}/assignment-type', [ScheduleController::class, 'updateAssignmentType']);
+    
+    // Dynamic Load Types Configuration
+    Route::get('/assignment-types', [AssignmentTypeController::class, 'index']);
+    Route::post('/assignment-types', [AssignmentTypeController::class, 'store']);
+    Route::put('/assignment-types/{id}', [AssignmentTypeController::class, 'update']);
+    Route::delete('/assignment-types/{id}', [AssignmentTypeController::class, 'destroy']);
 
     /**
      * Temporary Course Offerings

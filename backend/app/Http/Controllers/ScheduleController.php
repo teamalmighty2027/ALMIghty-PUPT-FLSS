@@ -459,17 +459,51 @@ class ScheduleController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Create a new schedule with null fields for the copied course
+        // Fetch original schedule to carry over day/time/professor
+        $originalSchedule = DB::table('schedules')
+            ->where(
+                'section_course_id',
+                $originalSectionCourseId
+            )
+            ->first();
+
+        // Create a new schedule copying values, room is null
         $newScheduleId = DB::table('schedules')->insertGetId([
             'section_course_id' => $newSectionCourseId,
-            'day' => null,
-            'start_time' => null,
-            'end_time' => null,
-            'faculty_id' => null,
+            'day' => $originalSchedule->day ?? null,
+            'start_time' => $originalSchedule->start_time ?? null,
+            'end_time' => $originalSchedule->end_time ?? null,
+            'faculty_id' => $originalSchedule->faculty_id ?? null,
             'room_id' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // Resolve faculty name for response payload
+        $facultyName = 'Not set';
+        $facultyId = $originalSchedule->faculty_id ?? null;
+        $facultyEmail = null;
+
+        if ($facultyId) {
+            $faculty = DB::table('faculty')
+                ->where('id', $facultyId)
+                ->first();
+
+            if ($faculty) {
+                $facultyName = $faculty->last_name . ', '
+                    . $faculty->first_name;
+
+                if ($faculty->middle_name) {
+                    $facultyName .= ' ' . $faculty->middle_name;
+                }
+
+                if ($faculty->suffix_name) {
+                    $facultyName .= ' ' . $faculty->suffix_name;
+                }
+
+                $facultyEmail = $faculty->faculty_email;
+            }
+        }
 
         // Fetch course details
         $temporaryMeta = null;
@@ -534,14 +568,14 @@ class ScheduleController extends Controller
                 : null,
             'schedule' => [
                 'schedule_id' => $newScheduleId,
-                'day' => 'Not set',
-                'start_time' => null,
-                'end_time' => null,
+                'day' => $originalSchedule->day ?? 'Not set',
+                'start_time' => $originalSchedule->start_time ?? null,
+                'end_time' => $originalSchedule->end_time ?? null,
                 'elective_id' => null,
             ],
-            'professor' => 'Not set',
-            'faculty_id' => null,
-            'faculty_email' => null,
+            'professor' => $facultyName,
+            'faculty_id' => $facultyId,
+            'faculty_email' => $facultyEmail,
             'room' => [
                 'room_id' => null,
                 'room_code' => 'Not set',
@@ -806,7 +840,9 @@ class ScheduleController extends Controller
     public function updateAssignmentType(Request $request, $scheduleId)
     {
         $validator = Validator::make($request->all(), [
-            'assignment_type' => 'required|string|in:Regular Load,Part Time,Temporary Substitution',
+            // Changed from a hardcoded string to checking the new database table.
+            // Made it nullable so users can revert back to the empty "Select Load Type" state.
+            'assignment_type_id' => 'nullable|integer|exists:assignment_types,id',
         ]);
 
         if ($validator->fails()) {
@@ -818,16 +854,23 @@ class ScheduleController extends Controller
             return response()->json(['message' => 'Schedule not found'], 404);
         }
 
-        $oldValue = $schedule->assignment_type;
-        $schedule->assignment_type = $request->input('assignment_type');
+        $oldId = $schedule->assignment_type_id;
+        $newId = $request->input('assignment_type_id');
+
+        // Fetch names for the Audit Logger so humans can read it
+        $oldName = $oldId ? DB::table('assignment_types')->where('id', $oldId)->value('name') : 'None';
+        $newName = $newId ? DB::table('assignment_types')->where('id', $newId)->value('name') : 'None';
+
+        // Update the new foreign key
+        $schedule->assignment_type_id = $newId;
         $schedule->save();
 
         AuditLogger::logUpdate(
             model: 'Schedule',
             modelId: $schedule->schedule_id,
-            oldData: ['assignment_type' => $oldValue],
-            newData: ['assignment_type' => $schedule->assignment_type],
-            description: "Updated Assignment Type: {$oldValue} → {$schedule->assignment_type}"
+            oldData: ['assignment_type_id' => $oldId],
+            newData: ['assignment_type_id' => $newId],
+            description: "Updated Assignment Type: {$oldName} → {$newName}"
         );
 
         return response()->json(['message' => 'Assignment type updated', 'schedule' => $schedule]);

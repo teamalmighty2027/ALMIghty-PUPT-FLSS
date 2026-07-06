@@ -28,6 +28,7 @@ import { ReportsService } from '../../../services/admin/reports/reports.service'
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -1772,13 +1773,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * @returns Record of CSS class booleans.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   /**
