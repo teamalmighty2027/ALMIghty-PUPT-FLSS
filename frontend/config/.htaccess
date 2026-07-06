@@ -5,7 +5,7 @@
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^ index.html [L]
+  RewriteRule . /index.html [L]
 </IfModule>
 
 # Cache Control Headers
@@ -44,7 +44,7 @@
   Header set X-XSS-Protection "1; mode=block"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
-  
+
   # CORS Headers
   # Dynamically set Access-Control-Allow-Origin based on incoming Origin request header.
   # This supports both the test site and the main production site without hardcoding.
@@ -53,7 +53,6 @@
   Header set Access-Control-Allow-Credentials "true"
   Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
   Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
-
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
