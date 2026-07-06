@@ -13,8 +13,8 @@ class LoadTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            'Regular',
             'Part-Time',
+            'Regular',
             'Temporary Substitution',
             'Tutorial',
         ];
