@@ -789,11 +789,39 @@ class ScheduleController extends Controller
                 $changes[] = "Assignment Type: {$oldData['assignment_type']} → {$schedule->assignment_type}";
             }
 
+            // Check for conflict with plotted faculty time assignments
+            $newFacultyId = $request->input('faculty_id');
+            $newDay = $request->input('day');
+            $newStart = $request->input('start_time');
+            $newEnd = $request->input('end_time');
+
+            if ($newFacultyId && $newDay && $newStart && $newEnd) {
+                $conflict = DB::table('faculty_time_plots')
+                    ->where('faculty_id', $newFacultyId)
+                    ->where(
+                        'active_semester_id',
+                        $activeSemester->active_semester_id
+                    )
+                    ->where('day', $newDay)
+                    ->where('start_time', '<', $newEnd)
+                    ->where('end_time', '>', $newStart)
+                    ->exists();
+
+                if ($conflict) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'This time slot overlaps a plotted'
+                            . ' faculty time assignment.'
+                    ], 422);
+                }
+            }
+
             // NOW the guard runs after all checks are complete:
             if (empty($changes)) {
                 DB::rollBack();
                 return response()->json(['message' => 'No changes detected'], 422);
             }
+
 
             $schedule->save();
             DB::commit();
