@@ -33,7 +33,15 @@ interface ScheduleBlock {
   roomId?: number;
   combinedLabel?: string;
   combinedWithProgramId?: number | null;
+  isTimePlot?: boolean;
+  timePlotType?: 'night_service' | 'official_time' | 'advising_time';
 }
+
+interface TimePlotBlock extends ScheduleBlock {
+  isTimePlot: boolean;
+  timePlotType: 'night_service' | 'official_time' | 'advising_time';
+}
+
 
 type Day =
   | 'Monday'
@@ -53,6 +61,7 @@ type Day =
 export class ScheduleTimelineComponent implements OnInit, OnChanges {
   @Input() scheduleData: any;
   @Input() entity!: string;
+  @Input() timePlots: any[] = [];
 
   days: Day[] = [
     'Monday',
@@ -72,22 +81,26 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
+    this.processTimePlots();
     this.detectCombinedSchedules();
   }
 
   // Handle input changes and reinitialize.
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['scheduleData']) {
+    if (changes['scheduleData'] || changes['timePlots']) {
       if (this.timeSlots.length === 0) {
         this.generateTimeSlots();
       }
       this.scheduleBlocks = [];
       this.processScheduleData();
+      this.processTimePlots();
       this.detectCombinedSchedules();
     }
   }
 
+
   private generateTimeSlots() {
+    this.timeSlots = [];
     const startTime = 7 * 60;
     const endTime = 21 * 60;
     const interval = 30;
@@ -97,6 +110,7 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
       this.timeSlots.push({ time: formattedTime, minutes: time });
     }
   }
+
 
   private processScheduleData() {
     if (Array.isArray(this.scheduleData) && this.scheduleData.length > 0) {
@@ -226,11 +240,31 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
-      const { backgroundColor, borderColor } = this.getBlockColors(day as Day);
+      let backgroundColor = '';
+      let borderColor = '';
+
+      if (block.isTimePlot) {
+        if (block.timePlotType === 'night_service') {
+          backgroundColor = '#e3f2fd';
+          borderColor = '#1565c0';
+        } else if (block.timePlotType === 'official_time') {
+          backgroundColor = '#fff3e0';
+          borderColor = '#e65100';
+        } else {
+          backgroundColor = '#f3f5fd';
+          borderColor = '#4a148c';
+        }
+      } else {
+        const colors = this.getBlockColors(day as Day);
+        backgroundColor = colors.backgroundColor;
+        borderColor = colors.borderColor;
+      }
+
       const baseStyle = {
         'background-color': backgroundColor,
         'border-left': `1px solid ${borderColor}`,
         'border-right': `1px solid ${borderColor}`,
+        'color': block.isTimePlot ? borderColor : 'inherit'
       };
 
       if (slotIndex === block.startSlot) {
@@ -242,6 +276,7 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
     }
     return {};
   }
+
 
   getDayClass(day: string): string {
     return `schedule-${day.toLowerCase()}`;
@@ -337,4 +372,53 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
         slotIndex < b.startSlot + b.duration
     );
   }
+
+  private processTimePlots(): void {
+    if (this.timePlots && Array.isArray(this.timePlots)) {
+      this.timePlots.forEach(plot => {
+        if (plot.start_time && plot.end_time) {
+          const startTime = this.convertTimeToMinutes(
+            plot.start_time.substring(0, 5)
+          );
+          const endTime = this.convertTimeToMinutes(
+            plot.end_time.substring(0, 5)
+          );
+          const startSlot = this.findTimeSlotIndex(startTime);
+          const duration = Math.ceil((endTime - startTime) / 30);
+          const adjustedDuration = (endTime - startTime) % 30 === 0
+            ? duration + 1
+            : duration;
+
+          let displayTitle = '';
+          if (plot.time_type === 'night_service') {
+            displayTitle = 'Night Service';
+          } else if (plot.time_type === 'official_time') {
+            displayTitle = 'Official Time';
+          } else {
+            displayTitle = 'Advising Time';
+          }
+
+          this.scheduleBlocks.push({
+            day: plot.day,
+            startSlot: startSlot,
+            duration: adjustedDuration,
+            courseCode: displayTitle.toUpperCase(),
+            courseTitle: `${this.formatTimeTo12Hour(plot.start_time)} - ` +
+                         `${this.formatTimeTo12Hour(plot.end_time)}`,
+            roomCode: '',
+            facultyName: '',
+            program: '',
+            yearLevel: 0,
+            section: '',
+            offeringType: undefined,
+            startTimeStr: plot.start_time,
+            endTimeStr: plot.end_time,
+            isTimePlot: true,
+            timePlotType: plot.time_type
+          } as any);
+        }
+      });
+    }
+  }
 }
+

@@ -13,7 +13,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-import { forkJoin } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
+
 import { tap } from 'rxjs/operators';
 
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
@@ -92,6 +93,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   // Faculty Time Plots properties
   timePlots: any[] = [];
+  originalTimePlots: any[] = [];
   timePlotCaps: any = {};
   eligibleTypes: string[] = [];
   selectedType: string = '';
@@ -101,6 +103,8 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   isAddingTimePlot = false;
   timeOptions: { value: string; label: string; minutes: number }[] = [];
   endTimeOptions: { value: string; label: string; minutes: number }[] = [];
+  pendingAdditions: any[] = [];
+  pendingDeletions: number[] = [];
 
   get showTimePlotPanel(): boolean {
     return this.data.entity === 'faculty' && 
@@ -117,9 +121,16 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   get hasChanges(): boolean {
-    if (!this.summaryDataSource.data) return false;
-    return this.summaryDataSource.data.some(s => s.assignment_type_id !== s.originalAssignmentTypeId);
+    const data = this.summaryDataSource?.data || [];
+    const hasLoadTypeChanges = data.some(
+      s => s.assignment_type_id !== s.originalAssignmentTypeId
+    );
+    const hasTimePlotChanges = this.pendingAdditions.length > 0 ||
+                               this.pendingDeletions.length > 0;
+    return hasLoadTypeChanges || hasTimePlotChanges;
   }
+
+
 
   private currentRawBlobUrl: string | null = null;
 
@@ -345,41 +356,95 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   saveChanges(): void {
-    // 1. Check against the new ID
-    const changedSchedules = this.summaryDataSource.data.filter(
+    const data = this.summaryDataSource?.data || [];
+    const changedSchedules = data.filter(
       s => s.assignment_type_id !== s.originalAssignmentTypeId
     );
 
-    if (changedSchedules.length === 0) return;
+    const hasTimePlotChanges = this.pendingAdditions.length > 0 ||
+                               this.pendingDeletions.length > 0;
+    if (changedSchedules.length === 0 && !hasTimePlotChanges) {
+      console.log('saveChanges: No changes detected.');
+      return;
+    }
 
     this.isSaving = true;
+    const requests: Observable<any>[] = [];
 
-    const requests = changedSchedules.map(s => {
+    changedSchedules.forEach(s => {
       const scheduleId = s.schedule_id || s.id;
-      
-      // 2. Pass the ID, not the string!
-      return this.schedulingService.updateAssignmentType(scheduleId, s.assignment_type_id).pipe(
-        tap(() => {
-          s.originalAssignmentTypeId = s.assignment_type_id; 
-          s.originalAssignmentType = s.assignment_type; // keep string synced just in case
-        }) 
+      console.log('Adding schedule assignment type update request:', {
+        scheduleId,
+        assignment_type_id: s.assignment_type_id
+      });
+      requests.push(
+        this.schedulingService.updateAssignmentType(
+          scheduleId,
+          s.assignment_type_id
+        ).pipe(
+          tap(() => {
+            s.originalAssignmentTypeId = s.assignment_type_id; 
+            s.originalAssignmentType = s.assignment_type; 
+          }) 
+        )
       );
     });
 
-    // Execute bulk save
+    this.pendingAdditions.forEach(plot => {
+      const payload = {
+        faculty_id: plot.faculty_id,
+        active_semester_id: plot.active_semester_id,
+        time_type: plot.time_type,
+        day: plot.day,
+        start_time: plot.start_time,
+        end_time: plot.end_time
+      };
+      console.log('Adding time plot create request payload:', payload);
+      requests.push(this.reportsService.createFacultyTimePlot(payload));
+    });
+
+    this.pendingDeletions.forEach(id => {
+      console.log('Adding time plot delete request for ID:', id);
+      requests.push(this.reportsService.deleteFacultyTimePlot(id));
+    });
+
+    console.log(`Executing ${requests.length} save requests via forkJoin...`);
+
     forkJoin(requests).subscribe({
-      next: () => {
+      next: (responses) => {
+        console.log('Save requests executed successfully. Responses:', responses);
         this.isSaving = false;
-        this.wasSaved = true; // Mark as saved so table refreshes on close
-        this.snackBar.open('Assignments saved successfully!', 'Close', { duration: 3000 });
+        this.wasSaved = true;
+        this.pendingAdditions = [];
+        this.pendingDeletions = [];
+        this.snackBar.open('Changes saved successfully!', 'Close', {
+          duration: 3000
+        });
+        this.loadTimePlots();
       },
       error: (err) => {
+        console.error('Save requests failed:', err);
         this.isSaving = false;
-        console.error('Error saving assignments', err);
-        this.snackBar.open('Failed to save assignments.', 'Close', { duration: 3000 });
+        let msg = 'Failed to save changes.';
+        if (err && err.message) {
+          msg = err.message;
+        } else if (err.error) {
+          if (err.error.message) {
+            msg = err.error.message;
+          } else if (err.error.errors) {
+            const errorKeys = Object.keys(err.error.errors);
+            if (errorKeys.length > 0) {
+              const firstKey = errorKeys[0];
+              const firstError = err.error.errors[firstKey];
+              msg = Array.isArray(firstError) ? firstError[0] : firstError;
+            }
+          }
+        }
+        this.snackBar.open(`Error: ${msg}`, 'Close', { duration: 5000 });
       }
     });
   }
+
 
   /**
    * Identifies eligible time types based on faculty role/type.
@@ -454,12 +519,38 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       .getFacultyTimePlots(this.data.facultyId, this.data.termId)
       .subscribe({
         next: (res) => {
-          this.timePlots = res.time_plots || [];
+          this.originalTimePlots = res.time_plots || [];
           this.timePlotCaps = res.caps || {};
-          this.cdr.detectChanges();
+          this.syncLocalTimePlotsState();
         },
         error: (err) => console.error('Failed to load time plots', err)
       });
+  }
+
+  /**
+   * Synchronises buffered memory edits (additions/deletions) to UI list.
+   */
+  syncLocalTimePlotsState(): void {
+    let current = this.originalTimePlots.map(p => ({ ...p }));
+    if (this.pendingDeletions.length > 0) {
+      current = current.filter(p => !this.pendingDeletions.includes(p.id));
+    }
+    if (this.pendingAdditions.length > 0) {
+      current = [...current, ...this.pendingAdditions];
+    }
+    this.timePlots = current;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Utility helper to check if two time ranges overlap.
+   */
+  doTimesOverlap(s1: string, e1: string, s2: string, e2: string): boolean {
+    const start1 = this.timeToMinutes(s1);
+    const end1 = this.timeToMinutes(e1);
+    const start2 = this.timeToMinutes(s2);
+    const end2 = this.timeToMinutes(e2);
+    return Math.max(start1, start2) < Math.min(end1, end2);
   }
 
   /**
@@ -518,65 +609,57 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const payload = {
+    // 1. Check plotted overlaps
+    if (this.timePlots.some(p => p.day === this.selectedDay && this.doTimesOverlap(this.startTime, this.endTime, p.start_time.substring(0, 5), p.end_time.substring(0, 5)))) {
+      this.snackBar.open('This time slot overlaps with another plotted time slot.', 'Close', { duration: 5000 });
+      return;
+    }
+
+    // 2. Check teaching schedule conflicts
+    if (this.scheduleDataCopy.some(s => s.day === this.selectedDay && s.start_time && s.end_time && this.doTimesOverlap(this.startTime, this.endTime, s.start_time.substring(0, 5), s.end_time.substring(0, 5)))) {
+      this.snackBar.open('This time slot overlaps with an assigned class schedule.', 'Close', { duration: 5000 });
+      return;
+    }
+
+    // 3. Check cap limit
+    const cap = this.timePlotCaps[this.selectedType] || 0;
+    const plotted = this.getPlottedHours(this.selectedType);
+    const duration = (endMin - startMin) / 60;
+    if (plotted + duration > cap) {
+      this.snackBar.open(`Adding this slot exceeds the weekly limit of ${cap} hours for ${this.getDisplayTypeName(this.selectedType)}.`, 'Close', { duration: 5000 });
+      return;
+    }
+
+    const tempPlot = {
+      id: -Date.now(),
       faculty_id: this.data.facultyId,
       active_semester_id: this.data.termId,
       time_type: this.selectedType,
       day: this.selectedDay,
       start_time: this.startTime,
-      end_time: this.endTime
+      end_time: this.endTime,
+      isTemp: true
     };
 
-    this.isAddingTimePlot = true;
-    this.reportsService.createFacultyTimePlot(payload).subscribe({
-      next: () => {
-        this.isAddingTimePlot = false;
-        this.snackBar.open('Time plot added successfully.', 'Close', {
-          duration: 3000
-        });
-        this.loadTimePlots();
-        this.wasSaved = true;
-      },
-      error: (err) => {
-        this.isAddingTimePlot = false;
-        let msg = 'Failed to add time plot.';
-        if (err.error) {
-          if (err.error.message) {
-            msg = err.error.message;
-          } else if (err.error.errors) {
-            const errorKeys = Object.keys(err.error.errors);
-            if (errorKeys.length > 0) {
-              const firstKey = errorKeys[0];
-              const firstError = err.error.errors[firstKey];
-              msg = Array.isArray(firstError) ? firstError[0] : firstError;
-            }
-          }
-        }
-        this.snackBar.open(`Error: ${msg}`, 'Close', { duration: 5000 });
-      }
-    });
+    this.pendingAdditions.push(tempPlot);
+    this.syncLocalTimePlotsState();
+    this.snackBar.open('Time slot added. Remember to save changes.', 'Close', { duration: 3000 });
   }
 
   /**
    * Deletes an existing time plot block by ID.
    */
   onDeleteTimePlot(id: number): void {
-    this.reportsService.deleteFacultyTimePlot(id).subscribe({
-      next: () => {
-        this.snackBar.open('Time plot deleted successfully.', 'Close', {
-          duration: 3000
-        });
-        this.loadTimePlots();
-        this.wasSaved = true;
-      },
-      error: (err) => {
-        let msg = 'Failed to delete time plot.';
-        if (err.error && err.error.message) {
-          msg = err.error.message;
-        }
-        this.snackBar.open(`Error: ${msg}`, 'Close', { duration: 5000 });
+    if (id < 0) {
+      this.pendingAdditions = this.pendingAdditions.filter(p => p.id !== id);
+    } else {
+      if (!this.pendingDeletions.includes(id)) {
+        this.pendingDeletions.push(id);
       }
-    });
+    }
+    this.syncLocalTimePlotsState();
+    this.snackBar.open('Time slot removed. Remember to save changes.', 'Close', { duration: 3000 });
   }
 }
-
+
+

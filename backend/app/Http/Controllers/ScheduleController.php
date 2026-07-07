@@ -410,13 +410,20 @@ class ScheduleController extends Controller
             ->where('is_enabled', 1)
             ->exists() ? 1 : 0;
 
+        $timePlots = DB::table('faculty_time_plots')
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get(['faculty_id', 'day', 'start_time', 'end_time', 'time_type'])
+            ->toArray();
+
         return response()->json([
             'active_semester_id' => $activeSemester->active_semester_id,
             'academic_year_id' => $activeAcademicYearId,
             'semester_id' => $activeSemester->semester_id,
             'is_submission_enabled' => $isSubmissionEnabled,
             'programs' => $response,
+            'time_plots' => $timePlots,
         ]);
+
     }
 
     /**

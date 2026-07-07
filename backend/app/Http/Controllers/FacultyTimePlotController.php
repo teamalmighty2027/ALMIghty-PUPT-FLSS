@@ -108,7 +108,9 @@ class FacultyTimePlotController extends Controller
         }
 
         // 2. Check eligibility based on Designee vs Regular/Temporary
-        $isDesignee = !is_null($facultyType->designee_role_id);
+        $isDesignee = !is_null($facultyType->designee_role_id) ||
+            str_contains(strtolower($facultyTypeName), 'designee');
+
 
         if ($isDesignee) {
             if (!in_array($timeType, ['night_service', 'official_time'])) {
@@ -180,21 +182,55 @@ class FacultyTimePlotController extends Controller
                 'section_courses.section_course_id'
             )
             ->join(
+                'sections_per_program_year',
+                'section_courses.sections_per_program_year_id',
+                '=',
+                'sections_per_program_year.sections_per_program_year_id'
+            )
+            ->leftJoin(
                 'course_assignments',
                 'section_courses.course_assignment_id',
                 '=',
                 'course_assignments.course_assignment_id'
             )
+            ->leftJoin(
+                'temporary_course_offerings',
+                'section_courses.temporary_course_offering_id',
+                '=',
+                'temporary_course_offerings.temporary_course_offering_id'
+            )
             ->where('schedules.faculty_id', $facultyId)
-            ->where('course_assignments.semester_id', function ($query) use ($activeSemesterId) {
-                $query->select('semester_id')
-                    ->from('active_semesters')
-                    ->where('active_semester_id', $activeSemesterId);
-            })
             ->where('schedules.day', $day)
             ->where('schedules.start_time', '<', $endTime)
             ->where('schedules.end_time', '>', $startTime)
+            ->where(
+                'sections_per_program_year.academic_year_id',
+                function ($query) use ($activeSemesterId) {
+                    $query->select('academic_year_id')
+                        ->from('active_semesters')
+                        ->where('active_semester_id', $activeSemesterId);
+                }
+            )
+            ->where(function ($query) use ($activeSemesterId) {
+                $query->where(
+                    'course_assignments.semester_id',
+                    function ($sub) use ($activeSemesterId) {
+                        $sub->select('semester_id')
+                            ->from('active_semesters')
+                            ->where('active_semester_id', $activeSemesterId);
+                    }
+                )
+                ->orWhere(
+                    'temporary_course_offerings.semester_id',
+                    function ($sub) use ($activeSemesterId) {
+                        $sub->select('semester_id')
+                            ->from('active_semesters')
+                            ->where('active_semester_id', $activeSemesterId);
+                    }
+                );
+            })
             ->exists();
+
 
         if ($scheduleConflict) {
             return response()->json([
