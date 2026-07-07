@@ -245,3 +245,51 @@
   border: none;
   display: block;
 }
+
+// --- Faculty Time Plots Styles ---
+.time-plots-form {
+  .form-field {
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+
+  .add-button {
+    background-color: var(--primary-color, #800000) !important;
+    color: white !important;
+  }
+}
+
+.remaining-hours-badges {
+  .badge {
+    background-color: #fafafa;
+    border-color: #e0e0e0 !important;
+    color: #424242;
+
+    &.badge-complete {
+      background-color: #e8f5e9;
+      border-color: #a5d6a7 !important;
+      color: #2e7d32;
+    }
+  }
+}
+
+.type-badge {
+  display: inline-block;
+  white-space: nowrap;
+
+  &.badge-night_service {
+    background-color: #e3f2fd;
+    color: #1565c0;
+  }
+
+  &.badge-official_time {
+    background-color: #fff3e0;
+    color: #e65100;
+  }
+
+  &.badge-advising_time {
+    background-color: #f3e5f5;
+    color: #4a148c;
+  }
+}

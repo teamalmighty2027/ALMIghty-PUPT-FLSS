@@ -10,6 +10,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { forkJoin } from 'rxjs';
@@ -20,6 +21,7 @@ import { LoadingComponent } from '../loading/loading.component';
 import { ScheduleTimelineComponent } from '../schedule-timeline/schedule-timeline.component';
 import { fadeAnimation } from '../../core/animations/animations';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
+import { ReportsService } from '../../core/services/admin/reports/reports.service';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogConfigureLoadTypeComponent } from '../dialog-configure-load-type/dialog-configure-load-type.component';
 import { MatDividerModule } from '@angular/material/divider';
@@ -42,7 +44,12 @@ interface ViewScheduleDialogData {
   exportType?: 'all' | 'single';
   fileName?: string;
   showAssignmentSummary?: boolean;
+  facultyId?: number;
+  termId?: number;
+  facultyType?: string;
+  isAdmin?: boolean;
 }
+
 
 @Component({
   selector: 'app-dialog-view-schedule',
@@ -59,8 +66,10 @@ interface ViewScheduleDialogData {
     ScheduleTimelineComponent,
     MatSelectModule,
     MatFormFieldModule,
+    MatInputModule,
     MatDividerModule
   ],
+
   templateUrl: './dialog-view-schedule.component.html',
   styleUrls: ['./dialog-view-schedule.component.scss'],
   animations: [fadeAnimation],
@@ -80,6 +89,24 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   // State trackers for Save workflow
   isSaving = false;
   wasSaved = false;
+
+  // Faculty Time Plots properties
+  timePlots: any[] = [];
+  timePlotCaps: any = {};
+  eligibleTypes: string[] = [];
+  selectedType: string = '';
+  selectedDay: string = 'Monday';
+  startTime: string = '07:00';
+  endTime: string = '08:30';
+  isAddingTimePlot = false;
+  timeOptions: { value: string; label: string; minutes: number }[] = [];
+  endTimeOptions: { value: string; label: string; minutes: number }[] = [];
+
+  get showTimePlotPanel(): boolean {
+    return this.data.entity === 'faculty' && 
+           !!this.data.isAdmin && 
+           this.data.facultyType !== 'Part-Time';
+  }
 
   get scheduleData(): any {
     return this.data.entityData;
@@ -102,6 +129,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     private sanitizer: DomSanitizer,
     private cdr: ChangeDetectorRef,
     private schedulingService: SchedulingService,
+    private reportsService: ReportsService,
     private snackBar: MatSnackBar,
     private dialog: MatDialog
   ) {
@@ -112,6 +140,16 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    if (this.showTimePlotPanel) {
+      this.getEligibleTypes();
+      this.generateTimeOptions();
+      if (this.startTime) {
+        this.onStartTimeChange(this.startTime);
+      }
+      this.loadTimePlots();
+    }
+
+
     // Fetch dynamic load types from database
     this.schedulingService.getAssignmentTypes().subscribe({
       next: (types) => {
@@ -342,4 +380,203 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  /**
+   * Identifies eligible time types based on faculty role/type.
+   */
+  getEligibleTypes(): void {
+    const type = this.data.facultyType || '';
+    if (type.includes('Designee') || type.startsWith('Designee')) {
+      this.eligibleTypes = ['night_service', 'official_time'];
+    } else if (type === 'Full-Time' || type === 'Temporary') {
+      this.eligibleTypes = ['advising_time'];
+    } else {
+      this.eligibleTypes = [];
+    }
+    if (this.eligibleTypes.length > 0) {
+      this.selectedType = this.eligibleTypes[0];
+    }
+  }
+
+  /**
+   * Generates time options in 30-minute intervals from 7:00 AM to 9:00 PM.
+   */
+  generateTimeOptions(): void {
+    const start = 7 * 60;
+    const end = 21 * 60;
+    const interval = 30;
+    this.timeOptions = [];
+
+    for (let mins = start; mins <= end; mins += interval) {
+      const hours = Math.floor(mins / 60);
+      const m = mins % 60;
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const hDisplay = hours % 12 || 12;
+      const label = `${hDisplay}:${m.toString().padStart(2, '0')} ${ampm}`;
+      const value = `${hours.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      this.timeOptions.push({ value, label, minutes: mins });
+    }
+  }
+
+  /**
+   * Dynamically filters end time choices based on selected start time.
+   *
+   * @param newStartValue The start time value string (e.g. '07:00')
+   */
+  onStartTimeChange(newStartValue: string): void {
+    const selectedSlot = this.timeOptions.find(opt => opt.value === newStartValue);
+    if (!selectedSlot) {
+      this.endTimeOptions = [];
+      return;
+    }
+
+    this.endTimeOptions = this.timeOptions.filter(
+      opt => opt.minutes > selectedSlot.minutes
+    );
+
+    if (this.endTime) {
+      const isStillAvailable = this.endTimeOptions.some(
+        opt => opt.value === this.endTime
+      );
+      if (!isStillAvailable) {
+        this.endTime = '';
+      }
+    }
+  }
+
+  /**
+   * Fetches time plots for the faculty member from the database.
+   */
+  loadTimePlots(): void {
+    if (!this.data.facultyId || !this.data.termId) return;
+
+    this.reportsService
+      .getFacultyTimePlots(this.data.facultyId, this.data.termId)
+      .subscribe({
+        next: (res) => {
+          this.timePlots = res.time_plots || [];
+          this.timePlotCaps = res.caps || {};
+          this.cdr.detectChanges();
+        },
+        error: (err) => console.error('Failed to load time plots', err)
+      });
+  }
+
+  /**
+   * Calculates total plotted hours for a given time type.
+   */
+  getPlottedHours(type: string): number {
+    let totalMin = 0;
+    const plotsOfType = this.timePlots.filter(p => p.time_type === type);
+    for (const plot of plotsOfType) {
+      const startMin = this.timeToMinutes(plot.start_time.substring(0, 5));
+      const endMin = this.timeToMinutes(plot.end_time.substring(0, 5));
+      totalMin += (endMin - startMin);
+    }
+    return parseFloat((totalMin / 60).toFixed(2));
+  }
+
+  /**
+   * Calculates remaining hours before hitting the weekly cap.
+   */
+  getRemainingHours(type: string): number {
+    const cap = this.timePlotCaps[type] || 0;
+    const plotted = this.getPlottedHours(type);
+    return Math.max(0, cap - plotted);
+  }
+
+  /**
+   * Formats the time plot type key for display.
+   */
+  getDisplayTypeName(type: string): string {
+    switch (type) {
+      case 'night_service': return 'Night Service';
+      case 'official_time': return 'Official Time';
+      case 'advising_time': return 'Advising Time';
+      default: return type;
+    }
+  }
+
+  /**
+   * Submits a request to store a new faculty time plot block.
+   */
+  onAddTimePlot(): void {
+    if (!this.selectedType || !this.selectedDay ||
+        !this.startTime || !this.endTime) {
+      this.snackBar.open('Please fill out all fields.', 'Close', {
+        duration: 3000
+      });
+      return;
+    }
+
+    const startMin = this.timeToMinutes(this.startTime);
+    const endMin = this.timeToMinutes(this.endTime);
+    if (endMin <= startMin) {
+      this.snackBar.open('End time must be after start time.', 'Close', {
+        duration: 3000
+      });
+      return;
+    }
+
+    const payload = {
+      faculty_id: this.data.facultyId,
+      active_semester_id: this.data.termId,
+      time_type: this.selectedType,
+      day: this.selectedDay,
+      start_time: this.startTime,
+      end_time: this.endTime
+    };
+
+    this.isAddingTimePlot = true;
+    this.reportsService.createFacultyTimePlot(payload).subscribe({
+      next: () => {
+        this.isAddingTimePlot = false;
+        this.snackBar.open('Time plot added successfully.', 'Close', {
+          duration: 3000
+        });
+        this.loadTimePlots();
+        this.wasSaved = true;
+      },
+      error: (err) => {
+        this.isAddingTimePlot = false;
+        let msg = 'Failed to add time plot.';
+        if (err.error) {
+          if (err.error.message) {
+            msg = err.error.message;
+          } else if (err.error.errors) {
+            const errorKeys = Object.keys(err.error.errors);
+            if (errorKeys.length > 0) {
+              const firstKey = errorKeys[0];
+              const firstError = err.error.errors[firstKey];
+              msg = Array.isArray(firstError) ? firstError[0] : firstError;
+            }
+          }
+        }
+        this.snackBar.open(`Error: ${msg}`, 'Close', { duration: 5000 });
+      }
+    });
+  }
+
+  /**
+   * Deletes an existing time plot block by ID.
+   */
+  onDeleteTimePlot(id: number): void {
+    this.reportsService.deleteFacultyTimePlot(id).subscribe({
+      next: () => {
+        this.snackBar.open('Time plot deleted successfully.', 'Close', {
+          duration: 3000
+        });
+        this.loadTimePlots();
+        this.wasSaved = true;
+      },
+      error: (err) => {
+        let msg = 'Failed to delete time plot.';
+        if (err.error && err.error.message) {
+          msg = err.error.message;
+        }
+        this.snackBar.open(`Error: ${msg}`, 'Close', { duration: 5000 });
+      }
+    });
+  }
 }
+

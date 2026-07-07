@@ -223,8 +223,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
 
-    
-
     /**
      * Email
      */
@@ -242,6 +240,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
     Route::put('/admin/profile', [AdminProfileController::class, 'update']);
+
+    // Faculty Time Plots
+    Route::get('/faculty/{faculty_id}/time-plots',[FacultyTimePlotController::class, 'index']);
+    Route::post('/faculty/time-plots',[FacultyTimePlotController::class, 'store']);
+    Route::delete('/faculty/time-plots/{id}',[FacultyTimePlotController::class, 'destroy']);
+
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
@@ -341,24 +345,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
 
     /**
-     * Faculty Time Plots
-     */
-    Route::get(
-        '/faculty/{faculty_id}/time-plots',
-        [FacultyTimePlotController::class, 'index']
-    );
-    Route::post(
-        '/faculty/time-plots',
-        [FacultyTimePlotController::class, 'store']
-    );
-    Route::delete(
-        '/faculty/time-plots/{id}',
-        [FacultyTimePlotController::class, 'destroy']
-    );
-
-
-    /**
      * Analytics
+
      */
     Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
         Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
