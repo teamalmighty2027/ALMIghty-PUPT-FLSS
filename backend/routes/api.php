@@ -13,6 +13,7 @@ use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FacultyTimePlotController;
 use App\Http\Controllers\FacultyProfileController;
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
@@ -338,6 +339,23 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
     Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
     Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+
+    /**
+     * Faculty Time Plots
+     */
+    Route::get(
+        '/faculty/{faculty_id}/time-plots',
+        [FacultyTimePlotController::class, 'index']
+    );
+    Route::post(
+        '/faculty/time-plots',
+        [FacultyTimePlotController::class, 'store']
+    );
+    Route::delete(
+        '/faculty/time-plots/{id}',
+        [FacultyTimePlotController::class, 'destroy']
+    );
+
 
     /**
      * Analytics
