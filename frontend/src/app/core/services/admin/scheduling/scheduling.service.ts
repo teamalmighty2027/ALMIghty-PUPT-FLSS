@@ -388,7 +388,7 @@ export class SchedulingService {
     year_level: number,
     section_id: number,
     elective_id: number | null = null,
-    assignment_type: string | null = null
+    assignment_type_id: number | null = null
   ): Observable<any> {
     const payload = {
       schedule_id,
@@ -398,7 +398,7 @@ export class SchedulingService {
       start_time,
       end_time,
       elective_id,
-      assignment_type,
+      assignment_type_id,
     };
     return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
