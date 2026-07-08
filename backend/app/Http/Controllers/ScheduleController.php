@@ -682,7 +682,7 @@ class ScheduleController extends Controller
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
             'elective_id' => 'nullable|exists:electives,elective_id',
-            'assignment_type' => 'nullable|string',
+            'assignment_type_id' => 'nullable|integer|exists:assignment_types,id',
         ]);
 
         if ($validator->fails()) {
@@ -718,7 +718,7 @@ class ScheduleController extends Controller
                 'start_time' => $schedule->start_time,
                 'end_time'   => $schedule->end_time,
                 'elective_id' => $schedule->elective_id,
-                'assignment_type' => $schedule->assignment_type,
+                'assignment_type_id' => $schedule->assignment_type_id ?? null,
             ];
 
             // 2. APPLY UPDATES
@@ -728,7 +728,7 @@ class ScheduleController extends Controller
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
             $schedule->elective_id = $request->input('elective_id');
-            $schedule->assignment_type = $request->input('assignment_type', 'Regular Load');
+            $schedule->assignment_type_id = $request->input('assignment_type_id');
             
             // 3. TRACK HUMAN READABLE CHANGES
             $changes = [];
@@ -785,8 +785,15 @@ class ScheduleController extends Controller
                 $changes[] = "Elective: {$oldElectiveLabel} → {$newElectiveLabel}";
             }
 
-            if ($oldData['assignment_type'] != $schedule->assignment_type) {
-                $changes[] = "Assignment Type: {$oldData['assignment_type']} → {$schedule->assignment_type}";
+            if (($oldData['assignment_type_id'] ?? null) != ($schedule->assignment_type_id ?? null)) {
+                $oldName = $oldData['assignment_type_id']
+                    ? DB::table('assignment_types')->where('id', $oldData['assignment_type_id'])->value('name')
+                    : 'None';
+                $newName = $schedule->assignment_type_id
+                    ? DB::table('assignment_types')->where('id', $schedule->assignment_type_id)->value('name')
+                    : 'None';
+
+                $changes[] = "Assignment Type: {$oldName} → {$newName}";
             }
 
             // NOW the guard runs after all checks are complete:
