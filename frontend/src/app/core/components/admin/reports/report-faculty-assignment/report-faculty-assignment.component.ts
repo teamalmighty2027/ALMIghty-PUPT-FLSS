@@ -175,11 +175,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
           if (f.schedules) {
             f.schedules = f.schedules.map((s: any) => ({
               ...s,
-              assignmentType: s.assignment_type || 'Regular Load' // Default to Regular Load
+              assignmentType: s.assignment_type || 'Regular'
             }));
           }
           return f;
         });
+
 
         this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
         this.dataSource.data = facultyData;
@@ -249,7 +250,8 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     if (currentFaculty.schedules) {
       currentFaculty.schedules.forEach((s: any) => {
-        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular Load';
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular';
+
       });
 
       currentFaculty.schedules.sort((a: any, b: any) => {
@@ -492,10 +494,11 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     schedules.forEach((sched: any) => {
       // Look at the assignmentType changed from the UI
-      const type = sched.assignment_type || sched.assignmentType || 'Regular Load';
+      const type = sched.assignment_type || sched.assignmentType || 'Regular';
       const hours = this.getRowHours(sched);
 
-      if (type === 'Part Time') {
+      if (type === 'Part-Time') {
+
         partTime.push(sched);
       } else if (type === 'Temporary Substitution') {
         tempSub.push(sched);
@@ -671,12 +674,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     
     // Define the exact order for standard types (Custom types default to 99 so they go to the bottom)
     const priorityOrder: Record<string, number> = {
-      'Regular Load': 1,
-      'Part Time': 2,
+      'Regular': 1,
+      'Part-Time': 2,
       'Temporary Substitution': 3
     };
 
-    // Sort the types so Regular Load is always at the top!
+    // Sort the types so Regular is always at the top!
     uniqueTypes.sort((a, b) => {
       const orderA = priorityOrder[a] || 99; 
       const orderB = priorityOrder[b] || 99;

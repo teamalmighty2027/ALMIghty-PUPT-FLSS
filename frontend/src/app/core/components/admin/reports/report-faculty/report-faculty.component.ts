@@ -317,7 +317,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         s.day = s.day || 'TBA';
         s.start_time = s.start_time || '07:00';
         s.end_time = s.end_time || '08:00';
-        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular Load';
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular';
+
       });
     }
 
