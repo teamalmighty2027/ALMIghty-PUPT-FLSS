@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Schedule;
+use App\Models\Faculty;
 use App\Models\SectionCourse;
 use App\Models\Room;
 use App\Models\User;
@@ -485,23 +486,25 @@ class ScheduleController extends Controller
         $facultyEmail = null;
 
         if ($facultyId) {
-            $faculty = DB::table('faculty')
-                ->where('id', $facultyId)
-                ->first();
+            $faculty = Faculty::with('user')->find($facultyId);
 
             if ($faculty) {
-                $facultyName = $faculty->last_name . ', '
-                    . $faculty->first_name;
+                $user = $faculty->user;
 
-                if ($faculty->middle_name) {
-                    $facultyName .= ' ' . $faculty->middle_name;
+                if ($user) {
+                    $facultyName = $user->last_name . ', '
+                        . $user->first_name;
+
+                    if ($user->middle_name) {
+                        $facultyName .= ' ' . $user->middle_name;
+                    }
+
+                    if ($user->suffix_name) {
+                        $facultyName .= ' ' . $user->suffix_name;
+                    }
+
+                    $facultyEmail = $user->email;
                 }
-
-                if ($faculty->suffix_name) {
-                    $facultyName .= ' ' . $faculty->suffix_name;
-                }
-
-                $facultyEmail = $faculty->faculty_email;
             }
         }
 
