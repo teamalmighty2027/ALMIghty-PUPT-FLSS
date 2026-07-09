@@ -387,6 +387,12 @@ class ReportsController extends Controller
         // Step 3.2: Fetch User models and map by ID
         $users = $this->fetchCachedUsers($userIds);
 
+        // Fetch time plots for this active semester
+        $timePlots = DB::table('faculty_time_plots')
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get()
+            ->groupBy('faculty_id');
+
         // Step 4: Group the data by faculty and structure schedules
         $faculties = [];
 
@@ -403,13 +409,16 @@ class ReportsController extends Controller
                     'has_appeal_request' => $schedule->has_appeal_request,
                     'appeal_start_date' => $schedule->appeal_start_date,
                     'appeal_end_date' => $schedule->appeal_end_date,
-                    
+                    'time_plots' => $timePlots->has($schedule->faculty_id)
+                        ? $timePlots->get($schedule->faculty_id)->toArray()
+                        : [],
                     'assigned_units' => 0,
                     'is_published' => 0,
                     'schedules' => [],
                     'tracked_courses' => [],
                 ];
             }
+
 
             if ($schedule->schedule_id) {
                 // For bridging courses, key by course code
@@ -1257,6 +1266,17 @@ class ReportsController extends Controller
         }
 
         $response['faculty_schedule']['is_published'] = $isPublished ? 1 : 0;
+
+
+        // Fetch time plots for single faculty schedule report
+        $response['faculty_schedule']['time_plots'] = DB::table(
+            'faculty_time_plots'
+        )
+            ->where('faculty_id', $faculty->id)
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get(['id', 'time_type', 'day', 'start_time', 'end_time'])
+            ->toArray();
+
 
         // Step 8: Decide whether to include schedule details (Privacy / Access Control)
         $user = $request->user();

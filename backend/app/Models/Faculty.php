@@ -83,4 +83,9 @@ class Faculty extends Authenticatable
             ->where('is_published', true)
             ->exists();
     }
+
+    public function timePlots()
+    {
+        return $this->hasMany(FacultyTimePlot::class, 'faculty_id', 'id');
+    }
 }

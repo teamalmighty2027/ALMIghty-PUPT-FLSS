@@ -175,11 +175,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
           if (f.schedules) {
             f.schedules = f.schedules.map((s: any) => ({
               ...s,
-              assignmentType: s.assignment_type || 'Regular Load' // Default to Regular Load
+              assignmentType: s.assignment_type || 'Regular'
             }));
           }
           return f;
         });
+
 
         this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
         this.dataSource.data = facultyData;
@@ -249,7 +250,8 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     if (currentFaculty.schedules) {
       currentFaculty.schedules.forEach((s: any) => {
-        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular Load';
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular';
+
       });
 
       currentFaculty.schedules.sort((a: any, b: any) => {
@@ -492,10 +494,11 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     schedules.forEach((sched: any) => {
       // Look at the assignmentType changed from the UI
-      const type = sched.assignment_type || sched.assignmentType || 'Regular Load';
+      const type = sched.assignment_type || sched.assignmentType || 'Regular';
       const hours = this.getRowHours(sched);
 
-      if (type === 'Part Time') {
+      if (type === 'Part-Time') {
+
         partTime.push(sched);
       } else if (type === 'Temporary Substitution') {
         tempSub.push(sched);
@@ -671,12 +674,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     
     // Define the exact order for standard types (Custom types default to 99 so they go to the bottom)
     const priorityOrder: Record<string, number> = {
-      'Regular Load': 1,
-      'Part Time': 2,
+      'Regular': 1,
+      'Part-Time': 2,
       'Temporary Substitution': 3
     };
 
-    // Sort the types so Regular Load is always at the top!
+    // Sort the types so Regular is always at the top!
     uniqueTypes.sort((a, b) => {
       const orderA = priorityOrder[a] || 99; 
       const orderB = priorityOrder[b] || 99;
@@ -825,40 +828,104 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     currentY = (doc as any).lastAutoTable.finalY + 6;
     doc.text('OFFICIAL TIME / ADVISING TIME', 105, currentY, { align: 'center' });
 
+    // Track daily hours for Official Time and Advising Time
+    const officialHours: Record<string, number> = {
+      MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TOTAL: 0
+    };
+    const advisingHours: Record<string, number> = {
+      MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TOTAL: 0
+    };
+
+    if (faculty.time_plots && Array.isArray(faculty.time_plots)) {
+      faculty.time_plots.forEach((plot: any) => {
+        const col = this.mapDayToCol(plot.day);
+        if (!col) return;
+
+        const diff = this.getHoursDiff(plot.start_time, plot.end_time);
+        if (isNaN(diff) || diff <= 0) return;
+
+        if (plot.time_type === 'official_time') {
+          officialHours[col] += diff;
+          officialHours['TOTAL'] += diff;
+        } else if (plot.time_type === 'advising_time') {
+          advisingHours[col] += diff;
+          advisingHours['TOTAL'] += diff;
+        }
+      });
+    }
+
     autoTable(doc, {
-      startY: currentY + 1.5, theme: 'grid',
+      startY: currentY + 1.5,
+      theme: 'grid',
       head: [['', 'MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN', 'TOTAL']],
       body: [
-        ['OFFICIAL TIME', '', '', '', '', '', '', '', ''],
-        ['ADVISING TIME', '', '', '', '', '', '', '', '']
+        ['OFFICIAL TIME', ...days.map(d => formatHour(officialHours[d]))],
+        ['ADVISING TIME', ...days.map(d => formatHour(advisingHours[d]))]
       ],
-      styles: { fontSize: 8, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-      headStyles: { fillColor: [225, 225, 225], textColor: [0,0,0], fontSize: 7.5 },
-      columnStyles: { 0: { fillColor: [240, 240, 240], fontStyle: 'bold', halign: 'left', cellWidth: 26 } }
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+        halign: 'center'
+      },
+      headStyles: {
+        fillColor: [225, 225, 225],
+        textColor: [0, 0, 0],
+        fontSize: 7.5
+      },
+      columnStyles: {
+        0: {
+          fillColor: [240, 240, 240],
+          fontStyle: 'bold',
+          halign: 'left',
+          cellWidth: 26
+        }
+      }
     });
 
     // 6. FOOTER
     currentY = (doc as any).lastAutoTable.finalY + 8;
-    
-    if (currentY + 25 > doc.internal.pageSize.getHeight()) {
+
+    if (currentY + 30 > doc.internal.pageSize.getHeight()) {
       doc.addPage();
       currentY = 20;
     }
-    
-    doc.setFontSize(9.5); doc.setFont('helvetica', 'bold');
+
+    doc.setFontSize(9.5);
+    doc.setFont('helvetica', 'bold');
     doc.text('SUBJECT REFERENCE LEGEND:', 14, currentY);
-    
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
-    const legendText = '(C) - College, (OU) - Open University, (GS) - Graduate School, (PB) - Post Bac, (L) - Law, (T) - ITech';
+    const legendText = '(C) - College, (OU) - Open University, ' +
+                       '(GS) - Graduate School, (PB) - Post Bac, ' +
+                       '(L) - Law, (T) - ITech';
     const wrappedLegend = doc.splitTextToSize(legendText, 100);
     doc.text(wrappedLegend, 14, currentY + 5);
 
-    // Signature Area
-    doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-    doc.text('DR. MANUEL M. MUHI', 165, currentY + 15, { align: 'center' });
-    doc.line(135, currentY + 16, 195, currentY + 16);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
-    doc.text('President', 165, currentY + 20, { align: 'center' });
+    // Multi-column Signature Area
+    const signatureY = currentY + 22;
+    const colCenters = [37.5, 84.5, 131.5, 178.5];
+    const lineLefts = [20, 67, 114, 161];
+    const lineRights = [55, 102, 149, 196];
+    const labels = [
+      'Signature of Faculty',
+      'Head of Academic Programs',
+      'Director',
+      'VP for Campuses'
+    ];
+
+    doc.setFontSize(8.5);
+    for (let i = 0; i < 4; i++) {
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.3);
+      doc.line(lineLefts[i], signatureY, lineRights[i], signatureY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(labels[i], colCenters[i], signatureY + 4, { align: 'center' });
+    }
+
   }
 }

@@ -95,9 +95,121 @@
           <tr mat-row *matRowDef="let row; columns: summaryColumns;"></tr>
         </table>
       </div>
+
+      <!-- Faculty Time Plots Panel -->
+      @if (showTimePlotPanel) {
+        <div class="time-plots-card summary-table-container" [@fadeAnimation]>
+          <h3 class="summary-title" style="margin-top: 24px; margin-bottom: 16px;">
+            Faculty Time Assignments
+          </h3>
+          
+          <!-- Creation Form -->
+          <div class="time-plots-form" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px;">
+            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 150px;" subscriptSizing="dynamic">
+              <mat-label>Type</mat-label>
+              <mat-select [(ngModel)]="selectedType">
+                @for (type of eligibleTypes; track type) {
+                  <mat-option [value]="type">{{ getDisplayTypeName(type) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 120px;" subscriptSizing="dynamic">
+              <mat-label>Day</mat-label>
+              <mat-select [(ngModel)]="selectedDay">
+                <mat-option value="Monday">Monday</mat-option>
+                <mat-option value="Tuesday">Tuesday</mat-option>
+                <mat-option value="Wednesday">Wednesday</mat-option>
+                <mat-option value="Thursday">Thursday</mat-option>
+                <mat-option value="Friday">Friday</mat-option>
+                <mat-option value="Saturday">Saturday</mat-option>
+                <mat-option value="Sunday">Sunday</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field" style="width: 135px;" subscriptSizing="dynamic">
+              <mat-label>Start Time</mat-label>
+              <mat-select [(ngModel)]="startTime" (selectionChange)="onStartTimeChange($event.value)">
+                @for (opt of timeOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field" style="width: 135px;" subscriptSizing="dynamic">
+              <mat-label>End Time</mat-label>
+              <mat-select [(ngModel)]="endTime" [disabled]="!startTime">
+                @for (opt of endTimeOptions; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+
+            <button mat-flat-button color="primary" class="add-button" (click)="onAddTimePlot()" [disabled]="isAddingTimePlot" style="height: 48px;">
+              <mat-icon>add</mat-icon> Add Time
+            </button>
+          </div>
+
+          <!-- Cap & Remaining Badges -->
+          <div class="remaining-hours-badges" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+            @for (type of eligibleTypes; track type) {
+              <div class="badge" [ngClass]="{'badge-complete': getRemainingHours(type) === 0}" 
+                   style="padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.85rem; border: 1px solid #ccc; display: flex; align-items: center; gap: 8px;">
+                <span class="badge-label" style="opacity: 0.8;">{{ getDisplayTypeName(type) }}:</span>
+                <span class="badge-value" style="font-weight: 600;">
+                  {{ getPlottedHours(type) }}h plotted / {{ getRemainingHours(type) }}h remaining
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Table list of plots -->
+          <div class="table-responsive" style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;">
+            <table class="custom-table time-plots-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #f5f5f5; border-bottom: 1px solid #e0e0e0; text-align: left;">
+                  <th style="font-weight: bold; padding: 12px 16px;">Type</th>
+                  <th style="font-weight: bold; padding: 12px 16px;">Day</th>
+                  <th style="font-weight: bold; padding: 12px 16px;">Time</th>
+                  <th style="font-weight: bold; padding: 12px 16px; text-align: center; width: 100px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (timePlots.length === 0) {
+                  <tr>
+                    <td colspan="4" class="no-data-cell" style="text-align: center; padding: 24px; color: #777;">
+                      No time plots defined yet.
+                    </td>
+                  </tr>
+                } @else {
+                  @for (plot of timePlots; track plot.id) {
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                      <td style="padding: 12px 16px;">
+                        <span class="type-badge" [ngClass]="'badge-' + plot.time_type" 
+                              style="padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">
+                          {{ getDisplayTypeName(plot.time_type) }}
+                        </span>
+                      </td>
+                      <td style="padding: 12px 16px;">{{ plot.day }}</td>
+                      <td style="padding: 12px 16px;">{{ formatTimeDisplay(plot.start_time) }} - {{ formatTimeDisplay(plot.end_time) }}</td>
+                      <td style="padding: 12px 16px; text-align: center;">
+                        <button mat-icon-button color="warn" (click)="onDeleteTimePlot(plot.id)" matTooltip="Delete slot">
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
     }
 
     @if (selectedView === 'table-view' && data.exportType !== 'all') {
+
       @if (scheduleGroups && scheduleGroups.length > 0) {
       <div class="multiple-schedules-container">
         @for (group of scheduleGroups; track group) {
@@ -117,7 +229,9 @@
         <app-schedule-timeline
           [scheduleData]="scheduleDataCopy"
           [entity]="data.entity"
+          [timePlots]="timePlots"
           [@fadeAnimation]></app-schedule-timeline>
+
       </div>
       }
     }
