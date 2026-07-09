@@ -6,9 +6,39 @@
   } @else {
   
   <div class="entity-info" [@fadeAnimation]>
-    <div class="schedule-title">
-      <h2 class="dialog-title">{{ title }}</h2>
-      <span class="dialog-subtitle">Official Schedule {{ subtitle }}</span>
+    <div class="schedule-title-wrapper" style="display: flex; flex-direction: column; gap: 12px;">
+      <div class="schedule-title">
+        <h2 class="dialog-title">
+          {{ title }}
+          @if (data.entity === 'faculty' && dialogWarningsTooltip !== '') {
+            <mat-icon
+              class="warning-icon-pulse"
+              [matTooltip]="dialogWarningsTooltip"
+              matTooltipClass="custom-warning-tooltip"
+              >warning</mat-icon>
+          }
+        </h2>
+        <span class="dialog-subtitle">Official Schedule {{ subtitle }}</span>
+      </div>
+
+      @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+        @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+          @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+            <div class="faculty-metrics-row">
+              @for (badge of facultyLoadBadges; track badge.label) {
+                <div class="metric-pill" [ngClass]="badge.statusClass">
+                  <span class="metric-label">{{ badge.label }}:</span>
+                  <span class="metric-value">
+                    {{ badge.hours }} 
+                    @if (badge.max !== undefined) { / {{ badge.max }} }
+                    hrs
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        }
+      }
     </div>
 
     @if (data.exportType !== 'all' && showViewToggle) {
@@ -69,8 +99,8 @@
 
           <ng-container matColumnDef="assignmentType">
             <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Load Type </th>
-            <td mat-cell *matCellDef="let element">
-              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dense-dropdown">
+            <td mat-cell *matCellDef="let element" style="vertical-align: top; padding-top: 12px; padding-bottom: 12px;">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dense-dropdown" [ngClass]="{'has-error': getRowWarning(element)}">
                 <mat-select 
                   placeholder="Select Load Type"
                   [(ngModel)]="element.assignment_type_id" 
@@ -88,6 +118,13 @@
                   
                 </mat-select>
               </mat-form-field>
+
+              @if (getRowWarning(element)) {
+                <div class="row-warning-text" [@fadeAnimation]>
+                  <mat-icon class="tiny-error-icon">error</mat-icon>
+                  <span>{{ getRowWarning(element) }}</span>
+                </div>
+              }
             </td>
           </ng-container>
 
