@@ -196,6 +196,7 @@
                   mat-table
                   [dataSource]="group.offerings"
                   class="custom-table"
+                  [class.draft-active]="isDraftMode"
                 >
                   <!-- Section Column -->
                   <ng-container matColumnDef="section">

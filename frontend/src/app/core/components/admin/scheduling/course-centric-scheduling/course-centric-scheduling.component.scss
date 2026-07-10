@@ -412,15 +412,22 @@ h1, p {
 }
 
 /* ------ Draft Dirty/Conflict Rows ------ */
-.custom-table {
-  &.draft-active {
-    .mat-mdc-row.draft-dirty td {
+.custom-table.draft-active {
+  .mat-mdc-row.draft-dirty {
+    td {
       background-color: rgba(255, 193, 7, 0.05) !important;
-      border-left: 1px solid rgba(255, 193, 7, 0.3);
     }
-    .mat-mdc-row.draft-conflict td {
+    td:first-child {
+      border-left: 4px solid rgba(255, 193, 7, 0.8) !important;
+    }
+  }
+
+  .mat-mdc-row.draft-conflict {
+    td {
       background-color: rgba(244, 67, 54, 0.05) !important;
-      border-left: 1px solid rgba(244, 67, 54, 0.3);
+    }
+    td:first-child {
+      border-left: 4px solid #f44336 !important;
     }
   }
 }

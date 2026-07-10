@@ -547,59 +547,72 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     let unassignedCount = 0;
 
-    from(emptySlots).pipe(
-      concatMap(slot => {
-        return this.schedulingService.getSmartSuggestion(
-          slot.course_id,
-          this.activeAcademicYearId || 0,
-          this.activeSemesterId || 0,
-          this.activeSemesterRecordId || 0,
-          programId,
-          this.selectedYear,
-          sectionId
-        ).pipe(
-          switchMap(suggestion => {
-            if (suggestion && suggestion.faculty_id) {
-              const entry: DraftEntry = {
-                schedule_id: slot.schedule_id!,
-                faculty_id: suggestion.faculty_id,
-                faculty_name: suggestion.faculty_name,
-                room_id: null,
-                room_code: 'Not set',
-                day: suggestion.day,
-                start_time: this.convertTimeToBackendFormat(suggestion.start_time),
-                end_time: this.convertTimeToBackendFormat(suggestion.end_time),
-                hasConflict: false
-              };
-              this.draftStateService.set(slot.schedule_id!, entry);
-              return this.runConflictCheck(entry);
-            } else {
-              unassignedCount++;
-              return of(void 0);
-            }
+    this.schedulingService.getFacultyDetails().pipe(
+      takeUntil(this.destroy$),
+      switchMap(({ faculty }) => {
+        return from(emptySlots).pipe(
+          concatMap(slot => {
+            return this.schedulingService.getSmartSuggestion(
+              slot.course_id,
+              this.activeAcademicYearId || 0,
+              this.activeSemesterId || 0,
+              this.activeSemesterRecordId || 0,
+              programId,
+              this.selectedYear,
+              sectionId
+            ).pipe(
+              switchMap(suggestion => {
+                if (suggestion && suggestion.faculty_id) {
+                  const fac = faculty.find(
+                    (f) => f.faculty_id === suggestion.faculty_id
+                  );
+                  const facultyName = fac ? fac.name : suggestion.faculty_name;
+                  const entry: DraftEntry = {
+                    schedule_id: slot.schedule_id!,
+                    faculty_id: suggestion.faculty_id,
+                    faculty_name: facultyName,
+                    room_id: null,
+                    room_code: 'Not set',
+                    day: suggestion.day,
+                    start_time: this.convertTimeToBackendFormat(
+                      suggestion.start_time
+                    ),
+                    end_time: this.convertTimeToBackendFormat(
+                      suggestion.end_time
+                    ),
+                    hasConflict: false
+                  };
+                  this.draftStateService.set(slot.schedule_id!, entry);
+                  return this.runConflictCheck(entry);
+                } else {
+                  unassignedCount++;
+                  return of(void 0);
+                }
+              }),
+              tap(() => {
+                this.aiFillProgress.current++;
+                this.rebuildDraftSchedules();
+                this.cdr.markForCheck();
+              }),
+              catchError(() => {
+                unassignedCount++;
+                return of(void 0);
+              })
+            );
           }),
-          tap(() => {
-            this.aiFillProgress.current++;
+          finalize(() => {
+            this.isAiFilling = false;
             this.rebuildDraftSchedules();
             this.cdr.markForCheck();
-          }),
-          catchError(() => {
-            unassignedCount++;
-            return of(void 0);
+            
+            const assignedCount = emptySlots.length - unassignedCount;
+            const msg = assignedCount === emptySlots.length 
+              ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
+              : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
+            
+            this.snackBar.open(msg, 'Close', { duration: 6000 });
           })
         );
-      }),
-      finalize(() => {
-        this.isAiFilling = false;
-        this.rebuildDraftSchedules();
-        this.cdr.markForCheck();
-        
-        const assignedCount = emptySlots.length - unassignedCount;
-        const msg = assignedCount === emptySlots.length 
-          ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
-          : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
-        
-        this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
   }
