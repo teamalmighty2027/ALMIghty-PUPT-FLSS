@@ -13,6 +13,7 @@ use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FacultyTimePlotController;
 use App\Http\Controllers\FacultyProfileController;
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
@@ -222,8 +223,6 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
 
-    
-
     /**
      * Email
      */
@@ -241,6 +240,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
     Route::put('/admin/profile', [AdminProfileController::class, 'update']);
+
+    // Faculty Time Plots
+    Route::get('/faculty/{faculty_id}/time-plots',[FacultyTimePlotController::class, 'index']);
+    Route::post('/faculty/time-plots',[FacultyTimePlotController::class, 'store']);
+    Route::delete('/faculty/time-plots/{id}',[FacultyTimePlotController::class, 'destroy']);
+
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
@@ -341,6 +346,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /**
      * Analytics
+
      */
     Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
         Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);

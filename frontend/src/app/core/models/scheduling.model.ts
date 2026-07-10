@@ -94,7 +94,9 @@ export interface PopulateSchedulesResponse {
   semester_id: number;
   is_submission_enabled: number;
   programs: ProgramResponse[];
+  time_plots?: any[];
 }
+
 
 export interface ProgramResponse {
   program_id: number;

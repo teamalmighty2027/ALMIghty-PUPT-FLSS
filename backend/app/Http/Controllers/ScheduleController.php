@@ -411,13 +411,20 @@ class ScheduleController extends Controller
             ->where('is_enabled', 1)
             ->exists() ? 1 : 0;
 
+        $timePlots = DB::table('faculty_time_plots')
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get(['faculty_id', 'day', 'start_time', 'end_time', 'time_type'])
+            ->toArray();
+
         return response()->json([
             'active_semester_id' => $activeSemester->active_semester_id,
             'academic_year_id' => $activeAcademicYearId,
             'semester_id' => $activeSemester->semester_id,
             'is_submission_enabled' => $isSubmissionEnabled,
             'programs' => $response,
+            'time_plots' => $timePlots,
         ]);
+
     }
 
     /**
@@ -799,11 +806,39 @@ class ScheduleController extends Controller
                 $changes[] = "Assignment Type: {$oldName} → {$newName}";
             }
 
+            // Check for conflict with plotted faculty time assignments
+            $newFacultyId = $request->input('faculty_id');
+            $newDay = $request->input('day');
+            $newStart = $request->input('start_time');
+            $newEnd = $request->input('end_time');
+
+            if ($newFacultyId && $newDay && $newStart && $newEnd) {
+                $conflict = DB::table('faculty_time_plots')
+                    ->where('faculty_id', $newFacultyId)
+                    ->where(
+                        'active_semester_id',
+                        $activeSemester->active_semester_id
+                    )
+                    ->where('day', $newDay)
+                    ->where('start_time', '<', $newEnd)
+                    ->where('end_time', '>', $newStart)
+                    ->exists();
+
+                if ($conflict) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'This time slot overlaps a plotted'
+                            . ' faculty time assignment.'
+                    ], 422);
+                }
+            }
+
             // NOW the guard runs after all checks are complete:
             if (empty($changes)) {
                 DB::rollBack();
                 return response()->json(['message' => 'No changes detected'], 422);
             }
+
 
             $schedule->save();
             DB::commit();

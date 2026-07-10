@@ -105,7 +105,7 @@ export class ScheduleValidationService {
         params.hoursAlreadyAssigned
       );
       if (!courseHoursValidation.isValid) {
-        conflicts.push(courseHoursValidation.message);
+        warnings.push(courseHoursValidation.message);
       }
     }
 
@@ -327,8 +327,33 @@ export class ScheduleValidationService {
       };
     }
 
+    if (schedules.time_plots && Array.isArray(schedules.time_plots)) {
+      const conflictingPlot = schedules.time_plots.find(
+        (plot) =>
+          plot.faculty_id === faculty_id &&
+          plot.day === day &&
+          this.doTimesOverlap(
+            start_time,
+            end_time,
+            plot.start_time.substring(0, 5),
+            plot.end_time.substring(0, 5)
+          )
+      );
+
+      if (conflictingPlot) {
+        const displayType = conflictingPlot.time_type
+          .replace('_', ' ')
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
+        return {
+          isValid: false,
+          message: `This slot conflicts with the faculty's plotted ${displayType}.`,
+        };
+      }
+    }
+
     return { isValid: true, message: 'Faculty is available' };
   }
+
 
   /**
    * Checks the availability of a room.

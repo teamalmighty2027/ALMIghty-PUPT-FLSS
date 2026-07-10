@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Observable, Subject, forkJoin, of, from } from 'rxjs';
 import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
@@ -125,6 +126,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -206,6 +208,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    */
   protected get tableData(): Schedule[] {
     return this.isDraftMode ? this.draftSchedules : this.schedules;
+  }
+
+  /**
+   * Navigates to the course-centric scheduling view.
+   */
+  protected goToCourseCentric(): void {
+    this.router.navigate(['/admin/scheduling/course-centric']);
   }
 
   /**
@@ -442,11 +451,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return hours * 60 + minutes;
     };
 
+    const sectionCourseId = (draftSchedule as any)?.section_course_id;
     const courseSchedules = (
       this.isDraftMode ? this.draftSchedules : this.schedules
     ).filter(
       (s) =>
-        s.course_id === courseId &&
+        (s as any).section_course_id === sectionCourseId &&
         s.schedule_id !== entry.schedule_id &&
         s.day &&
         s.day !== 'Not set'
@@ -537,59 +547,72 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     let unassignedCount = 0;
 
-    from(emptySlots).pipe(
-      concatMap(slot => {
-        return this.schedulingService.getSmartSuggestion(
-          slot.course_id,
-          this.activeAcademicYearId || 0,
-          this.activeSemesterId || 0,
-          this.activeSemesterRecordId || 0,
-          programId,
-          this.selectedYear,
-          sectionId
-        ).pipe(
-          switchMap(suggestion => {
-            if (suggestion && suggestion.faculty_id) {
-              const entry: DraftEntry = {
-                schedule_id: slot.schedule_id!,
-                faculty_id: suggestion.faculty_id,
-                faculty_name: suggestion.faculty_name,
-                room_id: null,
-                room_code: 'Not set',
-                day: suggestion.day,
-                start_time: this.convertTimeToBackendFormat(suggestion.start_time),
-                end_time: this.convertTimeToBackendFormat(suggestion.end_time),
-                hasConflict: false
-              };
-              this.draftStateService.set(slot.schedule_id!, entry);
-              return this.runConflictCheck(entry);
-            } else {
-              unassignedCount++;
-              return of(void 0);
-            }
+    this.schedulingService.getFacultyDetails().pipe(
+      takeUntil(this.destroy$),
+      switchMap(({ faculty }) => {
+        return from(emptySlots).pipe(
+          concatMap(slot => {
+            return this.schedulingService.getSmartSuggestion(
+              slot.course_id,
+              this.activeAcademicYearId || 0,
+              this.activeSemesterId || 0,
+              this.activeSemesterRecordId || 0,
+              programId,
+              this.selectedYear,
+              sectionId
+            ).pipe(
+              switchMap(suggestion => {
+                if (suggestion && suggestion.faculty_id) {
+                  const fac = faculty.find(
+                    (f) => f.faculty_id === suggestion.faculty_id
+                  );
+                  const facultyName = fac ? fac.name : suggestion.faculty_name;
+                  const entry: DraftEntry = {
+                    schedule_id: slot.schedule_id!,
+                    faculty_id: suggestion.faculty_id,
+                    faculty_name: facultyName,
+                    room_id: null,
+                    room_code: 'Not set',
+                    day: suggestion.day,
+                    start_time: this.convertTimeToBackendFormat(
+                      suggestion.start_time
+                    ),
+                    end_time: this.convertTimeToBackendFormat(
+                      suggestion.end_time
+                    ),
+                    hasConflict: false
+                  };
+                  this.draftStateService.set(slot.schedule_id!, entry);
+                  return this.runConflictCheck(entry);
+                } else {
+                  unassignedCount++;
+                  return of(void 0);
+                }
+              }),
+              tap(() => {
+                this.aiFillProgress.current++;
+                this.rebuildDraftSchedules();
+                this.cdr.markForCheck();
+              }),
+              catchError(() => {
+                unassignedCount++;
+                return of(void 0);
+              })
+            );
           }),
-          tap(() => {
-            this.aiFillProgress.current++;
+          finalize(() => {
+            this.isAiFilling = false;
             this.rebuildDraftSchedules();
             this.cdr.markForCheck();
-          }),
-          catchError(() => {
-            unassignedCount++;
-            return of(void 0);
+            
+            const assignedCount = emptySlots.length - unassignedCount;
+            const msg = assignedCount === emptySlots.length 
+              ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
+              : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
+            
+            this.snackBar.open(msg, 'Close', { duration: 6000 });
           })
         );
-      }),
-      finalize(() => {
-        this.isAiFilling = false;
-        this.rebuildDraftSchedules();
-        this.cdr.markForCheck();
-        
-        const assignedCount = emptySlots.length - unassignedCount;
-        const msg = assignedCount === emptySlots.length 
-          ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
-          : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
-        
-        this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
   }
@@ -1649,7 +1672,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           this.isDraftMode ? this.draftSchedules : this.schedules
         ).filter(
           (s) =>
-            s.course_id === schedule.course_id &&
+            (s as any).section_course_id === schedule.section_course_id &&
             s.schedule_id !== schedule.schedule_id &&
             s.day &&
             s.day !== 'Not set'
@@ -1715,17 +1738,21 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           if (!result) return;
 
           if (this.isDraftMode && result.isDraft) {
-            this.draftStateService.set(schedule.schedule_id!, {
+            const entry: DraftEntry = {
               ...result,
               schedule_id: schedule.schedule_id,
               hasConflict: false
+            };
+            this.draftStateService.set(schedule.schedule_id!, entry);
+            this.runConflictCheck(entry).subscribe(() => {
+              this.rebuildDraftSchedules();
+              this.snackBar.open(
+                `Draft updated for ${schedule.course_code}. ` +
+                `Save to apply permanently.`,
+                'Close',
+                { duration: 3000 }
+              );
             });
-            this.rebuildDraftSchedules();
-            this.snackBar.open(
-              `Draft updated for ${schedule.course_code}. Save to apply permanently.`,
-              'Close',
-              { duration: 3000 }
-            );
             return;
           }
             this.snackBar.open(

@@ -222,7 +222,44 @@ export class ReportsService {
   }
 
   /**
+   * Fetch time plots + caps for a faculty in a semester.
+   * @param facultyId - Faculty identifier.
+   * @param semesterId - Semester identifier.
+   * @returns An observable resolving to the time plots response.
+   */
+  getFacultyTimePlots(facultyId: number, semesterId: number): Observable<any> {
+    return this.http
+      .get(`${this.baseUrl}/faculty/${facultyId}/time-plots`, {
+        params: { active_semester_id: semesterId.toString() }
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Create a new faculty time plot.
+   * @param payload - Time plot payload data.
+   * @returns An observable resolving to the save response.
+   */
+  createFacultyTimePlot(payload: any): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/faculty/time-plots`, payload)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
+   * Delete a faculty time plot.
+   * @param id - The time plot identifier.
+   * @returns An observable resolving to the delete response.
+   */
+  deleteFacultyTimePlot(id: number): Observable<any> {
+    return this.http
+      .delete(`${this.baseUrl}/faculty/time-plots/${id}`)
+      .pipe(catchError(this.handleError));
+  }
+
+  /**
    * Clear specific cached report data.
+
    * @param cacheType - Which cache to clear ('faculty'|'room'|'program'|'singleFaculty'|
    *                    'academicYears'|'facultyAcademicYears').
    * @param faculty_id - Optional faculty id used when clearing per-faculty caches.

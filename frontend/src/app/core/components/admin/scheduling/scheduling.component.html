@@ -40,8 +40,18 @@
       @if (!isDraftMode) {
         <div class="draft-toggle-container">
           <button
+            mat-stroked-button
+            class="course-centric-btn"
+            (click)="goToCourseCentric()"
+            [disabled]="isCreatingTemporaryCourse"
+          >
+            <mat-icon>list_alt</mat-icon>
+            GenEd Courses
+          </button>
+
+          <button
             mat-flat-button
-            color="accent"
+            class="draft-mode-btn"
             (click)="toggleDraftMode()"
             [disabled]="!selectedSection || isCreatingTemporaryCourse"
           >
