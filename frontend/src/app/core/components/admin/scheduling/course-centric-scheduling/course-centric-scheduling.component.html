@@ -1,0 +1,292 @@
+<div class="scheduling-container">
+  @if (isLoading) {
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
+  } @else {
+    <!-- Custom Header -->
+    <div class="course-centric-header" [@fadeAnimation]>
+      <div class="header-left">
+        <button mat-icon-button class="back-btn" (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div class="title-container">
+          <h1>General Education Scheduling</h1>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Dropdown filters moved here -->
+        <div class="header-filters">
+          <mat-form-field appearance="outline" class="filter-input">
+            <mat-label>Select Course</mat-label>
+            <mat-select
+              [(value)]="selectedCourseCode"
+              (selectionChange)="onFilterChange()"
+            >
+              <mat-option value="All">All Courses</mat-option>
+              @for (course of filteredDropdownCourses; track course.code) {
+                <mat-option [value]="course.code">
+                  {{ course.code }} - {{ course.title }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="filter-input">
+            <mat-label>Filter Program</mat-label>
+            <mat-select
+              [(value)]="selectedProgramId"
+              (selectionChange)="onFilterChange()"
+            >
+              <mat-option [value]="null">All Programs</mat-option>
+              @for (program of programOptions; track program.id) {
+                <mat-option [value]="program.id">
+                  {{ program.display }}
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <div class="term-badge">
+          <mat-icon>calendar_today</mat-icon>
+          <span>A.Y. {{ activeYear }} | {{ activeSemesterLabel }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Draft Mode Toggle -->
+    @if (!isDraftMode) {
+      <div class="draft-toggle-container" [@fadeAnimation]>
+        <button
+          mat-flat-button
+          class="draft-mode-btn"
+          (click)="toggleDraftMode()"
+        >
+          <mat-icon>edit_note</mat-icon>
+          Enter Draft Mode
+        </button>
+      </div>
+    }
+
+    <!-- Draft Toolbar -->
+    @if (isDraftMode) {
+      <div class="draft-toolbar" [@pageFloatUpAnimation]>
+        <div class="draft-info">
+          <mat-icon class="amber-icon">warning</mat-icon>
+          <div class="texts">
+            <span class="title">Draft Mode Active</span>
+            <span class="desc">
+              You have unsaved changes. All edits are temporary.
+            </span>
+          </div>
+        </div>
+
+        <div class="draft-actions">
+          <button mat-flat-button color="warn" (click)="discardDraft()">
+            <mat-icon>delete_sweep</mat-icon>
+            Discard
+          </button>
+
+          <button
+            mat-flat-button
+            color="primary"
+            class="save-btn"
+            (click)="saveDraft()"
+          >
+            <mat-icon>save</mat-icon>
+            Save Draft
+          </button>
+
+          <button
+            mat-flat-button
+            color="warn"
+            (click)="toggleDraftMode()"
+          >
+            <mat-icon>close</mat-icon>
+            Exit Draft Mode
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Course Group Offerings -->
+    <div class="offerings-container">
+      @if (courseGroups.length === 0) {
+        <div class="no-data-card" [@pageFloatUpAnimation]>
+          <mat-icon class="large-icon">info_outline</mat-icon>
+          <p>
+            No general education courses found for the current semester.
+          </p>
+        </div>
+      } @else if (filteredGroups.length === 0) {
+        <div class="no-data-card" [@pageFloatUpAnimation]>
+          <mat-icon class="large-icon">info_outline</mat-icon>
+          <p>
+            No courses match the selected filters. Try adjusting your program
+            or course selection.
+          </p>
+        </div>
+      } @else {
+        <div class="scrollable-content">
+          @for (group of filteredGroups; track group.course_code) {
+            <div class="course-group-card" [@pageFloatUpAnimation]>
+              <!-- Group Header -->
+              <div class="course-group-header">
+                <div class="course-info">
+                  <div class="code-title-row">
+                    <span class="course-code">{{ group.course_code }}</span>
+                    <span class="course-title">{{ group.course_title }}</span>
+                  </div>
+                  <div class="course-hours">
+                    <span>Units: {{ group.units }}</span>
+                    <span class="dot-separator">•</span>
+                    <span>Lec: {{ group.lec_hours }}h</span>
+                    <span class="dot-separator">•</span>
+                    <span>Lab: {{ group.lab_hours }}h</span>
+                    @if (group.isGenEd) {
+                      <span class="dot-separator">•</span>
+                      <span class="gen-ed-badge">Gen Ed</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="offerings-badge">
+                  <span>{{ group.offerings.length }} Offering(s)</span>
+                </div>
+              </div>
+
+              <!-- Offerings Table -->
+              <div class="course-table-container">
+                <table
+                  mat-table
+                  [dataSource]="group.offerings"
+                  class="custom-table"
+                >
+                  <!-- Section Column -->
+                  <ng-container matColumnDef="section">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header">
+                      Section
+                    </th>
+                    <td mat-cell *matCellDef="let element"
+                        class="custom-cell section-cell">
+                      {{ element.program_code }} {{ element.year }}-{{
+                        element.section
+                      }}
+                    </td>
+                  </ng-container>
+
+                  <!-- Day Column -->
+                  <ng-container matColumnDef="day">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header">
+                      Day
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="custom-cell">
+                      <span [class.not-set-badge]="element.day === 'Not set'">
+                        {{ element.day }}
+                      </span>
+                    </td>
+                  </ng-container>
+
+                  <!-- Time Column -->
+                  <ng-container matColumnDef="time">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header">
+                      Time
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="custom-cell">
+                      <span [class.not-set-badge]="element.time === 'Not set'">
+                        {{ element.time }}
+                      </span>
+                    </td>
+                  </ng-container>
+
+                  <!-- Professor Column -->
+                  <ng-container matColumnDef="professor">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header">
+                      Professor
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="custom-cell">
+                      <span
+                        [class.not-set-badge]="element.professor === 'Not set'"
+                      >
+                        {{ element.professor }}
+                      </span>
+                    </td>
+                  </ng-container>
+
+                  <!-- Room Column -->
+                  <ng-container matColumnDef="room">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header">
+                      Room
+                    </th>
+                    <td mat-cell *matCellDef="let element" class="custom-cell">
+                      <span [class.not-set-badge]="element.room === 'Not set'">
+                        {{ element.room }}
+                      </span>
+                    </td>
+                  </ng-container>
+
+                  <!-- Action Column -->
+                  <ng-container matColumnDef="action">
+                    <th mat-header-cell *matHeaderCellDef
+                        class="custom-header action">
+                      Action
+                    </th>
+                    <td mat-cell *matCellDef="let element"
+                        class="custom-cell action">
+                      <button
+                        mat-button
+                        class="edit-button sec-ripple"
+                        [disabled]="loadingScheduleId === element.schedule_id"
+                        (click)="editSchedule(element)"
+                      >
+                        <div class="button-content">
+                          @if (loadingScheduleId === element.schedule_id) {
+                            <mat-spinner
+                              class="custom-spinner-two"
+                              diameter="20"
+                            ></mat-spinner>
+                          } @else {
+                            <mat-icon>edit</mat-icon>
+                            <span>Edit</span>
+                          }
+                        </div>
+                      </button>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+                  <tr mat-row
+                      *matRowDef="let row; columns: displayedColumns;"
+                      [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
+                      [class.draft-conflict]="
+                        isDraftMode && isDraftConflict(row)
+                      "></tr>
+
+                  <!-- No Data Row -->
+                  <tr *matNoDataRow>
+                    <td
+                      class="no-data-cell"
+                      [attr.colspan]="displayedColumns.length"
+                    >
+                      <div class="no-data-row-container">
+                        <mat-icon>info</mat-icon>
+                        <span>No offerings found.</span>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>
