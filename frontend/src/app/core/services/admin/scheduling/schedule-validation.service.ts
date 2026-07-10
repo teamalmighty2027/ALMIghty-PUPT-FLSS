@@ -105,7 +105,7 @@ export class ScheduleValidationService {
         params.hoursAlreadyAssigned
       );
       if (!courseHoursValidation.isValid) {
-        conflicts.push(courseHoursValidation.message);
+        warnings.push(courseHoursValidation.message);
       }
     }
 

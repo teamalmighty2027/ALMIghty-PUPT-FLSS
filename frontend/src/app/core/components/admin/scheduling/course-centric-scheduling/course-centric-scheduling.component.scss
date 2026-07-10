@@ -1,0 +1,433 @@
+@use "../../../../../../styles/mixins";
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+h1, p {
+  margin: 0;
+  padding: 0;
+}
+
+:host {
+  @include mixins.custom-spinner(var(--neutral-base));
+  @include mixins.custom-spinner-two;
+}
+
+.scheduling-container {
+  @include mixins.default-transition;
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: none,
+    $justify: none,
+    $gap: var(--spacing-md)
+  );
+  height: 100%;
+}
+
+/* ------ Custom Header ------ */
+.course-centric-header {
+  @include mixins.flex-layout($justify: space-between, $align: center);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--neutral-light);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
+  border-left: 5px solid var(--primary-one);
+
+  .header-left {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+
+    .back-btn {
+      color: var(--primary-one);
+      background-color: var(--neutral-space);
+      border: 1px solid var(--neutral-fade);
+      transition: all 0.2s ease-in-out;
+
+      &:hover {
+        background-color: var(--primary-light);
+        color: white;
+      }
+    }
+
+    .title-container {
+      h1 {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--primary-text);
+      }
+    }
+  }
+
+  .header-right {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+
+    .header-filters {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+
+      .filter-input {
+        width: 200px;
+
+        ::ng-deep {
+          .mat-mdc-text-field-wrapper {
+            background-color: var(--neutral-space);
+          }
+          .mat-mdc-form-field-subscript-wrapper {
+            display: none;
+          }
+        }
+      }
+    }
+
+    .term-badge {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      padding: var(--spacing-xs) var(--spacing-md);
+      background-color: var(--neutral-space);
+      border: 1px solid var(--neutral-fade);
+      border-radius: 20px;
+      color: var(--secondary-text);
+      font-size: var(--font-size-sm);
+      font-weight: 500;
+      height: 46px;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: var(--primary-one);
+      }
+    }
+  }
+}
+
+/* ------ Draft Toggle Container ------ */
+.draft-toggle-container {
+  @include mixins.flex-layout($justify: flex-end);
+  margin-bottom: var(--spacing-sm);
+
+  .draft-mode-btn {
+    @include mixins.gradient-primary(315deg);
+    color: white !important;
+    height: 46px;
+    border-radius: 23px;
+    padding: 0 var(--spacing-lg);
+    box-shadow: var(--shadow-level-1);
+
+    mat-icon {
+      margin-right: var(--spacing-xs);
+    }
+  }
+}
+
+/* ------ Offerings Container ------ */
+.offerings-container {
+  flex: 1;
+  overflow: hidden;
+  @include mixins.flex-layout($direction: column);
+
+  .scrollable-content {
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    padding-right: var(--spacing-xs);
+    @include mixins.hide-scrollbar;
+  }
+}
+
+/* ------ Course Group Card ------ */
+.course-group-card {
+  background-color: var(--neutral-light);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
+  overflow: hidden;
+  border: 1px solid var(--neutral-fade);
+
+  .course-group-header {
+    @include mixins.flex-layout($justify: space-between, $align: center);
+    padding: var(--spacing-md) var(--spacing-lg);
+    background-color: var(--neutral-space);
+    border-bottom: 1px solid var(--neutral-fade);
+
+    .course-info {
+      .code-title-row {
+        @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+        margin-bottom: var(--spacing-xs);
+
+        .course-code {
+          font-weight: 700;
+          color: var(--primary-base);
+          font-size: var(--font-size-lg);
+        }
+
+        .course-title {
+          font-weight: 600;
+          color: var(--primary-text);
+          font-size: var(--font-size-md);
+        }
+      }
+
+      .course-hours {
+        @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+        font-size: var(--font-size-sm);
+        color: var(--secondary-text);
+
+        .dot-separator {
+          color: var(--neutral-border);
+        }
+
+        .gen-ed-badge {
+          background-color: var(--primary-light);
+          color: var(--primary-base);
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-weight: 600;
+          font-size: 10px;
+          text-transform: uppercase;
+        }
+      }
+    }
+
+    .offerings-badge {
+      padding: var(--spacing-xs) var(--spacing-sm);
+      background-color: var(--neutral-light);
+      border: 1px solid var(--neutral-fade);
+      border-radius: 4px;
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--secondary-text);
+    }
+  }
+}
+
+/* ------ Table Styles ------ */
+.course-table-container {
+  overflow-x: auto;
+  max-height: 35rem;
+
+  .custom-table {
+    width: 100%;
+    background-color: var(--neutral-light);
+
+    .custom-header {
+      text-wrap: nowrap;
+      background-color: var(--primary-one);
+      color: white;
+      font-weight: 500;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: var(--spacing-sm) var(--spacing-lg);
+      font-size: var(--font-size-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+
+      &.action {
+        text-align: center;
+      }
+    }
+
+    td {
+      border-bottom: 1px solid var(--mat-table-row-item-outline-color);
+    }
+
+    .mat-mdc-row:last-child td {
+      border-bottom: none;
+    }
+
+    .custom-cell {
+      padding: var(--spacing-xs);
+      text-align: center;
+      font-size: var(--font-size-sm);
+      color: var(--primary-text);
+      vertical-align: middle;
+
+      &.section-cell {
+        font-weight: 600;
+      }
+
+      &.action {
+        text-align: center;
+      }
+
+      .not-set-badge {
+        background-color: var(--primary-one-fade);
+        color: var(--primary-text-lighter);
+        padding: var(--spacing-xxs) var(--spacing-sm);
+        border-radius: var(--border-radius-lg);
+        text-wrap: nowrap;
+        font-size: var(--font-size-xs);
+      }
+    }
+
+    .no-data-cell {
+      text-align: center;
+      padding: var(--spacing-lg);
+
+      .no-data-row-container {
+        @include mixins.flex-layout(
+          $align: center,
+          $justify: center,
+          $gap: var(--spacing-xs)
+        );
+        color: var(--secondary-text);
+        font-style: italic;
+        font-size: var(--font-size-sm);
+
+        mat-icon {
+          color: var(--neutral-border);
+          font-size: 20px;
+          width: 20px;
+          height: 20px;
+          opacity: var(--opacity-semi-opaque);
+        }
+      }
+    }
+  }
+}
+
+/* ------ Edit Button Styling ------ */
+.edit-button {
+  @include mixins.flex-layout;
+  color: var(--secondary-text) !important;
+  transition: all 0.2s ease-in-out;
+  border: none !important;
+  background-color: transparent !important;
+
+  .button-content {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+
+    mat-icon {
+      font-size: var(--font-size-lg);
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  &:hover:not([disabled]) {
+    background-color: var(--secondary-hover) !important;
+  }
+}
+
+/* ------ No Data Card ------ */
+.no-data-card {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center,
+    $gap: var(--spacing-sm)
+  );
+  padding: var(--spacing-lg) var(--spacing-lg);
+  background-color: var(--neutral-light);
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
+  border: 1px solid var(--neutral-fade);
+  text-align: center;
+  color: var(--secondary-text);
+
+  .large-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--neutral-border);
+  }
+
+  p {
+    font-weight: 500;
+    font-size: var(--font-size-md);
+  }
+}
+
+/* ------ Loading Wrapper ------ */
+.loading-wrapper {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center
+  );
+  height: 30rem;
+}
+
+/* ------ Draft Mode Styles ------ */
+.draft-toolbar {
+  @include mixins.flex-layout(
+    $justify: space-between,
+    $align: center,
+    $gap: var(--spacing-md)
+  );
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--blur-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--neutral-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--glass-shadow);
+
+  .draft-info {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+
+    .amber-icon {
+      color: var(--neutral-button);
+    }
+
+    .texts {
+      @include mixins.flex-layout($direction: column);
+      .title {
+        font-weight: 600;
+        color: var(--primary-text);
+      }
+      .desc {
+        font-size: var(--font-size-xs);
+        color: var(--neutral-button);
+        font-weight: 500;
+      }
+    }
+  }
+
+  .draft-actions {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+
+    button {
+      height: 40px !important;
+      padding: 0 var(--spacing-md) !important;
+      border-radius: var(--border-radius-base) !important;
+    }
+
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: var(--neutral-base);
+      margin: 0 var(--spacing-xs);
+    }
+
+    .progress-info {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      font-size: var(--font-size-xs);
+    }
+
+    .save-btn {
+      @include mixins.gradient-primary(315deg);
+    }
+  }
+}
+
+/* ------ Draft Dirty/Conflict Rows ------ */
+.custom-table.draft-active {
+  .mat-mdc-row.draft-dirty {
+    td {
+      background-color: rgba(255, 193, 7, 0.05) !important;
+    }
+    td:first-child {
+      border-left: 4px solid rgba(255, 193, 7, 0.8) !important;
+    }
+  }
+
+  .mat-mdc-row.draft-conflict {
+    td {
+      background-color: rgba(244, 67, 54, 0.05) !important;
+    }
+    td:first-child {
+      border-left: 4px solid #f44336 !important;
+    }
+  }
+}
