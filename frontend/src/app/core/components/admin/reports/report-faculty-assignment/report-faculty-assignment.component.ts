@@ -446,6 +446,38 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     });
   }
 
+  /**
+   * Combines an array of schedules for a specific day into a formatted string: 
+   * "08:00AM-12:00PM;01:00PM-05:00PM"
+   */
+  private aggregateTimeStrings(schedules: any[]): string {
+    if (!schedules || schedules.length === 0) return '';
+    
+    // Deduplicate identical physical time blocks
+    const uniqueTimes = new Map<string, any>();
+    schedules.forEach(s => {
+      if (s.start_time && s.end_time) {
+        const key = `${s.start_time}_${s.end_time}`;
+        if (!uniqueTimes.has(key)) uniqueTimes.set(key, s);
+      }
+    });
+
+    const uniqueArray = Array.from(uniqueTimes.values());
+    
+    // Sort chronologically by start time
+    uniqueArray.sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+
+    // Map to the required format and join with semicolons
+    const formatted = uniqueArray.map(s => {
+      // Remove spaces to match the screenshot strictly (e.g., 08:00AM)
+      const start = this.formatTime(s.start_time).replace(/\s/g, '');
+      const end = this.formatTime(s.end_time).replace(/\s/g, '');
+      return `${start}-${end}`;
+    });
+
+    return formatted.join(';');
+  }
+
   // Calculates the total teaching hours for a merged schedule row.
   getRowHours(row: any): number {
     if (!row._rawSchedules || row._rawSchedules.length === 0) {
@@ -672,19 +704,20 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     // Find all unique assignment types assigned to this specific faculty
     let uniqueTypes = [...new Set(mergedSchedules.map(s => s.assignment_type || 'Unassigned'))];
     
-    // Define the exact order for standard types (Custom types default to 99 so they go to the bottom)
-    const priorityOrder: Record<string, number> = {
-      'Regular': 1,
-      'Part-Time': 2,
-      'Temporary Substitution': 3
-    };
-
-    // Sort the types so Regular is always at the top!
+    // Sort the types so Regular Load is always 1st, Part Time 2nd, Temporary 3rd.
     uniqueTypes.sort((a, b) => {
-      const orderA = priorityOrder[a] || 99; 
-      const orderB = priorityOrder[b] || 99;
+      const getPriority = (type: string) => {
+        const lowerType = type.toLowerCase();
+        if (lowerType.includes('regular')) return 1;
+        if (lowerType.includes('part time') || lowerType.includes('part-time')) return 2;
+        if (lowerType.includes('temporary substitution')) return 3;
+        return 99; // Everything else drops to the bottom
+      };
 
-      // If both are custom types (both are 99), sort them alphabetically
+      const orderA = getPriority(a);
+      const orderB = getPriority(b);
+
+      // If both have the same priority (e.g., both are 99), sort them alphabetically
       if (orderA === orderB) {
         return a.localeCompare(b);
       }
@@ -836,6 +869,17 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       MON: 0, TUE: 0, WED: 0, THUR: 0, FRI: 0, SAT: 0, SUN: 0, TOTAL: 0
     };
 
+    // 1. Automatically add Regular Load teaching hours to Official Time!
+    const regularTypeKey = uniqueTypes.find(t => t.toLowerCase().includes('regular'));
+    if (regularTypeKey && dynamicDailyHours[regularTypeKey]) {
+      const regTracker = dynamicDailyHours[regularTypeKey];
+      ['MON', 'TUE', 'WED', 'THUR', 'FRI', 'SAT', 'SUN'].forEach(day => {
+        officialHours[day] += regTracker[day] || 0;
+        officialHours['TOTAL'] += regTracker[day] || 0;
+      });
+    }
+
+    // 2. Add the manual Time Plots (Night Service, Advising Time, manual Official Time)
     if (faculty.time_plots && Array.isArray(faculty.time_plots)) {
       faculty.time_plots.forEach((plot: any) => {
         const col = this.mapDayToCol(plot.day);
@@ -927,5 +971,274 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       doc.text(labels[i], colCenters[i], signatureY + 4, { align: 'center' });
     }
 
+    // --- NEW: Add "Report on Official Time" Page if eligible ---
+    const fType = (faculty.faculty_type || '').toLowerCase();
+    const isEligibleForOfficialTimeReport = 
+      fType.includes('designee') || 
+      fType.includes('temporary') || 
+      fType.includes('full-time') || 
+      fType.includes('full time');
+
+    if (isEligibleForOfficialTimeReport) {
+      doc.addPage();
+      this.drawReportOnOfficialTime(doc, faculty, dynamicDailyHours);
+    }
+  }
+
+  // --- NEW: REPORT ON OFFICIAL TIME (Second Page - Landscape) ---
+  private drawReportOnOfficialTime(doc: jsPDF, faculty: any, dynamicDailyHours: Record<string, any>) {
+    // Force this specific page to be Landscape
+    doc.addPage('letter', 'l');
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let currentY = 15;
+
+    // 1. Header
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.text('Polytechnic University of the Philippines', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+    doc.text('Sta. Mesa, Manila', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 12;
+    
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('REPORT ON OFFICIAL TIME', pageWidth / 2, currentY, { align: 'center' });
+    currentY += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${this.semesterLabel} SY ${this.academicYearLabel}`, pageWidth / 2, currentY, { align: 'center' });
+    
+    currentY += 15;
+
+    // 2. Faculty Info section
+    doc.setFontSize(10);
+    const startX = 14;
+    const colonX = 45;
+    const valueX = 50;
+
+    doc.text('NAME', startX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.setFont('helvetica', 'bold');
+    doc.text(faculty.faculty_name.toUpperCase(), valueX, currentY);
+    doc.setFont('helvetica', 'normal');
+    currentY += 7;
+
+    doc.text('COLLEGE', startX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text('TAGUIG CAMPUS', valueX, currentY);
+    currentY += 7;
+
+    doc.text('DESIGNATION', startX, currentY);
+    doc.text(':', colonX, currentY);
+    let designation = faculty.faculty_type || '';
+    if (designation.toLowerCase().includes('designee -')) {
+       designation = designation.split('-')[1].trim();
+    } else if (designation.toLowerCase() === 'designee') {
+       designation = 'Head'; 
+    }
+    doc.text(designation, valueX, currentY);
+    currentY += 7;
+
+    doc.text('OFFICE', startX, currentY);
+    doc.text(':', colonX, currentY);
+    doc.text('', valueX, currentY); // Leave blank per request
+    currentY += 10;
+
+    // 3. Prepare Dynamic Columns
+    const activeOtherTypes: string[] = [];
+    Object.keys(dynamicDailyHours).forEach(type => {
+      const lowerType = type.toLowerCase();
+      // Skip Regular (handled statically under Regular Time). Skip if 0 hours.
+      if (!lowerType.includes('regular') && dynamicDailyHours[type]['TOTAL'] > 0) {
+        activeOtherTypes.push(type);
+      }
+    });
+
+    // Check for manual Night Service plots
+    const hasNightService = faculty.time_plots?.some((p: any) => p.time_type === 'night_service');
+    if (hasNightService && !activeOtherTypes.includes('Night Service')) activeOtherTypes.push('Night Service');
+
+    // Sort active columns: Part-Time -> Temp Sub -> Night Service -> Others
+    activeOtherTypes.sort((a, b) => {
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      if (aLower.includes('part')) return -1;
+      if (bLower.includes('part')) return 1;
+      if (aLower.includes('temporary')) return -1;
+      if (bLower.includes('temporary')) return 1;
+      if (aLower.includes('night')) return -1;
+      if (bLower.includes('night')) return 1;
+      return a.localeCompare(b);
+    });
+
+    // 4. Build Table Headers
+    const topHeaderRow: any[] = [
+      { content: 'DAYS', rowSpan: 2, styles: { halign: 'center' as const, valign: 'middle' as const } },
+      { content: 'REGULAR TIME', colSpan: 3, styles: { halign: 'center' as const } }
+    ];
+
+    const subHeaderRow: any[] = [
+      { content: 'Administrative Time', styles: { halign: 'center' as const } },
+      { content: 'Teaching Time', styles: { halign: 'center' as const } },
+      { content: 'No.\nof\nHrs.', styles: { halign: 'center' as const, cellWidth: 10 } }
+    ];
+
+    activeOtherTypes.forEach(type => {
+      topHeaderRow.push({ content: type.toUpperCase(), colSpan: 2, styles: { halign: 'center' as const } });
+      subHeaderRow.push({ content: 'Time', styles: { halign: 'center' as const } });
+      subHeaderRow.push({ content: 'No.\nof\nHrs.', styles: { halign: 'center' as const, cellWidth: 10 } });
+    });
+
+    // 5. Process Table Body Data
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const tableBody: string[][] = [];
+    
+    let grandRegAdmin = 0;
+    let grandRegTeaching = 0;
+    const grandOtherHrs: Record<string, number> = {};
+    activeOtherTypes.forEach(t => grandOtherHrs[t] = 0);
+
+    // HELPER: Grabs both 'official_time' and 'advising_time' for the Administrative Time column
+    const getAdminDisplay = (dayName: string) => {
+       if (!faculty.time_plots) return { timeStr: '', hrs: 0 };
+       const plots = faculty.time_plots.filter((p: any) => 
+         p.day === dayName && (p.time_type === 'official_time' || p.time_type === 'advising_time')
+       );
+       if (plots.length === 0) return { timeStr: '', hrs: 0 };
+       return { 
+         timeStr: this.aggregateTimeStrings(plots), 
+         hrs: plots.reduce((sum: number, p: any) => sum + this.getHoursDiff(p.start_time, p.end_time), 0) 
+       };
+    };
+
+    const getPlotDisplay = (dayName: string, plotType: string) => {
+       if (!faculty.time_plots) return { timeStr: '', hrs: 0 };
+       const plots = faculty.time_plots.filter((p: any) => p.day === dayName && p.time_type === plotType);
+       if (plots.length === 0) return { timeStr: '', hrs: 0 };
+       return { 
+         timeStr: this.aggregateTimeStrings(plots), 
+         hrs: plots.reduce((sum: number, p: any) => sum + this.getHoursDiff(p.start_time, p.end_time), 0) 
+       };
+    };
+
+    const getSchedDisplay = (dayName: string, typeFilterStr: string) => {
+      if (!faculty.schedules) return { timeStr: '', hrs: 0 };
+      const scheds = faculty.schedules.filter((s: any) => {
+        const type = (s.assignmentType || s.assignment_type || '').toLowerCase();
+        return s.day === dayName && type.includes(typeFilterStr.toLowerCase());
+      });
+      if (scheds.length === 0) return { timeStr: '', hrs: 0 };
+      return {
+        timeStr: this.aggregateTimeStrings(scheds),
+        hrs: scheds.reduce((sum: number, s: any) => sum + this.getHoursDiff(s.start_time, s.end_time), 0)
+      };
+    };
+
+    days.forEach(day => {
+      const rowData: string[] = [day];
+
+      // 1. Administrative Time string (Groups both official_time and advising_time)
+      const adminData = getAdminDisplay(day);
+      
+      // 2. Teaching Time string (from regular schedules)
+      const teachingData = getSchedDisplay(day, 'regular');
+      
+      // 3. Combined total REGULAR TIME hours for the day
+      grandRegAdmin += adminData.hrs;
+      grandRegTeaching += teachingData.hrs;
+      const totalDayRegHrs = adminData.hrs + teachingData.hrs;
+
+      rowData.push(adminData.timeStr);
+      rowData.push(teachingData.timeStr);
+      rowData.push(totalDayRegHrs > 0 ? totalDayRegHrs.toString() : '');
+
+      // Dynamic Columns Logic (Part Time, Night Service, Temp Sub, etc.)
+      activeOtherTypes.forEach(type => {
+        let displayData = { timeStr: '', hrs: 0 };
+        
+        if (type === 'Night Service') displayData = getPlotDisplay(day, 'night_service');
+        else displayData = getSchedDisplay(day, type);
+
+        grandOtherHrs[type] += displayData.hrs;
+        
+        rowData.push(displayData.timeStr);
+        rowData.push(displayData.hrs > 0 ? displayData.hrs.toString() : '');
+      });
+
+      tableBody.push(rowData);
+    });
+
+    // 6. Build Totals Row
+    const totalRow = ['Total', '', '', (grandRegAdmin + grandRegTeaching) ? (grandRegAdmin + grandRegTeaching).toString() : ''];
+    activeOtherTypes.forEach(type => {
+      totalRow.push('');
+      totalRow.push(grandOtherHrs[type] ? grandOtherHrs[type].toString() : '');
+    });
+    tableBody.push(totalRow);
+
+    // 7. Draw the Table
+    autoTable(doc, {
+      startY: currentY,
+      theme: 'grid',
+      head: [topHeaderRow, subHeaderRow],
+      body: tableBody,
+      styles: {
+        fontSize: 7.5,
+        cellPadding: 2,
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+        valign: 'middle'
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 20 },
+        // Center alignment for all 'Hours' columns
+        3: { halign: 'center' },
+        5: { halign: 'center' },
+        7: { halign: 'center' },
+        9: { halign: 'center' },
+        11: { halign: 'center' }
+      },
+      didParseCell: (data) => {
+         if (data.row.index === tableBody.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+         }
+         // Render the semicolons as new lines gracefully
+         if (typeof data.cell.text[0] === 'string' && data.cell.text[0].includes(';')) {
+            data.cell.text[0] = data.cell.text[0].replace(/;/g, ';\n');
+         }
+      }
+    });
+
+    // 8. Footer Signatures (Landscape positioning)
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    if (currentY + 20 > doc.internal.pageSize.getHeight()) {
+      doc.addPage('letter', 'l');
+      currentY = 20;
+    }
+    
+    doc.setFontSize(9);
+    
+    const signatureWidth = 60;
+    
+    // Left: Date (Leave completely blank)
+    doc.line(14, currentY + 1, 14 + signatureWidth, currentY + 1);
+    doc.text('Date', 14 + (signatureWidth / 2), currentY + 5, { align: 'center' });
+
+    // Middle: Faculty Signature
+    doc.text(faculty.faculty_name.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+    doc.line(pageWidth / 2 - (signatureWidth / 2), currentY + 1, pageWidth / 2 + (signatureWidth / 2), currentY + 1);
+    doc.text('Signature of Faculty', pageWidth / 2, currentY + 5, { align: 'center' });
+
+    // Right: Supervisor
+    doc.line(pageWidth - 14 - signatureWidth, currentY + 1, pageWidth - 14, currentY + 1);
+    doc.text('Immediate Supervisor', pageWidth - 14 - (signatureWidth / 2), currentY + 5, { align: 'center' });
+    doc.setFontSize(7);
+    doc.text('(Signature over printed name)', pageWidth - 14 - (signatureWidth / 2), currentY + 8, { align: 'center' });
   }
 }

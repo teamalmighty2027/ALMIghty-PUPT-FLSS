@@ -26,6 +26,7 @@ import { ReportsService } from '../../core/services/admin/reports/reports.servic
 import { MatDialog } from '@angular/material/dialog';
 import { DialogConfigureLoadTypeComponent } from '../dialog-configure-load-type/dialog-configure-load-type.component';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 interface ScheduleGroup {
   title: string;
@@ -42,13 +43,15 @@ interface ViewScheduleDialogData {
   generatePdfFunction: (preview: boolean, currentData?: any[]) => Blob | Promise<Blob> | void;
   generateExcelFunction?: () => Promise<void> | void;
   showViewToggle?: boolean;
-  exportType?: 'all' | 'single';
+  exportType?: string;
   fileName?: string;
   showAssignmentSummary?: boolean;
   facultyId?: number;
   termId?: number;
   facultyType?: string;
   isAdmin?: boolean;
+  regularUnits?: number;
+  additionalUnits?: number;
 }
 
 
@@ -68,7 +71,8 @@ interface ViewScheduleDialogData {
     MatSelectModule,
     MatFormFieldModule,
     MatInputModule,
-    MatDividerModule
+    MatDividerModule,
+    MatTooltipModule
   ],
 
   templateUrl: './dialog-view-schedule.component.html',
@@ -172,13 +176,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     this.initializeScheduleTitle();
     
     if (this.data.entity === 'faculty' && Array.isArray(this.data.entityData)) {
-      this.data.entityData.forEach(s => {
-        // Track the ID instead of the string name
+      // FIX: Create a shallow copy of the data so we don't mutate the parent table's memory!
+      const clonedSchedules = this.data.entityData.map(s => ({ ...s }));
+
+      clonedSchedules.forEach(s => {
         s.assignment_type_id = s.assignment_type_id || null; 
         s.originalAssignmentTypeId = s.assignment_type_id; 
       });
 
-      this.summaryDataSource.data = this.data.entityData;
+      this.summaryDataSource.data = clonedSchedules;
     }
 
     this.initializeScheduleData();
@@ -553,8 +559,9 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     return Math.max(start1, start2) < Math.min(end1, end2);
   }
 
-  /**
+/**
    * Calculates total plotted hours for a given time type.
+   * Automatically adds "Regular Load" classes to "Official Time".
    */
   getPlottedHours(type: string): number {
     let totalMin = 0;
@@ -564,7 +571,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       const endMin = this.timeToMinutes(plot.end_time.substring(0, 5));
       totalMin += (endMin - startMin);
     }
-    return parseFloat((totalMin / 60).toFixed(2));
+    
+    let hours = totalMin / 60;
+
+    // NEW: If calculating Official Time, automatically add Regular Load teaching hours!
+    if (type === 'official_time') {
+      hours += this.totalRegularTeachingHours;
+    }
+
+    return parseFloat(hours.toFixed(2));
   }
 
   /**
@@ -660,6 +675,188 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     this.syncLocalTimePlotsState();
     this.snackBar.open('Time slot removed. Remember to save changes.', 'Close', { duration: 3000 });
   }
+
+  // ==========================================
+  // --- REAL-TIME HOUR TRACKING & VALIDATION ---
+  // ==========================================
+
+  get maxRegularHours(): number {
+    if (this.data.regularUnits !== undefined) return this.data.regularUnits;
+    const type = (this.data.facultyType || '').toLowerCase();
+    if (type.includes('part-time') || type.includes('part time')) return 0;
+    if (type.includes('director')) return 3;
+    if (type.includes('hap')) return 6;
+    if (type.includes('special')) return 9;
+    if (type.includes('designee')) return 6;
+    return 15;
+  }
+
+  get maxAdditionalHours(): number {
+    if (this.data.additionalUnits !== undefined) return this.data.additionalUnits;
+    return 12;
+  }
+
+  /**
+   * Calculates Total Regular Teaching Hours Plotted.
+   */
+  get totalRegularTeachingHours(): number {
+    const schedules = this.summaryDataSource?.data || [];
+    let total = 0;
+    for (const sched of schedules) {
+      if (sched.assignment_type_id) {
+        const foundType = this.dynamicLoadTypes.find(t => t.id === sched.assignment_type_id);
+        const typeName = foundType ? foundType.name : (sched.assignment_type || '');
+        if (typeName.toLowerCase().includes('regular')) {
+          total += this.calculateHours(sched.start_time, sched.end_time);
+        }
+      }
+    }
+    return parseFloat(total.toFixed(2));
+  }
+
+  /**
+   * NEW: Creates individual badges for Regular, Part Time, and Others.
+   * Calculates specific Red/Green statuses for each individual limit!
+   */
+  get facultyLoadBadges(): { label: string, hours: number, max?: number, statusClass: string }[] {
+    const badges = [];
+    const schedules = this.summaryDataSource?.data || [];
+    
+    let regularHrs = 0;
+    let partTimeHrs = 0;
+    const otherBreakdown: Record<string, number> = {};
+
+    for (const sched of schedules) {
+      if (sched.assignment_type_id) {
+        const foundType = this.dynamicLoadTypes.find(t => t.id === sched.assignment_type_id);
+        const typeName = foundType ? foundType.name : (sched.assignment_type || '');
+        const hrs = this.calculateHours(sched.start_time, sched.end_time);
+
+        if (typeName.toLowerCase().includes('regular')) {
+          regularHrs += hrs;
+        } else if (typeName.toLowerCase().includes('part time') || typeName.toLowerCase().includes('part-time')) {
+          partTimeHrs += hrs;
+        } else {
+          otherBreakdown[typeName] = (otherBreakdown[typeName] || 0) + hrs;
+        }
+      }
+    }
+
+    // 1. Regular Load Badge
+    let regStatus = 'status-neutral';
+    if (regularHrs > this.maxRegularHours) regStatus = 'status-red';
+    else if (regularHrs > 0 && regularHrs >= this.maxRegularHours) regStatus = 'status-green';
+    
+    badges.push({
+      label: 'Regular Load',
+      hours: parseFloat(regularHrs.toFixed(2)),
+      max: this.maxRegularHours,
+      statusClass: regStatus
+    });
+
+    // 2. Part Time Badge
+    if (partTimeHrs > 0 || this.maxAdditionalHours > 0) {
+      let ptStatus = 'status-neutral';
+      if (partTimeHrs > this.maxAdditionalHours) ptStatus = 'status-red';
+      
+      badges.push({
+        label: 'Part Time',
+        hours: parseFloat(partTimeHrs.toFixed(2)),
+        max: this.maxAdditionalHours,
+        statusClass: ptStatus
+      });
+    }
+
+    // 3. Other Dynamic Load Types (Temporary Substitution, etc.)
+    for (const [type, hrs] of Object.entries(otherBreakdown)) {
+      badges.push({
+        label: type,
+        hours: parseFloat(hrs.toFixed(2)),
+        statusClass: 'status-neutral'
+      });
+    }
+
+    return badges;
+  }
+
+  get remainingOfficialTimeHours(): number {
+    const plottedOfficialTime = this.getPlottedHours('official_time');
+    return Math.max(0, parseFloat((plottedOfficialTime - this.totalRegularTeachingHours).toFixed(2)));
+  }
+
+  get hasPartTimeRegularViolation(): boolean {
+    const isPartTime = (this.data.facultyType || '').toLowerCase().includes('part-time') || 
+                       (this.data.facultyType || '').toLowerCase().includes('part time');
+    if (!isPartTime) return false;
+
+    const schedules = this.summaryDataSource?.data || [];
+    return schedules.some(sched => {
+      const foundType = this.dynamicLoadTypes.find(t => t.id === sched.assignment_type_id);
+      const type = foundType ? foundType.name.toLowerCase() : (sched.assignment_type || '').toLowerCase();
+      return type.includes('regular');
+    });
+  }
+
+  get hasTimeWindowViolation(): boolean {
+    const schedules = this.summaryDataSource?.data || [];
+    const WINDOW_START = 7 * 60;  // 7:00 AM in minutes
+    const WINDOW_END = 17 * 60;   // 5:00 PM in minutes
+
+    return schedules.some(sched => {
+      const foundType = this.dynamicLoadTypes.find(t => t.id === sched.assignment_type_id);
+      const type = foundType ? foundType.name.toLowerCase() : (sched.assignment_type || '').toLowerCase();
+      if (!type.includes('regular')) return false;
+
+      const startMins = this.timeToMinutes(sched.start_time);
+      const endMins = this.timeToMinutes(sched.end_time);
+      return startMins < WINDOW_START || endMins > WINDOW_END;
+    });
+  }
+
+  get dialogWarningsTooltip(): string {
+    const warnings: string[] = [];
+    const badges = this.facultyLoadBadges;
+    
+    const regBadge = badges.find(b => b.label === 'Regular Load');
+    const ptBadge = badges.find(b => b.label === 'Part Time');
+
+    if (regBadge && regBadge.max && regBadge.hours > regBadge.max) {
+      warnings.push(`⚠️ Exceeded Limit: Plotted ${regBadge.hours} hrs of Regular Load (Max: ${regBadge.max} hrs).`);
+    }
+    if (ptBadge && ptBadge.max && ptBadge.hours > ptBadge.max) {
+      warnings.push(`⚠️ Exceeded Limit: Plotted ${ptBadge.hours} hrs of Part Time Load (Max: ${ptBadge.max} hrs).`);
+    }
+    if (this.hasPartTimeRegularViolation) {
+      warnings.push(`⚠️ Part-Time Restriction: Part-time faculty cannot be assigned regular loads.`);
+    }
+    if (this.hasTimeWindowViolation) {
+      warnings.push(`⚠️ Time Window Violation: One or more Regular Loads are scheduled outside 7:00 AM - 5:00 PM.`);
+    }
+    return warnings.join('\n');
+  }
+
+  getRowWarning(sched: any): string | null {
+    const foundType = this.dynamicLoadTypes.find(t => t.id === sched.assignment_type_id);
+    const type = foundType ? foundType.name.toLowerCase() : (sched.assignment_type || '').toLowerCase();
+    
+    // We only validate rules against "Regular" loads. If Part Time is selected, no warning!
+    if (!type.includes('regular')) return null;
+
+    const isPartTime = (this.data.facultyType || '').toLowerCase().includes('part-time') || 
+                       (this.data.facultyType || '').toLowerCase().includes('part time');
+    if (isPartTime) {
+      return 'Part-time faculty cannot have regular loads.';
+    }
+
+    const startMins = this.timeToMinutes(sched.start_time);
+    const endMins = this.timeToMinutes(sched.end_time);
+    const WINDOW_START = 7 * 60;
+    const WINDOW_END = 17 * 60;
+
+    if (startMins < WINDOW_START || endMins > WINDOW_END) {
+      return 'Regular loads must be 7AM - 5PM.';
+    }
+
+    return null;
+  }
 }
-
-
