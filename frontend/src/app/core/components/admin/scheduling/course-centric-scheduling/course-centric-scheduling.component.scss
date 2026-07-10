@@ -393,6 +393,18 @@ h1, p {
       border-radius: var(--border-radius-base) !important;
     }
 
+    .divider {
+      width: 1px;
+      height: 24px;
+      background: var(--neutral-base);
+      margin: 0 var(--spacing-xs);
+    }
+
+    .progress-info {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      font-size: var(--font-size-xs);
+    }
+
     .save-btn {
       @include mixins.gradient-primary(315deg);
     }

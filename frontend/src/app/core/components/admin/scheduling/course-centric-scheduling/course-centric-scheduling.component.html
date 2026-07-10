@@ -84,6 +84,39 @@
         </div>
 
         <div class="draft-actions">
+          <button
+            mat-stroked-button
+            (click)="openHistoricalDialog()"
+            [disabled]="isAiFilling || isHistoricalLoading"
+          >
+            @if (isHistoricalLoading) {
+              <mat-spinner diameter="18"></mat-spinner>
+            } @else {
+              <mat-icon>history</mat-icon>
+            }
+            History Fill
+          </button>
+
+          <button
+            mat-stroked-button
+            (click)="fillWithAI()"
+            [disabled]="isAiFilling || isHistoricalLoading"
+          >
+            @if (isAiFilling) {
+              <div class="progress-info">
+                <mat-spinner diameter="18"></mat-spinner>
+                <span>
+                  {{ aiFillProgress.current }}/{{ aiFillProgress.total }}
+                </span>
+              </div>
+            } @else {
+              <mat-icon>auto_awesome</mat-icon>
+            }
+            AI Auto-fill
+          </button>
+
+          <div class="divider"></div>
+
           <button mat-flat-button color="warn" (click)="discardDraft()">
             <mat-icon>delete_sweep</mat-icon>
             Discard

@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, Subject, forkJoin, of, from } from 'rxjs';
 import { 
-  takeUntil, catchError, switchMap, tap, concatMap, finalize 
+  takeUntil, catchError, switchMap, tap, concatMap, finalize, map 
 } from 'rxjs/operators';
 import { 
   fadeAnimation, pageFloatUpAnimation 
@@ -30,6 +30,9 @@ import {
 import { 
   DialogGenericComponent 
 } from '../../../../../shared/dialog-generic/dialog-generic.component';
+import { 
+  TableDialogComponent 
+} from '../../../../../shared/table-dialog/table-dialog.component';
 
 import { 
   DraftStateService 
@@ -52,7 +55,8 @@ import {
   PopulateSchedulesResponse, 
   CourseResponse, 
   ProgramOption, 
-  SectionOption 
+  SectionOption,
+  DraftEntry
 } from '../../../../models/scheduling.model';
 
 interface CourseOffering {
@@ -144,6 +148,9 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
   selectedProgramId: number | null = null;
 
   isDraftMode = false;
+  isHistoricalLoading = false;
+  isAiFilling = false;
+  aiFillProgress = { current: 0, total: 0 };
   schedules: Schedule[] = [];
   draftSchedules: Schedule[] = [];
 
@@ -296,7 +303,11 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
 
   // Fetches schedule tree, program curricula list, and active semester metadata
   loadData(forceRefresh = false): void {
-    this.isLoading = true;
+    // Delay loading spinner to prevent UI flash/flicker if cached
+    const loadingTimeout = setTimeout(() => {
+      this.isLoading = true;
+      this.cdr.detectChanges();
+    }, 150);
 
     forkJoin({
       activeTerm: this.academicYearService.getActiveYearAndSemester(),
@@ -305,6 +316,7 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
     }).pipe(
       takeUntil(this.destroy$),
       catchError((error) => {
+        clearTimeout(loadingTimeout);
         console.error('Failed to load course-centric scheduling data', error);
         this.snackBar.open('Failed to load scheduling data.', 'Close', {
           duration: 5000
@@ -314,6 +326,7 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
         return of(null);
       })
     ).subscribe((data) => {
+      clearTimeout(loadingTimeout);
       if (!data) return;
 
       this.activeYear = data.activeTerm.activeYear;
@@ -341,6 +354,14 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
       }));
 
       this.processSchedules(data.schedules);
+
+      // If draft state is active (dirty entries exist), auto-activate Draft Mode
+      if (this.draftStateService.hasDirtyEntries()) {
+        this.isDraftMode = true;
+        this.draftSchedules = JSON.parse(JSON.stringify(this.schedules));
+        this.rebuildDraftSchedules();
+      }
+
       this.isLoading = false;
       this.cdr.detectChanges();
     });
@@ -511,6 +532,14 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
 
   // Triggers filtering cascade when selection changes
   onFilterChange(): void {
+    if (this.isDraftMode) {
+      this.exitDraftInternal();
+      this.snackBar.open(
+        'Exited draft mode and discarded unsaved changes.',
+        'Close',
+        { duration: 3000 }
+      );
+    }
     this.applyFilters();
   }
 
@@ -1004,5 +1033,377 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
   protected isDraftConflict(offering: CourseOffering): boolean {
     if (!offering.schedule_id) return false;
     return !!this.draftStateService.get(offering.schedule_id)?.hasConflict;
+  }
+
+  // Triggers historical schedule fill dialog
+  protected openHistoricalDialog(): void {
+    this.academicYearService.getAcademicYears()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (years) => {
+          const yearOptions = years.map(y => ({
+            label: y.academic_year,
+            value: y.academic_year_id
+          }));
+
+          const semesterOptions = [
+            { label: 'First Semester', value: 1 },
+            { label: 'Second Semester', value: 2 },
+            { label: 'Summer', value: 3 }
+          ];
+
+          const dialogRef = this.dialog.open(TableDialogComponent, {
+            data: {
+              title: 'Select Historical Term',
+              fields: [
+                {
+                  label: 'Academic Year',
+                  formControlName: 'academic_year_id',
+                  type: 'select',
+                  options: yearOptions,
+                  required: true
+                },
+                {
+                  label: 'Semester',
+                  formControlName: 'semester_id',
+                  type: 'select',
+                  options: semesterOptions,
+                  required: true
+                }
+              ],
+              isEdit: false
+            }
+          });
+
+          dialogRef.afterClosed()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe(result => {
+              if (result) {
+                this.applyHistoricalSchedules(
+                  result.academic_year_id,
+                  result.semester_id
+                );
+              }
+            });
+        },
+        error: () => {
+          this.snackBar.open('Failed to load academic years.', 'Close', {
+            duration: 3000
+          });
+        }
+      });
+  }
+
+  // Fetches and applies historical schedules matching Gen Ed slots
+  private applyHistoricalSchedules(
+    academic_year_id: number,
+    semester_id: number
+  ): void {
+    this.isHistoricalLoading = true;
+    this.cdr.detectChanges();
+
+    this.schedulingService.getHistoricalSchedules(
+      academic_year_id,
+      semester_id
+    ).subscribe({
+      next: (response) => {
+        const historicalSchedules: any[] = [];
+        response.programs.forEach((program: any) => {
+          program.year_levels.forEach((yl: any) => {
+            yl.semesters.forEach((sem: any) => {
+              if (sem.semester === response.semester_id) {
+                sem.sections.forEach((section: any) => {
+                  section.courses.forEach((course: any) => {
+                    historicalSchedules.push({
+                      course_code: course.course_code,
+                      section: section.section_name,
+                      program_code: program.program_code,
+                      is_copy: course.is_copy || 0,
+                      schedule: course.schedule,
+                      professor: course.professor,
+                      room: course.room
+                    });
+                  });
+                });
+              }
+            });
+          });
+        });
+
+        const emptyOfferings: any[] = [];
+        this.filteredGroups.forEach((group) => {
+          group.offerings.forEach((offering) => {
+            if (offering.day === 'Not set' || offering.day === null) {
+              emptyOfferings.push(offering);
+            }
+          });
+        });
+
+        if (emptyOfferings.length === 0) {
+          this.snackBar.open(
+            'No empty slots in the current filtered view to fill.',
+            'Close',
+            { duration: 3000 }
+          );
+          this.isHistoricalLoading = false;
+          this.cdr.detectChanges();
+          return;
+        }
+
+        const emptySlots = this.draftSchedules.filter((s) =>
+          emptyOfferings.some((eo) => eo.schedule_id === s.schedule_id)
+        );
+        let matchCount = 0;
+        const filledEntries: DraftEntry[] = [];
+
+        emptySlots.forEach(slot => {
+          const matched = historicalSchedules.find(hs => 
+            hs.course_code.trim().toLowerCase() ===
+              slot.course_code.trim().toLowerCase() &&
+            hs.section.trim().toLowerCase() ===
+              slot.section?.trim().toLowerCase() &&
+            hs.program_code.trim().toLowerCase() ===
+              slot.program_code?.trim().toLowerCase() &&
+            Number(hs.is_copy) === Number(slot.is_copy)
+          );
+
+          if (
+            matched &&
+            matched.schedule &&
+            matched.schedule.day &&
+            matched.schedule.day !== 'Not set'
+          ) {
+            const entry: DraftEntry = {
+              schedule_id: slot.schedule_id!,
+              faculty_id: matched.schedule.faculty_id || null,
+              faculty_name: matched.professor || 'Not set',
+              room_id: matched.schedule.room_id || null,
+              room_code: matched.room?.room_code || 'Not set',
+              day: matched.schedule.day,
+              start_time: matched.schedule.start_time,
+              end_time: matched.schedule.end_time,
+              hasConflict: false
+            };
+            this.draftStateService.set(slot.schedule_id!, entry);
+            filledEntries.push(entry);
+            matchCount++;
+          }
+        });
+
+        if (matchCount === 0) {
+          this.snackBar.open(
+            'No matching historical courses found to fill empty slots.',
+            'Close',
+            { duration: 3000 }
+          );
+          this.isHistoricalLoading = false;
+          this.cdr.detectChanges();
+          return;
+        }
+
+        from(filledEntries).pipe(
+          concatMap(entry => this.runConflictCheck(entry)),
+          finalize(() => {
+            this.rebuildDraftSchedules();
+            const conflictCount = this.draftStateService.getConflicted().length;
+            let msg = `${matchCount} of ${emptySlots.length} ` +
+              `courses filled from history.`;
+            if (conflictCount > 0) {
+              msg += ` · ${conflictCount} conflict(s) detected — ` +
+                `review highlighted rows.`;
+            }
+            this.snackBar.open(msg, 'Close', { duration: 5000 });
+            this.isHistoricalLoading = false;
+            this.cdr.detectChanges();
+          })
+        ).subscribe();
+      },
+      error: () => {
+        this.snackBar.open(
+          'Failed to load historical schedules.',
+          'Close',
+          { duration: 3000 }
+        );
+        this.isHistoricalLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  protected fillWithAI(): void {
+    const emptyOfferings: any[] = [];
+    this.filteredGroups.forEach((group) => {
+      group.offerings.forEach((offering) => {
+        if (offering.day === 'Not set' || offering.day === null) {
+          emptyOfferings.push(offering);
+        }
+      });
+    });
+
+    if (emptyOfferings.length === 0) {
+      this.snackBar.open(
+        'No empty slots in the current filtered view to fill.',
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    const emptySlots = this.draftSchedules.filter((s) =>
+      emptyOfferings.some((eo) => eo.schedule_id === s.schedule_id)
+    );
+
+    this.snackBar.open(
+      'AI is analyzing faculty preferences...',
+      'Close',
+      { duration: 2000 }
+    );
+    this.isAiFilling = true;
+
+    this.aiFillProgress = { current: 0, total: emptySlots.length };
+    this.cdr.detectChanges();
+
+    let unassignedCount = 0;
+
+    from(emptySlots).pipe(
+      concatMap(slot => {
+        const programId = (slot as any).program_id || 0;
+        const yearLevel = slot.year || 1;
+        const sectionId = (slot as any).section_id || 0;
+
+        return this.schedulingService.getSmartSuggestion(
+          slot.course_id,
+          this.activeAcademicYearId || 0,
+          this.activeSemesterId || 0,
+          this.activeSemesterRecordId || 0,
+          programId,
+          yearLevel,
+          sectionId
+        ).pipe(
+          switchMap(suggestion => {
+            if (suggestion && suggestion.faculty_id) {
+              const entry: DraftEntry = {
+                schedule_id: slot.schedule_id!,
+                faculty_id: suggestion.faculty_id,
+                faculty_name: suggestion.faculty_name,
+                room_id: null,
+                room_code: 'Not set',
+                day: suggestion.day,
+                start_time: this.convertTimeToBackendFormat(
+                  suggestion.start_time
+                ),
+                end_time: this.convertTimeToBackendFormat(
+                  suggestion.end_time
+                ),
+                hasConflict: false
+              };
+              this.draftStateService.set(slot.schedule_id!, entry);
+              return this.runConflictCheck(entry);
+            } else {
+              unassignedCount++;
+              return of(void 0);
+            }
+          }),
+          tap(() => {
+            this.aiFillProgress.current++;
+            this.rebuildDraftSchedules();
+            this.cdr.detectChanges();
+          }),
+          catchError(() => {
+            unassignedCount++;
+            return of(void 0);
+          })
+        );
+      }),
+      finalize(() => {
+        this.isAiFilling = false;
+        this.rebuildDraftSchedules();
+        this.cdr.detectChanges();
+        
+        const assignedCount = emptySlots.length - unassignedCount;
+        const msg = assignedCount === emptySlots.length 
+          ? `Fill completed. All ${emptySlots.length} slots processed.`
+          : `Fill finished. ${assignedCount} slots filled, ` +
+            `${unassignedCount} remained unassigned.`;
+        
+        this.snackBar.open(msg, 'Close', { duration: 6000 });
+      })
+    ).subscribe();
+  }
+
+  // Runs conflict checks for a single draft entry
+  private runConflictCheck(entry: DraftEntry): Observable<void> {
+    const draftSchedule = this.schedules.find(
+      (s) => s.schedule_id === entry.schedule_id
+    );
+    if (!draftSchedule) return of(void 0);
+
+    const programId = (draftSchedule as any).program_id || 0;
+    const yearLevel = draftSchedule.year || 1;
+    const sectionId = (draftSchedule as any).section_id || 0;
+    const courseId = draftSchedule.course_id;
+
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const courseSchedules = (
+      this.isDraftMode ? this.draftSchedules : this.schedules
+    ).filter(
+      (s) =>
+        s.course_id === courseId &&
+        s.schedule_id !== entry.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    let hoursAlreadyAssigned = 0;
+    courseSchedules.forEach((s) => {
+      if (s.start_time && s.end_time) {
+        hoursAlreadyAssigned +=
+          (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+      }
+    });
+
+    return this.schedulingService
+      .checkForScheduleConflicts(
+        courseId,
+        entry.schedule_id,
+        programId,
+        yearLevel,
+        entry.day || '',
+        entry.start_time || '',
+        entry.end_time || '',
+        sectionId,
+        entry.faculty_id,
+        entry.room_id,
+        hoursAlreadyAssigned
+      )
+      .pipe(
+        tap((result) => {
+          const currentEntry = this.draftStateService.get(entry.schedule_id);
+          if (currentEntry) {
+            this.draftStateService.set(entry.schedule_id, {
+              ...currentEntry,
+              hasConflict: result.hasConflicts,
+            });
+          }
+        }),
+        map(() => void 0),
+        catchError(() => of(void 0))
+      );
+  }
+
+  // Formats time strings to backend standard HH:MM:SS format
+  private convertTimeToBackendFormat(time: string | null): string | null {
+    if (!time) return null;
+    const [timePart, period] = time.split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:00`;
   }
 }
