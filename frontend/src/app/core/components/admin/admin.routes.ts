@@ -44,6 +44,17 @@ export const ADMIN_ROUTES: Routes = [
         },
       },
       {
+        path: 'scheduling/course-centric',
+        loadComponent: () =>
+          import(
+            './scheduling/course-centric-scheduling/course-centric-scheduling.component'
+          ).then((m) => m.CourseCentricSchedulingComponent),
+        data: { 
+          pageTitle: 'Course-Centric Scheduling',
+          requirePermission: 'assign_schedules'
+        },
+      },
+      {
         path: 'academic-years',
         loadComponent: () =>
           import('./academic-year/academic-year.component').then(

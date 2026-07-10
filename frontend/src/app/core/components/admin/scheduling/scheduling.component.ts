@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Observable, Subject, forkJoin, of, from } from 'rxjs';
 import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
@@ -125,6 +126,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -206,6 +208,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    */
   protected get tableData(): Schedule[] {
     return this.isDraftMode ? this.draftSchedules : this.schedules;
+  }
+
+  /**
+   * Navigates to the course-centric scheduling view.
+   */
+  protected goToCourseCentric(): void {
+    this.router.navigate(['/admin/scheduling/course-centric']);
   }
 
   /**
