@@ -451,11 +451,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       return hours * 60 + minutes;
     };
 
+    const sectionCourseId = (draftSchedule as any)?.section_course_id;
     const courseSchedules = (
       this.isDraftMode ? this.draftSchedules : this.schedules
     ).filter(
       (s) =>
-        s.course_id === courseId &&
+        (s as any).section_course_id === sectionCourseId &&
         s.schedule_id !== entry.schedule_id &&
         s.day &&
         s.day !== 'Not set'
@@ -1658,7 +1659,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           this.isDraftMode ? this.draftSchedules : this.schedules
         ).filter(
           (s) =>
-            s.course_id === schedule.course_id &&
+            (s as any).section_course_id === schedule.section_course_id &&
             s.schedule_id !== schedule.schedule_id &&
             s.day &&
             s.day !== 'Not set'
