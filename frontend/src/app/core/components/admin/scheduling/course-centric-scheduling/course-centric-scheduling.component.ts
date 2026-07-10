@@ -814,17 +814,21 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
           if (!result) return;
 
           if (this.isDraftMode && result.isDraft) {
-            this.draftStateService.set(schedule.schedule_id!, {
+            const entry: DraftEntry = {
               ...result,
               schedule_id: schedule.schedule_id,
               hasConflict: false
+            };
+            this.draftStateService.set(schedule.schedule_id!, entry);
+            this.runConflictCheck(entry).subscribe(() => {
+              this.rebuildDraftSchedules();
+              this.snackBar.open(
+                `Draft updated for ${schedule.course_code}. ` +
+                `Save to apply permanently.`,
+                'Close',
+                { duration: 3000 }
+              );
             });
-            this.rebuildDraftSchedules();
-            this.snackBar.open(
-              `Draft updated for ${schedule.course_code}. Save to apply permanently.`,
-              'Close',
-              { duration: 3000 }
-            );
             return;
           }
 
