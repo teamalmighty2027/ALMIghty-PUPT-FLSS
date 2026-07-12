@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { DialogScheduleHistoryComponent } from './dialog-schedule-history.component';
 
@@ -10,7 +11,11 @@ describe('DialogScheduleHistoryComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogScheduleHistoryComponent, HttpClientTestingModule],
+      imports: [
+        DialogScheduleHistoryComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
         { provide: MAT_DIALOG_DATA, useValue: {} }

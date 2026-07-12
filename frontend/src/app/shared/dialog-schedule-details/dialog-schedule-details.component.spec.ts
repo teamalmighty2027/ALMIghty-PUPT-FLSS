@@ -12,7 +12,13 @@ describe('DialogScheduleDetailsComponent', () => {
       imports: [DialogScheduleDetailsComponent],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
-        { provide: MAT_DIALOG_DATA, useValue: {} }
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            schedule: {},
+            color: { primary: '#fff', secondary: '#000', text: '#333' }
+          }
+        }
       ]
     })
     .compileComponents();

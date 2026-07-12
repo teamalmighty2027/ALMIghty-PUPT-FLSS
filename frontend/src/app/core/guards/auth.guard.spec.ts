@@ -26,13 +26,15 @@ describe('AuthGuard', () => {
 
   it('should return true if token exists', () => {
     spyOn(sessionStorage, 'getItem').and.returnValue('some-token');
-    expect(guard.canActivate(null as any, null as any)).toBeTrue();
+    const mockRoute = { data: {}, routeConfig: { path: '' } } as any;
+    expect(guard.canActivate(mockRoute, null as any)).toBeTrue();
   });
 
   it('should navigate to login if token does not exist', () => {
     spyOn(sessionStorage, 'getItem').and.returnValue(null);
     spyOn(router, 'navigate');
-    expect(guard.canActivate(null as any, null as any)).toBeFalse();
+    const mockRoute = { data: {}, routeConfig: { path: '' } } as any;
+    expect(guard.canActivate(mockRoute, null as any)).toBeFalse();
     expect(router.navigate).toHaveBeenCalledWith(['/login']);
   });
 });

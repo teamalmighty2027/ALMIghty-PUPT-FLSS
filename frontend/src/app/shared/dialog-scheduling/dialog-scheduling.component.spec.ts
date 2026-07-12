@@ -18,7 +18,27 @@ describe('DialogSchedulingComponent', () => {
       ],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
-        { provide: MAT_DIALOG_DATA, useValue: {} },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            program: { id: 1, info: 'test' },
+            academic: { year_level: 1, section_id: 1 },
+            options: {
+              dayOptions: ['Monday', 'Tuesday'],
+              timeOptions: ['08:00 AM'],
+              endTimeOptions: ['09:00 AM'],
+              professorOptions: ['Prof. Test'],
+              roomOptions: ['Room 101']
+            },
+            facultyOptions: [],
+            roomOptionsList: [],
+            selectedProgramInfo: 'BSCS',
+            selectedCourseInfo: 'CS101',
+            suggestedFaculty: [],
+            schedule_id: 1,
+            course_id: 101
+          }
+        },
       ],
     })
     .compileComponents();

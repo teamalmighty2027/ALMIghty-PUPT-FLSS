@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { DialogDayTimeComponent } from './dialog-day-time.component';
 
@@ -9,7 +11,11 @@ describe('DialogDayTimeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogDayTimeComponent],
+      imports: [
+        DialogDayTimeComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
         { provide: MAT_DIALOG_DATA, useValue: {} }

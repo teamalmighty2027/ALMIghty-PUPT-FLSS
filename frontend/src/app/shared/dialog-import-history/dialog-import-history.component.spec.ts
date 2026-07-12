@@ -122,9 +122,16 @@ describe('DialogImportHistoryComponent', () => {
   it('should import selected courses', () => {
     const importable = component.importableCourses()[0];
     component.toggleSelection(importable.key);
-    
+
     component.importSelected();
-    
-    expect(mockDialogRef.close).toHaveBeenCalledWith([importable.currentMatch]);
+
+    expect(mockDialogRef.close).toHaveBeenCalledWith([
+      {
+        ...importable.currentMatch,
+        previousSectionName: importable.section_details?.section_name,
+        previousProgramCode: importable.course_details?.program_code,
+        preferred_days: importable.preferred_days
+      }
+    ]);
   });
 });
