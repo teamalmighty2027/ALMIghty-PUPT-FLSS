@@ -7,6 +7,7 @@ import {
   ViewChild,
   TemplateRef,
   AfterViewInit,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -52,6 +53,7 @@ import {
 } from '../../../../services/superadmin/management/faculty/faculty-type.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 interface Column {
   key: string;
@@ -86,6 +88,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChild('facultyTypeTemplate') facultyTypeTemplate!: TemplateRef<any>;
   @ViewChild('facultyUnitsTemplate') facultyUnitsTemplate!: TemplateRef<any>;
+  @ViewChild('mobileFilterTemplate') mobileFilterTemplate!: TemplateRef<any>;
 
   faculty: Faculty[] = [];
   filteredFaculty: Faculty[] = [];
@@ -103,6 +106,10 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   filterStatus = '';
   filterFacultyType = '';
   sortBy = '';
+  isMobileView = false;
+  mobileFilterStatus = '';
+  mobileFilterFacultyType = '';
+  mobileSortBy = '';
 
   readonly statusOptions = ['Active', 'Inactive', 'Retired'];
   facultyTypeOptions: string[] = [];
@@ -162,6 +169,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * Initializes the component by loading faculty types and data.
    */
   ngOnInit() {
+    this.updateViewMode();
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
@@ -219,6 +227,72 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateViewMode();
+  }
+
+  private updateViewMode(): void {
+    this.isMobileView = window.innerWidth < 768;
+  }
+
+  private syncMobileFiltersFromState(): void {
+    this.mobileFilterStatus = this.filterStatus;
+    this.mobileFilterFacultyType = this.filterFacultyType;
+    this.mobileSortBy = this.sortBy;
+  }
+
+  openMobileFilterPanel(): void {
+    this.syncMobileFiltersFromState();
+    this.dialog.open(this.mobileFilterTemplate, {
+      width: '100%',
+      maxWidth: '100vw',
+      maxHeight: '90vh',
+      panelClass: 'faculty-mobile-filter-dialog',
+      autoFocus: false,
+      hasBackdrop: true,
+    });
+  }
+
+  closeMobileFilterPanel(): void {
+    this.dialog.closeAll();
+  }
+
+  toggleMobileStatus(status: string): void {
+    this.mobileFilterStatus = this.mobileFilterStatus === status ? '' : status;
+  }
+
+  toggleMobileFacultyType(type: string): void {
+    this.mobileFilterFacultyType = type === '' ? '' : (this.mobileFilterFacultyType === type ? '' : type);
+  }
+
+  applyMobileFilters(): void {
+    this.filterStatus = this.mobileFilterStatus;
+    this.filterFacultyType = this.mobileFilterFacultyType;
+    this.sortBy = this.mobileSortBy;
+    this.activeFilters.status = this.filterStatus;
+    this.activeFilters.facultyType = this.filterFacultyType;
+    this.activeFilters.sortBy = this.sortBy;
+    this.applyFiltersAndSort();
+    this.dialog.closeAll();
+    this.cdr.detectChanges();
+  }
+
+  clearMobileFilters(): void {
+    this.mobileFilterStatus = '';
+    this.mobileFilterFacultyType = '';
+    this.mobileSortBy = '';
+    this.filterStatus = '';
+    this.filterFacultyType = '';
+    this.sortBy = '';
+    this.activeFilters.status = '';
+    this.activeFilters.facultyType = '';
+    this.activeFilters.sortBy = '';
+    this.applyFiltersAndSort();
+    this.dialog.closeAll();
+    this.cdr.detectChanges();
+  }
+
   /** Toggle status filter chip */
   toggleStatus(status: string): void {
     this.filterStatus = this.filterStatus === status ? '' : status;
@@ -246,12 +320,19 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     this.filterStatus = '';
     this.filterFacultyType = '';
     this.sortBy = '';
+    this.mobileFilterStatus = '';
+    this.mobileFilterFacultyType = '';
+    this.mobileSortBy = '';
     this.activeFilters = { search: this.activeFilters.search, facultyType: '', status: '', sortBy: '' };
     this.applyFiltersAndSort();
   }
 
+  getActiveFilterCount(): number {
+    return [this.filterStatus, this.filterFacultyType, this.sortBy].filter(Boolean).length;
+  }
+
   get hasActiveFilters(): boolean {
-    return !!(this.filterStatus || this.filterFacultyType || this.sortBy);
+    return this.getActiveFilterCount() > 0;
   }
 
   /**
@@ -466,6 +547,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             formControlName: 'password',
             type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
@@ -474,6 +556,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             type: 'password',
             maxLength: 100,
             required: true,
+            minLength: 12,
             confirmPassword: true,
           },
         ]
@@ -674,14 +757,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * @returns An object mapping class names to boolean values.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   /**

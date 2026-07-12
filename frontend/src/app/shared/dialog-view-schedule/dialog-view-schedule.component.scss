@@ -2,14 +2,12 @@
 @use '../../../styles/breakpoints.scss' as bp;
 
 .dialog-view-schedule-container {
-  @include mixins.flex-layout(
-    $direction: column,
-    $align: stretch,
-    $justify: flex-start,
-    $gap: var(--spacing-md)
-  );
-  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  max-height: 85vh; 
+  overflow: hidden; 
+  padding: var(--spacing-lg);
 }
 
 .pdf-warning {
@@ -22,6 +20,8 @@
     $justify: space-between,
     $gap: var(--spacing-xxs)
   );
+  flex-shrink: 0; 
+  margin-bottom: var(--spacing-md);
 
   .schedule-title {
     .dialog-title {
@@ -36,6 +36,25 @@
   }
 }
 
+/* THE MODAL SCROLL CONTAINER */
+.scrollable-modal-body {
+  flex: 1 1 auto; 
+  overflow-y: auto; 
+  overflow-x: hidden;
+  padding-right: 8px; 
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md); 
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+}
+
 .multiple-schedules-container {
   @include mixins.flex-layout(
     $direction: column,
@@ -43,9 +62,8 @@
     $justify: flex-start,
     $gap: var(--spacing-xl)
   );
-  max-height: var(--dialog-base-height);
-  overflow: auto;
-  padding-right: var(--spacing-md);
+  flex-shrink: 0;
+  height: auto;
 
   .schedule-group {
     @include mixins.flex-layout(
@@ -69,20 +87,17 @@
     $align: stretch,
     $justify: flex-start
   );
-
-  min-height: var(--dialog-base-height);
-}
-
-iframe {
-  width: 100%;
-  max-height: var(--dialog-base-height);
-  border: none;
-  border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-level-1);
+  flex-shrink: 0;
+  height: auto;
 }
 
 .dialog-actions {
   @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+  flex-shrink: 0; 
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid rgba(0,0,0,0.05);
+  
   .close-button {
     color: var(--primary-text);
   }
@@ -94,15 +109,8 @@ iframe {
     background-color: var(--primary-fade);
     border-radius: var(--border-radius-md);
     padding: var(--spacing-xs);
-
-    .warning-text {
-      font-size: var(--font-size-sm);
-    }
-
-    .warning-icon,
-    .warning-text {
-      color: var(--primary-text);
-    }
+    .warning-text { font-size: var(--font-size-sm); }
+    .warning-icon, .warning-text { color: var(--primary-text); }
   }
 
   .dialog-view-schedule-container {
@@ -110,81 +118,33 @@ iframe {
     gap: var(--spacing-sm);
   }
 
-  // Title + toggle stack vertically
   .entity-info {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
 
     .schedule-title {
-      .dialog-title {
-        font-size: var(--font-size-lg);
-        line-height: 1.3;
-      }
-
-      .dialog-subtitle {
-        font-size: var(--font-size-sm);
-      }
+      .dialog-title { font-size: var(--font-size-lg); line-height: 1.3; }
+      .dialog-subtitle { font-size: var(--font-size-sm); }
     }
 
-    // View toggle — full width, both options equal
     .view-option {
       width: 100%;
-
       mat-button-toggle-group {
         width: 100%;
         display: flex;
-
-        mat-button-toggle {
-          flex: 1;
-          text-align: center;
-        }
+        mat-button-toggle { flex: 1; text-align: center; }
       }
     }
   }
 
-  // Schedule containers — constrained height so footer stays visible
-  .multiple-schedules-container {
-    max-height: 40vh;
-    padding-right: var(--spacing-xs);
-  }
-
-  .single-schedule-container {
-    min-height: 0;
-    max-height: 40vh;
-    overflow: auto;
-  }
-
-  // PDF iframe — smaller on mobile so Close button is always visible
-  iframe,
-  pdf-viewer {
-    min-height: 35vh !important;
-    max-height: 40vh !important;
-  }
-
-  // Action buttons — all visible, properly sized
   .dialog-actions {
     flex-wrap: wrap;
     justify-content: stretch;
     gap: var(--spacing-xs);
     padding-top: var(--spacing-xs);
-
-    button {
-      flex: 1 1 auto;
-      min-height: 44px;
-      justify-content: center;
-    }
-
-    // Close button stays in the row — do NOT push to bottom
-    .close-button {
-      flex: 1 1 auto;
-      order: 0;
-    }
-  }
-
-  mat-dialog-actions,
-  .mat-mdc-dialog-actions {
-    padding: 8px 12px !important;
+    button { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+    .close-button { flex: 1 1 auto; order: 0; }
   }
 }
 
@@ -193,26 +153,9 @@ iframe {
     padding: var(--spacing-sm);
     gap: var(--spacing-xs);
   }
-
-  iframe,
-  pdf-viewer {
-    min-height: 28vh !important;
-    max-height: 32vh !important;
-  }
-
-  .multiple-schedules-container {
-    max-height: 35vh;
-  }
-
-  .single-schedule-container {
-    max-height: 35vh;
-  }
-
-  .dialog-actions {
-    button {
-      flex: 1 1 100%;
-      width: 100%;
-    }
+  .dialog-actions button {
+    flex: 1 1 100%;
+    width: 100%;
   }
 }
 
@@ -222,51 +165,250 @@ iframe {
   margin-right: 8px;
 }
 
-/* Force dialog content to flex column so footer stays visible */
-mat-dialog-content,
-.mat-mdc-dialog-content {
-  display: flex !important;
-  flex-direction: column !important;
-  flex-grow: 1 !important;
-  min-height: 0 !important;
-  padding-bottom: 0 !important;
+// --- Summary Table Styles ---
+.summary-table-container {
+  margin-top: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  overflow-x: auto;
+  flex-shrink: 0;
+
+  .summary-title {
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-text);
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .summary-table {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05); 
+    border-radius: 4px;
+  }
 }
 
-.view-container,
-.table-responsive-container,
-.pdf-viewer-container {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  height: 100%;
-  min-height: 0;
+.section-divider {
+  border: 0;
+  height: 1px;
+  background: rgba(0,0,0,0.1);
+  margin: 24px 0;
+}
+
+// Let Material handle the height naturally, just hide the bottom margin
+::ng-deep .dense-dropdown {
   width: 100%;
+  min-width: 190px;
+  
+  .mat-mdc-form-field-subscript-wrapper {
+    display: none; // Hides the empty space reserved for hints/errors
+  }
+
+  // Adjust padding slightly to make it compact without breaking the text
+  .mat-mdc-text-field-wrapper {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
 }
 
-full-calendar,
-.fc,
-.fc-view-harness {
-  flex-grow: 1 !important;
-  height: 100% !important;
-  min-height: 50vh;
+/* ==========================================================================
+   SAFE CALENDAR OVERRIDES: Forces height & hides internal scroll
+   ========================================================================== */
+
+::ng-deep app-schedule-timeline,
+::ng-deep .schedule-timeline-container {
+  height: auto !important;
+  overflow-y: visible !important;
+  max-height: unset !important;
 }
 
-/* PDF iframe — reasonable default, overridden on mobile */
-pdf-viewer,
-iframe,
-object,
-embed {
-  flex-grow: 1 !important;
-  height: 100% !important;
-  width: 100% !important;
-  min-height: 50vh !important;
-  border: none !important;
+/* ==========================================================================
+   PDF VIEWER FIX
+   ========================================================================== */
+
+.dialog-pref-pdf-container {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 80vh; 
+  min-height: 600px;
+  display: block; /* Prevents flexbox collapsing */
+}
+
+.pdf-container {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
-mat-dialog-actions,
-.mat-mdc-dialog-actions {
-  margin-top: auto !important;
-  padding: 12px 16px !important;
-  flex-shrink: 0 !important;
+.pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+// --- Faculty Time Plots Styles ---
+.time-plots-form {
+  .form-field {
+    ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
+  }
+
+  .add-button {
+    background-color: var(--primary-color, #800000) !important;
+    color: white !important;
+  }
+}
+
+.remaining-hours-badges {
+  .badge {
+    background-color: #fafafa;
+    border-color: #e0e0e0 !important;
+    color: #424242;
+
+    &.badge-complete {
+      background-color: #e8f5e9;
+      border-color: #a5d6a7 !important;
+      color: #2e7d32;
+    }
+  }
+}
+
+.type-badge {
+  display: inline-block;
+  white-space: nowrap;
+
+  &.badge-night_service {
+    background-color: #e3f2fd;
+    color: #1565c0;
+  }
+
+  &.badge-official_time {
+    background-color: #fff3e0;
+    color: #e65100;
+  }
+
+  &.badge-advising_time {
+    background-color: #f3e5f5;
+    color: #4a148c;
+  }
+}
+
+// ==========================================
+// --- REAL-TIME METRICS & WARNING STYLES ---
+// ==========================================
+
+.faculty-metrics-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+
+  .metric-label {
+    opacity: 0.8;
+  }
+
+  .metric-value {
+    font-weight: 700;
+  }
+
+  // Dynamic Status Colors
+  &.status-green {
+    background-color: #e8f5e9;
+    border-color: #c8e6c9;
+    color: #2e7d32;
+  }
+
+  &.status-red {
+    background-color: #ffebee;
+    border-color: #ffcdd2;
+    color: #c62828;
+    animation: pulse-border 2s infinite;
+  }
+
+  &.neutral, &.status-neutral {
+    background-color: #f5f5f5;
+    color: #424242;
+  }
+}
+
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.warning-icon-pulse {
+  color: #d9534f;
+  cursor: help;
+  font-size: 24px;
+  height: 24px;
+  width: 24px;
+  animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(198, 40, 40, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+}
+
+::ng-deep .custom-warning-tooltip {
+  white-space: pre-line !important;
+  background-color: #333333 !important;
+  font-size: 13px !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  line-height: 1.5 !important;
+}
+
+// ==========================================
+// --- ROW LEVEL ERROR STYLES ---
+// ==========================================
+
+.row-warning-text {
+  display: flex;
+  align-items: center; /* Aligns the icon perfectly with the text */
+  gap: 6px;
+  margin-top: 4px;
+  color: #d32f2f !important; /* Forces strict Material Red */
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+
+  .tiny-error-icon {
+    font-size: 16px;
+    height: 16px;
+    width: 16px;
+    color: #d32f2f !important; /* Forces the icon to be red */
+    flex-shrink: 0;
+  }
+}
+
+// Ensure the metrics wrap nicely if there are many load types
+.faculty-metrics-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap; /* Allows them to stack neatly on multiple lines */
+  align-items: center;
+  margin-top: 4px;
+  margin-bottom: 8px;
 }

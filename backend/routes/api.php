@@ -8,16 +8,17 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\DesigneeRoleController;
 use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FacultyTimePlotController;
 use App\Http\Controllers\FacultyProfileController;
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
 use App\Http\Controllers\FacultyTypeController;
 use App\Http\Controllers\LogoController;
-use App\Http\Controllers\OAuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\RescheduleController;
@@ -34,6 +35,7 @@ use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\AssignmentTypeController;
 
 /*
 |----------------------------
@@ -44,7 +46,7 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
@@ -54,14 +56,33 @@ Route::middleware('auth:sanctum')->group(function () {
  * (Identity ) IDP Routes
  */
 Route::prefix('auth')->group(function () {
-    Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+    // Exchange OAuth code for a login token
+    Route::post('/callback', [AuthController::class, 'handleIdpCallback']);
+
+    // Log out proxy session on IDP
     Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
+
+    // Handle token verify redirect
+    Route::get('/redirect', [AuthController::class, 'handleOnePortalRedirect']);
+
+    // Get the login redirect URL containing client ID (securely server-side)
+    Route::get('/idp-login', [AuthController::class, 'getIdpLoginUrl']);
 });
 
 
-Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
-Route::post('/password/reset', [PasswordResetController::class, 'reset']);
-Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Password reset routes — throttled to prevent email flooding/enumeration
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/password/email', [
+        PasswordResetController::class, 'sendResetLinkEmail'
+    ]);
+    Route::post('/password/reset', [
+        PasswordResetController::class, 'reset'
+    ]);
+    Route::post('/password/verify-token', [
+        PasswordResetController::class, 'verifyToken'
+    ]);
+});
 
 // Fallback route for Philippine Addresses (Publicly accessible)
 Route::get('/addresses/fallback/{file}', function ($file) {
@@ -77,7 +98,8 @@ Route::get('/addresses/fallback/{file}', function ($file) {
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
+    ->group(function () {
     Route::get('/showAccounts', [AccountController::class, 'index']);
     Route::post('/addAccount', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
@@ -122,7 +144,7 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 | General Protected Routes
 |--------------------------
  */
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     /**
      * Academic Year
@@ -149,6 +171,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/admins', [AccountController::class, 'storeAdmin']);
     Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
     Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
+    
+    Route::get('/admin/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'index']);
+    Route::post('/admin/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead']);
+    Route::post('/admin/notifications/read-all', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead']);
+    Route::delete('/admin/notifications/clear-all', [\App\Http\Controllers\AdminNotificationController::class, 'clearAll']);
 
     /**
      * Buildings
@@ -196,8 +223,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
     Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
 
-    
-
     /**
      * Email
      */
@@ -215,6 +240,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
     Route::put('/admin/profile', [AdminProfileController::class, 'update']);
+
+    // Faculty Time Plots
+    Route::get('/faculty/{faculty_id}/time-plots',[FacultyTimePlotController::class, 'index']);
+    Route::post('/faculty/time-plots',[FacultyTimePlotController::class, 'store']);
+    Route::delete('/faculty/time-plots/{id}',[FacultyTimePlotController::class, 'destroy']);
+
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
 
@@ -231,6 +262,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * Faculty Type
      */
     Route::apiResource('faculty-types', FacultyTypeController::class);
+    Route::apiResource('designee-roles', DesigneeRoleController::class);
 
     /**
      * Logos
@@ -293,6 +325,7 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Programs
      */
+    Route::get('/programs/active', [ProgramController::class, 'getActivePrograms']);
     Route::get('/programs', [ProgramController::class, 'getPrograms']);
     Route::post('/addProgram', [ProgramController::class, 'addProgram']);
     Route::get('/programs/{id}', [ProgramController::class, 'getProgramDetails']);
@@ -313,6 +346,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /**
      * Analytics
+
      */
     Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
         Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
@@ -357,6 +391,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/get-available-rooms', [RoomController::class, 'getAllRooms']);
     Route::post('/toggle-all-schedule', [ScheduleController::class, 'toggleAllSchedules']);
     Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
+    Route::patch('/schedules/{schedule}/assignment-type', [ScheduleController::class, 'updateAssignmentType']);
+    
+    // Dynamic Load Types Configuration
+    Route::get('/assignment-types', [AssignmentTypeController::class, 'index']);
+    Route::post('/assignment-types', [AssignmentTypeController::class, 'store']);
+    Route::put('/assignment-types/{id}', [AssignmentTypeController::class, 'update']);
+    Route::delete('/assignment-types/{id}', [AssignmentTypeController::class, 'destroy']);
 
     /**
      * Temporary Course Offerings
@@ -423,6 +464,9 @@ Route::prefix('v1')->group(function () {
      * Faculty Attendance System (FAS)
      */
     Route::middleware(['check.hmac:fas'])->group(function () {
+        // Legacy route (backward compatibility)
+        Route::get('/faculty-schedules', [ExternalController::class, 'partTimeFacultySchedules']);
+
         // RESTful faculty schedule routes
         Route::prefix('faculty-schedules')->group(function () {
             Route::get('/part-time', [ExternalController::class, 'partTimeFacultySchedules']);
@@ -474,10 +518,4 @@ Route::prefix('v1')->group(function () {
     // });
 });
 
-/**
- * Faculty Data Management and Evaluation System with Research Repository (FESR)
- * 
- * ! DEPRECATED: Webhook integration with FESR/HRIS is deprecated and will be removed.
- */
-Route::post('/oauth/process-faculty', [OAuthController::class, 'processFaculty']);
-// DEPRECATED: Route::post('/webhooks/faculty', [WebhookController::class, 'handleFacultyWebhook']);
+// DEPRECATED: Webhook integration with FESR/HRIS is deprecated and has been removed.

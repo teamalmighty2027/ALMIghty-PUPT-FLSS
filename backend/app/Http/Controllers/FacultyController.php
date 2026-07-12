@@ -33,18 +33,17 @@ class FacultyController extends Controller
         $prefix = 'FA';
         $suffix = "TG{$year}";
 
-        // Find the highest numeric sequence for codes following the pattern FA{seq}TG{year}
+        // Find the most recently added faculty user by ID
         $lastCode = User::where('role', 'faculty')
-            ->where('code', 'LIKE', "{$prefix}%{$suffix}")
-            ->orderBy('code', 'desc')
+            ->where('code', 'LIKE', "{$prefix}%")
+            ->orderBy('id', 'desc')
             ->first();
 
         $nextNumber = 1;
 
         if ($lastCode) {
-            // Extract the number between prefix and suffix
-            // e.g., from FA0001TG2024 extract 001
-            $pattern = "/^" . preg_quote($prefix) . "(\d+)" . preg_quote($suffix) . "$/";
+            // Extract the number following the prefix FA
+            $pattern = '/^' . preg_quote($prefix) . '(\d+)/';
             if (preg_match($pattern, $lastCode->code, $matches)) {
                 $nextNumber = (int)$matches[1] + 1;
             }

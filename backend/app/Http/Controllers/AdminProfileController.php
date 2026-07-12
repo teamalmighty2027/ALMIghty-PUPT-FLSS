@@ -37,7 +37,8 @@ class AdminProfileController extends Controller
                 
                 // Convert raw database path into a full web URL for Admins
                 if ($profile->profile_picture) {
-                    $profileArray['profile_picture_url'] = url('storage/' . $profile->profile_picture);
+                    // Added backend/public/ to the URL path
+                    $profileArray['profile_picture_url'] = url('backend/public/storage/' . $profile->profile_picture);
                 }
             }
 
@@ -90,7 +91,8 @@ class AdminProfileController extends Controller
 
             DB::commit();
 
-            $pictureUrl = $updatedProfile->profile_picture_url ?? url('storage/' . $updatedProfile->profile_picture);
+            // Removed the fallback and forced the correct backend/public/ URL
+            $pictureUrl = url('backend/public/storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
                 'message' => 'Profile updated successfully',

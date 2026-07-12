@@ -680,6 +680,52 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
   });
 
   /**
+   * Groups filtered courses by year level and sorts them alphabetically.
+   */
+  public groupedCourses = computed(() => {
+    const courses = this.filteredCourses();
+    const groupsMap = new Map<number, Course[]>();
+
+    courses.forEach((course) => {
+      const year = course.year_level ?? 0;
+      if (!groupsMap.has(year)) {
+        groupsMap.set(year, []);
+      }
+      groupsMap.get(year)!.push(course);
+    });
+
+    const groups: { yearLevel: number; courses: Course[] }[] = [];
+
+    groupsMap.forEach((groupCourses, yearLevel) => {
+      // Sort alphabetically by course code within the year level group
+      groupCourses.sort((a, b) =>
+        a.course_code.localeCompare(b.course_code)
+      );
+      groups.push({ yearLevel, courses: groupCourses });
+    });
+
+    // Sort groups by year level ascending
+    groups.sort((a, b) => a.yearLevel - b.yearLevel);
+
+    return groups;
+  });
+
+  /**
+   * Returns the formatted ordinal label for a year level.
+   */
+  public getYearLevelLabel(year: number): string {
+    const labels: { [key: number]: string } = {
+      1: '1st Year',
+      2: '2nd Year',
+      3: '3rd Year',
+      4: '4th Year',
+    };
+    return labels[year] || `${year}th Year`;
+  }
+
+
+
+  /**
    * Keeps the search query stream synchronized with the search state.
    * Falls back to 'programSelection' or 'courseList' depending on whether
    * a program is already selected.
@@ -976,7 +1022,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
     }
 
     const dialogRef = this.dialog.open(DialogPrefSectionComponent, {
-      width: 'min(400px, 50vw)',
+      width: 'min(480px, 95vw)',
       data: { 
         sections: targetYear.sections,
         programCode: this.selectedProgram()?.program_code ?? '',
@@ -1422,15 +1468,33 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       return `${daysString}, Any Time`;
     }
 
-    // Default: format each day individually with its time range
-    const sortedDays = filteredDays
-      .sort((a, b) => this.daysOfWeek.indexOf(a.day) - this.daysOfWeek.indexOf(b.day))
-      .map(
-        (pd) =>
-          `${pd.day} (${this.formatTime(pd.start_time)} - ${this.formatTime(
-            pd.end_time,
-          )})`,
+    // Default: format each day individually, grouping multiple slots per day
+    const grouped: { [key: string]: typeof filteredDays } = {};
+    filteredDays.forEach((pd) => {
+      if (!grouped[pd.day]) {
+        grouped[pd.day] = [];
+      }
+      grouped[pd.day].push(pd);
+    });
+
+    const sortedDays = Object.keys(grouped)
+      .sort((a, b) =>
+        this.daysOfWeek.indexOf(a) - this.daysOfWeek.indexOf(b)
       )
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pd) =>
+              `${this.formatTime(pd.start_time)} - ${this.formatTime(
+                pd.end_time
+              )}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
+      })
       .join('\n');
 
     return sortedDays || 'Click to select day and time';

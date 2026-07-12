@@ -28,6 +28,7 @@ import { ReportsService } from '../../../../services/admin/reports/reports.servi
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -39,12 +40,16 @@ interface Faculty {
   facultyCode: string;
   facultyType: string;
   facultyUnits: number;
+  regularUnits?: number;
+  additionalUnits?: number;
   isEnabled: boolean;
   facultyId: number;
   schedules?: any[];
+  timePlots?: any[];
   academicYear?: string;
   semester?: string;
 }
+
 
 interface TimeSlot {
   time: string;
@@ -88,6 +93,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     'facultyCode',
     'facultyType',
     'facultyUnits',
+    'maxLoad',
     'action',
     'toggle',
   ];
@@ -225,13 +231,17 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
             facultyCode: faculty.faculty_code,
             facultyType: faculty.faculty_type,
             facultyUnits: faculty.assigned_units,
+            regularUnits: faculty.regular_units,
+            additionalUnits: faculty.additional_units,
             isEnabled: faculty.is_published === 1,
             facultyId: faculty.faculty_id,
             schedules: faculty.schedules || [],
+            timePlots: faculty.time_plots || [],
             academicYear: `${response.faculty_schedule_reports.year_start}-${response.faculty_schedule_reports.year_end}`,
             semester: this.getSemesterDisplay(response.faculty_schedule_reports.semester),
           }),
         );
+
 
         this.isLoading = false;
         this.dataSource.data = facultyData;
@@ -245,8 +255,10 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           ) => faculty.schedules && faculty.schedules.length > 0);
 
         this.hasAnySchedules = facultyData.some((
-          faculty: { schedules: string | any[] }
-        ) => faculty.schedules && faculty.schedules.length > 0);
+          faculty: any
+        ) => (faculty.schedules && faculty.schedules.length > 0) ||
+             (faculty.timePlots && faculty.timePlots.length > 0));
+
 
         this.isToggleAllChecked = this.dataSource.data.length > 0 && 
           this.dataSource.data.every((faculty) => faculty.isEnabled);
@@ -299,25 +311,30 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   onView(faculty: Faculty): void {
-    const sanitizedSchedules = (faculty.schedules || []).map((s: any) => ({
-      ...s,
-      day: s.day || 'TBA',
-      start_time: s.start_time || '07:00',
-      end_time: s.end_time || '08:00'
-    }));
+    // 1. Mutate the original schedule references directly instead of creating a shallow copy
+    if (faculty.schedules) {
+      faculty.schedules.forEach((s: any) => {
+        s.day = s.day || 'TBA';
+        s.start_time = s.start_time || '07:00';
+        s.end_time = s.end_time || '08:00';
+        s.assignmentType = s.assignmentType || s.assignment_type || 'Regular';
+
+      });
+    }
 
     const generatePdfFunction = (): Blob | void => {
       return this.createPdfBlob(faculty);
     };
 
-    this.dialog.open(DialogViewScheduleComponent, {
+    const dialogRef = this.dialog.open(DialogViewScheduleComponent, {
       maxWidth: '90vw',
       width: '100%',
       autoFocus: true,
       data: {
         exportType: 'single',
         entity: 'faculty',
-        entityData: sanitizedSchedules,
+        // 2. Pass the direct reference to the dialog
+        entityData: faculty.schedules, 
         customTitle: `${faculty.facultyName}`,
         academicYear: faculty.academicYear,
         semester: faculty.semester,
@@ -328,7 +345,20 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           saveAs(excelBlob, `${formattedName}_Schedule.xlsx`);
         },
         previewMode: true,
+        showAssignmentSummary: true,
+        facultyId: faculty.facultyId,
+        termId: this.selectedTermId,
+        facultyType: faculty.facultyType,
+        isAdmin: true
       },
+    });
+
+
+    dialogRef.afterClosed().subscribe((wasSaved: boolean) => {
+      if (wasSaved) {
+        this.reportsService.clearCache('faculty');
+        this.fetchFacultyData(this.selectedTermId);
+      }
     });
   }
 
@@ -531,7 +561,11 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     worksheet.getCell('A1').value = `Faculty: ${faculty.facultyName.toUpperCase()}`;
     worksheet.getCell('E1').value = `Faculty Type: ${faculty.facultyType}`;
     worksheet.getCell('A2').value = `School Year: ${faculty.academicYear} | Semester: ${faculty.semester}`;
-    worksheet.getCell('E2').value = `Total Load: ${faculty.facultyUnits} Units`;
+    const maxLoadStr = (faculty.additionalUnits ?? 0) > 0
+      ? `${faculty.regularUnits ?? 0} Reg / ${faculty.additionalUnits ?? 0} PT`
+      : `${faculty.regularUnits ?? 0}`;
+    worksheet.getCell('E2').value =
+      `Total Load: ${faculty.facultyUnits} / Max: ${maxLoadStr} Hours`;
 
     ['A1', 'E1', 'A2', 'E2'].forEach(c => {
       const cell = worksheet.getCell(c);
@@ -656,7 +690,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     let hasPages = false;
 
     this.filteredData.forEach((faculty) => {
-      if (faculty.schedules && faculty.schedules.length > 0) {
+      if ((faculty.schedules && faculty.schedules.length > 0) ||
+          (faculty.timePlots && faculty.timePlots.length > 0)) {
         if (hasPages) {
           this.reportHeaderService.addStandardFooter(doc);
           doc.addPage();
@@ -667,7 +702,16 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         const subtitle = this.getAcademicYearSubtitle(faculty);
 
         let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
-        this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
+        this.drawScheduleTable(
+          doc,
+          faculty.schedules || [],
+          title,
+          subtitle,
+          currentY,
+          margin,
+          pageWidth,
+          faculty.timePlots || []
+        );
       }
     });
 
@@ -687,13 +731,24 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     const topMargin = 15;
     const logoSize = 22;
 
-    if (faculty.schedules && faculty.schedules.length > 0) {
+    if ((faculty.schedules && faculty.schedules.length > 0) ||
+        (faculty.timePlots && faculty.timePlots.length > 0)) {
       const title = `${faculty.facultyName}`;
       const subtitle = this.getAcademicYearSubtitle(faculty);
 
       let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
-      this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
+      this.drawScheduleTable(
+        doc,
+        faculty.schedules || [],
+        title,
+        subtitle,
+        currentY,
+        margin,
+        pageWidth,
+        faculty.timePlots || []
+      );
     }
+
     
     this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
@@ -705,8 +760,18 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     return currentY;
   }
 
-  drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
-    const hasSchedules = scheduleData && scheduleData.length > 0;
+  drawScheduleTable(
+    doc: jsPDF,
+    scheduleData: any[],
+    title: string,
+    subtitle: string,
+    startY: number,
+    margin: number,
+    pageWidth: number,
+    timePlots: any[] = []
+  ): void {
+    const hasSchedules = (scheduleData && scheduleData.length > 0) ||
+                         (timePlots && timePlots.length > 0);
     if (!hasSchedules) return;
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -722,13 +787,21 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     ];
 
     const activeChunks = chunks.filter(chunk => {
-      return scheduleData.some(s => {
+      const hasSched = scheduleData.some(s => {
         if (!s.start_time || !s.end_time || !s.day) return false;
         const sStart = this.timeToMinutes(s.start_time);
         const sEnd = this.timeToMinutes(s.end_time);
         return Math.max(sStart, chunk.start) < Math.min(sEnd, chunk.end);
       });
+      const hasPlot = timePlots.some(p => {
+        if (!p.start_time || !p.end_time || !p.day) return false;
+        const pStart = this.timeToMinutes(p.start_time);
+        const pEnd = this.timeToMinutes(p.end_time);
+        return Math.max(pStart, chunk.start) < Math.min(pEnd, chunk.end);
+      });
+      return hasSched || hasPlot;
     });
+
 
     if (activeChunks.length === 0) return;
 
@@ -898,6 +971,47 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         doc.rect(xPos + subjColWidth, yPos, roomColWidth, height, 'FD');
       });
 
+      // --- PASS 1.5: Draw all block backgrounds (Time Plots) ---
+      timePlots.forEach(plot => {
+        const dayIndex = days.indexOf(plot.day);
+        if (dayIndex === -1) return;
+
+        const cappedStart = Math.max(
+          this.timeToMinutes(plot.start_time),
+          chunk.start
+        );
+        const cappedEnd = Math.min(
+          this.timeToMinutes(plot.end_time),
+          chunk.end
+        );
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        if (plot.time_type === 'night_service') {
+          doc.setFillColor(227, 242, 253);
+          doc.setDrawColor(21, 101, 192);
+        } else if (plot.time_type === 'official_time') {
+          doc.setFillColor(255, 243, 224);
+          doc.setDrawColor(230, 81, 0);
+        } else {
+          doc.setFillColor(243, 245, 253);
+          doc.setDrawColor(74, 20, 140);
+        }
+
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD');
+      });
+
+
       // --- PASS 2: Draw all text on top ---
       sortedScheduleData.forEach(item => {
         const dayIndex = days.indexOf(item.day);
@@ -1026,7 +1140,61 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         });
       });
 
+      // --- PASS 2.5: Draw all text on top (Time Plots) ---
+      timePlots.forEach(plot => {
+        const dayIndex = days.indexOf(plot.day);
+        if (dayIndex === -1) return;
+
+        const originalStart = this.timeToMinutes(plot.start_time);
+        const originalEnd = this.timeToMinutes(plot.end_time);
+        const cappedStart = Math.max(originalStart, chunk.start);
+        const cappedEnd = Math.min(originalEnd, chunk.end);
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        
+        if (plot.time_type === 'night_service') {
+          doc.setTextColor(21, 101, 192);
+        } else if (plot.time_type === 'official_time') {
+          doc.setTextColor(230, 81, 0);
+        } else {
+          doc.setTextColor(74, 20, 140);
+        }
+
+        const typeLabel = this.getDisplayTypeName(plot.time_type).toUpperCase();
+        const timeRange = `${this.formatTime(plot.start_time)} - ` +
+                          `${this.formatTime(plot.end_time)}`;
+
+        doc.text(
+          typeLabel,
+          xPos + dayColumnWidth / 2,
+          yPos + (height / 2) - 1.5,
+          { align: 'center', baseline: 'middle' }
+        );
+
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(
+          timeRange,
+          xPos + dayColumnWidth / 2,
+          yPos + (height / 2) + 2.5,
+          { align: 'center', baseline: 'middle' }
+        );
+      });
+
     }); // end activeChunks.forEach
+
 
     // ✅ Always draw footer on the last page
     this.reportHeaderService.addStandardFooter(doc);
@@ -1065,15 +1233,23 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   hasSchedules(faculty: Faculty): boolean {
-    return (faculty.schedules ?? []).length > 0;
+    return (faculty.schedules ?? []).length > 0 ||
+           (faculty.timePlots ?? []).length > 0;
   }
 
+  getDisplayTypeName(type: string): string {
+    switch (type) {
+      case 'night_service': return 'Night Service';
+      case 'official_time': return 'Official Time';
+      case 'advising_time': return 'Advising Time';
+      default: return type;
+    }
+  }
+
+
+
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'), designee: type.includes('designee'),
-      'part-time': type.includes('part-time'), temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
 }

@@ -22,8 +22,8 @@
       <div class="pref-header-actions">
 
         <!-- Tutorial action card — sits LEFT of totals, same visual weight -->
-        <div class="tutorial-card" (click)="openTutorial()" [@fadeAnimation]
-             matRipple role="button" tabindex="0"
+        <div class="tutorial-card desktop-only" (click)="openTutorial()"
+             [@fadeAnimation] matRipple role="button" tabindex="0"
              aria-label="Open faculty preferences tutorial"
              (keydown.enter)="openTutorial()">
           <span mat-symbol="menu_book" class="tutorial-card-icon"></span>
@@ -76,11 +76,13 @@
             <button mat-icon-button matSuffix (click)="clearSearch()">
               <mat-icon>close</mat-icon>
             </button>
-            } @if (!showProgramSelection() && !searchQuery()) {
+            }
+            @if (!showProgramSelection() && !searchQuery()) {
             <button
               mat-icon-button
               matSuffix
               class="filter-button"
+              matTooltip="Filter courses by year level"
               [matMenuTriggerFor]="filterMenu"
               [matMenuTriggerRestoreFocus]="false"
               [class.active-filter]="selectedYearLevel() !== null">
@@ -89,14 +91,16 @@
             }
           </mat-form-field>
 
-          <button
-            mat-flat-button
-            class="import-history-btn"
-            (click)="openImportHistoryDialog()"
-            matTooltip="Import courses from your history">
-            <span mat-symbol="history"></span>
-            Import Past Preferences
-          </button>
+          <div class="courses-search-buttons">
+            <button
+              mat-flat-button
+              class="import-history-btn"
+              (click)="openImportHistoryDialog()"
+              matTooltip="Import courses from your history">
+              <span mat-symbol="history"></span>
+              Import Past Preferences
+            </button>
+          </div>
         </div>
 
         <mat-menu #filterMenu="matMenu" panelClass="filter-year-menu">
@@ -107,18 +111,25 @@
             [class.mdc-list-item--selected]="selectedYearLevel() === year"
             (click)="$event.stopPropagation(); filterByYearLevel(year)">
             <span class="menu-item-content">
-              @if (selectedYearLevel() === year) {
-              <mat-icon>check</mat-icon>
-              }
-              <span>Year Level: {{ year }}</span>
+              <mat-icon
+                [style.visibility]="
+                  selectedYearLevel() === year ? 'visible' : 'hidden'
+                ">
+                check
+              </mat-icon>
+              <span>{{ getYearLevelLabel(year) }}</span>
             </span>
           </button>
           }
           <!-- Clear filter option -->
           <button
             mat-menu-item
+            class="year-level-item"
             (click)="$event.stopPropagation(); selectedYearLevel.set(null)">
-            Reset to All Year Levels
+            <span class="menu-item-content">
+              <mat-icon>clear</mat-icon>
+              <span>Reset to All Year Levels</span>
+            </span>
           </button>
         </mat-menu>
 
@@ -213,37 +224,53 @@
             Select {{ selectedProgram()?.program_code }} Courses
           </h3>
           <div class="courses-scroll-container">
-            <div [@cardEntranceAnimation]="filteredCourses().length">
-              @for (course of filteredCourses(); track course.course_id) {
-              <div
-                class="course-card pop"
-                (click)="addCourseToTable(course)"
-                matRipple>
-                <div class="course-info">
-                  <div class="course-meta">
-                    <span class="course-code">{{ getDisplayCode(course) }}</span>
-                    @if (getResolvedElective(course)) {
-                      <span
-                        class="elective-badge"
-                        [matTooltip]="'Original slot: ' +
-                                      course.course_code"
-                      >
-                        {{ course.course_code }}
+            <div [@cardEntranceAnimation]="groupedCourses().length">
+              @for (group of groupedCourses(); track group.yearLevel) {
+              <div class="year-level-group">
+                <h4 class="year-level-header">
+                  <span mat-symbol="layers" size="20px"></span>
+                  {{ getYearLevelLabel(group.yearLevel) }}
+                </h4>
+                @for (course of group.courses; track course.course_id) {
+                <div
+                  class="course-card pop"
+                  (click)="addCourseToTable(course)"
+                  matRipple>
+                  <div class="course-info">
+                    <div class="course-meta">
+                      <span class="course-code">
+                        {{ getDisplayCode(course) }}
                       </span>
-                    }
-                    @if (course.is_temporary) {
-                    <span
-                      class="temp-pill"
-                      [matTooltip]="getTemporaryTooltip(course)">
-                      {{ getTemporaryBadgeText(course) }}
+                      @if (getResolvedElective(course)) {
+                        <span
+                          class="elective-badge"
+                          [matTooltip]="'Original slot: ' +
+                                        course.course_code"
+                        >
+                          {{ course.course_code }}
+                        </span>
+                      }
+                      @if (course.is_temporary) {
+                      <span
+                        class="temp-pill"
+                        [matTooltip]="getTemporaryTooltip(course)">
+                        {{ getTemporaryBadgeText(course) }}
+                      </span>
+                      }
+                    </div>
+                    <span class="course-title">
+                      {{ getDisplayTitle(course) }}
                     </span>
-                    }
                   </div>
-                  <span class="course-title">{{ getDisplayTitle(course) }}</span>
+                  <button mat-icon-button class="add-button">
+                    <span
+                      mat-symbol="add"
+                      variant="outlined"
+                      size="20px"
+                    ></span>
+                  </button>
                 </div>
-                <button mat-icon-button class="add-button">
-                  <span mat-symbol="add" variant="outlined" size="20px"></span>
-                </button>
+                }
               </div>
               }
             </div>
@@ -299,6 +326,14 @@
 
       <!-- Preferences Table -->
       <div id="table_container" #tableContainer [@fadeAnimation]>
+        @if (isPreferencesEnabled()) {
+          <div class="pref-loaded-note-banner auto-save-banner" [@fadeAnimation]>
+            <mat-icon class="info-icon">info</mat-icon>
+            <div class="note-content">
+              <strong>Note:</strong> Once you assign a day and time to a course, your preference is <strong>automatically saved and submitted</strong> to the administrator.
+            </div>
+          </div>
+        }
         <table
           mat-table
           [dataSource]="dataSource()"

@@ -20,7 +20,6 @@ import { slideInAnimation, fadeAnimation } from '../../../animations/animations'
 
 import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
-import { CookieService } from 'ngx-cookie-service';
 import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-password/dialog-change-password.component';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
 
@@ -75,7 +74,6 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     private route: ActivatedRoute,
     private authService: AuthService,
     private dialog: MatDialog,
-    private cookieService: CookieService,
     private el: ElementRef,
     private renderer: Renderer2,
     private ngZone: NgZone
@@ -85,7 +83,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   ngOnInit(): void {
     this.initializeUserData();
     
-    if (this.cookieService.get('termsAccepted') !== 'true') {
+    if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,

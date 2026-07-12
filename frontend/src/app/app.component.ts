@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { SwUpdate } from '@angular/service-worker';
@@ -38,16 +38,34 @@ export class AppComponent implements OnInit {
     return parentPath;
   }
 
+  // Trigger update checks when tab becomes active (focused)
+  @HostListener('document:visibilitychange', [])
+  onVisibilityChange() {
+    if (this.swUpdate.isEnabled && document.visibilityState === 'visible') {
+      this.swUpdate.checkForUpdate().catch((err) => {
+        console.error('Error checking for updates:', err);
+      });
+    }
+  }
+
   private checkForUpdates() {
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe((event) => {
         
         if (event.type === 'VERSION_READY') {
           this.swUpdate.activateUpdate().then(() => {
-            document.location.reload();
+            // Wait 250ms for cache swap completion before reload
+            setTimeout(() => {
+              document.location.reload();
+            }, 250);
           });
         }
         
+      });
+
+      // Force update check on startup
+      this.swUpdate.checkForUpdate().catch((err) => {
+        console.error('Error checking updates on startup:', err);
       });
     }
   }

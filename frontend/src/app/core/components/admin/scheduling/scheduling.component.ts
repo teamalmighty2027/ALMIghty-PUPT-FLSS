@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { Observable, Subject, forkJoin, of, from } from 'rxjs';
 import { takeUntil, switchMap, tap, map, catchError, finalize, concatMap } from 'rxjs/operators';
 import { fadeAnimation, pageFloatUpAnimation } from '../../../animations/animations';
@@ -105,6 +106,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   /* Draft mode state */
   isDraftMode: boolean = false;
   draftSchedules: Schedule[] = [];
+  copyConflicts = new Set<number>();
   isAiFilling: boolean = false;
   aiFillProgress: { current: number; total: number } = { current: 0, total: 0 };
   isHistoricalLoading: boolean = false;
@@ -124,6 +126,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -131,6 +134,20 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     this.initializeDisplayedColumns();
     this.generateTimeOptions();
     this.schedulingService.resetCaches([CacheType.Schedules]);
+
+    // Pre-fetch scheduling metadata to optimize dialog opening speed
+    this.schedulingService
+      .getAllRooms()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getFacultyDetails()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
+    this.schedulingService
+      .getSubmittedPreferencesForActiveSemester()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
 
     forkJoin({
       activeYearSemester: this.loadActiveYearAndSemester(),
@@ -191,6 +208,13 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    */
   protected get tableData(): Schedule[] {
     return this.isDraftMode ? this.draftSchedules : this.schedules;
+  }
+
+  /**
+   * Navigates to the course-centric scheduling view.
+   */
+  protected goToCourseCentric(): void {
+    this.router.navigate(['/admin/scheduling/course-centric']);
   }
 
   /**
@@ -295,13 +319,44 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           const display = `${p.program_code} - ${p.program_title}`;
           return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
         });
-        const yearLevel = program?.year_levels.find(y => y.year_level === Number(this.selectedYear));
-        
-        // Since the backend already filters by semester, we take the first available semester entry
-        const semester = yearLevel?.semesters[0];
-        const section = semester?.sections.find(s => 
-          s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
-        );
+
+        let section: any = null;
+        if (program && program.year_levels) {
+          // 1. Try to find a match with the exact same curriculum_id
+          const exactYearLvl = program.year_levels.find(y => 
+            y.year_level === Number(this.selectedYear) && 
+            y.curriculum_id === this.selectedCurriculumId
+          );
+          if (exactYearLvl) {
+            for (const sem of exactYearLvl.semesters) {
+              const matchedSec = sem.sections.find(s => 
+                s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
+              );
+              if (matchedSec) {
+                section = matchedSec;
+                break;
+              }
+            }
+          }
+
+          // 2. If no exact curriculum match, fallback to any matching year level that has the section
+          if (!section) {
+            for (const y of program.year_levels) {
+              if (y.year_level === Number(this.selectedYear)) {
+                for (const sem of y.semesters) {
+                  const matchedSec = sem.sections.find(s => 
+                    s.section_name.trim().toLowerCase() === this.selectedSection.trim().toLowerCase()
+                  );
+                  if (matchedSec) {
+                    section = matchedSec;
+                    break;
+                  }
+                }
+              }
+              if (section) break;
+            }
+          }
+        }
 
         if (!section || !section.courses || section.courses.length === 0) {
           const msg = 'No matching historical data found for this section.';
@@ -318,7 +373,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         const filledEntries: DraftEntry[] = [];
 
         emptySlots.forEach(slot => {
-          const matchedCourse = section.courses.find(c => c.course_id === slot.course_id);
+          const matchedCourse = section.courses.find((c: any) => 
+            c.course_code.trim().toLowerCase() === slot.course_code.trim().toLowerCase() &&
+            Number(c.is_copy) === Number(slot.is_copy)
+          );
           if (matchedCourse && matchedCourse.schedule && matchedCourse.schedule.day !== 'Not set') {
             const entry: DraftEntry = {
               schedule_id: slot.schedule_id!,
@@ -374,34 +432,71 @@ export class SchedulingComponent implements OnInit, OnDestroy {
    * @returns An observable that completes when the conflict check is done.
    */
   private runConflictCheck(entry: DraftEntry): Observable<void> {
-    const program = this.programOptions.find(p => p.display === this.selectedProgram);
-    const section = this.sectionOptions.find(s => s.section_name === this.selectedSection);
-    
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
     if (!program || !section) return of(void 0);
 
-    return this.schedulingService.checkForScheduleConflicts(
-      entry.schedule_id,
-      program.id,
-      this.selectedYear,
-      entry.day || '',
-      entry.start_time || '',
-      entry.end_time || '',
-      section.section_id,
-      entry.faculty_id,
-      entry.room_id
-    ).pipe(
-      tap(result => {
-        const currentEntry = this.draftStateService.get(entry.schedule_id);
-        if (currentEntry) {
-          this.draftStateService.set(entry.schedule_id, {
-            ...currentEntry,
-            hasConflict: result.hasConflicts
-          });
-        }
-      }),
-      map(() => void 0),
-      catchError(() => of(void 0))
+    const draftSchedule = this.draftSchedules.find(
+      (s) => s.schedule_id === entry.schedule_id
     );
+    const courseId = draftSchedule?.course_id || 0;
+
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
+    const sectionCourseId = (draftSchedule as any)?.section_course_id;
+    const courseSchedules = (
+      this.isDraftMode ? this.draftSchedules : this.schedules
+    ).filter(
+      (s) =>
+        (s as any).section_course_id === sectionCourseId &&
+        s.schedule_id !== entry.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    let hoursAlreadyAssigned = 0;
+    courseSchedules.forEach((s) => {
+      if (s.start_time && s.end_time) {
+        hoursAlreadyAssigned +=
+          (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+      }
+    });
+
+    return this.schedulingService
+      .checkForScheduleConflicts(
+        courseId,
+        entry.schedule_id,
+        program.id,
+        this.selectedYear,
+        entry.day || '',
+        entry.start_time || '',
+        entry.end_time || '',
+        section.section_id,
+        entry.faculty_id,
+        entry.room_id,
+        hoursAlreadyAssigned
+      )
+      .pipe(
+        tap((result) => {
+          const currentEntry = this.draftStateService.get(entry.schedule_id);
+          if (currentEntry) {
+            this.draftStateService.set(entry.schedule_id, {
+              ...currentEntry,
+              hasConflict: result.hasConflicts,
+            });
+          }
+        }),
+        map(() => void 0),
+        catchError(() => of(void 0))
+      );
   }
 
   /**
@@ -452,59 +547,72 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
     let unassignedCount = 0;
 
-    from(emptySlots).pipe(
-      concatMap(slot => {
-        return this.schedulingService.getSmartSuggestion(
-          slot.course_id,
-          this.activeAcademicYearId || 0,
-          this.activeSemesterId || 0,
-          this.activeSemesterRecordId || 0,
-          programId,
-          this.selectedYear,
-          sectionId
-        ).pipe(
-          switchMap(suggestion => {
-            if (suggestion && suggestion.faculty_id) {
-              const entry: DraftEntry = {
-                schedule_id: slot.schedule_id!,
-                faculty_id: suggestion.faculty_id,
-                faculty_name: suggestion.faculty_name,
-                room_id: null,
-                room_code: 'Not set',
-                day: suggestion.day,
-                start_time: this.convertTimeToBackendFormat(suggestion.start_time),
-                end_time: this.convertTimeToBackendFormat(suggestion.end_time),
-                hasConflict: false
-              };
-              this.draftStateService.set(slot.schedule_id!, entry);
-              return this.runConflictCheck(entry);
-            } else {
-              unassignedCount++;
-              return of(void 0);
-            }
+    this.schedulingService.getFacultyDetails().pipe(
+      takeUntil(this.destroy$),
+      switchMap(({ faculty }) => {
+        return from(emptySlots).pipe(
+          concatMap(slot => {
+            return this.schedulingService.getSmartSuggestion(
+              slot.course_id,
+              this.activeAcademicYearId || 0,
+              this.activeSemesterId || 0,
+              this.activeSemesterRecordId || 0,
+              programId,
+              this.selectedYear,
+              sectionId
+            ).pipe(
+              switchMap(suggestion => {
+                if (suggestion && suggestion.faculty_id) {
+                  const fac = faculty.find(
+                    (f) => f.faculty_id === suggestion.faculty_id
+                  );
+                  const facultyName = fac ? fac.name : suggestion.faculty_name;
+                  const entry: DraftEntry = {
+                    schedule_id: slot.schedule_id!,
+                    faculty_id: suggestion.faculty_id,
+                    faculty_name: facultyName,
+                    room_id: null,
+                    room_code: 'Not set',
+                    day: suggestion.day,
+                    start_time: this.convertTimeToBackendFormat(
+                      suggestion.start_time
+                    ),
+                    end_time: this.convertTimeToBackendFormat(
+                      suggestion.end_time
+                    ),
+                    hasConflict: false
+                  };
+                  this.draftStateService.set(slot.schedule_id!, entry);
+                  return this.runConflictCheck(entry);
+                } else {
+                  unassignedCount++;
+                  return of(void 0);
+                }
+              }),
+              tap(() => {
+                this.aiFillProgress.current++;
+                this.rebuildDraftSchedules();
+                this.cdr.markForCheck();
+              }),
+              catchError(() => {
+                unassignedCount++;
+                return of(void 0);
+              })
+            );
           }),
-          tap(() => {
-            this.aiFillProgress.current++;
+          finalize(() => {
+            this.isAiFilling = false;
             this.rebuildDraftSchedules();
             this.cdr.markForCheck();
-          }),
-          catchError(() => {
-            unassignedCount++;
-            return of(void 0);
+            
+            const assignedCount = emptySlots.length - unassignedCount;
+            const msg = assignedCount === emptySlots.length 
+              ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
+              : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
+            
+            this.snackBar.open(msg, 'Close', { duration: 6000 });
           })
         );
-      }),
-      finalize(() => {
-        this.isAiFilling = false;
-        this.rebuildDraftSchedules();
-        this.cdr.markForCheck();
-        
-        const assignedCount = emptySlots.length - unassignedCount;
-        const msg = assignedCount === emptySlots.length 
-          ? `Fill completed. All ${emptySlots.length} slots processed successfully.`
-          : `Fill finished. ${assignedCount} slots filled, ${unassignedCount} remained unassigned.`;
-        
-        this.snackBar.open(msg, 'Close', { duration: 6000 });
       })
     ).subscribe();
   }
@@ -725,6 +833,12 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     return this.draftStateService.get(schedule.schedule_id)?.hasConflict ?? false;
   }
 
+  // Checks if a given schedule has an active copy conflict
+  protected hasCopyConflict(schedule: Schedule): boolean {
+    return this.copyConflicts.has(schedule.section_course_id);
+  }
+
+
   /**
    * Rebuilds the draft schedules from the draft state service
    */
@@ -861,7 +975,15 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         )!.options = this.yearLevelOptions.map((year) => year.year_level);
 
         if (this.yearLevelOptions.length > 0) {
-          const defaultYearLevel = this.yearLevelOptions[0];
+          const cachedYear = this.schedulingService.getSelectedYear();
+          const defaultYearLevel =
+            cachedYear &&
+            this.yearLevelOptions.some((y) => y.year_level === cachedYear)
+              ? this.yearLevelOptions.find(
+                  (y) => y.year_level === cachedYear
+                )!
+              : this.yearLevelOptions[0];
+
           this.selectedYear = defaultYearLevel.year_level;
           this.previousYear = defaultYearLevel.year_level;
           this.selectedCurriculumId = defaultYearLevel.curriculum_id;
@@ -877,7 +999,16 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           );
 
           if (this.sectionOptions.length > 0) {
-            this.selectedSection = this.sectionOptions[0].section_name;
+            const cachedSection = this.schedulingService.getSelectedSection();
+            const defaultSection =
+              cachedSection &&
+              this.sectionOptions.some((s) => s.section_name === cachedSection)
+                ? this.sectionOptions.find(
+                    (s) => s.section_name === cachedSection
+                  )!
+                : this.sectionOptions[0];
+
+            this.selectedSection = defaultSection.section_name;
 
             // Fetch courses with default selections
             const selectedProgram = this.programOptions.find(
@@ -1021,6 +1152,10 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       this.schedules = [];
       return;
     }
+
+    // Cache the selected year level and section
+    this.schedulingService.setSelectedYear(this.selectedYear);
+    this.schedulingService.setSelectedSection(this.selectedSection);
 
     this.fetchCourses(
       selectedProgram.id,
@@ -1175,6 +1310,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
         });
 
         this.cdr.detectChanges();
+        this.checkAllCopyConflicts();
       }),
       map(() => this.schedules),
       catchError((error) => {
@@ -1183,6 +1319,57 @@ export class SchedulingComponent implements OnInit, OnDestroy {
       })
     );
   }
+
+  // Checks all duplicated schedule copies for conflicts
+  private checkAllCopyConflicts(): void {
+    this.copyConflicts.clear();
+
+    const copies = this.schedules.filter(
+      (s) =>
+        s.is_copy === 1 &&
+        s.schedule_id &&
+        s.day &&
+        s.day !== 'Not set'
+    );
+
+    const program = this.programOptions.find(
+      (p) => p.display === this.selectedProgram
+    );
+    const section = this.sectionOptions.find(
+      (s) => s.section_name === this.selectedSection
+    );
+
+    if (!program || !section || copies.length === 0) {
+      this.cdr.markForCheck();
+      return;
+    }
+
+    copies.forEach((copy) => {
+      this.schedulingService
+        .checkForScheduleConflicts(
+          copy.course_id,
+          copy.schedule_id!,
+          program.id,
+          this.selectedYear,
+          copy.day || '',
+          copy.start_time || '',
+          copy.end_time || '',
+          section.section_id,
+          copy.faculty_id || null,
+          copy.room_id || null,
+          0
+        )
+        .subscribe((result) => {
+          if (result.hasConflicts) {
+            this.copyConflicts.add(copy.section_course_id);
+          } else {
+            this.copyConflicts.delete(copy.section_course_id);
+          }
+          this.cdr.markForCheck();
+        });
+    });
+  }
+
 
   // ====================
   // Dialog Methods
@@ -1443,7 +1630,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
 
                 const facultyPref: SuggestedFaculty = {
                   faculty_id: facultyDetails.faculty_id,
-                  name: pref.faculty_name,
+                  name: facultyDetails.name,
                   type: facultyDetails.faculty_type,
                   preferences: course.preferred_days.map((prefDay: any) => ({
                     day: prefDay.day,
@@ -1475,6 +1662,29 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           combinedProgramCode = combinedProgram?.display?.split(' ')[0] ||
             null;
         }
+
+        const timeToMinutes = (timeStr: string): number => {
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return hours * 60 + minutes;
+        };
+
+        const courseSchedules = (
+          this.isDraftMode ? this.draftSchedules : this.schedules
+        ).filter(
+          (s) =>
+            (s as any).section_course_id === schedule.section_course_id &&
+            s.schedule_id !== schedule.schedule_id &&
+            s.day &&
+            s.day !== 'Not set'
+        );
+
+        let hoursAlreadyAssigned = 0;
+        courseSchedules.forEach((s) => {
+          if (s.start_time && s.end_time) {
+            hoursAlreadyAssigned +=
+              (timeToMinutes(s.end_time) - timeToMinutes(s.start_time)) / 60;
+          }
+        });
 
         const dialogRef = this.dialog.open(DialogSchedulingComponent, {
           maxWidth: '80rem',
@@ -1518,6 +1728,9 @@ export class SchedulingComponent implements OnInit, OnDestroy {
             bridging_course_id: schedule.bridging_course_id,
             combined_with_program_id: schedule.combined_with_program_id,
             combined_with_program_code: combinedProgramCode,
+            hoursAlreadyAssigned,
+            lec_hours: schedule.lec_hours,
+            lab_hours: schedule.lab_hours,
           },
         });
 
@@ -1525,17 +1738,21 @@ export class SchedulingComponent implements OnInit, OnDestroy {
           if (!result) return;
 
           if (this.isDraftMode && result.isDraft) {
-            this.draftStateService.set(schedule.schedule_id!, {
+            const entry: DraftEntry = {
               ...result,
               schedule_id: schedule.schedule_id,
               hasConflict: false
+            };
+            this.draftStateService.set(schedule.schedule_id!, entry);
+            this.runConflictCheck(entry).subscribe(() => {
+              this.rebuildDraftSchedules();
+              this.snackBar.open(
+                `Draft updated for ${schedule.course_code}. ` +
+                `Save to apply permanently.`,
+                'Close',
+                { duration: 3000 }
+              );
             });
-            this.rebuildDraftSchedules();
-            this.snackBar.open(
-              `Draft updated for ${schedule.course_code}. Save to apply permanently.`,
-              'Close',
-              { duration: 3000 }
-            );
             return;
           }
             this.snackBar.open(

@@ -68,8 +68,12 @@
           </div>
           <div class="field-group department" *ngIf="!isAdmin">
             <label>Department</label>
-            <input formControlName="department" class="pill-input" placeholder="e.g., IT Dept" 
-                  [title]="profileForm.get('department')?.value || ''">
+            <select formControlName="department" class="pill-input" [title]="profileForm.get('department')?.value || ''">
+              <option [value]="''" disabled selected>Select a Department...</option>
+              <option *ngFor="let program of activePrograms" [value]="program.program_title">
+                {{ program.program_title }}
+              </option>
+            </select>
           </div>
         </div>
 

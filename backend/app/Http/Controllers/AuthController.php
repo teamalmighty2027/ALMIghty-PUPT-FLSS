@@ -58,6 +58,9 @@ class AuthController extends Controller
         $token       = $tokenResult->plainTextToken;
         $expiration  = Carbon::now()->addHours(24);
 
+        $tokenResult->accessToken->expires_at = $expiration;
+        $tokenResult->accessToken->save();
+
         $faculty = $user->faculty;
 
         // Get permissions and allowed programs for response
@@ -148,13 +151,17 @@ class AuthController extends Controller
 
         $currentToken = $user->currentAccessToken();
 
-        if ($currentToken && method_exists($currentToken, 'delete')) {
-            $currentToken->delete();
+        if ($currentToken && method_exists($currentToken, 'save')) {
+            $currentToken->expires_at = Carbon::now()->addMinute();
+            $currentToken->save();
         }
 
         $tokenResult = $user->createToken('user-token');
         $token = $tokenResult->plainTextToken;
         $expiration = Carbon::now()->addHours(24);
+
+        $tokenResult->accessToken->expires_at = $expiration;
+        $tokenResult->accessToken->save();
 
         return response()->json([
             'message' => 'Token refreshed.',
@@ -297,10 +304,16 @@ class AuthController extends Controller
             $lastName = $userData['last_name'] ?? '';
 
             // Query user by email
-            $user = User::with(['faculty.facultyType'])
-              ->where('email', $email)
+            $user = User::where('email', $email)
               ->whereIn('role', $requestedRole)
               ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found in system.',
+                    'error'   => true
+                ], 401);
+            }
 
             // Persist the IDP user ID on the faculty record only if it has changed
             if ($user && $user->faculty && $id && strlen($id) <= 36) {
@@ -311,13 +324,6 @@ class AuthController extends Controller
 
             // Collect the roles of the user
             $roles = $user ? [$user->role] : [];
-
-            if (!$user) {
-                return response()->json([
-                    'message' => 'User not found in system.',
-                    'error'   => true
-                ], 401);
-            }
 
             if (! in_array($user->role, $requestedRole)) {
                 return response()->json([
@@ -333,6 +339,10 @@ class AuthController extends Controller
             // Use IDP token expiry for Sanctum token expiry
             $expiresIn = $token['expires_in'] ?? 3600;
             $expiration = (int) ceil($expiresIn / 60);
+
+            $expirationDateTime = Carbon::now()->addSeconds($expiresIn);
+            $tokenResult->accessToken->expires_at = $expirationDateTime;
+            $tokenResult->accessToken->save();
 
             // Get permissions and allowed programs for response
             $permissions = $user->permissions->pluck('permission_key')->toArray();
@@ -454,5 +464,214 @@ class AuthController extends Controller
                 'message' => 'IDP logout proxy failed.',
             ], 502);
         }
+    }
+
+    /**
+     * Proxy that validates an existing IDP access_token and returns
+     * routing info without requiring a new OAuth code exchange.
+     * Mirrors handleIdpCallback but skips Step 1 (token exchange).
+     */
+    public function handleOnePortalRedirect(Request $request)
+    {
+        $baseUrl  = config('services.idp.base_url');
+        $clientId = config('services.idp.client_id');
+
+        // Validate required IDP config keys
+        if (!$baseUrl || !$clientId) {
+            Log::error('IDP configuration missing for redirect proxy');
+            return response()->json([
+                'message' => 'Authentication configuration error.',
+            ], 500);
+        }
+
+        $idpToken = $request->query('idp_token');
+
+        // No token present — signal the frontend to fall back
+        if (empty($idpToken)) {
+            return response()->json([
+                'session'     => false,
+                'redirect_to' => '/login',
+            ]);
+        }
+
+        try {
+            // --- Verify session via IDP /me endpoint ---
+            $meResponse = Http::withoutVerifying()
+                ->withToken($idpToken)
+                ->get(rtrim($baseUrl, '/') . '/api/v1/me');
+
+            if (!$meResponse->successful()) {
+                Log::info(
+                    'IDP session check returned non-2xx for redirect proxy'
+                );
+                return response()->json([
+                    'session'     => false,
+                    'redirect_to' => '/login',
+                ]);
+            }
+
+            $idpData = $meResponse->json();
+
+            if (!is_array($idpData) || !isset($idpData['email'])) {
+                return response()->json([
+                    'session'     => false,
+                    'redirect_to' => '/login',
+                ]);
+            }
+
+            $email     = $idpData['email'];
+            $idpUserId = $idpData['id'] ?? null;
+
+            // --- Find all FLSS users matching this email across roles ---
+            $users = User::with([
+                'faculty.facultyType',
+                'permissions',
+                'allowedPrograms',
+            ])
+                ->where('email', $email)
+                ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                ->get();
+
+            if ($users->isEmpty()) {
+                return response()->json([
+                    'session'     => false,
+                    'redirect_to' => '/login',
+                ]);
+            }
+
+            $availableRoles = $users->pluck('role')
+                ->unique()->values()->toArray();
+
+            // --- Multiple roles: let the frontend show a role picker ---
+            if (count($availableRoles) > 1) {
+                return response()->json([
+                    'session'                 => true,
+                    'requires_role_selection' => true,
+                    'available_roles'         => $availableRoles,
+                    'data'                    => [
+                        'email' => $email,
+                        'name'  => ($idpData['first_name'] ?? '')
+                                 . ' ' . ($idpData['last_name'] ?? ''),
+                    ],
+                ]);
+            }
+
+            // --- Single role: issue a Sanctum token and return ---
+            $user = $users->first();
+
+            // Persist IDP user ID on the faculty record if changed
+            if (
+                $user->faculty &&
+                $idpUserId &&
+                strlen($idpUserId) <= 36
+            ) {
+                if ($user->faculty->idp_user_id !== $idpUserId) {
+                    $user->faculty->update(['idp_user_id' => $idpUserId]);
+                }
+            }
+
+            $tokenResult  = $user->createToken('iDP-user-token');
+            $sanctumToken = $tokenResult->plainTextToken;
+
+            // Default to 1 hour since code exchange was skipped
+            $expiresIn          = 3600;
+            $expiration         = (int) ceil($expiresIn / 60);
+            $expirationDateTime = Carbon::now()->addSeconds($expiresIn);
+
+            $tokenResult->accessToken->expires_at = $expirationDateTime;
+            $tokenResult->accessToken->save();
+
+            $permissions     = $user->permissions
+                ->pluck('permission_key')->toArray();
+            $allowedPrograms = $user->getAllowedProgramIds();
+            $isFullAccess    = $user->isFullAccess();
+
+            // Build user data payload
+            $userDataArray = [
+                'id'               => $user->id,
+                'name'             => $user->first_name
+                                    . ' ' . $user->last_name,
+                'email'            => $user->email,
+                'code'             => $user->code,
+                'roles'            => [$user->role],
+                'permissions'      => $permissions,
+                'allowed_programs' => $allowedPrograms,
+                'is_full_access'   => $isFullAccess,
+            ];
+
+            if ($user->role === 'superadmin') {
+                $userDataArray['role'] = 'superadmin';
+            } elseif ($user->role === 'faculty') {
+                $userDataArray['role']    = 'faculty';
+                $userDataArray['faculty'] = $user->faculty ? [
+                    'faculty_id'    => $user->faculty->id,
+                    'faculty_email' => $user->email,
+                    'faculty_type'  =>
+                        $user->faculty->facultyType->faculty_type ?? null,
+                    'faculty_units' => $user->faculty->faculty_units,
+                ] : null;
+            } else {
+                $userDataArray['role'] = 'admin';
+            }
+
+            // Map role to the matching frontend dashboard path
+            $redirectMap = [
+                'faculty'    => '/faculty/home',
+                'admin'      => '/admin',
+                'superadmin' => '/superadmin',
+            ];
+
+            $redirectTo = $redirectMap[$user->role] ?? '/login';
+
+            // Log the login event via audit logger
+            Auth::setUser($user);
+            AuditLogger::logLogin($email);
+
+            return response()->json([
+                'session'                 => true,
+                'requires_role_selection' => false,
+                'redirect_to'             => $redirectTo,
+                'token'                   => [
+                    'token'        => $sanctumToken,
+                    'access_token' => $idpToken,
+                    'expires_in'   => $expiresIn,
+                ],
+                'data' => $userDataArray,
+            ])
+            ->cookie(
+                'token', $sanctumToken, $expiration, null, null, true, true
+            )
+            ->cookie('user_info', json_encode($userDataArray), $expiration);
+        } catch (Exception $e) {
+            Log::error(
+                'Error in handleOnePortalRedirect: ' . $e->getMessage()
+            );
+            return response()->json([
+                'session'     => false,
+                'redirect_to' => '/login',
+            ]);
+        }
+    }
+
+    /**
+     * Generates and returns the IDP authorization redirect URL.
+     */
+    public function getIdpLoginUrl()
+    {
+        $baseUrl = config('services.idp.base_url');
+        $clientId = config('services.idp.client_id');
+
+        if (!$baseUrl || !$clientId) {
+            Log::error('IDP configuration missing for generating authorization URL');
+            return response()->json([
+                'message' => 'Authentication configuration error.',
+            ], 500);
+        }
+
+        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id=' . $clientId;
+
+        return response()->json([
+            'url' => $url,
+        ]);
     }
 }

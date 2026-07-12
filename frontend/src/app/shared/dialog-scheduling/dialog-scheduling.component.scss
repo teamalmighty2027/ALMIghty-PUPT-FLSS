@@ -618,7 +618,7 @@
     gap: var(--spacing-xs);
     padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
-    width: fit-content;
+    width: 100%;
 
     &.no-conflict {
       background-color: var(--secondary-fade);
@@ -628,6 +628,18 @@
     &.conflict {
       background-color: var(--primary-fade);
       color: var(--primary-text);
+    }
+
+    &.warning {
+      background-color: rgba(230, 162, 60, 0.1);
+      color: var(--primary-warning);
+      margin-top: var(--spacing-xs);
+    }
+
+    &.info {
+      background-color: rgba(64, 158, 255, 0.1);
+      color: #409eff;
+      margin-top: var(--spacing-xs);
     }
   }
 }
@@ -672,6 +684,48 @@
         color: var(--neutral-base) !important;
         opacity: var(--opacity-semi-opaque);
       }
+    }
+  }
+}
+
+.prof-option {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .prof-name {
+    flex-grow: 1;
+  }
+
+  .faculty-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--border-radius-xl);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: var(--spacing-sm);
+
+    &.full-time {
+      background-color: var(--blue-fade-lighter);
+      color: var(--blue-primary);
+    }
+
+    &.part-time {
+      background-color: var(--purple-fade-lighter);
+      color: var(--purple-primary);
+    }
+
+    &.designee {
+      background-color: var(--pink-fade-lighter);
+      color: var(--pink-primary);
+    }
+
+    &.temporary {
+      background-color: var(--aqua-fade-lighter);
+      color: var(--aqua-primary);
     }
   }
 }

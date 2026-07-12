@@ -11,7 +11,7 @@ class FacultyTypeController extends Controller
 {
     public function index(): JsonResponse
     {
-        $facultyTypes = FacultyType::all();
+        $facultyTypes = FacultyType::with('designeeRole')->get();
         return response()->json($facultyTypes);
     }
 
@@ -21,9 +21,12 @@ class FacultyTypeController extends Controller
             'faculty_type' => 'required|string|unique:faculty_type',
             'regular_units' => 'required|numeric|min:0',
             'additional_units' => 'required|numeric|min:0',
+            'designee_role_id' =>
+                'nullable|exists:designee_role,designee_role_id',
         ]);
 
         $facultyType = FacultyType::create($validatedData);
+        $facultyType->load('designeeRole');
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Faculty Type Created
@@ -40,24 +43,40 @@ class FacultyTypeController extends Controller
 
     public function show(FacultyType $facultyType): JsonResponse
     {
+        $facultyType->load('designeeRole');
         return response()->json($facultyType);
     }
 
-    public function update(Request $request, FacultyType $facultyType): JsonResponse
-    {
+    public function update(
+        Request $request,
+        FacultyType $facultyType
+    ): JsonResponse {
         // 1. Save Old Data
         $oldData = $facultyType->toArray();
 
         $validatedData = $request->validate([
-            'faculty_type' => 'required|string|unique:faculty_type,faculty_type,' . $facultyType->faculty_type_id . ',faculty_type_id',
+            'faculty_type' => 'required|string|unique:faculty_type,' .
+                'faculty_type,' . $facultyType->faculty_type_id .
+                ',faculty_type_id',
             'regular_units' => 'required|numeric|min:0',
             'additional_units' => 'required|numeric|min:0',
+            'designee_role_id' =>
+                'nullable|exists:designee_role,designee_role_id',
         ]);
 
         // 2. Apply Changes
-        if (isset($validatedData['faculty_type'])) $facultyType->faculty_type = $validatedData['faculty_type'];
-        if (isset($validatedData['regular_units'])) $facultyType->regular_units = $validatedData['regular_units'];
-        if (isset($validatedData['additional_units'])) $facultyType->additional_units = $validatedData['additional_units'];
+        if (isset($validatedData['faculty_type'])) {
+            $facultyType->faculty_type = $validatedData['faculty_type'];
+        }
+        if (isset($validatedData['regular_units'])) {
+            $facultyType->regular_units = $validatedData['regular_units'];
+        }
+        if (isset($validatedData['additional_units'])) {
+            $facultyType->additional_units = $validatedData['additional_units'];
+        }
+        if (array_key_exists('designee_role_id', $validatedData)) {
+            $facultyType->designee_role_id = $validatedData['designee_role_id'];
+        }
 
         // 3. Track Detailed Changes
         $changes = [];
@@ -70,6 +89,11 @@ class FacultyTypeController extends Controller
         if ($oldData['additional_units'] != $facultyType->additional_units) {
             $changes[] = "Additional Units: {$oldData['additional_units']} → {$facultyType->additional_units}";
         }
+        if ($oldData['designee_role_id'] != $facultyType->designee_role_id) {
+            $changes[] = "Designee Role: " .
+                ($oldData['designee_role_id'] ?? 'None') . " → " .
+                ($facultyType->designee_role_id ?? 'None');
+        }
 
         if (empty($changes)) {
             return response()->json(['message' => 'No changes detected'], 422);
@@ -77,6 +101,7 @@ class FacultyTypeController extends Controller
 
         // 4. Save and Log
         $facultyType->save();
+        $facultyType->load('designeeRole');
         $changesSummary = implode(', ', $changes);
 
         // ═══════════════════════════════════════════════════════
@@ -87,7 +112,8 @@ class FacultyTypeController extends Controller
             modelId: $facultyType->faculty_type_id,
             oldData: $oldData,
             newData: $facultyType->toArray(),
-            description: "Updated Faculty Type: {$facultyType->faculty_type} - {$changesSummary}"
+            description: "Updated Faculty Type: {$facultyType->faculty_type} " .
+                "- {$changesSummary}"
         );
 
         return response()->json($facultyType);

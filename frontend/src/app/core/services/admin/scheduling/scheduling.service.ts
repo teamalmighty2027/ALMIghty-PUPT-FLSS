@@ -75,6 +75,49 @@ export class SchedulingService {
   }
 
   /**
+   * Saves the selected year to localStorage.
+   */
+  setSelectedYear(year: number): void {
+    localStorage.setItem('scheduling_selected_year', String(year));
+  }
+
+  /**
+   * Retrieves the cached selected year from localStorage.
+   */
+  getSelectedYear(): number | null {
+    const cached = localStorage.getItem('scheduling_selected_year');
+    return cached ? Number(cached) : null;
+  }
+
+  /**
+   * Clears the selected year from localStorage.
+   */
+  clearSelectedYear(): void {
+    localStorage.removeItem('scheduling_selected_year');
+  }
+
+  /**
+   * Saves the selected section to localStorage.
+   */
+  setSelectedSection(section: string): void {
+    localStorage.setItem('scheduling_selected_section', section);
+  }
+
+  /**
+   * Retrieves the cached selected section from localStorage.
+   */
+  getSelectedSection(): string | null {
+    return localStorage.getItem('scheduling_selected_section');
+  }
+
+  /**
+   * Clears the selected section from localStorage.
+   */
+  clearSelectedSection(): void {
+    localStorage.removeItem('scheduling_selected_section');
+  }
+
+  /**
    * Retrieves the sections for a given program and year.
    */
   getSections(program: string, year: number): Observable<string[]> {
@@ -344,7 +387,8 @@ export class SchedulingService {
     program_id: number,
     year_level: number,
     section_id: number,
-    elective_id: number | null = null
+    elective_id: number | null = null,
+    assignment_type_id: number | null = null
   ): Observable<any> {
     const payload = {
       schedule_id,
@@ -354,11 +398,19 @@ export class SchedulingService {
       start_time,
       end_time,
       elective_id,
+      assignment_type_id,
     };
     return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
       catchError(this.handleError)
     );
+  }
+
+// Change the payload key to match the database column
+  updateAssignmentType(scheduleId: number, assignmentTypeId: number | null): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, {
+      assignment_type_id: assignmentTypeId
+    });
   }
 
   /**
@@ -385,11 +437,27 @@ export class SchedulingService {
       })
       .pipe(catchError(this.handleError));
   }
+  
+  // Fetch dynamic load types
+  getAssignmentTypes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/assignment-types`);
+  }
+
+  // Add a new dynamic load type
+  addAssignmentType(name: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/assignment-types`, { name });
+  }
+
+  // Delete a load type
+  deleteAssignmentType(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/assignment-types/${id}`);
+  }
 
   /**
    * Checks for schedule conflicts based on provided parameters.
    */
   checkForScheduleConflicts(
+    course_id: number,
     schedule_id: number,
     program_id: number,
     year_level: number,
@@ -398,14 +466,20 @@ export class SchedulingService {
     end_time: string,
     section_id: number,
     faculty_id: number | null,
-    room_id: number | null
-  ): Observable<{ hasConflicts: boolean; messages: string[] }> {
+    room_id: number | null,
+    hoursAlreadyAssigned?: number
+  ): Observable<{
+    hasConflicts: boolean;
+    messages: string[];
+    warnings: string[];
+  }> {
     return forkJoin([this.populateSchedules(), this.getAllRooms()]).pipe(
       map(([schedules, rooms]) => {
         return this.scheduleValidationService.validateScheduleConflicts(
           schedules,
           rooms,
           {
+            course_id,
             schedule_id,
             program_id,
             year_level,
@@ -415,6 +489,7 @@ export class SchedulingService {
             section_id,
             faculty_id,
             room_id,
+            hoursAlreadyAssigned,
           }
         );
       }),
@@ -455,6 +530,8 @@ export class SchedulingService {
           break;
         case CacheType.SelectedProgram:
           this.clearSelectedProgram();
+          this.clearSelectedYear();
+          this.clearSelectedSection();
           break;
         default:
           console.warn(`Unknown CacheType: ${type}`);

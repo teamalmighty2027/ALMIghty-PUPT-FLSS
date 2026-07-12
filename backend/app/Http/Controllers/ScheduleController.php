@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Schedule;
+use App\Models\Faculty;
 use App\Models\SectionCourse;
 use App\Models\Room;
 use App\Models\User;
@@ -410,13 +411,20 @@ class ScheduleController extends Controller
             ->where('is_enabled', 1)
             ->exists() ? 1 : 0;
 
+        $timePlots = DB::table('faculty_time_plots')
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get(['faculty_id', 'day', 'start_time', 'end_time', 'time_type'])
+            ->toArray();
+
         return response()->json([
             'active_semester_id' => $activeSemester->active_semester_id,
             'academic_year_id' => $activeAcademicYearId,
             'semester_id' => $activeSemester->semester_id,
             'is_submission_enabled' => $isSubmissionEnabled,
             'programs' => $response,
+            'time_plots' => $timePlots,
         ]);
+
     }
 
     /**
@@ -459,17 +467,53 @@ class ScheduleController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Create a new schedule with null fields for the copied course
+        // Fetch original schedule to carry over day/time/professor
+        $originalSchedule = DB::table('schedules')
+            ->where(
+                'section_course_id',
+                $originalSectionCourseId
+            )
+            ->first();
+
+        // Create a new schedule copying values, room is null
         $newScheduleId = DB::table('schedules')->insertGetId([
             'section_course_id' => $newSectionCourseId,
-            'day' => null,
-            'start_time' => null,
-            'end_time' => null,
-            'faculty_id' => null,
+            'day' => $originalSchedule->day ?? null,
+            'start_time' => $originalSchedule->start_time ?? null,
+            'end_time' => $originalSchedule->end_time ?? null,
+            'faculty_id' => $originalSchedule->faculty_id ?? null,
             'room_id' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        // Resolve faculty name for response payload
+        $facultyName = 'Not set';
+        $facultyId = $originalSchedule->faculty_id ?? null;
+        $facultyEmail = null;
+
+        if ($facultyId) {
+            $faculty = Faculty::with('user')->find($facultyId);
+
+            if ($faculty) {
+                $user = $faculty->user;
+
+                if ($user) {
+                    $facultyName = $user->last_name . ', '
+                        . $user->first_name;
+
+                    if ($user->middle_name) {
+                        $facultyName .= ' ' . $user->middle_name;
+                    }
+
+                    if ($user->suffix_name) {
+                        $facultyName .= ' ' . $user->suffix_name;
+                    }
+
+                    $facultyEmail = $user->email;
+                }
+            }
+        }
 
         // Fetch course details
         $temporaryMeta = null;
@@ -534,14 +578,14 @@ class ScheduleController extends Controller
                 : null,
             'schedule' => [
                 'schedule_id' => $newScheduleId,
-                'day' => 'Not set',
-                'start_time' => null,
-                'end_time' => null,
+                'day' => $originalSchedule->day ?? 'Not set',
+                'start_time' => $originalSchedule->start_time ?? null,
+                'end_time' => $originalSchedule->end_time ?? null,
                 'elective_id' => null,
             ],
-            'professor' => 'Not set',
-            'faculty_id' => null,
-            'faculty_email' => null,
+            'professor' => $facultyName,
+            'faculty_id' => $facultyId,
+            'faculty_email' => $facultyEmail,
             'room' => [
                 'room_id' => null,
                 'room_code' => 'Not set',
@@ -648,6 +692,7 @@ class ScheduleController extends Controller
             'start_time' => 'nullable|string',
             'end_time' => 'nullable|string',
             'elective_id' => 'nullable|exists:electives,elective_id',
+            'assignment_type_id' => 'nullable|integer|exists:assignment_types,id',
         ]);
 
         if ($validator->fails()) {
@@ -683,6 +728,7 @@ class ScheduleController extends Controller
                 'start_time' => $schedule->start_time,
                 'end_time'   => $schedule->end_time,
                 'elective_id' => $schedule->elective_id,
+                'assignment_type_id' => $schedule->assignment_type_id ?? null,
             ];
 
             // 2. APPLY UPDATES
@@ -692,6 +738,7 @@ class ScheduleController extends Controller
             $schedule->start_time = $request->input('start_time');
             $schedule->end_time = $request->input('end_time');
             $schedule->elective_id = $request->input('elective_id');
+            $schedule->assignment_type_id = $request->input('assignment_type_id');
             
             // 3. TRACK HUMAN READABLE CHANGES
             $changes = [];
@@ -748,10 +795,50 @@ class ScheduleController extends Controller
                 $changes[] = "Elective: {$oldElectiveLabel} → {$newElectiveLabel}";
             }
 
+            if (($oldData['assignment_type_id'] ?? null) != ($schedule->assignment_type_id ?? null)) {
+                $oldName = $oldData['assignment_type_id']
+                    ? DB::table('assignment_types')->where('id', $oldData['assignment_type_id'])->value('name')
+                    : 'None';
+                $newName = $schedule->assignment_type_id
+                    ? DB::table('assignment_types')->where('id', $schedule->assignment_type_id)->value('name')
+                    : 'None';
+
+                $changes[] = "Assignment Type: {$oldName} → {$newName}";
+            }
+
+            // Check for conflict with plotted faculty time assignments
+            $newFacultyId = $request->input('faculty_id');
+            $newDay = $request->input('day');
+            $newStart = $request->input('start_time');
+            $newEnd = $request->input('end_time');
+
+            if ($newFacultyId && $newDay && $newStart && $newEnd) {
+                $conflict = DB::table('faculty_time_plots')
+                    ->where('faculty_id', $newFacultyId)
+                    ->where(
+                        'active_semester_id',
+                        $activeSemester->active_semester_id
+                    )
+                    ->where('day', $newDay)
+                    ->where('start_time', '<', $newEnd)
+                    ->where('end_time', '>', $newStart)
+                    ->exists();
+
+                if ($conflict) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'This time slot overlaps a plotted'
+                            . ' faculty time assignment.'
+                    ], 422);
+                }
+            }
+
+            // NOW the guard runs after all checks are complete:
             if (empty($changes)) {
                 DB::rollBack();
                 return response()->json(['message' => 'No changes detected'], 422);
             }
+
 
             $schedule->save();
             DB::commit();
@@ -790,6 +877,48 @@ class ScheduleController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Failed to assign schedule', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Updates the assignment type of a schedule.
+     */
+    public function updateAssignmentType(Request $request, $scheduleId)
+    {
+        $validator = Validator::make($request->all(), [
+            // Changed from a hardcoded string to checking the new database table.
+            // Made it nullable so users can revert back to the empty "Select Load Type" state.
+            'assignment_type_id' => 'nullable|integer|exists:assignment_types,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation Error', 'errors' => $validator->errors()], 422);
+        }
+
+        $schedule = Schedule::find($scheduleId);
+        if (!$schedule) {
+            return response()->json(['message' => 'Schedule not found'], 404);
+        }
+
+        $oldId = $schedule->assignment_type_id;
+        $newId = $request->input('assignment_type_id');
+
+        // Fetch names for the Audit Logger so humans can read it
+        $oldName = $oldId ? DB::table('assignment_types')->where('id', $oldId)->value('name') : 'None';
+        $newName = $newId ? DB::table('assignment_types')->where('id', $newId)->value('name') : 'None';
+
+        // Update the new foreign key
+        $schedule->assignment_type_id = $newId;
+        $schedule->save();
+
+        AuditLogger::logUpdate(
+            model: 'Schedule',
+            modelId: $schedule->schedule_id,
+            oldData: ['assignment_type_id' => $oldId],
+            newData: ['assignment_type_id' => $newId],
+            description: "Updated Assignment Type: {$oldName} → {$newName}"
+        );
+
+        return response()->json(['message' => 'Assignment type updated', 'schedule' => $schedule]);
     }
 
     /**

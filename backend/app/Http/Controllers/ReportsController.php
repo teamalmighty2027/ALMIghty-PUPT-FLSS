@@ -99,6 +99,12 @@ class ReportsController extends Controller
                 'temporary_course_offerings' .
                 '.temporary_course_offering_id'
             )
+            ->leftJoin(
+                'assignment_types',
+                'schedules.assignment_type_id',
+                '=',
+                'assignment_types.id'
+            )
             ->where(
                 'sections_per_program_year.academic_year_id',
                 '=',
@@ -181,8 +187,10 @@ class ReportsController extends Controller
                 'schedules.start_time',
                 'schedules.end_time',
                 'schedules.room_id',
-                'schedules.section_course_id'
-            );
+                'schedules.section_course_id',
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type'
+            );  
 
         // Step 3: Join faculties with schedules
         $facultySchedules = DB::table('faculty')
@@ -321,7 +329,11 @@ class ReportsController extends Controller
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'faculty_type.faculty_type',
+                'faculty_type.regular_units',
+                'faculty_type.additional_units',
                 'current_schedules.schedule_id',
+                'current_schedules.assignment_type_id',
+                'current_schedules.assignment_type',
                 'current_schedules.day',
                 'current_schedules.start_time',
                 'current_schedules.end_time',
@@ -375,6 +387,12 @@ class ReportsController extends Controller
         // Step 3.2: Fetch User models and map by ID
         $users = $this->fetchCachedUsers($userIds);
 
+        // Fetch time plots for this active semester
+        $timePlots = DB::table('faculty_time_plots')
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get()
+            ->groupBy('faculty_id');
+
         // Step 4: Group the data by faculty and structure schedules
         $faculties = [];
 
@@ -385,17 +403,22 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'regular_units' => $schedule->regular_units,
+                    'additional_units' => $schedule->additional_units,
                     'is_appeal_enabled' => $schedule->is_appeal_enabled,
                     'has_appeal_request' => $schedule->has_appeal_request,
                     'appeal_start_date' => $schedule->appeal_start_date,
                     'appeal_end_date' => $schedule->appeal_end_date,
-                    
+                    'time_plots' => $timePlots->has($schedule->faculty_id)
+                        ? $timePlots->get($schedule->faculty_id)->toArray()
+                        : [],
                     'assigned_units' => 0,
                     'is_published' => 0,
                     'schedules' => [],
                     'tracked_courses' => [],
                 ];
             }
+
 
             if ($schedule->schedule_id) {
                 // For bridging courses, key by course code
@@ -413,8 +436,12 @@ class ReportsController extends Controller
                     $courseKey,
                     $faculties[$schedule->faculty_id]['tracked_courses']
                 )) {
+                    $tuition = (float) $schedule->tuition_hours;
+                    $units = (float) $schedule->units;
+                    $hours = $tuition > 0 ? $tuition : $units;
+
                     $faculties[$schedule->faculty_id]['assigned_units'] +=
-                        $schedule->units;
+                        $hours;
                     $faculties[$schedule->faculty_id]['tracked_courses'][] =
                         $courseKey;
                 }
@@ -422,6 +449,8 @@ class ReportsController extends Controller
                 $faculties[$schedule->faculty_id]['is_published'] = $schedule->is_published;
                 $faculties[$schedule->faculty_id]['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
+                    'assignment_type_id' => $schedule->assignment_type_id,
+                    'assignment_type' => $schedule->assignment_type,
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
@@ -1158,6 +1187,8 @@ class ReportsController extends Controller
             })
             ->select(
                 'schedules.schedule_id',
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type',
                 'schedules.day',
                 'schedules.start_time',
                 'schedules.end_time',
@@ -1236,6 +1267,17 @@ class ReportsController extends Controller
 
         $response['faculty_schedule']['is_published'] = $isPublished ? 1 : 0;
 
+
+        // Fetch time plots for single faculty schedule report
+        $response['faculty_schedule']['time_plots'] = DB::table(
+            'faculty_time_plots'
+        )
+            ->where('faculty_id', $faculty->id)
+            ->where('active_semester_id', $activeSemester->active_semester_id)
+            ->get(['id', 'time_type', 'day', 'start_time', 'end_time'])
+            ->toArray();
+
+
         // Step 8: Decide whether to include schedule details (Privacy / Access Control)
         $user = $request->user();
         $isAdmin = $user && ($user->role === 'admin' || $user->role === 'superadmin');
@@ -1246,6 +1288,8 @@ class ReportsController extends Controller
             foreach ($facultySchedules as $schedule) {
                 $response['faculty_schedule']['schedules'][] = [
                     'schedule_id' => $schedule->schedule_id,
+                    'assignment_type_id' => $schedule->assignment_type_id,
+                    'assignment_type' => $schedule->assignment_type,
                     'day' => $schedule->day,
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
@@ -1356,6 +1400,8 @@ class ReportsController extends Controller
             ->where('schedules.faculty_id', '=', $faculty_id)
             ->select(
                 'schedules.schedule_id',
+                'schedules.assignment_type_id',
+                'assignment_types.name as assignment_type',
                 'schedules.faculty_id',
                 'schedules.room_id',
                 'schedules.day',
@@ -1499,6 +1545,8 @@ class ReportsController extends Controller
         $schedules = $schedules
             ->select(
                 'schedules.schedule_id',
+                'schedules.assignment_type_id',
+                'schedules.assignment_type',
                 'schedules.day',
                 'schedules.start_time',
                 'schedules.end_time',
@@ -1571,6 +1619,8 @@ class ReportsController extends Controller
         $transformedSchedules = $schedules->map(function ($schedule) {
             return [
                 'schedule_id' => $schedule->schedule_id,
+                'assignment_type_id' => $schedule->assignment_type_id,
+                'assignment_type' => $schedule->assignment_type,
                 'day' => $schedule->day,
                 'start_time' => $schedule->start_time,
                 'end_time' => $schedule->end_time,
