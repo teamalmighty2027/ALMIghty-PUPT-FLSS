@@ -37,7 +37,7 @@ export class PreferencesService {
     academic_year_id: number;
   }> {
     if (!this.programsCache$) {
-      const url = `${this.baseUrl}/offered-courses-sem`;
+      const url = `${this.baseUrl}/academic-years/active/offered-courses`;
       this.programsCache$ = this.http
         .get<AssignedCoursesResponse>(url)
         .pipe(
@@ -58,11 +58,6 @@ export class PreferencesService {
     return this.programsCache$;
   }
 
-  /**
-   * Fetches active elective assignments for a curriculum year
-   * scoped to a specific academic year.
-   * Used in faculty preferences to resolve elective display names.
-   */
   getResolvedCurriculumElectives(
     curriculumYear: string,
     academicYearId: number
@@ -77,38 +72,32 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Retrieves user preferences for the Admin view.
-   * By returning the HTTP call directly, we prevent race conditions and infinite loading
-   * when switching between different academic terms in the dropdown.
-   */
-  getPreferences(termId?: number | null, forceRefresh: boolean = false): Observable<any> {
+  getPreferences(
+    termId?: number | null,
+    forceRefresh: boolean = false
+  ): Observable<any> {
     let params = new HttpParams();
     
-    // Explicitly send the selected term ID to the Laravel backend
     if (termId) {
       params = params.set('term_id', termId.toString());
     }
 
-    return this.http.get(`${this.baseUrl}/get-unique-preferences`, { params });
+    return this.http.get(
+      `${this.baseUrl}/preferences/unique`,
+      { params }
+    );
   }
 
-  /**
-   * Retrieves preferences for a specific faculty by ID with caching.
-   * If preferences for the given faculty_id are already cached, returns the cached Observable.
-   * Otherwise, makes an API call, caches the result, and returns the Observable.
-   */
   getPreferencesByFacultyId(
     facultyId: string,
     forceRefresh: boolean = false,
-    termId?: number | null // <-- Added the 3rd parameter here
+    termId?: number | null
   ): Observable<any> {
     if (!facultyId) {
       console.error('Invalid faculty ID provided.');
       return throwError(() => new Error('Invalid faculty ID'));
     }
 
-    // Create a unique cache key that includes the termId so switching terms fetches fresh data
     const cacheKey = termId ? `${facultyId}_term_${termId}` : facultyId;
 
     if (forceRefresh) {
@@ -119,13 +108,12 @@ export class PreferencesService {
       return this.preferencesCache.get(cacheKey)!;
     }
 
-    // Attach the term_id to the HTTP request
     let params = new HttpParams();
     if (termId) {
       params = params.set('term_id', termId.toString());
     }
 
-    const url = `${this.baseUrl}/get-preferences/${facultyId}`;
+    const url = `${this.baseUrl}/faculty/${facultyId}/preferences`;
     
     // Pass the { params } object into the http.get call
     const preferences$ = this.http.get(url, { params }).pipe(
@@ -148,10 +136,10 @@ export class PreferencesService {
   * Retrieves preferences history for a specific faculty by ID.
   **/
   getPreferencesHistoryByFacultyId(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/get-preferences-history/${facultyId}`;
+    const url = `${this.baseUrl}/faculty/${facultyId}/preferences/history`;
     return this.http.get(url).pipe(
-        shareReplay(1),
-        catchError((error) => {
+      shareReplay(1),
+      catchError((error) => {
         console.error(
           `Error fetching preferences for faculty ID ${facultyId}:`,
           error
@@ -162,10 +150,10 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Toggles the ignore status of a specific preference.
-   */
-  toggleIgnorePreference(preferenceId: number, facultyId: string): Observable<any> {
+  toggleIgnorePreference(
+    preferenceId: number,
+    facultyId: string
+  ): Observable<any> {
     const url = `${this.baseUrl}/preferences/${preferenceId}/toggle-ignore`;
     return this.http.patch(url, {}).pipe(
       tap(() => {
@@ -182,9 +170,6 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Submits a single preference for a faculty member.
-   */
   submitSinglePreference(preference: {
     faculty_id: number;
     active_semester_id: number;
@@ -193,7 +178,7 @@ export class PreferencesService {
     sections_per_program_year_id: number;
     preferred_days: PreferredDay[];
   }): Observable<any> {
-    const url = `${this.baseUrl}/submit-preferences`;
+    const url = `${this.baseUrl}/preferences`;
     return this.http.post(url, preference).pipe(
       tap(() => this.clearCaches(preference.faculty_id.toString())),
       catchError((error) => {
@@ -203,9 +188,6 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Deletes a specific preference by ID and clears relevant caches upon success.
-   */
   deletePreference(
     preferenceId: number,
     facultyId: string,
@@ -217,7 +199,7 @@ export class PreferencesService {
       .set('active_semester_id', activeSemesterId.toString())
       .set('sections_per_program_year_id', sectionId.toString());
 
-    const url = `${this.baseUrl}/delete-preferences/${preferenceId}`;
+    const url = `${this.baseUrl}/preferences/${preferenceId}`;
     return this.http.delete(url, { params }).pipe(
       tap(() => this.clearCaches(facultyId)),
       catchError((error) => {
@@ -227,10 +209,6 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Toggles the preferences status for all faculty members and
-   * refreshes preferences cache upon success.
-   */
   toggleAllPreferences(
     status: boolean,
     deadline: string | null,
@@ -238,7 +216,7 @@ export class PreferencesService {
     sendEmail: boolean
   ): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/toggle-all-preferences`, {
+      .post(`${this.baseUrl}/preferences/toggle`, {
         status,
         global_deadline: deadline,
         global_start_date: startDate,
@@ -255,10 +233,6 @@ export class PreferencesService {
       );
   }
 
-  /**
-   * Toggles the preference status for a specific faculty member
-   * and refreshes preferences cache upon success.
-   */
   toggleSingleFacultyPreferences(
     faculty_id: number,
     status: boolean,
@@ -267,7 +241,7 @@ export class PreferencesService {
     sendEmail: boolean
   ): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/toggle-single-preferences`, {
+      .post(`${this.baseUrl}/preferences/${faculty_id}/toggle`, {
         faculty_id,
         status,
         individual_deadline,
@@ -288,11 +262,8 @@ export class PreferencesService {
       );
   }
 
-  /**
-   * Sends a request to enable access for the selected faculty.
-   */
   requestAccess(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/request-access`;
+    const url = `${this.baseUrl}/preferences/access-requests`;
     return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
       tap(() => {
         this.updatePreferencesCache(facultyId);
@@ -304,11 +275,8 @@ export class PreferencesService {
     );
   }
 
-  /**
-   * Cancels the access request for the selected faculty.
-   */
   cancelRequestAccess(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/cancel-request-access`;
+    const url = `${this.baseUrl}/preferences/access-requests/cancel`;
     return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
       tap(() => {
         this.updatePreferencesCache(facultyId);
