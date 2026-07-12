@@ -9,16 +9,29 @@ describe('DialogAppealScheduleComponent', () => {
   let fixture: ComponentFixture<DialogAppealScheduleComponent>;
 
   const mockDialogData = {
-    block: {
+    isEditMode: false,
+    facultyName: 'Test',
+    appealFile: null,
+    appealDay: 'Monday',
+    appealStartTime: '7:00 AM',
+    appealEndTime: '9:00 AM',
+    appealRoom: 'LAB 1',
+    reason: 'Test',
+    options: {
+      timeOptions: ['7:00 AM'],
+      endTimeOptions: ['9:00 AM']
+    },
+    original: {
+      scheduleId: 1,
       courseCode: 'COMP 101',
       courseTitle: 'Intro to Computing',
       program: 'BSIT',
-      yearLevel: 1,
+      yearLevel: '1',
       section: '1',
       day: 'Monday',
-      roomCode: 'LAB 1'
-    },
-    timeRange: '7:00 AM - 9:00 AM'
+      roomCode: 'LAB 1',
+      timeRange: '7:00 AM - 9:00 AM'
+    }
   };
 
   beforeEach(async () => {

@@ -26,7 +26,8 @@ describe('SuperadminMainComponent', () => {
             getUserName: () => 'Test Superadmin',
             getUserRole: () => 'superadmin',
             getUserEmail: () => 'superadmin@test.com',
-            profilePictureUrl$: of(null)
+            profilePictureUrl$: of(null),
+            hasPermission: () => true
           }
         }
       ]

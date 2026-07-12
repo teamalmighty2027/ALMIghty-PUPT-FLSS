@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { ReportsHeaderComponent } from './reports-header.component';
 
@@ -9,7 +10,11 @@ describe('ReportsHeaderComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ReportsHeaderComponent, HttpClientTestingModule]
+      imports: [
+        ReportsHeaderComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ]
     })
     .compileComponents();
 

@@ -28,7 +28,8 @@ describe('OverviewComponent', () => {
             getUserName: () => 'Admin User',
             getUserRole: () => 'Admin',
             getUserEmail: () => 'admin@test.com',
-            profilePictureUrl$: of(null)
+            profilePictureUrl$: of(null),
+            hasPermission: () => true
           }
         },
         {

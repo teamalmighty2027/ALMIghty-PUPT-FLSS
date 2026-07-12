@@ -26,7 +26,8 @@ describe('AdminMainComponent', () => {
             getUserName: () => 'Test Admin',
             getUserRole: () => 'admin',
             getUserEmail: () => 'admin@test.com',
-            profilePictureUrl$: of(null)
+            profilePictureUrl$: of(null),
+            hasPermission: () => true
           }
         }
       ]

@@ -1,19 +1,34 @@
 import { TestBed } from '@angular/core/testing';
 import { AuthGuard } from './auth.guard';
 import { Router } from '@angular/router';
-import { of } from 'rxjs';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { AuthService } from '../services/auth/auth.service';
 
 describe('AuthGuard', () => {
   let guard: AuthGuard;
   let router: Router;
 
+  let mockRouter: any;
+  let mockAuthService: any;
+
   beforeEach(() => {
+    mockRouter = {
+      navigate: jasmine.createSpy('navigate'),
+      createUrlTree: jasmine.createSpy('createUrlTree').and.returnValue({})
+    };
+
+    mockAuthService = {
+      isAuthenticated: jasmine.createSpy('isAuthenticated').and.returnValue(true),
+      getUserRole: jasmine.createSpy('getUserRole').and.returnValue('admin'),
+      getUserRoles: jasmine.createSpy('getUserRoles').and.returnValue(['admin'])
+    };
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         AuthGuard,
-        { provide: Router, useValue: { navigate: () => {} } } // Mock Router
+        { provide: Router, useValue: mockRouter },
+        { provide: AuthService, useValue: mockAuthService }
       ]
     });
     guard = TestBed.inject(AuthGuard);
@@ -25,16 +40,16 @@ describe('AuthGuard', () => {
   });
 
   it('should return true if token exists', () => {
-    spyOn(sessionStorage, 'getItem').and.returnValue('some-token');
+    mockAuthService.isAuthenticated.and.returnValue(true);
     const mockRoute = { data: {}, routeConfig: { path: '' } } as any;
     expect(guard.canActivate(mockRoute, null as any)).toBeTrue();
   });
 
   it('should navigate to login if token does not exist', () => {
-    spyOn(sessionStorage, 'getItem').and.returnValue(null);
-    spyOn(router, 'navigate');
+    mockAuthService.isAuthenticated.and.returnValue(false);
     const mockRoute = { data: {}, routeConfig: { path: '' } } as any;
-    expect(guard.canActivate(mockRoute, null as any)).toBeFalse();
-    expect(router.navigate).toHaveBeenCalledWith(['/login']);
+    const result = guard.canActivate(mockRoute, null as any);
+    expect(mockRouter.createUrlTree).toHaveBeenCalledWith(['/login']);
+    expect(result).toEqual({} as any);
   });
 });
