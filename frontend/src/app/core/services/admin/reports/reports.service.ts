@@ -156,7 +156,7 @@ export class ReportsService {
 
   togglePublishAllSchedules(is_published: number): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/schedules/publish`, { is_published })
+      .patch(`${this.baseUrl}/schedules/publish`, { is_published })
       .pipe(catchError(this.handleError));
   }
 
@@ -171,7 +171,7 @@ export class ReportsService {
     is_published: number
   ): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/schedules/${faculty_id}/publish`, {
+      .patch(`${this.baseUrl}/schedules/${faculty_id}/publish`, {
         is_published
       })
       .pipe(catchError(this.handleError));

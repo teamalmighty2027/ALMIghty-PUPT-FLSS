@@ -164,22 +164,22 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/academic-years/active-semester', [
         AcademicYearController::class, 'getActiveAcademicYearAndSemester'
     ]);
-    Route::post('/academic-years/active-semester', [
+    Route::put('/academic-years/active-semester', [
         AcademicYearController::class, 'setActiveAcademicYearAndSemester'
     ]);
-    Route::post('/academic-years/faculty-view-semester', [
+    Route::put('/academic-years/faculty-view-semester', [
         AcademicYearController::class, 'setFacultyViewSemester'
     ]);
-    Route::post('/academic-years/{id}/program-details', [
+    Route::get('/academic-years/{id}/program-details', [
         AcademicYearController::class, 'getProgramDetailsByAcademicYear'
     ]);
     Route::get('/academic-years/active/year-levels-curricula', [
         AcademicYearController::class, 'getActiveYearLevelsCurricula'
     ]);
-    Route::post('/academic-years/{id}/year-level-curricula', [
+    Route::put('/academic-years/{id}/year-level-curricula', [
         AcademicYearController::class, 'updateYearLevelCurricula'
     ]);
-    Route::post('/academic-years/{id}/sections', [
+    Route::put('/academic-years/{id}/sections', [
         AcademicYearController::class, 'updateSections'
     ]);
     Route::delete('/academic-years/{ayId}/programs/{progId}', [
@@ -223,10 +223,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
      */
     Route::get('/curricula', [CurriculumController::class, 'index']);
     Route::get('/curricula/{id}', [CurriculumController::class, 'show']);
-    Route::post('/addCurriculum', [
+    Route::post('/curricula', [
         CurriculumController::class, 'addCurriculum'
     ]);
-    Route::post('/deleteCurriculum', [
+    Route::delete('/curricula/{id}', [
         CurriculumController::class, 'deleteCurriculum'
     ]);
     Route::post('/curricula/{id}/copy', [
@@ -234,9 +234,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     ]);
     Route::put('/curricula/{id}', [CurriculumController::class, 'update']);
 
-    Route::post('/removeProgramFromCurriculum', [
-        CurriculumController::class, 'removeProgramFromCurriculum'
-    ]);
+    Route::delete(
+        '/curricula/{curriculumYear}/programs/{programId}',
+        [CurriculumController::class, 'removeProgramFromCurriculum']
+    );
     Route::get('/curricula/{curriculumYear}/programs', [
         CurriculumController::class, 'getProgramsByCurriculumYear'
     ]);
@@ -301,13 +302,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/notifications/requests', [
         FacultyNotificationController::class, 'getRequestNotifications'
     ]);
-    Route::get('/notifications/deadline-single', [
+    Route::post('/notifications/deadline-single', [
         EmailController::class, 'notifyFacultyBeforeDeadlineSingle'
     ]);
     Route::post('/notifications/deadline-test', [
         EmailController::class, 'singleDeadlineNotification'
     ]);
-    Route::get('/notifications/deadline-global', [
+    Route::post('/notifications/deadline-global', [
         EmailController::class, 'notifyGlobalFacultyDeadline'
     ]);
 
@@ -353,16 +354,16 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::delete('/preferences', [
         PreferenceController::class, 'deleteAllPreferences'
     ]);
-    Route::post('/preferences/toggle', [
+    Route::patch('/preferences/toggle', [
         PreferenceController::class, 'toggleAllPreferences'
     ]);
-    Route::post('/preferences/{faculty_id}/toggle', [
+    Route::patch('/preferences/{faculty_id}/toggle', [
         PreferenceController::class, 'toggleSinglePreferences'
     ]);
     Route::post('/preferences/access-requests', [
         PreferenceController::class, 'requestAccess'
     ]);
-    Route::post('/preferences/access-requests/cancel', [
+    Route::delete('/preferences/access-requests', [
         PreferenceController::class, 'cancelRequestAccess'
     ]);
     Route::patch('/preferences/{preference_id}/toggle-ignore', [
@@ -489,10 +490,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         FacultyController::class, 'getFacultyDetails'
     ]);
     Route::get('/rooms/available', [RoomController::class, 'getAllRooms']);
-    Route::post('/schedules/publish', [
+    Route::patch('/schedules/publish', [
         ScheduleController::class, 'toggleAllSchedules'
     ]);
-    Route::post('/schedules/{id}/publish', [
+    Route::patch('/schedules/{id}/publish', [
         ScheduleController::class, 'toggleSingleSchedule'
     ]);
     Route::patch('/schedules/{schedule}/assignment-type', [

@@ -216,7 +216,7 @@ export class PreferencesService {
     sendEmail: boolean
   ): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/preferences/toggle`, {
+      .patch(`${this.baseUrl}/preferences/toggle`, {
         status,
         global_deadline: deadline,
         global_start_date: startDate,
@@ -241,7 +241,7 @@ export class PreferencesService {
     sendEmail: boolean
   ): Observable<any> {
     return this.http
-      .post(`${this.baseUrl}/preferences/${faculty_id}/toggle`, {
+      .patch(`${this.baseUrl}/preferences/${faculty_id}/toggle`, {
         faculty_id,
         status,
         individual_deadline,
@@ -276,16 +276,18 @@ export class PreferencesService {
   }
 
   cancelRequestAccess(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/preferences/access-requests/cancel`;
-    return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
-      tap(() => {
-        this.updatePreferencesCache(facultyId);
-      }),
-      catchError((error) => {
-        console.error('Error cancelling access request:', error);
-        return throwError(() => error);
-      })
-    );
+    const url = `${this.baseUrl}/preferences/access-requests`;
+    return this.http
+      .delete(url, { params: { faculty_id: facultyId } })
+      .pipe(
+        tap(() => {
+          this.updatePreferencesCache(facultyId);
+        }),
+        catchError((error) => {
+          console.error('Error cancelling access request:', error);
+          return throwError(() => error);
+        })
+      );
   }
 
   /**

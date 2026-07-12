@@ -99,7 +99,7 @@ export class AcademicYearService {
     semesterId: number
   ): Observable<void> {
     return this.http
-      .post<void>(`${this.baseUrl}/academic-years/faculty-view-semester`, {
+      .put<void>(`${this.baseUrl}/academic-years/faculty-view-semester`, {
         academic_year_id: academicYearId,
         semester_id: semesterId,
       })
@@ -113,7 +113,7 @@ export class AcademicYearService {
     endDate: string
   ): Observable<void> {
     return this.http
-      .post<void>(`${this.baseUrl}/academic-years/active-semester`, {
+      .put<void>(`${this.baseUrl}/academic-years/active-semester`, {
         academic_year_id: academicYearId,
         semester_id: semesterId,
         start_date: startDate,
@@ -122,16 +122,12 @@ export class AcademicYearService {
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Fetches program details, including year levels and curriculum versions, for a specific academic year.
-   */
   fetchProgramDetailsByAcademicYear(payload: {
     academic_year_id: number;
   }): Observable<any> {
     return this.http
-      .post<any>(
-        `${this.baseUrl}/academic-years/${payload.academic_year_id}/program-details`,
-        {}
+      .get<any>(
+        `${this.baseUrl}/academic-years/${payload.academic_year_id}/program-details`
       )
       .pipe(catchError(this.handleError));
   }
@@ -149,7 +145,7 @@ export class AcademicYearService {
       })),
     };
     return this.http
-      .post<any>(
+      .put<any>(
         `${this.baseUrl}/academic-years/${academicYearId}/year-level-curricula`,
         payload
       )
@@ -163,7 +159,7 @@ export class AcademicYearService {
     numberOfSections: number
   ): Observable<any> {
     return this.http
-      .post<any>(
+      .put<any>(
         `${this.baseUrl}/academic-years/${academicYearId}/sections`,
         {
           program_id: programId,

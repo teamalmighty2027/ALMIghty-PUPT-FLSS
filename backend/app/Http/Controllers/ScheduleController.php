@@ -1533,8 +1533,13 @@ class ScheduleController extends Controller
     /**
      * Toggle a single faculty schedules publication status
      */
-    public function toggleSingleSchedule(Request $request)
+    // Toggle a single faculty schedule publication status using path parameter
+    public function toggleSingleSchedule(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['faculty_id' => $id]);
+        }
+
         // Step 1: Validate the input
         $validated = $request->validate([
             'faculty_id' => 'required|integer|exists:faculty,id',

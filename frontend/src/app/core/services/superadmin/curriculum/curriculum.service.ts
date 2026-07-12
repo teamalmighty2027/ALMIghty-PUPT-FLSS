@@ -159,10 +159,9 @@ export class CurriculumService {
     curriculumYear: string,
     programId: number
   ): Observable<any> {
-    return this.http.post(`${this.baseUrl}/removeProgramFromCurriculum`, {
-      curriculum_year: curriculumYear,
-      program_id: programId,
-    });
+    return this.http.delete(
+      `${this.baseUrl}/curricula/${curriculumYear}/programs/${programId}`
+    );
   }
 
   // Map semester number to string
@@ -194,9 +193,9 @@ export class CurriculumService {
   }
 
   deleteCurriculum(curriculum_year: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/deleteCurriculum`, {
-      curriculum_year,
-    });
+    return this.http.delete(
+      `${this.baseUrl}/curricula/${curriculum_year}`
+    );
   }
 
   copyCurriculum(
