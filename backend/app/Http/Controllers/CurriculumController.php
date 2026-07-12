@@ -446,8 +446,11 @@ class CurriculumController extends Controller
         return response()->json($programs);
     }
 
-    public function addProgramToCurriculum(Request $request)
+    public function addProgramToCurriculum(Request $request, $curriculumYear = null)
     {
+        if ($curriculumYear !== null) {
+            $request->merge(['curriculum_year' => $curriculumYear]);
+        }
         $request->validate([
             'curriculum_year' => 'required|string|exists:curricula,curriculum_year',
             'program_id' => 'required|integer|exists:programs,program_id',

@@ -615,8 +615,11 @@ class ScheduleController extends Controller
     /**
      * Removes a duplicated course.
      */
-    public function removeDuplicateCourse(Request $request)
+    public function removeDuplicateCourse(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['section_course_id' => $id]);
+        }
         $validator = Validator::make($request->all(), [
             'section_course_id' => 'required|exists:section_courses,section_course_id',
         ]);
