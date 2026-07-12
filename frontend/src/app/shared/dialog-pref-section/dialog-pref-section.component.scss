@@ -1,5 +1,11 @@
-@use "../../../styles/mixins";
+@use '../../../styles/mixins';
 
+// ─── Host ────────────────────────────────────────────────────────────────────
+:host {
+  display: block;
+}
+
+// ─── Container ───────────────────────────────────────────────────────────────
 .dialog-pref-section-container {
   @include mixins.flex-layout(
     $direction: column,
@@ -7,126 +13,323 @@
     $justify: flex-start,
     $gap: var(--spacing-lg)
   );
-  padding: var(--spacing-lg);
-  width: fit-content;
-  min-width: 500px;
+  padding: var(--spacing-xl);
+  width: min(460px, 95vw);
+  box-sizing: border-box;
+}
 
-  .dialog-title {
-    margin: 0;
-    font-size: var(--font-size-2xl);
-    font-weight: 800;
-    color: var(--primary-one);
-    letter-spacing: -0.5px;
-  }
+// ─── Header ──────────────────────────────────────────────────────────────────
+.dialog-header {
+  @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
 
-  .course-context {
-    background: var(--primary-fade);
+  .header-icon-wrap {
+    @include mixins.flex-layout;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
     border-radius: var(--border-radius-md);
-    padding: var(--spacing-sm);
-    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
-    border: 1px solid var(--primary-border);
-    max-width: 90%;
-    margin: auto;
+    @include mixins.gradient-primary(135deg);
+    box-shadow: 0 4px 12px rgba(128, 0, 0, 0.3);
 
-    .program-badge {
-      background: var(--primary-one);
+    .header-icon {
+      font-size: 22px;
       color: white;
-      padding: 6px 12px;
-      border-radius: var(--border-radius-sm);
-      font-size: var(--font-size-xs);
-      font-weight: 700;
-      box-shadow: var(--shadow-sm);
-      text-transform: uppercase;
-    }
-
-    .course-details {
-      font-size: var(--font-size-sm);
-      color: var(--primary-text);
-      line-height: 1.4;
-      
-      strong {
-        display: block;
-        font-size: var(--font-size-md);
-        color: var(--primary-color);
-      }
     }
   }
+
+  .header-text {
+    @include mixins.flex-layout($direction: column, $align: flex-start, $gap: var(--spacing-xxxs));
+
+    .dialog-title {
+      margin: 0;
+      font-size: var(--font-size-xl);
+      font-weight: 700;
+      color: var(--primary-text);
+      letter-spacing: -0.3px;
+      line-height: 1.2;
+    }
+
+    .dialog-subtitle {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+      opacity: 0.55;
+      line-height: 1.4;
+    }
+  }
+}
+
+// ─── Course Info Card ─────────────────────────────────────────────────────────
+.course-info-card {
+  @include mixins.flex-layout($align: flex-start, $gap: var(--spacing-md));
+  background: var(--primary-fade);
+  border: 1px solid var(--primary-one-fade);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md) var(--spacing-mdx);
+  position: relative;
+  overflow: hidden;
+
+  // Subtle left accent line
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    @include mixins.gradient-primary(180deg);
+    border-radius: 3px 0 0 3px;
+  }
+
+  .program-badge {
+    flex-shrink: 0;
+    @include mixins.flex-layout;
+    @include mixins.gradient-primary(135deg);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    letter-spacing: var(--letter-spacing-sm);
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(128, 0, 0, 0.25);
+    min-width: 52px;
+    text-align: center;
+  }
+
+  .course-details {
+    @include mixins.flex-layout($direction: column, $align: flex-start, $gap: var(--spacing-xxxs));
+    min-width: 0;
+
+    .course-code {
+      font-size: var(--font-size-md);
+      font-weight: 700;
+      color: var(--primary-text);
+      line-height: 1.2;
+      @include mixins.ellipsis;
+      max-width: 100%;
+    }
+
+    .course-title {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+      opacity: 0.7;
+      line-height: 1.4;
+      // Allow wrapping for long titles
+      word-break: break-word;
+    }
+  }
+}
+
+// ─── Section Picker ───────────────────────────────────────────────────────────
+.section-picker-area {
+  @include mixins.flex-layout($direction: column, $align: stretch, $gap: var(--spacing-sm));
 
   .section-label {
+    // Center the label to match the centered button row below it
+    @include mixins.flex-layout($align: center, $justify: center, $gap: var(--spacing-xs));
     font-size: var(--font-size-sm);
     font-weight: 600;
-    color: var(--text-secondary);
-    margin-bottom: calc(var(--spacing-xs) * -1);
+    color: var(--neutral-base);
+    opacity: 0.65;
+    letter-spacing: var(--letter-spacing-xs);
+    text-transform: uppercase;
+
+    .label-icon {
+      font-size: 14px;
+      opacity: 0.8;
+    }
   }
 
-  mat-button-toggle-group {
+  .section-toggle-group {
     width: 100%;
     border: none !important;
-    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: flex-start);
+    // Center the cards so left and right margins are equal
+    @include mixins.flex-layout($gap: var(--spacing-sm), $justify: center);
     flex-wrap: wrap;
     background: transparent !important;
 
-    mat-button-toggle {
-      border: 1.5px solid var(--border-color) !important;
+    .section-card {
+      // Lock size so selected state never shifts layout
+      min-width: 80px;
+      height: 40px;
+      box-sizing: border-box;
+      border: 1.5px solid var(--neutral-border) !important;
       border-radius: var(--border-radius-md) !important;
       overflow: hidden;
-      @include mixins.default-transition;
+      transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
 
-      &:hover {
-        border-color: var(--primary-color) !important;
-        background-color: var(--primary-fade);
-      }
+      // Suppress the MDC checkmark that shifts layout on selection
+      ::ng-deep .mat-button-toggle-button {
+        height: 100% !important;
 
-      &.mat-button-toggle-checked {
-        border-color: var(--primary-color) !important;
-        background-color: var(--primary-fade);
-        
-        ::ng-deep .mat-button-toggle-label-content {
-          color: var(--primary-color);
-          font-weight: 700;
+        .mat-button-toggle-focus-overlay {
+          display: none;
         }
       }
 
       ::ng-deep .mat-button-toggle-label-content {
-        padding: var(--spacing-sm) var(--spacing-lg);
-        font-size: var(--font-size-md);
-      }
-    }
-  }
+        // Fixed dimensions — never change on selection
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: 40px !important;
+        padding: 0 var(--spacing-mdx) !important;
+        line-height: 1 !important;
+        box-sizing: border-box;
 
-  .dialog-actions {
-    margin-top: var(--spacing-md);
-    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
-
-    button {
-      padding: 0 var(--spacing-xl);
-      height: 3.5rem;
-      border-radius: var(--border-radius-md);
-      font-weight: 600;
-      @include mixins.default-transition;
-
-      &.confirm-btn {
-        background-color: var(--primary-one);
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background-color: var(--primary-one-hover);
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
+        .section-name {
+          font-size: var(--font-size-md);
+          font-weight: 500;
+          color: var(--neutral-base);
+          white-space: nowrap;
+          transition: color 0.2s ease, font-weight 0.2s ease;
         }
+      }
 
-        &:disabled {
-          background-color: var(--neutral-fade);
-          color: var(--neutral-button-lighter);
+      &:hover {
+        border-color: var(--primary-one) !important;
+        background-color: var(--primary-fade) !important;
+        box-shadow: 0 3px 10px rgba(128, 0, 0, 0.12);
+        // No transform — avoids layout shift in the row
+      }
+
+      &:active {
+        // Scale only, no translate, so neighbours don't shift
+        ::ng-deep .mat-button-toggle-button {
+          transform: scale(0.96);
+          transition: transform 0.1s ease;
+        }
+      }
+
+      &.mat-button-toggle-checked {
+        // Color-only change — no size, padding, or position change
+        border-color: var(--primary-one) !important;
+        background-color: var(--primary-fade) !important;
+        box-shadow: 0 2px 10px rgba(128, 0, 0, 0.15);
+
+        ::ng-deep .mat-button-toggle-label-content .section-name {
+          color: var(--primary-text);
+          font-weight: 700;
         }
       }
     }
   }
 }
 
+// ─── Dialog Footer ────────────────────────────────────────────────────────────
+.dialog-actions {
+  // Explicit flex alignment so both buttons always share the same baseline
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--neutral-border);
+
+  // ── Cancel button ────────────────────────────────────────────────────────
+  .cancel-btn {
+    // Override Material's internal height/line-height so it matches confirm
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    padding: 0 var(--spacing-md) !important;
+    border-radius: var(--border-radius-md);
+    font-weight: 500;
+    color: var(--neutral-base) !important;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    vertical-align: middle;
+
+    // Override MDC button's internal flex wrapper
+    ::ng-deep .mdc-button__label {
+      display: flex;
+      align-items: center;
+    }
+
+    &:hover {
+      opacity: 1;
+      background-color: var(--neutral-fade);
+    }
+  }
+
+  // ── Confirm / Add button ─────────────────────────────────────────────────
+  .confirm-btn {
+    // Match exact same height and layout model as cancel-btn
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    line-height: 40px !important;
+    gap: var(--spacing-xs);
+    padding: 0 var(--spacing-lg) !important;
+    border-radius: var(--border-radius-md);
+    font-weight: 600;
+    letter-spacing: var(--letter-spacing-xxs);
+    vertical-align: middle;
+    @include mixins.gradient-primary(135deg);
+    color: white !important;
+    box-shadow: 0 3px 10px rgba(128, 0, 0, 0.25);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+
+    // Override MDC button's internal flex wrapper
+    ::ng-deep .mdc-button__label {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+
+    .btn-icon {
+      font-size: 18px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 5px 16px rgba(128, 0, 0, 0.35);
+      transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0) scale(0.98);
+    }
+
+    &:disabled {
+      background: var(--neutral-fade) !important;
+      background-image: none !important;
+      color: var(--neutral-base) !important;
+      opacity: 0.45;
+      box-shadow: none;
+      transform: none;
+    }
+  }
+}
+
+// ─── Responsive ───────────────────────────────────────────────────────────────
 @media screen and (max-width: 500px) {
   .dialog-pref-section-container {
-    min-width: 100%;
-    padding: var(--spacing-md);
+    padding: var(--spacing-lg);
+    gap: var(--spacing-md);
+  }
+
+  .dialog-header {
+    .header-icon-wrap {
+      width: 38px;
+      height: 38px;
+
+      .header-icon {
+        font-size: 19px;
+      }
+    }
+
+    .header-text .dialog-title {
+      font-size: var(--font-size-lg);
+    }
   }
 }

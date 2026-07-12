@@ -49,6 +49,14 @@ export const routes: Routes = [
     data: { animation: 'callback' },
   },
   {
+    path: 'redirect',
+    loadComponent: () =>
+      import('./auth/redirect/redirect.component').then(
+        (m) => m.RedirectComponent,
+      ),
+    data: { animation: 'redirect', pageTitle: 'Redirecting...' },
+  },
+  {
     path: 'reset-password',
     loadComponent: () =>
       import(

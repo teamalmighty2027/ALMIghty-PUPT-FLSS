@@ -1,6 +1,6 @@
 import { Component, Inject, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 
 import { Observable, Subject, of } from 'rxjs';
 import { map, takeUntil, debounceTime, distinctUntilChanged, switchMap, shareReplay, catchError, tap, startWith } from 'rxjs/operators';
@@ -20,23 +20,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
-import { Faculty, Room, ConflictingScheduleDetail, Elective } from '../../core/models/scheduling.model';
+import { Faculty, Room, ConflictingScheduleDetail } from '../../core/models/scheduling.model';
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
-
-/**
- * Validator to ensure the control's value matches one of the valid options.
- * @param validOptions Array of valid string options.
- * @returns Validator function.
- */
-function mustMatchOption(validOptions: string[]): ValidatorFn {
-  return (control: AbstractControl): ValidationErrors | null => {
-    if (!control.value) return null;
-    return validOptions.includes(control.value)
-      ? null
-      : { invalidOption: true };
-  };
-}
+import { getFacultyTypeClass } from '../utils/faculty-type.utils';
 
 interface Preference {
   day: string;
@@ -56,6 +43,7 @@ interface SuggestedFaculty {
 interface ProfessorOption {
   id: number;
   name: string;
+  type?: string;
 }
 
 interface DialogData {
@@ -97,6 +85,9 @@ interface DialogData {
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
   combined_with_program_code?: string | null;
+  hoursAlreadyAssigned?: number;
+  lec_hours?: number;
+  lab_hours?: number;
 }
 
 @Component({
@@ -133,9 +124,13 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   originalDay: string = '';
 
   selectedFaculty: SuggestedFaculty | null = null;
+  historyCardSelected = false;
 
   hasConflicts = false;
   conflictMessage: string = '';
+  remainingHoursMessage: string = '';
+  facultyBreakMessage: string = '';
+  isValidating = false;
 
   pendingCombinedLabel: string | null = null;
   pendingMatchingProgramCode: string | null = null;
@@ -147,10 +142,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  // --- Elective State ---
-  isElectiveSlot = false;
-  electiveSlotName = '';
-  availableElectives: Elective[] = [];
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogData,
@@ -161,46 +152,17 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private cdr: ChangeDetectorRef
   ) {
+    // Build the reactive form (no elective control needed)
     this.scheduleForm = this.fb.group({
       day: [''],
       startTime: [''],
       endTime: [''],
       professor: [''],
       room: [''],
-      elective: [''],
     });
   }
 
   ngOnInit(): void {
-    // --- Elective Detection ---
-    this.isElectiveSlot =
-      !!this.data.isElectiveSlot ||
-      !!this.data.selectedElectiveId ||
-      this.data.selectedCourseInfo.toLowerCase().includes('elective');
-    if (this.isElectiveSlot) {
-      // Prefer the stable slot name from the backend, then fall back to the label.
-      const parts = this.data.selectedCourseInfo.split(' - ');
-      this.electiveSlotName =
-        this.data.selectedElectiveSlotName?.trim() ||
-        (parts.length > 1 ? parts[1].trim() : this.data.selectedCourseInfo.trim());
-
-      // Require the admin to pick an elective
-      this.scheduleForm.get('elective')?.setValidators([Validators.required]);
-      this.scheduleForm.get('elective')?.updateValueAndValidity();
-
-      // Fetch the available options for this specific slot
-      this.schedulingService.getElectives().pipe(takeUntil(this.destroy$)).subscribe(variants => {
-        this.availableElectives = variants[this.electiveSlotName] || [];
-        // If a selectedElectiveId was provided, prefill it so it isn't lost
-        if (this.data.selectedElectiveId) {
-          this.scheduleForm.patchValue({
-            elective: this.data.selectedElectiveId,
-          });
-        }
-        this.cdr.markForCheck();
-      });
-    }
-
     this.setupDayButtons();
     this.setupCustomValidators();
     this.populateExistingSchedule();
@@ -248,7 +210,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         }
 
         const facultyId = suggestion.faculty_id;
-        const name = suggestion.faculty_name;
+        const facultyDetails = this.data.facultyOptions.find(
+          (f) => f.faculty_id === facultyId
+        );
+        const name = facultyDetails ? facultyDetails.name : suggestion.faculty_name;
         
         const prefs: Preference[] = [];
         if (suggestion.day && suggestion.start_time && 
@@ -339,9 +304,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   private setupAutocomplete(): void {
     const professorOptions: ProfessorOption[] =
-      this.data.options.professorOptions.map((name, index) => ({
+      this.data.facultyOptions.map((f, index) => ({
         id: index,
-        name: name,
+        name: f.name,
+        type: f.faculty_type,
       }));
 
     this.filteredProfessors$ = this.scheduleForm
@@ -464,13 +430,27 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /**
+   * Validator to ensure the control's value matches one of the valid options.
+   * @param validOptions Array of valid string options.
+   * @returns Validator function.
+   */
+  private mustMatchOption(validOptions: string[]): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      if (!control.value) return null;
+      return validOptions.includes(control.value)
+        ? null
+        : { invalidOption: true };
+    };
+  }
+
   private setupCustomValidators(): void {
     this.scheduleForm
       .get('professor')
-      ?.setValidators(mustMatchOption(this.data.options.professorOptions));
+      ?.setValidators(this.mustMatchOption(this.data.options.professorOptions));
     this.scheduleForm
       .get('room')
-      ?.setValidators(mustMatchOption(this.data.options.roomOptions));
+      ?.setValidators(this.mustMatchOption(this.data.options.roomOptions));
     this.scheduleForm.get('professor')?.updateValueAndValidity();
     this.scheduleForm.get('room')?.updateValueAndValidity();
   }
@@ -491,6 +471,20 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   initiateConflictValidation(): Observable<void> {
     const formValues = this.scheduleForm.value;
     const { day, startTime, endTime, professor, room } = formValues;
+
+    if (!day || !startTime || !endTime) {
+      this.hasConflicts = false;
+      this.conflictMessage = '';
+      this.remainingHoursMessage = '';
+      this.facultyBreakMessage = '';
+      this.isValidating = false;
+      this.cdr.detectChanges();
+      return of(undefined);
+    }
+
+    this.isValidating = true;
+    this.cdr.detectChanges();
+
     const formattedStartTime = this.convertTimeToBackendFormat(startTime);
     const formattedEndTime = this.convertTimeToBackendFormat(endTime);
 
@@ -544,7 +538,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             `${this.pendingMatchingProgramCode}. ` +
             `You must combine them to save.`
           : '';
-        this.cdr.markForCheck();
+        this.isValidating = false;
+        this.cdr.detectChanges();
       }
     } else if (this.data.isTemporaryCourse && this.populatedSchedules) {
       matchingResult =
@@ -574,6 +569,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.pendingMatchingProgramCode = null;
         this.pendingMatchingProgramId = null;
       }
+      this.isValidating = false;
+      this.cdr.detectChanges();
       return of(undefined);
     }
 
@@ -582,8 +579,14 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.pendingMatchingProgramCode = null;
     this.pendingMatchingProgramId = null;
 
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
     return this.schedulingService
       .checkForScheduleConflicts(
+        this.data.course_id,
         this.data.schedule_id,
         this.data.program.id,
         this.data.academic.year_level,
@@ -592,21 +595,53 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         formattedEndTime || '',
         this.data.academic.section_id,
         facultyId,
-        roomId
+        roomId,
+        this.data.hoursAlreadyAssigned
       )
       .pipe(
         tap((conflictResult) => {
+          this.isValidating = false;
           this.hasConflicts = conflictResult.hasConflicts;
           this.conflictMessage = this.hasConflicts
             ? conflictResult.messages[0]
             : '';
-          this.cdr.markForCheck();
+
+          this.facultyBreakMessage =
+            conflictResult.warnings && conflictResult.warnings.length > 0
+              ? conflictResult.warnings[0]
+              : '';
+
+          const lecHours = this.data.lec_hours || 0;
+          const labHours = this.data.lab_hours || 0;
+          const totalRequired = lecHours + labHours;
+          const assignedBefore = this.data.hoursAlreadyAssigned || 0;
+
+          if (formattedStartTime && formattedEndTime && totalRequired > 0) {
+            const startMins = timeToMinutes(formattedStartTime);
+            const endMins = timeToMinutes(formattedEndTime);
+            const proposedDuration = (endMins - startMins) / 60;
+            const remaining =
+              totalRequired - assignedBefore - proposedDuration;
+
+            if (remaining > 0) {
+              this.remainingHoursMessage =
+                `Note: There are still ${remaining.toFixed(1)} hours left ` +
+                `to be assigned for this course.`;
+            } else {
+              this.remainingHoursMessage = '';
+            }
+          } else {
+            this.remainingHoursMessage = '';
+          }
+
+          this.cdr.detectChanges();
         }),
         catchError(() => {
+          this.isValidating = false;
           this.conflictMessage =
             'An error occurred during validation. Please try again.';
           this.hasConflicts = true;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
           return of(undefined);
         }),
         map(() => undefined)
@@ -652,7 +687,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       this.dialogRef.close({
         isDraft: true,
         faculty_id: selectedFaculty?.faculty_id ?? null,
-        faculty_name: formValues.professor || 'Not set',
+        faculty_name: selectedFaculty?.name || 'Not set',
         room_id: selectedRoomId,
         room_code: formValues.room || 'Not set',
         day: formValues.day ?? null,
@@ -676,9 +711,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Grab the selected elective ID (will be null if it's a regular course)
-    const selectedElectiveId = this.isElectiveSlot ? formValues.elective : null;
-
+    // No elective_id is passed; it is auto-resolved by the backend
+    // from curriculum_electives based on the active academic year.
     combineObservable
       .pipe(
         switchMap(() => {
@@ -691,8 +725,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             formattedEndTime,
             this.data.program.id,
             this.data.academic.year_level,
-            this.data.academic.section_id,
-            selectedElectiveId
+            this.data.academic.section_id
           );
         }),
         tap(() => {
@@ -733,6 +766,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     preference: Preference
   ): void {
     this.selectedFaculty = faculty;
+    this.historyCardSelected = false;
     const [startTime, endTime] = preference.time
       .split(' - ')
       .map((t) => t.trim());
@@ -745,6 +779,31 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     });
 
     this.selectedDay = preference.day;
+    this.scheduleForm.markAllAsTouched();
+    this.cdr.markForCheck();
+  }
+
+  public selectHistoryEntry(): void {
+    const schedule = this.data.existingSchedule;
+    if (!schedule || schedule.professor === 'Not set') return;
+
+    this.selectedFaculty = null;
+    this.historyCardSelected = true;
+
+    // Parse "8:00 AM - 9:00 AM" → startTime / endTime
+    const parts = schedule.time?.split(' - ').map((t) => t.trim()) ?? [];
+    const startTime = parts[0] || '';
+    const endTime   = parts[1] || '';
+
+    this.scheduleForm.patchValue({
+      day: schedule.day !== 'Not set' ? schedule.day : '',
+      startTime,
+      endTime,
+      professor: schedule.professor,
+      room: schedule.room !== 'Not set' ? schedule.room : '',
+    });
+
+    this.selectedDay = schedule.day !== 'Not set' ? schedule.day : '';
     this.scheduleForm.markAllAsTouched();
     this.cdr.markForCheck();
   }
@@ -793,6 +852,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.selectedDay = '';
     this.originalDay = '';
     this.selectedFaculty = null;
+    this.historyCardSelected = false;
     this.cdr.markForCheck();
   }
 
@@ -818,12 +878,6 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   }
 
   public getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 }

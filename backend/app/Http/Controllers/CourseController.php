@@ -258,10 +258,19 @@ class CourseController extends Controller
             $courseTitle = $course->course_title;
 
             // Delete associated course assignments
-            CourseAssignment::where('course_id', $course->course_id)->delete();
+            CourseAssignment::where('course_id', $course->course_id)
+                ->delete();
 
-            // Delete associated course requirements
-            CourseRequirement::where('course_id', $course->course_id)->delete();
+            // Delete requirements owned by this course
+            CourseRequirement::where('course_id', $course->course_id)
+                ->delete();
+
+            // Delete requirements where this course is the dependency
+            // (e.g. it is listed as a pre/co-req of another course)
+            CourseRequirement::where(
+                'required_course_id',
+                $course->course_id
+            )->delete();
 
             // Delete the course
             $course->delete();

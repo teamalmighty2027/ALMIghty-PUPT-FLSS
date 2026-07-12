@@ -1,0 +1,339 @@
+@use '../../../styles/mixins';
+
+:host {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.video-tutorial-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 580px;
+  overflow: hidden;
+}
+
+// ── Gradient header ───────────────────────────────────────────
+.dialog-header {
+  padding: var(--spacing-md) var(--spacing-lg) var(--spacing-sm);
+  background: linear-gradient(135deg, var(--primary-one) 0%, var(--primary-two) 100%);
+
+  .header-top {
+    @include mixins.flex-layout($align: center, $justify: space-between);
+    margin-bottom: var(--spacing-xs);
+
+    .header-label {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+
+      .header-eyebrow {
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: rgba(255, 255, 255, 0.85);
+        letter-spacing: var(--letter-spacing-md);
+        text-transform: uppercase;
+      }
+
+      .header-icon {
+        font-size: 1.1rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+    }
+
+    .close-btn {
+      color: rgba(255, 255, 255, 0.8);
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      &:hover {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.15);
+      }
+    }
+  }
+
+  .dialog-title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.3;
+  }
+}
+
+// ── Tab bar ─────────────────────────────────────────────
+.tab-bar {
+  position: relative;
+  @include mixins.flex-layout($align: stretch, $justify: flex-start);
+  border-bottom: none;
+  background: var(--main-bg);
+  padding-bottom: 2px;
+  overflow: hidden;
+
+  .tab-item {
+    flex: 1;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--neutral-base);
+    opacity: 0.55;
+    border: none;
+    border-radius: 0;
+    background: none;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+    transition: opacity 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    white-space: nowrap;
+
+    &.active { opacity: 1; color: var(--primary-text); }
+    &:hover:not(.active) {
+      opacity: 0.8;
+      background-color: var(--neutral-hover);
+    }
+  }
+
+  .tab-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 50%;
+    @include mixins.gradient-primary(90deg);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    &.video-tab { transform: translateX(100%); }
+  }
+}
+
+.tab-progress-separator {
+  height: 1px;
+  background-color: var(--neutral-fade);
+  width: 100%;
+  flex-shrink: 0;
+}
+
+// ── Step progress bar ─────────────────────────────────────────
+.progress-track {
+  height: 3px;
+  width: 100%;
+  background-color: var(--neutral-mid);
+  overflow: hidden;
+  flex-shrink: 0;
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-one) 0%, var(--primary-two) 100%);
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+// ── Guide tab body ────────────────────────────────────────────
+.dialog-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-xl);
+
+  @media (max-width: 480px) {
+    padding: var(--spacing-sm) var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+}
+
+.step-icon-wrapper {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+
+  .step-icon-bg {
+    @include mixins.flex-layout;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--primary-fade);
+    border: 2px solid var(--primary-one);
+
+    .step-icon {
+      font-size: 2.2rem;
+      color: var(--primary-text);
+    }
+  }
+
+  .step-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    @include mixins.gradient-primary;
+    color: #fff;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    @include mixins.flex-layout;
+    box-shadow: 0 2px 6px rgba(128, 0, 0, 0.35);
+  }
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+
+  .step-title {
+    margin: 0;
+    font-size: var(--font-size-mdx);
+    font-weight: 700;
+    color: var(--neutral-base);
+    line-height: var(--line-height-sm);
+  }
+
+  .step-description {
+    margin: 0;
+    font-size: var(--font-size-md);
+    color: var(--neutral-base);
+    opacity: 0.85;
+    line-height: var(--line-height-mdx);
+  }
+
+  .step-highlight {
+    @include mixins.flex-layout($align: flex-start, $gap: var(--spacing-xs));
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--primary-fade);
+    color: var(--primary-text);
+    font-size: var(--font-size-smx);
+    font-weight: 500;
+    text-align: left;
+    width: 100%;
+
+    .highlight-icon { font-size: 1rem; flex-shrink: 0; }
+  }
+}
+
+.step-counter {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--neutral-base);
+  opacity: 0.5;
+}
+
+.step-dots {
+  @include mixins.flex-layout($gap: var(--spacing-xs));
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    background-color: var(--neutral-bar);
+    transition: background-color 0.25s ease, width 0.25s ease, border-radius 0.25s ease;
+    flex-shrink: 0;
+
+    &.visited { background-color: var(--primary-one-fade); }
+    &.active { width: 24px; border-radius: 4px; @include mixins.gradient-primary; }
+    &:hover:not(.active) { background-color: var(--primary-one-fade); }
+  }
+}
+
+// ── Video tab body ────────────────────────────────────────────
+.video-tab-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+
+  @media (max-width: 480px) { padding: var(--spacing-sm) var(--spacing-md); }
+
+  .video-wrapper {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    background-color: #000;
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+
+    .video-player {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  }
+
+  .video-note {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--neutral-base);
+    opacity: 0.5;
+
+    .video-note-icon { font-size: 0.9rem; flex-shrink: 0; }
+  }
+}
+
+// ── Footer buttons ────────────────────────────────────────────
+.dialog-buttons {
+  @include mixins.flex-layout(
+    $align: center,
+    $justify: space-between,
+    $gap: var(--spacing-sm)
+  );
+  padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
+  border-top: 1px solid var(--neutral-fade);
+  flex-shrink: 0;
+
+  @media (max-width: 480px) {
+    padding: var(--spacing-xs) var(--spacing-md) var(--spacing-sm);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--spacing-xs);
+  }
+
+  .skip-btn {
+    color: var(--neutral-base);
+    opacity: 0.55;
+    font-size: var(--font-size-sm);
+    &:hover { opacity: 0.9; background-color: var(--neutral-hover); }
+  }
+
+  .nav-buttons { @include mixins.flex-layout($gap: var(--spacing-xs)); }
+
+  .prev-btn {
+    color: var(--primary-text);
+    border-color: var(--primary-one-fade);
+    font-size: var(--font-size-sm);
+
+    &:not(:disabled):hover { background-color: var(--primary-hover); }
+    &:disabled { opacity: 0.35; }
+
+    ::ng-deep .mdc-button__label { display: inline-flex; align-items: center; gap: 4px; }
+    .nav-icon { font-size: 1.1rem; line-height: 1; display: inline-flex; align-items: center; }
+  }
+
+  .next-btn,
+  .finish-btn {
+    @include mixins.gradient-primary(135deg);
+    color: #fff !important;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+
+    ::ng-deep .mdc-button__label { display: inline-flex; align-items: center; gap: 4px; }
+    .nav-icon { font-size: 1.1rem; line-height: 1; display: inline-flex; align-items: center; }
+  }
+}

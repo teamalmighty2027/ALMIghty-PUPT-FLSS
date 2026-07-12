@@ -79,7 +79,7 @@ class RegisterUserToIdpJob implements ShouldQueue
         $response = Http::withoutVerifying()
             ->withHeaders(['X-API-KEY' => $apiKey])
             ->asJson()
-            ->post(rtrim($baseUrl, '/') . '/api/v1/users', $payload);
+            ->post(rtrim($baseUrl, '/') . '/api/v1/user', $payload);
 
         if (!$response->successful()) {
             throw new Exception("IDP User Registration failed with status " . $response->status() . ": " . $response->body());

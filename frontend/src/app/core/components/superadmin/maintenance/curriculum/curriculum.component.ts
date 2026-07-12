@@ -237,7 +237,6 @@ export class CurriculumComponent implements OnInit, OnDestroy {
 
                 const dialogRef = this.dialog.open(TableDialogComponent, {
                   data: dialogConfig,
-                  disableClose: true,
                   autoFocus: true,
                 });
 
@@ -280,7 +279,6 @@ export class CurriculumComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
-      disableClose: true,
       autoFocus: true,
     });
 

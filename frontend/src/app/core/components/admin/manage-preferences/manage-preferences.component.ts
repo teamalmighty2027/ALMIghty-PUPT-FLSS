@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-import { BehaviorSubject, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, firstValueFrom } from 'rxjs';
 import { filter, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
@@ -28,6 +28,7 @@ import { ReportsService } from '../../../services/admin/reports/reports.service'
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -73,6 +74,15 @@ interface ToggleState {
   animations: [fadeAnimation],
 })
 export class ManagePreferencesComponent implements OnInit, OnDestroy {
+  private readonly baseDisplayedColumns: string[] = [
+    'index',
+    'facultyName',
+    'facultyCode',
+    'facultyType',
+    'action',
+    'requests',
+  ];
+
   inputFields: InputField[] = [
     {
       type: 'text',
@@ -81,15 +91,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     },
   ];
 
-  displayedColumns: string[] = [
-    'index',
-    'facultyName',
-    'facultyCode',
-    'facultyType',
-    'action',
-    'requests',
-    'toggle',
-  ];
+  displayedColumns: string[] = [...this.baseDisplayedColumns, 'toggle'];
 
   dataSource = new MatTableDataSource<Faculty>([]);
   allData: Faculty[] = [];
@@ -105,6 +107,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   isLoading = new BehaviorSubject<boolean>(true);
 
   selectedTermId: number | null = null;
+  private activeTermId: number | null = null;
+  showPreferenceToggleColumn = true;
+  exportButtonsDisabled = true;
+  exportTooltipMessage = '';
   private prefsSub?: Subscription;
 
   hasAnyPreferences = false;
@@ -146,20 +152,33 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Lifecycle hook called when the component is destroyed.
+   * Cleans up the internal destroy subject to avoid memory leaks
+   * and allow observables to complete.
+   */
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
+  /**
+   * Loads academic terms for the term dropdown and initializes the
+   * selected term. Sets the active term id and triggers loading
+   * of faculty preferences for the chosen term.
+   */
   loadTerms(): void {
     this.reportsService.getAllTermsForDropdown().subscribe({
       next: (data) => {
+        const activeTerm = data.find((term: any) => term.is_active === 1);
+
+        this.activeTermId = activeTerm?.active_semester_id ?? null;
+
         if (this.selectedTermId === null) {
-          const activeTerm = data.find((term: any) => term.is_active === 1);
-          if (activeTerm) {
-            this.selectedTermId = activeTerm.active_semester_id;
-          }
+          this.selectedTermId = this.activeTermId;
         }
+
+        this.syncSelectedTermState(this.selectedTermId);
         
         this.loadFacultyPreferences(this.selectedTermId);
       },
@@ -169,15 +188,71 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Handler invoked when the user selects a different term.
+   * Forces a reload of faculty preferences for the provided term.
+   * @param termId The newly selected term id, or null.
+   */
   onTermChange(termId: number | null): void {
     // Force the reload even if angular's two-way binding beat us to it
     if (termId !== null) {
-      this.selectedTermId = termId;
+      this.syncSelectedTermState(termId);
       this.preferencesService.clearPreferencesCache();
       this.loadFacultyPreferences(termId);
     }
   }
 
+  /**
+   * Synchronizes internal component state with the provided term id.
+   * Updates visibility of the preference toggle column and export
+   * button state accordingly.
+   * @param termId The term id to sync into component state.
+   */
+  private syncSelectedTermState(termId: number | null): void {
+    this.selectedTermId = termId;
+    this.showPreferenceToggleColumn =
+      termId !== null && termId === this.activeTermId;
+    this.updateDisplayedColumns();
+    this.updateExportButtonState();
+  }
+
+  /**
+   * Recomputes the `displayedColumns` array based on whether the
+   * preference toggle column should be visible.
+   */
+  private updateDisplayedColumns(): void {
+    this.displayedColumns = this.showPreferenceToggleColumn
+      ? [...this.baseDisplayedColumns, 'toggle']
+      : [...this.baseDisplayedColumns];
+  }
+
+  /**
+   * Updates export button enabled/disabled state and tooltip message.
+   * Disables export when there are no preferences or when submission
+   * is currently open (global or individual toggles active).
+   */
+  private updateExportButtonState(): void {
+    const exportBlockedBySubmission =
+      this.showPreferenceToggleColumn &&
+      (this.isToggleAllChecked || this.isAnyIndividualToggleOn);
+
+    this.exportButtonsDisabled =
+      !this.hasAnyPreferences || exportBlockedBySubmission;
+
+    if (!this.hasAnyPreferences) {
+      this.exportTooltipMessage = 'No faculty preferences available for export';
+      return;
+    }
+
+    this.exportTooltipMessage = exportBlockedBySubmission
+      ? 'Preferences submission is open; export disabled'
+      : '';
+  }
+
+  /**
+   * Sets the table filter predicate used to match faculty rows
+   * against the user's search text.
+   */
   private setupFilterPredicate(): void {
     this.dataSource.filterPredicate = (data: Faculty, filter: string) => {
       return (
@@ -188,6 +263,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Loads faculty preferences for the specified term and updates
+   * the component's data structures and UI state.
+   * @param termId Optional term id to scope the preferences request.
+   */
   loadFacultyPreferences(termId?: number | null): void {
     this.isLoading.next(true);
 
@@ -225,6 +305,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           this.checkGlobalStartDate();
           this.checkIndividualStartDate();
           this.initializeScheduledFacultyState();
+          this.updateExportButtonState();
           this.isLoading.next(false);
         },
         error: (error) => {
@@ -239,15 +320,24 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * Normalizes component state when no preference data is available.
+   * Clears data arrays, updates derived states, and stops the loader.
+   */
   private handleEmptyData(): void {
     this.allData = [];
     this.filteredData = [];
     this.dataSource.data = [];
     this.checkToggleAllState();
     this.updateHasAnyPreferences();
+    this.updateExportButtonState();
     this.isLoading.next(false);
   }
 
+  /**
+   * Applies a text filter to the faculty list and updates the table.
+   * @param filterValue Raw filter string entered by the user.
+   */
   applyFilter(filterValue: string): void {
     this.currentFilter = filterValue.trim().toLowerCase();
 
@@ -260,12 +350,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     this.dataSource.data = this.filteredData;
+    this.checkToggleAllState();
+    this.updateExportButtonState();
 
     if (this.paginator) {
       this.paginator.firstPage();
     }
   }
 
+  /**
+   * Predicate to determine whether a faculty row matches the filter.
+   * @param data Faculty row to test.
+   * @param filter Normalized filter string.
+   */
   filterPredicate(data: Faculty, filter: string): boolean {
     return (
       data.facultyName.toLowerCase().includes(filter) ||
@@ -274,15 +371,42 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Updates the table data source with the current filtered data.
+   */
   updateDisplayedData(): void {
     this.dataSource.data = [...this.filteredData];
   }
 
+  /**
+   * Reloads the current term after a successful bulk toggle.
+   * Clears cached preferences first so the table reflects server state.
+   */
+  private refreshPreferencesTable(): void {
+    const termId = this.selectedTermId ?? this.activeTermId;
+
+    if (termId === null) {
+      return;
+    }
+
+    this.preferencesService.clearPreferencesCache();
+    this.loadFacultyPreferences(termId);
+  }
+
+  /**
+   * Receives input changes from the header component and forwards
+   * the search text into the debounced search subject.
+   * @param inputValues Object map of input keys to values.
+   */
   onInputChange(inputValues: { [key: string]: any }): void {
     const searchValue = inputValues['searchFaculty'] || '';
     this.searchSubject.next(searchValue);
   }
 
+  /**
+   * Computes the state of the global "toggle all" control and
+   * whether any individual toggles are active in the filtered set.
+   */
   checkToggleAllState(): void {
     const allEnabled = this.filteredData.every((faculty) => faculty.is_enabled);
     const isGlobalDeadlineSet = this.allData.some((faculty) =>
@@ -300,6 +424,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.isEnabled = allEnabled;
   }
 
+  /**
+   * Detects whether a global start date has been set for any faculty.
+   */
   checkGlobalStartDate(): void {
     this.isGlobalStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -308,6 +435,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Detects whether any individual start dates have been configured.
+   */
   checkIndividualStartDate(): void {
     this.isIndividualStartDateSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -316,12 +446,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Updates `hasAnyPreferences` to indicate whether any faculty
+   * have submitted preferences in the loaded data.
+   */
   updateHasAnyPreferences(): void {
     this.hasAnyPreferences = this.allData.some((faculty) =>
       this.hasSubmittedPreferences(faculty),
     );
   }
 
+  /**
+   * Returns true if the given faculty has any valid submitted
+   * preference courses for their active semester.
+   * @param faculty Faculty object to inspect.
+   */
   hasSubmittedPreferences(faculty: Faculty): boolean {
     if (!faculty || !faculty.active_semesters || faculty.active_semesters.length === 0) return false;
     
@@ -338,6 +477,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return validCourses.length > 0;
   }
 
+  /**
+   * Updates `hasIndividualDeadlines` based on whether any faculty
+   * have individual deadlines that differ from global deadlines.
+   */
   updateIndividualDeadlinesState(): void {
     this.hasIndividualDeadlines = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -350,6 +493,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Returns true if any faculty have a global start date or deadline
+   * configured for their active semester.
+   */
   isGloballyScheduled(): boolean {
     return this.allData.some((faculty) =>
       faculty.active_semesters?.some(
@@ -360,11 +507,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Returns whether the provided faculty is individually scheduled.
+   * @param faculty Optional faculty to check; returns false when omitted.
+   */
   isIndividuallyScheduled(faculty?: Faculty): boolean {
     if (!faculty) return false;
     return this.facultyScheduledState.get(faculty.faculty_id) ?? false;
   }
 
+  /**
+   * Initializes the internal map that tracks whether each faculty
+   * is individually scheduled based on their active semester data.
+   */
   initializeScheduledFacultyState(): void {
     this.allData.forEach((faculty: Faculty) => {
       this.facultyScheduledState.set(
@@ -374,6 +529,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Determines whether the given faculty has any individual start
+   * date or deadline configured.
+   * @param faculty Faculty to check.
+   */
   calculateIsIndividuallyScheduled(faculty: Faculty): boolean {
     return (
       faculty.active_semesters?.some(
@@ -384,6 +544,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
   }
 
+  /**
+   * Handles the global "toggle all" preferences action.
+   * Opens a confirmation dialog and applies the new enabled/disabled
+   * state to the filtered faculties when confirmed.
+   * @param event The originating toggle change event or MouseEvent.
+   * @param isScheduledClick True when invoked programmatically by a scheduler.
+   */
   onToggleAllPreferences(
     event: MatSlideToggleChange | MouseEvent,
     isScheduledClick = false,
@@ -420,23 +587,24 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
-      if (confirmed && !isScheduledClick) {
-        const newStatus = this.isToggleAllChecked;
-        this.filteredData.forEach(
-          (faculty) => (faculty.is_enabled = newStatus),
-        );
-        this.isToggleAllChecked = newStatus;
-        this.updateDisplayedData();
-        this.cdr.markForCheck();
+      if (confirmed) {
+        this.refreshPreferencesTable();
       }
     });
   }
 
+  /**
+   * Handles toggling preferences for a single faculty.
+   * Opens a confirmation dialog and refreshes the faculty data
+   * from the server when the action is confirmed.
+   * @param faculty The faculty being toggled.
+   * @param event The originating slide toggle or mouse event.
+   * @param isScheduledClick True when invoked programmatically.
+   */
   onToggleSinglePreferences(
     faculty: Faculty,
     event: MatSlideToggleChange | MouseEvent,
@@ -469,12 +637,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
       data: dialogData,
-      disableClose: true,
       autoFocus: true,
     });
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
-      if (confirmed && !isScheduledClick) {
+      if (confirmed) {
         this.preferencesService.getPreferences().subscribe((response) => {
           const updatedFaculty = response?.preferences?.find(
             (item: any) => item.faculty_id === faculty.faculty_id,
@@ -484,8 +651,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             faculty.is_enabled = updatedFaculty.is_enabled === 1;
             faculty.active_semesters = updatedFaculty.active_semesters;
 
+            this.facultyScheduledState.set(
+              faculty.faculty_id,
+              this.calculateIsIndividuallyScheduled(faculty)
+            );
+
             this.updateDisplayedData();
             this.checkToggleAllState();
+            this.updateExportButtonState();
             this.cdr.detectChanges();
           }
         });
@@ -493,6 +666,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the preview dialog for the given faculty's preferences.
+   * @param faculty Faculty to preview.
+   */
   onView(faculty: Faculty): void {
     const generatePdfFunction = (preview: boolean): Blob | void => {
       return this.generateFacultyPDF(false, [faculty], preview);
@@ -513,11 +690,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
         }
       },
-      disableClose: true,
       autoFocus: true,
     });
   }
 
+  /**
+   * Opens the dialog for exporting all faculty preferences.
+   * Validates that there is data available before opening the dialog.
+   */
   onExportAll(): void {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
@@ -547,17 +727,20 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(true, this.allData, preview),
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(true, this.allData);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.xlsx`;
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_faculty_preferences_report.pdf`,
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.pdf`,
       },
-      disableClose: true,
     });
   }
 
   // --- EXPORT BY PROGRAM ---
-  onExportByProgram(): void {
+  /**
+   * Opens the export dialog to generate program-grouped export files.
+   * Validates grouped program data before allowing the export.
+   */
+  async onExportByProgram(): Promise<void> {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
       return;
@@ -573,7 +756,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
-    const programsData = this.getGroupedProgramData();
+
+    // Fetch master list of programs to guarantee all courses are printed
+    let masterPrograms: any[] = [];
+    try {
+      const response = await firstValueFrom(this.preferencesService.getPrograms());
+      masterPrograms = response?.programs || [];
+    } catch (error) {
+      this.snackBar.open('Error fetching master programs list.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const programsData = this.getGroupedProgramData(masterPrograms);
 
     if (programsData.length === 0) {
       this.snackBar.open('No valid program data to export.', 'Close', { duration: 3000 });
@@ -604,15 +798,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateExcelFunction: async () => {
           const excelBlob = await this.generateProgramPreferencesExcelBlob(programsData, academic_year, semester_label);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.xlsx`;
+          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_by_program_preferences.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_program_preferences.pdf`,
+        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_by_program_preferences.pdf`,
       },
-      disableClose: true,
     });
   }
 
+  /**
+   * Opens the export dialog for exporting a single faculty's preferences.
+   * @param faculty The faculty whose preferences are to be exported.
+   */
   onExportSingle(faculty: Faculty): void {
     const activeSemester = faculty.active_semesters?.[0];
     if (!activeSemester || !activeSemester.courses?.length) {
@@ -643,11 +840,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         },
         generateFileNameFunction: () => `${fileNameBase}.pdf`
       },
-      disableClose: true,
     });
   }
 
-  private getGroupedProgramData(): any[] {
+  /**
+   * Groups faculty preference course data by program, year level and
+   * section to produce a structure suitable for program-based exports.
+   * Includes empty courses from the master curriculum.
+   * @param masterPrograms List of all programs and courses from the backend.
+   * @returns An array of program group objects prepared for export.
+   */
+  private getGroupedProgramData(masterPrograms: any[] = []): any[] {
     const programsMap = new Map<string, any>();
     
     // Dictionary to expand program titles if the backend only provided abbreviations
@@ -672,6 +875,54 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       'BSENT': 'Bachelor of Science in Entrepreneurship',
     };
 
+    // 1. PRE-FILL WITH MASTER CURRICULUM
+    masterPrograms.forEach((prog: any) => {
+      const progCode = prog.program_code || 'UNKNOWN PROGRAM';
+      let progTitle = prog.program_title;
+      if (!progTitle || progTitle === progCode) {
+        progTitle = PROGRAM_NAMES[progCode.toUpperCase()] || progCode;
+      }
+
+      if (!programsMap.has(progCode)) {
+        programsMap.set(progCode, {
+          program_code: progCode,
+          program_title: progTitle,
+          year_levels: new Map<string, any>()
+        });
+      }
+      const currentProg = programsMap.get(progCode);
+
+      prog.year_levels?.forEach((yl: any) => {
+        const yearLevelStr = yl.year_level?.toString() || 'N/A';
+        if (!currentProg.year_levels.has(yearLevelStr)) {
+          currentProg.year_levels.set(yearLevelStr, { year_level: yearLevelStr, sections: new Map<string, any>() });
+        }
+        const currentYl = currentProg.year_levels.get(yearLevelStr);
+
+        yl.sections?.forEach((sec: any) => {
+          const secName = sec.section_name || 'N/A';
+          if (!currentYl.sections.has(secName)) {
+            currentYl.sections.set(secName, { section_name: secName, courses: new Map<string, any>() });
+          }
+          const currentSec = currentYl.sections.get(secName);
+
+          yl.semester?.courses?.forEach((c: any) => {
+            const courseCode = c.course_code;
+            if (!currentSec.courses.has(courseCode)) {
+              currentSec.courses.set(courseCode, {
+                subject_code: courseCode,
+                description: c.course_title || 'N/A',
+                lec: c.lec_hours || 0,
+                lab: c.lab_hours || 0,
+                teachers: new Map<string, any>() // Empty map by default
+              });
+            }
+          });
+        });
+      });
+    });
+
+    // 2. OVERLAY FACULTY PREFERENCES
     this.allData.forEach((faculty) => {
       const activeSemester = faculty.active_semesters?.[0];
       if (!activeSemester || !activeSemester.courses) return;
@@ -682,7 +933,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         const progCode = course.course_details?.program_code || course.program_details?.program_code || 'UNKNOWN PROGRAM';
         let progTitle = course.course_details?.program_title || course.program_details?.program_title;
         
-        // Auto-expand program title if it's missing or matches the short code
         if (!progTitle || progTitle === progCode) {
             progTitle = PROGRAM_NAMES[progCode.toUpperCase()] || progCode;
         }
@@ -697,7 +947,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           'Monday': 'M', 'Tuesday': 'TUE', 'Wednesday': 'W', 'Thursday': 'TH', 'Friday': 'F', 'Saturday': 'S', 'Sunday': 'SU'
         };
         
-        // Group the days by identical time blocks so they get their own rows instead of merging confusingly
         const timeGroups = new Map<string, string[]>();
         preferredDays.forEach((d: any) => {
             const start = this.formatTimeTo12Hour(d.start_time).replace(/\s+/g, '');
@@ -720,45 +969,35 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             scheduleBlocks.push({ day: 'TBA', time: 'TBA' });
         }
 
-        const courseCode = course.course_details?.course_code || 'N/A';
+        const originalCode = course.original_course_code || course.course_details?.original_course_code;
+        const courseCode = originalCode ? `${course.course_details?.course_code} (${originalCode})` : (course.course_details?.course_code || 'N/A');
         const courseTitle = course.course_details?.course_title || 'N/A';
         const lec = course.lec_hours || 0;
         const lab = course.lab_hours || 0;
 
+        // Ensure program exists just in case a teacher has a preference outside the master list
         if (!programsMap.has(progCode)) {
-            programsMap.set(progCode, {
-                program_code: progCode,
-                program_title: progTitle,
-                year_levels: new Map<string, any>()
-            });
+            programsMap.set(progCode, { program_code: progCode, program_title: progTitle, year_levels: new Map<string, any>() });
         }
-
         const prog = programsMap.get(progCode);
-        if (!prog.year_levels.has(yearLevel)) {
-            prog.year_levels.set(yearLevel, {
-                year_level: yearLevel,
-                sections: new Map<string, any>()
-            });
-        }
 
-        const yl = prog.year_levels.get(yearLevel);
+        if (!prog.year_levels.has(yearLevel.toString())) {
+            prog.year_levels.set(yearLevel.toString(), { year_level: yearLevel.toString(), sections: new Map<string, any>() });
+        }
+        const yl = prog.year_levels.get(yearLevel.toString());
+
         if (!yl.sections.has(sectionName)) {
-            yl.sections.set(sectionName, {
-                section_name: sectionName,
-                courses: new Map<string, any>()
-            });
+            yl.sections.set(sectionName, { section_name: sectionName, courses: new Map<string, any>() });
         }
-
         const sec = yl.sections.get(sectionName);
 
-        // Group by course so that multiple teachers selecting the same course appear in the same section
         if (!sec.courses.has(courseCode)) {
              sec.courses.set(courseCode, {
                 subject_code: courseCode,
                 description: courseTitle,
                 lec: lec,
                 lab: lab,
-                teachers: new Map<string, any>() // Group by individual teacher next
+                teachers: new Map<string, any>()
              });
         }
         
@@ -767,7 +1006,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             c.teachers.set(teacherName, []);
         }
 
-        // Add all distinct day/time blocks for this specific teacher
         scheduleBlocks.forEach(block => {
             c.teachers.get(teacherName).push(block);
         });
@@ -783,7 +1021,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                     description: c.description,
                     lec: c.lec,
                     lab: c.lab,
-                    // Safe mapping over map entries without tuple destructuring
                     teachers: Array.from(c.teachers.entries()).map((entry: any) => ({
                         teacherName: entry[0],
                         blocks: entry[1]
@@ -800,96 +1037,139 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return programsArray;
   }
 
+  /**
+   * Generates a PDF blob for program-grouped preference data.
+   * @param programsData Grouped program data as returned by getGroupedProgramData().
+   * @param academicYear Academic year string for headers.
+   * @param semesterLabel Semester label for headers.
+   * @returns A Blob containing the generated PDF document.
+   */
   private generateProgramPreferencesPDF(programsData: any[], academicYear: string, semesterLabel: string): Blob {
     const doc = new jsPDF('p', 'mm', 'legal') as any;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
     let isFirstPage = true;
 
+    const drawPageHeader = (programTitle: string): number => {
+      let currentY = 15;
+
+      const subscription = this.reportHeaderService.addHeader(doc, '', currentY, '')
+        .subscribe((newY: number) => {
+          currentY = newY;
+        });
+      subscription.unsubscribe();
+
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, currentY - 8, pageWidth, 12, 'F');
+
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      const splitTitle = doc.splitTextToSize(programTitle, pageWidth - margin * 2);
+      doc.text(splitTitle, pageWidth / 2, currentY, { align: 'center' });
+      currentY += splitTitle.length * 7;
+
+      const subtitle = `${semesterLabel.toUpperCase()} SY ${academicYear} | SECTION OFFERING`;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(subtitle, pageWidth / 2, currentY, { align: 'center' });
+      currentY += 5;
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 6;
+
+      return currentY;
+    };
+
     programsData.forEach((program: any) => {
+      const programTitle = program.program_title
+        ? program.program_title.toUpperCase()
+        : 'PROGRAM';
+
       program.year_levels.forEach((yl: any) => {
         yl.sections.forEach((sec: any) => {
           if (!isFirstPage) {
+            this.reportHeaderService.addStandardFooter(doc);
             doc.addPage();
           }
           isFirstPage = false;
 
-          let currentY = 20;
+          let currentY = drawPageHeader(programTitle);
 
-          doc.setFontSize(14);
-          doc.setFont('helvetica', 'bold');
-          doc.text(`${semesterLabel.toUpperCase()} SY ${academicYear}`, 105, currentY, { align: 'center' });
-          currentY += 10;
-          
-          doc.setFontSize(12);
-          doc.text('SECTION OFFERING', 105, currentY, { align: 'center' });
-          currentY += 8;
-
-          doc.setFontSize(14); 
-          const fullTitle = `${program.program_title.toUpperCase()} (TAGUIG)`;
-          const splitTitle = doc.splitTextToSize(fullTitle, 180);
-          doc.text(splitTitle, 105, currentY, { align: 'center' });
-          currentY += (splitTitle.length * 6) + 6; 
-
-          const yearStr = yl.year_level.toString();
+          const yearStr = yl.year_level?.toString() ?? '';
           let yearDisplay = '';
-          
-          if (yearStr === 'N/A' || yearStr === 'null' || !yearStr) {
-              yearDisplay = 'Unassigned Year';
+
+          if (!yearStr || yearStr === 'N/A' || yearStr === 'null') {
+            yearDisplay = 'Unassigned Year';
           } else {
-              let suffix = 'TH';
-              if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
-              else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
-              else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
-              yearDisplay = `${yearStr}${suffix} Year`;
+            let suffix = 'TH';
+            if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
+            else if (yearStr.endsWith('2') && !yearStr.endsWith('12')) suffix = 'ND';
+            else if (yearStr.endsWith('3') && !yearStr.endsWith('13')) suffix = 'RD';
+            yearDisplay = `${yearStr}${suffix} Year`;
           }
 
-          let secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null' 
-              ? ` - Section ${sec.section_name}` 
-              : '';
+          const secDisplay = sec.section_name && sec.section_name !== 'N/A' && sec.section_name !== 'null'
+            ? ` - Section ${sec.section_name}`
+            : '';
 
           doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
-          doc.text(`${yearDisplay}${secDisplay}`, 15, currentY);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${yearDisplay}${secDisplay}`, margin, currentY);
           currentY += 5;
 
           const tableBody: any[] = [];
-          
+
           sec.courses.forEach((c: any) => {
             let totalCourseRows = 0;
             c.teachers.forEach((t: any) => {
-                totalCourseRows += t.blocks.length;
+              totalCourseRows += t.blocks.length;
             });
 
-            if (totalCourseRows === 0) return;
+            // Render empty course if no teachers picked it
+            if (totalCourseRows === 0) {
+              tableBody.push([
+                { content: c.subject_code, styles: { valign: 'middle', halign: 'center' } },
+                { content: c.description, styles: { valign: 'middle' } },
+                { content: c.lec.toString(), styles: { valign: 'middle', halign: 'center' } },
+                { content: c.lab.toString(), styles: { valign: 'middle', halign: 'center' } },
+                { content: '', styles: { valign: 'middle' } },
+                { content: '', styles: { valign: 'middle' } },
+                { content: '', styles: { valign: 'middle' } }
+              ]);
+              return; 
+            }
 
             let isFirstCourseRow = true;
 
             c.teachers.forEach((t: any) => {
-                const teacherRows = t.blocks.length;
-                let isFirstTeacherRow = true;
+              const teacherRows = t.blocks.length;
+              let isFirstTeacherRow = true;
 
-                t.blocks.forEach((b: any) => {
-                    const row: any[] = [];
+              t.blocks.forEach((b: any) => {
+                const row: any[] = [];
 
-                    // Apply rowSpan to the primary course details so they merge beautifully
-                    if (isFirstCourseRow) {
-                        row.push({ content: c.subject_code, rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        row.push({ content: c.description, rowSpan: totalCourseRows, styles: { valign: 'middle' } });
-                        row.push({ content: c.lec.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        row.push({ content: c.lab.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
-                        isFirstCourseRow = false;
-                    }
+                if (isFirstCourseRow) {
+                  row.push({ content: c.subject_code, rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  row.push({ content: c.description, rowSpan: totalCourseRows, styles: { valign: 'middle' } });
+                  row.push({ content: c.lec.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  row.push({ content: c.lab.toString(), rowSpan: totalCourseRows, styles: { valign: 'middle', halign: 'center' } });
+                  isFirstCourseRow = false;
+                }
 
-                    // Apply rowSpan to the teacher so horizontal lines appear correctly between their individual schedules
-                    if (isFirstTeacherRow) {
-                        row.push({ content: t.teacherName, rowSpan: teacherRows, styles: { valign: 'middle' } });
-                        isFirstTeacherRow = false;
-                    }
+                if (isFirstTeacherRow) {
+                  row.push({ content: t.teacherName, rowSpan: teacherRows, styles: { valign: 'middle' } });
+                  isFirstTeacherRow = false;
+                }
 
-                    row.push({ content: b.day, styles: { valign: 'middle', halign: 'center' } });
-                    row.push({ content: b.time, styles: { valign: 'middle', halign: 'center' } });
+                row.push({ content: b.day, styles: { valign: 'middle', halign: 'center' } });
+                row.push({ content: b.time, styles: { valign: 'middle', halign: 'center' } });
 
-                    tableBody.push(row);
-                });
+                tableBody.push(row);
+              });
             });
           });
 
@@ -927,15 +1207,24 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
               5: { cellWidth: 16, halign: 'center' },
               6: { cellWidth: 27, halign: 'center' },
             },
-            margin: { left: 15, right: 15 }
+            margin: { left: margin, right: margin }
           });
         });
       });
     });
 
+    this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
+  /**
+   * Creates an Excel workbook blob containing program-grouped
+   * preference data suitable for download.
+   * @param programsData Grouped program data as returned by getGroupedProgramData().
+   * @param academicYear Academic year string for headers and filenames.
+   * @param semesterLabel Semester label for headers and filenames.
+   * @returns Promise resolving to an Excel Blob.
+   */
   private async generateProgramPreferencesExcelBlob(programsData: any[], academicYear: string, semesterLabel: string): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
@@ -1019,6 +1308,22 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             const courseStartRow = worksheet.rowCount + 1;
             let totalRows = 0;
 
+            // Render empty course if no teachers picked it
+            if (!c.teachers || c.teachers.length === 0) {
+              const row = worksheet.addRow([
+                c.subject_code, c.description, c.lec, c.lab, '', '', ''
+              ]);
+              row.eachCell((cell, colNum) => {
+                cell.alignment = { 
+                  vertical: 'middle', 
+                  horizontal: (colNum === 3 || colNum === 4 || colNum === 6 || colNum === 7) ? 'center' : 'left', 
+                  wrapText: true 
+                };
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+              });
+              return;
+            }
+
             c.teachers.forEach((t: any) => {
                 const teacherStartRow = worksheet.rowCount + 1;
                 
@@ -1055,6 +1360,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /**
+   * Generates an Excel workbook blob containing one sheet per faculty
+   * with their preference details.
+   * @param isAll Whether the export is for all faculties.
+   * @param faculties Array of faculties to include in the workbook.
+   * @returns Promise resolving to an Excel Blob.
+   */
   private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
@@ -1120,17 +1432,33 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
       activeSemester.courses.forEach((course: any, index: number) => {
         const preferredDays = course.preferred_days || [];
-        const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+        const formattedDayTimes =
+          this.formatPreferredDaysAndTime(preferredDays);
 
-        const sectionName = course.section_details?.section_name || course.course_details?.section_name || '';
+        const sectionName =
+          course.section_details?.section_name ||
+          course.course_details?.section_name ||
+          '';
+
         const yearLevel = course.course_details?.year_level || '';
-        const yearSection = yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+        const yearSection =
+          yearLevel && sectionName ? `${yearLevel}-${sectionName}` : 'N/A';
+
+        const originalCode =
+          course.original_course_code ||
+          course.course_details?.original_course_code;
+
+        const displayCode = originalCode
+          ? `${course.course_details?.course_code} (${originalCode})`
+          : (course.course_details?.course_code || 'N/A');
 
         const row = worksheet.addRow([
           index + 1,
-          course.course_details?.program_code || course.program_details?.program_code || 'N/A',
+          course.course_details?.program_code ||
+            course.program_details?.program_code ||
+            'N/A',
           yearSection,
-          course.course_details?.course_code || 'N/A',
+          displayCode,
           course.course_details?.course_title || 'N/A',
           course.lec_hours || 0,
           course.lab_hours || 0,
@@ -1139,8 +1467,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         ]);
 
         row.eachCell((cell, colNum) => {
-          cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
-          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal:
+              colNum === 5 || colNum === 9 ? 'left' : 'center',
+            wrapText: true
+          };
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          };
         });
       });
     }
@@ -1154,6 +1492,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
 
+  /**
+   * Generates a PDF document blob for provided faculty preferences.
+   * @param isAll True when generating a combined report for all faculties.
+   * @param faculties Array of faculty objects to render.
+   * @param showPreview If true, the caller intends to display a preview.
+   * @returns Blob representing the generated PDF.
+   */
   generateFacultyPDF(
     isAll: boolean,
     faculties: Faculty[],
@@ -1198,13 +1543,29 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             const courseData = activeSemester.courses.map(
               (course: any, index: number) => {
                 const preferredDays = course.preferred_days || [];
-                const formattedDayTimes = this.formatPreferredDaysAndTime(preferredDays);
+                const formattedDayTimes =
+                  this.formatPreferredDaysAndTime(preferredDays);
+
+                const originalCode =
+                  course.original_course_code ||
+                  course.course_details?.original_course_code;
+
+                const displayCode = originalCode
+                  ? `${course.course_details?.course_code} (${originalCode})`
+                  : (course.course_details?.course_code || 'N/A');
+
+                const yearSec =
+                  course.course_details?.year_level &&
+                  course.course_details?.section_name
+                    ? `${course.course_details.year_level}-` +
+                      `${course.course_details.section_name}`
+                    : 'N/A';
 
                 return [
                   (index + 1).toString(),
                   course.course_details?.program_code || 'N/A',
-                  course.course_details?.year_level + '-' + course.course_details?.section_name || 'N/A',                
-                  course.course_details?.course_code || 'N/A',
+                  yearSec,
+                  displayCode,
                   course.course_details?.course_title || 'N/A',
                   course.lec_hours.toString(),
                   course.lab_hours.toString(),
@@ -1258,6 +1619,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                 8: { cellWidth: 40 },
               },
               margin: { left: 10, right: 10 },
+              // Footer on every page jsPDF-AutoTable creates internally
+              didDrawPage: () => {
+                this.reportHeaderService.addStandardFooter(doc);
+              },
             };
 
             (doc as any).autoTable(tableConfig);
@@ -1279,6 +1644,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             }
           });
 
+          // Footer on the very last page
           this.reportHeaderService.addStandardFooter(doc);
         });
 
@@ -1291,10 +1657,20 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Sanitizes a string to produce a safe filename.
+   * @param fileName Original filename or label.
+   * @returns Sanitized string containing only lowercase letters and digits/underscores.
+   */
   sanitizeFileName(fileName: string): string {
     return fileName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   }
 
+  /**
+   * Converts a 24-hour time string (HH:MM(:SS) format) into 12-hour format.
+   * @param time Time string in 24-hour format, or undefined.
+   * @returns Formatted time in 12-hour notation or 'N/A' when missing.
+   */
   formatTimeTo12Hour(time: string | undefined): string {
     if (!time) {
       return 'N/A';
@@ -1307,6 +1683,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return `${formattedHour}:${minutesFormatted} ${period}`;
   }
 
+  /**
+   * Detects whether the preferredDays array indicates "any day" or
+   * "any time" modifiers.
+   * @param preferredDays Array of preferred day/time objects.
+   * @returns Object with flags `has_any_day` and `has_any_time`.
+   */
   private detectAnyModifiers(preferredDays: any[]): { has_any_day: boolean; has_any_time: boolean } {
     const REQUIRED_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const ANY_DAY_START = '07:00:00';
@@ -1322,6 +1704,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     return { has_any_day, has_any_time };
   }
 
+  /**
+   * Formats the preferredDays array into a readable string used in
+   * exports and PDF tables.
+   * @param preferredDays Array of preferred day/time objects.
+   * @returns Formatted string describing days and time ranges.
+   */
   private formatPreferredDaysAndTime(preferredDays: any[]): string {
     const { has_any_day, has_any_time } = this.detectAnyModifiers(preferredDays);
 
@@ -1342,31 +1730,67 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       return `${daysString}, Any Time`;
     }
 
-    return preferredDays
-      .map((pref) => {
-        const time = `${this.formatTimeTo12Hour(
-          pref.start_time,
-        )} - ${this.formatTimeTo12Hour(pref.end_time)}`;
-        return `${pref.day} (${time})`;
+    const daysOrder = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    const grouped: { [key: string]: any[] } = {};
+    preferredDays.forEach((pref) => {
+      if (!grouped[pref.day]) {
+        grouped[pref.day] = [];
+      }
+      grouped[pref.day].push(pref);
+    });
+
+    return Object.keys(grouped)
+      .sort((a, b) => daysOrder.indexOf(a) - daysOrder.indexOf(b))
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pref) =>
+              `${this.formatTimeTo12Hour(
+                pref.start_time
+              )} - ${this.formatTimeTo12Hour(pref.end_time)}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
       })
       .join('\n');
   }
 
+  /**
+   * Computes CSS class flags derived from the faculty type string.
+   * @param facultyType Raw faculty type label.
+   * @returns Record of CSS class booleans.
+   */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
+  /**
+   * Returns the tooltip text for a given toggle type and faculty.
+   * @param type Either 'global' or 'individual'.
+   * @param faculty Optional faculty to derive the tooltip from.
+   */
   public getTooltip(type: 'global' | 'individual', faculty?: Faculty): string {
     const state = this.getToggleState(faculty || this.allData[0]);
     return type === 'global' ? state.globalTooltip : state.individualTooltip;
   }
 
+  /**
+   * Computes the toggle enable/disable state and associated tooltips
+   * for the provided faculty.
+   * @param faculty Optional faculty to compute state for.
+   */
   public getToggleState(faculty?: Faculty): ToggleState {
     if (!faculty || !this.allData.length) {
       return {
@@ -1378,10 +1802,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     const isGlobalDisabled =
-      (this.hasIndividualDeadlines &&
-        !this.isToggleAllChecked &&
-        this.isEnabled) ||
-      this.isIndividualStartDateSet;
+      !this.isToggleAllChecked &&
+      ((this.hasIndividualDeadlines && this.isEnabled) ||
+        this.isIndividualStartDateSet);
 
     const isIndividualDisabled =
       this.isToggleAllChecked || this.isGlobalStartDateSet;

@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\NotifyAdminOfPreferenceChangeJob;
 use App\Jobs\SendFacultyPreferenceEmailJob;
+use App\Jobs\AutoSubmitPreviousPreferencesJob;
 use App\Models\ActiveSemester;
 use App\Models\AcademicYear;
 use App\Models\Faculty;
@@ -10,11 +11,17 @@ use App\Models\Preference;
 use App\Models\PreferenceDay;
 use App\Models\PreferencesSetting;
 use App\Models\User;
+use App\Models\CourseAssignment;
+use App\Models\AcademicYearCurricula;
+use App\Models\TemporaryCourseOffering;
+use App\Models\SectionsPerProgramYear;
 use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\PreferenceSubmittedNotification;
 
 class PreferenceController extends Controller
 {
@@ -86,8 +93,9 @@ class PreferenceController extends Controller
         $preferenceRecord = null;
         $isUpdate = false;
 
-        DB::transaction(function () use ($validatedData, $facultyId, $activeSemesterId, $courseAssignmentId, $temporaryCourseOfferingId, $sectionsPerProgramYearId, &$preferenceRecord, &$isUpdate) {
-            
+        DB::beginTransaction();
+
+        try {
             $existingPreference = Preference::where([
                 'faculty_id' => $facultyId,
                 'active_semester_id' => $activeSemesterId,
@@ -109,7 +117,8 @@ class PreferenceController extends Controller
             );
 
             // Check if preferred days have changed
-            $existingDays = PreferenceDay::where('preference_id', $preference->preferences_id)
+            $existingDays = PreferenceDay::
+                where('preference_id', $preference->preferences_id)
                 ->orderBy('preferred_day')
                 ->get()
                 ->map(function ($day) {
@@ -127,7 +136,9 @@ class PreferenceController extends Controller
 
             if ($existingDays !== $newDays) {
                 // Delete existing days for this preference
-                PreferenceDay::where('preference_id', $preference->preferences_id)->delete();
+                PreferenceDay::
+                    where('preference_id', $preference->preferences_id)
+                    ->delete();
 
                 // Create new preference days with start and end times
                 foreach ($newDays as $dayData) {
@@ -141,35 +152,75 @@ class PreferenceController extends Controller
             }
 
             $preferenceRecord = $preference;
-        });
 
-        // ═══════════════════════════════════════════════════════
-        // AUDIT LOG: Preference Submitted/Updated
-        // ═══════════════════════════════════════════════════════
-        $facultyUser = User::whereHas('faculty', function($q) use ($facultyId) {
-            $q->where('id', $facultyId);
-        })->first();
-        $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
+            DB::commit();
 
-        $courseReference = $courseAssignmentId
-            ? "Course Assignment ID: {$courseAssignmentId}"
-            : "Temporary Offering ID: {$temporaryCourseOfferingId}";
+            // ═══════════════════════════════════════════════════════
+            // NOTIFY ADMIN: Preference Submitted/Updated (Optimized)
+            // ═══════════════════════════════════════════════════════
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
 
-        if ($isUpdate) {
-            AuditLogger::logUpdate(
-                model: 'Preference',
-                modelId: $preferenceRecord->preferences_id,
-                oldData: [], // Days comparison is too complex for basic Old/New array, stick to description
-                newData: ['days' => $validatedData['preferred_days']],
-                description: "Updated schedule preference for {$facultyName} ({$courseReference})"
-            );
-        } else {
-            AuditLogger::logCreate(
-                model: 'Preference',
-                modelId: $preferenceRecord->preferences_id,
-                data: $validatedData,
-                description: "Submitted new schedule preference for {$facultyName}"
-            );
+            $faculty = Faculty::find($facultyId);
+
+            foreach ($admins as $admin) {
+                // 1. Check if the admin already has an UNREAD notification for this specific faculty
+                $existingNotification = $admin->unreadNotifications()
+                    ->where('type', PreferenceSubmittedNotification::class)
+                    ->where('data->faculty_id', $facultyId)
+                    ->first();
+
+                if (!$existingNotification) {
+                    // 2. Only notify if there isn't an unread one already
+                    $admin->notify(new PreferenceSubmittedNotification($faculty));
+                } else {
+                    // 3. Prevent spam: Just update the timestamp to bump it to the top of the dropdown
+                    $existingNotification->update(['created_at' => now()]);
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════
+            // AUDIT LOG: Preference Submitted/Updated
+            // ═══════════════════════════════════════════════════════
+            $facultyUser = User::whereHas(
+                'faculty',
+                function ($q) use ($facultyId) {
+                    $q->where('id', $facultyId);
+                }
+            )->first();
+            $facultyName = $facultyUser
+                ? $facultyUser->formatted_name
+                : "Faculty ID: {$facultyId}";
+
+            $courseReference = $courseAssignmentId
+                ? "Course Assignment ID: {$courseAssignmentId}"
+                : "Temporary Offering ID: {$temporaryCourseOfferingId}";
+
+            if ($isUpdate) {
+                AuditLogger::logUpdate(
+                    model: 'Preference',
+                    modelId: $preferenceRecord->preferences_id,
+                    oldData: [],
+                    newData: ['days' => $validatedData['preferred_days']],
+                    description: "Updated schedule preference for " .
+                        $facultyName . " (" . $courseReference . ")"
+                );
+            } else {
+                AuditLogger::logCreate(
+                    model: 'Preference',
+                    modelId: $preferenceRecord->preferences_id,
+                    data: $validatedData,
+                    description: "Submitted new schedule preference for " .
+                        $facultyName
+                );
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error submitting preference: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while submitting preferences. Please try again.',
+            ], 500);
         }
 
         return response()->json([
@@ -199,6 +250,41 @@ class PreferenceController extends Controller
         if (! $activeSemester) {
             return response()->json(['error' => 'No active semester found'], 404);
         }
+
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
 
         $faculty = Faculty::with(['user', 'preferenceSetting'])
             ->whereHas('user', function ($query) {
@@ -234,7 +320,14 @@ class PreferenceController extends Controller
                 ->keyBy('temporary_course_offering_id');
         }
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
+        $facultyPreferences = $faculty->groupBy('id')->map(function (
+            $facultyGroup
+        ) use (
+            $activeSemester,
+            $temporaryOfferingsById,
+            $courseAssignments,
+            $curriculumElectives
+        ) {
             $faculty            = $facultyGroup->first();
             $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
@@ -361,7 +454,21 @@ class PreferenceController extends Controller
                         ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                         'individual_deadline'   => $preferenceSetting && $preferenceSetting->individual_deadline
                         ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
-                        'courses'               => $courses->toArray(),
+                        'courses'               => (function () use (
+                            $courses,
+                            $activeSemester,
+                            $courseAssignments,
+                            $curriculumElectives
+                        ) {
+                            $coursesArray = $courses->toArray();
+                            $this->resolveElectivesForCourses(
+                                $coursesArray,
+                                (int)$activeSemester->academic_year_id,
+                                $courseAssignments,
+                                $curriculumElectives
+                            );
+                            return $coursesArray;
+                        })(),
                     ],
                 ],
             ];
@@ -402,6 +509,50 @@ class PreferenceController extends Controller
             return response()->json(['error' => 'No active semester found'], 404);
         }
 
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
+
+        $sections = DB::table('sections_per_program_year')
+            ->select(
+                'sections_per_program_year_id',
+                'year_level',
+                'section_name'
+            )
+            ->get()
+            ->keyBy('sections_per_program_year_id');
+
         $faculty = Faculty::with(['user', 'preferenceSetting'])
             ->leftJoin('preferences', function ($join) use ($activeSemester) {
                 $join->on('faculty.id', '=', 'preferences.faculty_id')
@@ -432,12 +583,26 @@ class PreferenceController extends Controller
                 ->keyBy('temporary_course_offering_id');
         }
 
-        $facultyPreferences = $faculty->groupBy('id')->map(function ($facultyGroup) use ($activeSemester, $temporaryOfferingsById) {
+        $facultyPreferences = $faculty->groupBy('id')->map(function (
+            $facultyGroup
+        ) use (
+            $activeSemester,
+            $temporaryOfferingsById,
+            $courseAssignments,
+            $curriculumElectives,
+            $sections
+        ) {
             $faculty            = $facultyGroup->first();
             $facultyUser        = $faculty->user;
             $preferenceSetting = $faculty->preferenceSetting;
 
-            $courses = $facultyGroup->flatMap(function ($preference) use ($activeSemester, $temporaryOfferingsById) {
+            $courses = $facultyGroup->flatMap(function (
+                $preference
+            ) use (
+                $activeSemester,
+                $temporaryOfferingsById,
+                $sections
+            ) {
                 if ($preference->course_assignment_id) {
                     $preferenceDays = PreferenceDay::where('preference_id', $preference->preferences_id)
                         ->orderBy('preferred_day')
@@ -463,6 +628,8 @@ class PreferenceController extends Controller
                         )
                         ->first();
 
+                    $sec = $sections->get($preference->sections_per_program_year_id);
+
                     return ($submittedCourse && !$preference->is_ignored)
                         ? [[
                             'course_assignment_id' => $submittedCourse->course_assignment_id ?? 'N/A',
@@ -476,6 +643,8 @@ class PreferenceController extends Controller
                             ],
                             'section_details'      => [
                                 'section_id'   => $preference->sections_per_program_year_id,
+                                'section_name' => $sec?->section_name ?? null,
+                                'year_level'   => $sec?->year_level ?? null,
                             ],
                             'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
@@ -526,6 +695,8 @@ class PreferenceController extends Controller
                         ],
                         'section_details'      => [
                             'section_id'   => $preference->sections_per_program_year_id,
+                            'section_name' => $sec?->section_name ?? null,
+                            'year_level'   => $sec?->year_level ?? null,
                         ],
                         'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
@@ -569,7 +740,21 @@ class PreferenceController extends Controller
                             ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString()
                             : ($preferenceSetting && $preferenceSetting->global_deadline 
                             ? Carbon::parse($preferenceSetting->global_deadline)->toDateString(): null),
-                        'courses'               => $courses->values()->toArray(),
+                        'courses'               => (function () use (
+                            $courses,
+                            $activeSemester,
+                            $courseAssignments,
+                            $curriculumElectives
+                        ) {
+                            $coursesArray = $courses->values()->toArray();
+                            $this->resolveElectivesForCourses(
+                                $coursesArray,
+                                (int)$activeSemester->academic_year_id,
+                                $courseAssignments,
+                                $curriculumElectives
+                            );
+                            return $coursesArray;
+                        })(),
                     ],
                 ],
             ];
@@ -600,9 +785,40 @@ class PreferenceController extends Controller
                 ->first();
         }
 
-        if (! $activeSemester) {
-            return response()->json(['error' => 'No active semester found'], 404);
-        }
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
 
         $faculty = Faculty::where('id', $faculty_id)
             ->with([
@@ -750,7 +966,21 @@ class PreferenceController extends Controller
                     'semester_label'      => $this->getSemesterLabel($activeSemester->semester_id),
                     'global_deadline'     => $preferenceSetting && $preferenceSetting->global_deadline ? Carbon::parse($preferenceSetting->global_deadline)->toDateString() : null,
                     'individual_deadline' => $preferenceSetting && $preferenceSetting->individual_deadline ? Carbon::parse($preferenceSetting->individual_deadline)->toDateString() : null,
-                    'courses'             => $courses->toArray(),
+                    'courses'             => (function () use (
+                        $courses,
+                        $activeSemester,
+                        $courseAssignments,
+                        $curriculumElectives
+                    ) {
+                        $coursesArray = $courses->toArray();
+                        $this->resolveElectivesForCourses(
+                            $coursesArray,
+                            (int)$activeSemester->academic_year_id,
+                            $courseAssignments,
+                            $curriculumElectives
+                        );
+                        return $coursesArray;
+                    })(),
                 ],
             ],
         ];
@@ -765,11 +995,45 @@ class PreferenceController extends Controller
     **/
     public function getPreferencesHistoryByFacultyId($faculty_id)
     {
-        // ... Keep exactly as is ...
         $faculty = Faculty::find($faculty_id);
         if (! $faculty) {
             return response()->json(['error' => 'Faculty not found'], 404);
         }
+
+        $curriculumElectives = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'ce.elective_slot_name',
+                'e.course_code',
+                'e.course_title',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $courseAssignments = DB::table('course_assignments as ca')
+            ->join(
+                'curricula_program as cp',
+                'ca.curricula_program_id',
+                '=',
+                'cp.curricula_program_id'
+            )
+            ->select(
+                'ca.course_assignment_id',
+                'cp.curriculum_id',
+                'cp.program_id',
+                'ca.semester_id'
+            )
+            ->get()
+            ->keyBy('course_assignment_id');
 
         $preferences = Preference::with([
                 'preferenceDays',
@@ -913,9 +1177,16 @@ class PreferenceController extends Controller
                 'temporary_type'        => $temporaryOffering?->type ?? null,
                 'temporary_status'      => $temporaryOffering?->status ?? null,
                 'petition_required'     => $temporaryOffering ? in_array($temporaryOffering->type, ['petition', 'tutorial'], true) : false,
-                'created_at'     => $pref->created_at ? Carbon::parse($pref->created_at)->toDateTimeString() : 'N/A',
-                'updated_at'     => $pref->updated_at ? Carbon::parse($pref->updated_at)->toDateTimeString() : 'N/A',
             ];
+
+            $coursesList = [$preferencePayload];
+            $this->resolveElectivesForCourses(
+                $coursesList,
+                (int)$academicYearId,
+                $courseAssignments,
+                $curriculumElectives
+            );
+            $preferencePayload = $coursesList[0];
 
             if (isset($grouped[$academicYearId]['semesters'][$semesterId])) {
                 $grouped[$academicYearId]['semesters'][$semesterId]['preferences'][] = $preferencePayload;
@@ -941,6 +1212,358 @@ class PreferenceController extends Controller
         return response()->json([
             'academic_years' => $result
         ], 200, [], JSON_PRETTY_PRINT);
+    }
+
+    /**
+     * Retrieves the most recent preference history for a specific faculty.
+     */
+    public static function getFacultyPreviousPreferenceHistory(
+        $facultyId,
+        $isIndividual = false
+    ) {
+        // Retrieve the faculty model using the provided ID
+        $faculty = Faculty::find($facultyId);
+
+        if (!$faculty || !$faculty->user) {
+            Log::error('Faculty or User not found for ID: ' . $facultyId);
+            return null;
+        }
+
+        $settings = PreferencesSetting::where('faculty_id', $facultyId)->first();
+
+        if (!$settings || !$settings->is_enabled) {
+            return null;
+        }
+
+        $deadline = $isIndividual && $settings->individual_deadline
+            ? $settings->individual_deadline
+            : $settings->global_deadline;
+
+        $formatted_deadline = $deadline
+            ? Carbon::parse($deadline)
+                ->setTimezone('Asia/Manila')
+                ->format('M d, Y')
+            : 'No deadline set';
+
+        $days_left = null;
+
+        if ($deadline) {
+            $today = Carbon::now('Asia/Manila')->startOfDay();
+            $target_deadline = Carbon::parse($deadline)
+                ->setTimezone('Asia/Manila')
+                ->endOfDay();
+
+            if ($today->gt($target_deadline)) {
+                $days_left = 0;
+            } else {
+                $days_left = floor($today->diffInDays($target_deadline, false));
+            }
+        }
+
+        // --- FETCH PREVIOUS PREFERENCES AND SEMESTER DETAILS ---
+        $currentActiveSemester = ActiveSemester::where('is_active', 1)->first();
+
+        $previousPreferences = [];
+        $previous_academic_year = '';
+        $previous_semester_label = '';
+
+        if ($currentActiveSemester) {
+            // Join to find the latest past semester that MATCHES semester_id
+            $latestPastSemesterId = Preference::join(
+                'active_semesters',
+                'preferences.active_semester_id',
+                '=',
+                'active_semesters.active_semester_id'
+            )
+            ->where('preferences.faculty_id', $facultyId)
+            ->where(
+                'preferences.active_semester_id',
+                '!=',
+                $currentActiveSemester->active_semester_id
+            )
+            ->where(
+                'active_semesters.semester_id',
+                $currentActiveSemester->semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('preferences.course_assignment_id')
+                      ->orWhereNotNull(
+                          'preferences.temporary_course_offering_id'
+                      );
+            })
+            ->orderBy('preferences.active_semester_id', 'desc')
+            ->value('preferences.active_semester_id');
+
+            if ($latestPastSemesterId) {
+                // Eager load everything needed for the UI table
+                $previousPreferences = Preference::with([
+                    'courseAssignment.course',
+                    'courseAssignment.curriculaProgram.program',
+                    'temporaryCourseOffering.course',
+                    'temporaryCourseOffering.program',
+                    'preferenceDays',
+                    'section'
+                ])
+                ->where('faculty_id', $facultyId)
+                ->where('active_semester_id', $latestPastSemesterId)
+                ->where(function ($query) {
+                    $query->whereNotNull('course_assignment_id')
+                          ->orWhereNotNull('temporary_course_offering_id');
+                })
+                ->get();
+
+
+                $pastActiveSemester = ActiveSemester::with([
+                    'academicYear',
+                    'semester'
+                ])->find($latestPastSemesterId);
+
+                if ($pastActiveSemester && $pastActiveSemester->academicYear) {
+                    $previous_academic_year =
+                        $pastActiveSemester->academicYear->year_start .
+                        '-' .
+                        $pastActiveSemester->academicYear->year_end;
+                  $semId = $pastActiveSemester->semester_id;
+                  $previous_semester_label = 
+                    $semId == 1 ? '1st Semester' : 
+                    ($semId == 2 ? '2nd Semester' : 'Summer Semester');
+                }
+            }
+        }
+
+        $previousPreferencesData = [
+            'faculty_name' => $faculty->user->formatted_name ?? 'N/A',
+            'email' => $faculty->user->email,
+            'faculty_units' => $faculty->faculty_units ?? 0,
+            'deadline' => $formatted_deadline,
+            'days_left' => $days_left,
+            'previousPreferences' => $previousPreferences,
+            'previous_academic_year' => $previous_academic_year,
+            'previous_semester_label' => $previous_semester_label
+        ];
+
+        return $previousPreferencesData;
+    }
+
+    /**
+     * Automatically clones and submits previous preferences to current semester
+     */
+    public static function autoSubmitPreviousPreferences(
+        $facultyId,
+        $previousPreferences,
+        $currentActiveSemester
+    ) {
+        $curriculumId = AcademicYearCurricula::where(
+            'academic_year_id',
+            $currentActiveSemester->academic_year_id
+        )->value('curriculum_id');
+
+        if (!$curriculumId) {
+            Log::warning(
+                "No active curriculum found for academic year ID: " .
+                $currentActiveSemester->academic_year_id
+            );
+            return;
+        }
+
+        foreach ($previousPreferences as $pref) {
+            $newCourseAssignmentId = null;
+            $newTemporaryOfferingId = null;
+            $newSectionId = null;
+
+            // 1. Resolve sections_per_program_year_id
+            if ($pref->section) {
+                $matchingSection = SectionsPerProgramYear::
+                    where([
+                        'academic_year_id' =>
+                            $currentActiveSemester->academic_year_id,
+                        'program_id' => $pref->section->program_id,
+                        'year_level' => $pref->section->year_level,
+                        'section_name' => $pref->section->section_name,
+                    ])->first();
+
+                if ($matchingSection) {
+                    $newSectionId =
+                        $matchingSection->sections_per_program_year_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: section " .
+                        $pref->section->section_name .
+                        " not found in current year."
+                    );
+                    continue;
+                }
+            }
+
+            // 2. Resolve course_assignment_id
+            if ($pref->courseAssignment && $pref->courseAssignment->course) {
+                $matchingCourseAssignment = CourseAssignment::
+                    whereHas(
+                        'curriculaProgram',
+                        function ($query) use ($curriculumId, $pref) {
+                            $query->where('curriculum_id', $curriculumId)
+                                  ->where(
+                                      'program_id',
+                                      $pref->courseAssignment
+                                          ->curriculaProgram->program_id
+                                  );
+                        }
+                    )
+                    ->whereHas(
+                        'semester',
+                        function ($query) use ($currentActiveSemester) {
+                            $query->where(
+                                'semester',
+                                $currentActiveSemester->semester_id
+                            );
+                        }
+                    )
+                    ->where('course_id', function ($query) use ($pref) {
+                        $query->select('course_id')
+                              ->from('courses')
+                              ->where(
+                                  'course_code',
+                                  $pref->courseAssignment->course->course_code
+                              )
+                              ->limit(1);
+                    })
+                    ->first();
+
+                if ($matchingCourseAssignment) {
+                    $newCourseAssignmentId =
+                        $matchingCourseAssignment->course_assignment_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: course assignment for " .
+                        $pref->courseAssignment->course->course_code .
+                        " not found in current semester."
+                    );
+                    continue;
+                }
+            }
+
+            // 3. Resolve temporary_course_offering_id
+            if (
+                $pref->temporaryCourseOffering &&
+                $pref->temporaryCourseOffering->course
+            ) {
+                $matchingTemporaryOffering = TemporaryCourseOffering::
+                    where([
+                        'academic_year_id' =>
+                            $currentActiveSemester->academic_year_id,
+                        'semester_id' => $currentActiveSemester->semester_id,
+                        'program_id' =>
+                            $pref->temporaryCourseOffering->program_id,
+                        'year_level' =>
+                            $pref->temporaryCourseOffering->year_level,
+                        'type' => $pref->temporaryCourseOffering->type,
+                        'status' => 'Approved',
+                        'is_archived' => 0,
+                    ])
+                    ->whereHas('course', function ($query) use ($pref) {
+                        $query->where(
+                            'course_code',
+                            $pref->temporaryCourseOffering->course->course_code
+                        );
+                    })
+                    ->first();
+
+                if ($matchingTemporaryOffering) {
+                    $newTemporaryOfferingId =
+                        $matchingTemporaryOffering
+                            ->temporary_course_offering_id;
+                } else {
+                    Log::warning(
+                        "Skipping preference copy: temporary offering " .
+                        $pref->temporaryCourseOffering->course->course_code .
+                        " not found/approved in current semester."
+                    );
+                    continue;
+                }
+            }
+
+            // Verify we have at least one course identifier
+            if (!$newCourseAssignmentId && !$newTemporaryOfferingId) {
+                continue;
+            }
+
+            // 4. Duplicate Check
+            $duplicateExists = Preference::where([
+                'faculty_id' => $facultyId,
+                'active_semester_id' =>
+                    $currentActiveSemester->active_semester_id,
+                'course_assignment_id' => $newCourseAssignmentId,
+                'temporary_course_offering_id' => $newTemporaryOfferingId,
+                'sections_per_program_year_id' => $newSectionId,
+            ])->exists();
+
+            if ($duplicateExists) {
+                Log::info(
+                    "Preference already exists (duplicate) for faculty " .
+                    $facultyId . " - skipping auto-submit."
+                );
+                continue;
+            }
+
+            DB::beginTransaction();
+
+            try {
+                $newPref = Preference::create([
+                    'faculty_id' => $facultyId,
+                    'active_semester_id' =>
+                        $currentActiveSemester->active_semester_id,
+                    'course_assignment_id' => $newCourseAssignmentId,
+                    'temporary_course_offering_id' =>
+                        $newTemporaryOfferingId,
+                    'sections_per_program_year_id' => $newSectionId,
+                    'is_ignored' => $pref->is_ignored
+                ]);
+
+                foreach ($pref->preferenceDays as $day) {
+                    PreferenceDay::create([
+                        'preference_id' => $newPref->preferences_id,
+                        'preferred_day' => $day->preferred_day,
+                        'preferred_start_time' =>
+                            $day->preferred_start_time,
+                        'preferred_end_time' => $day->preferred_end_time,
+                    ]);
+                }
+
+                DB::commit();
+
+                // ═══════════════════════════════════════════════════════
+                // AUDIT LOG: Preference Submitted
+                // ═══════════════════════════════════════════════════════
+                $facultyUser = User::whereHas(
+                    'faculty',
+                    function ($q) use ($facultyId) {
+                        $q->where('id', $facultyId);
+                    }
+                )->first();
+
+                $facultyName = $facultyUser
+                    ? $facultyUser->formatted_name
+                    : "Faculty ID: {$facultyId}";
+
+                $courseReference = $newCourseAssignmentId
+                    ? "Course Assignment ID: {$newCourseAssignmentId}"
+                    : "Temporary Offering ID: {$newTemporaryOfferingId}";
+
+                AuditLogger::logCreate(
+                    model: 'Preference',
+                    modelId: $newPref->preferences_id,
+                    data: $newPref->toArray(),
+                    description: "Submitted past schedule preference for " .
+                        $facultyName . " (" . $courseReference . ")"
+                );
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error(
+                    "Error auto-submitting preference for faculty " .
+                    $facultyId . ": " . $e->getMessage()
+                );
+            }
+        }
     }
 
     /**
@@ -1107,10 +1730,16 @@ class PreferenceController extends Controller
 
         $sendEmail = $validated['send_email'];
 
-        DB::transaction(function () use ($validated, $sendEmail) {
+        DB::beginTransaction();
+
+        try {
             $status            = $validated['status'];
-            $global_deadline   = $status && $validated['global_deadline'] ? Carbon::parse($validated['global_deadline'])->endOfDay() : null;
-            $global_start_date = $status && $validated['global_start_date'] ? Carbon::parse($validated['global_start_date'])->startOfDay() : null;
+            $global_deadline   = $status && $validated['global_deadline']
+                ? Carbon::parse($validated['global_deadline'])->endOfDay()
+                : null;
+            $global_start_date = $status && $validated['global_start_date']
+                ? Carbon::parse($validated['global_start_date'])->startOfDay()
+                : null;
 
             // Current date and start date
             $currentDate = Carbon::now();
@@ -1120,7 +1749,9 @@ class PreferenceController extends Controller
             $finalStatus = false;
             if ($status) {
                 // Enable only if start date is today or already passed
-                $finalStatus = $startDate ? $startDate->lessThanOrEqualTo($currentDate) : true;
+                $finalStatus = $startDate
+                    ? $startDate->lessThanOrEqualTo($currentDate)
+                    : true;
             }
 
             PreferencesSetting::query()->update([
@@ -1133,7 +1764,9 @@ class PreferenceController extends Controller
             ]);
 
             // Handle faculties without settings
-            $facultyWithoutSettings = Faculty::whereDoesntHave('preferenceSetting')->get();
+            $facultyWithoutSettings = Faculty::
+                whereDoesntHave('preferenceSetting')->get();
+
             foreach ($facultyWithoutSettings as $faculty) {
                 PreferencesSetting::create([
                     'faculty_id'          => $faculty->id,
@@ -1152,7 +1785,8 @@ class PreferenceController extends Controller
                     if ($finalStatus) {
                         SendFacultyPreferenceEmailJob::dispatch($faculty->id);
                     } else if ($startDate) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty->id)->delay($startDate);
+                        SendFacultyPreferenceEmailJob::dispatch($faculty->id)
+                            ->delay($startDate);
                     }
                 }
             }
@@ -1161,14 +1795,29 @@ class PreferenceController extends Controller
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
                 DB::table('faculty_schedule_publication')
-                    ->where('academic_year_id', $activeSemester->academic_year_id)
+                    ->where(
+                        'academic_year_id',
+                        $activeSemester->academic_year_id
+                    )
                     ->where('semester_id', $activeSemester->semester_id)
                     ->update([
                         'is_published' => 0,
                         'updated_at'   => now(),
                     ]);
             }
-        });
+
+            DB::commit();
+
+            if ($status) {
+                AutoSubmitPreviousPreferencesJob::dispatch();
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to toggle all preferences: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while updating settings.',
+            ], 500);
+        }
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Global Settings Updated
@@ -1214,7 +1863,9 @@ class PreferenceController extends Controller
         $oldSettings = PreferencesSetting::where('faculty_id', $faculty_id)->first();
         $oldData = $oldSettings ? $oldSettings->toArray() : [];
 
-        DB::transaction(function () use ($validated, $faculty_id, $status, $individual_deadline, $individual_start_date, $sendEmail) {
+        DB::beginTransaction();
+
+        try {
             // Current date and start date
             $currentDate = Carbon::now();
             $startDate   = $individual_start_date;
@@ -1223,7 +1874,9 @@ class PreferenceController extends Controller
             $finalStatus = false;
             if ($status) {
                 // Enable only if start date is today or already passed
-                $finalStatus = $startDate ? $startDate->lessThanOrEqualTo($currentDate) : true;
+                $finalStatus = $startDate
+                    ? $startDate->lessThanOrEqualTo($currentDate)
+                    : true;
             }
 
             $preferenceSetting = PreferencesSetting::firstOrCreate(
@@ -1252,25 +1905,47 @@ class PreferenceController extends Controller
                 $faculty = Faculty::find($faculty_id);
                 if ($faculty) {
                     if ($finalStatus) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty_id, true);
+                        SendFacultyPreferenceEmailJob::
+                            dispatch($faculty_id, true);
                     } else if ($startDate) {
-                        SendFacultyPreferenceEmailJob::dispatch($faculty_id, true)->delay($startDate);
+                        SendFacultyPreferenceEmailJob::
+                            dispatch($faculty_id, true)
+                            ->delay($startDate);
                     }
                 }
             }
 
-            // Clear schedule publications for the specific faculty in the active semester
+            // Clear schedule publications for the specific faculty
             $activeSemester = ActiveSemester::where('is_active', 1)->first();
             if ($activeSemester) {
                 DB::table('faculty_schedule_publication')
-                    ->where('academic_year_id', $activeSemester->academic_year_id)
+                    ->where(
+                        'academic_year_id',
+                        $activeSemester->academic_year_id
+                    )
                     ->where('semester_id', $activeSemester->semester_id)
                     ->update([
                         'is_published' => 0,
                         'updated_at'   => now(),
                     ]);
             }
-        });
+
+            DB::commit();
+
+            if ($status) {
+                AutoSubmitPreviousPreferencesJob::dispatch($faculty_id);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error(
+                'Failed to toggle preference for faculty ' .
+                $faculty_id . ': ' . $e->getMessage()
+            );
+
+            return response()->json([
+                'message' => 'An error occurred while updating settings.',
+            ], 500);
+        }
 
         // ═══════════════════════════════════════════════════════
         // AUDIT LOG: Individual Setting Updated
@@ -1482,5 +2157,74 @@ class PreferenceController extends Controller
             return $activeSemester->academicYear->year_start . '-' . $activeSemester->academicYear->year_end;
         }
         return 'N/A';
+    }
+
+    /**
+     * Resolves electives for a collection of preference courses.
+     * Modifies the courses array in-place to include resolved elective details.
+     */
+    private function resolveElectivesForCourses(
+        array &$courses,
+        int $academicYearId,
+        $courseAssignments,
+        $curriculumElectives
+    ): void {
+        foreach ($courses as &$course) {
+            $caId = $course['course_assignment_id'] ?? null;
+            if (!$caId || $caId === 'N/A') {
+                continue;
+            }
+
+            $details = &$course['course_details'];
+            $courseCode = $details['course_code'] ?? '';
+            $courseTitle = $details['course_title'] ?? '';
+
+            // Get year level
+            $yearLevel = $details['year_level'] ?? null;
+            if (is_null($yearLevel) && isset($course['section_details']['year_level'])) {
+                $yearLevel = $course['section_details']['year_level'];
+            }
+            if (is_null($yearLevel) && isset($course['year_section'])) {
+                $parts = explode('-', $course['year_section']);
+                $yearLevel = is_numeric($parts[0]) ? (int)$parts[0] : null;
+            }
+
+            $assignment = $courseAssignments->get($caId);
+            if ($assignment && !is_null($yearLevel)) {
+                $matchedElective = null;
+                foreach ($curriculumElectives as $ce) {
+                    if ($ce->curriculum_id == $assignment->curriculum_id &&
+                        $ce->program_id == $assignment->program_id &&
+                        $ce->year_level == $yearLevel &&
+                        $ce->semester_id == $assignment->semester_id) {
+
+                        if (strcasecmp($ce->elective_slot_name, $courseTitle) === 0) {
+                            if (is_null($matchedElective) ||
+                                (!is_null($ce->academic_year_id) &&
+                                 (int)$ce->academic_year_id === (int)$academicYearId)) {
+                                $matchedElective = $ce;
+                            }
+                        }
+                    }
+                }
+
+                if ($matchedElective) {
+                    $course['original_course_code'] = $courseCode;
+                    $course['elective_slot_name'] = $matchedElective->elective_slot_name;
+                    $details['original_course_code'] = $courseCode;
+                    $details['elective_slot_name'] = $matchedElective->elective_slot_name;
+
+                    $details['course_code'] = $matchedElective->course_code;
+                    $details['course_title'] = $matchedElective->course_title;
+
+                    if (isset($course['course_code'])) {
+                        $course['course_code'] = $matchedElective->course_code;
+                    }
+                    if (isset($course['course_title'])) {
+                        $course['course_title'] = $matchedElective->course_title;
+                    }
+                }
+            }
+        }
     }
 }

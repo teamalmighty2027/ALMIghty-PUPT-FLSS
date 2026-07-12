@@ -13,8 +13,16 @@ class CurriculumDetailsController extends Controller
         $curriculum = Curriculum::where('curriculum_year', $curriculumYear)
             ->firstOrFail();
 
-        $curriculaPrograms = CurriculaProgram::where('curriculum_id', $curriculum->curriculum_id)
-            ->with(['program', 'yearLevels.semesters'])
+        // Eager load everything in memory to prevent N+1 queries.
+        $curriculaPrograms = CurriculaProgram::where(
+            'curriculum_id',
+            $curriculum->curriculum_id
+        )
+            ->with([
+                'program',
+                'yearLevels.semesters.courseAssignments.' .
+                    'course.requirements.requiredCourse'
+            ])
             ->get();
 
         $result = [
@@ -50,53 +58,68 @@ class CurriculumDetailsController extends Controller
 
     private function getSemesters($yearLevel, $curriculaProgram)
     {
-        return $yearLevel->semesters->map(function ($semester) use ($curriculaProgram) {
-            return [
-                'semester_id' => $semester->semester_id,
-                'semester' => $semester->semester,
-                'courses' => $this->getCourses($curriculaProgram, $semester->semester_id),
-            ];
-        });
+        return $yearLevel->semesters->map(
+            function ($semester) use ($yearLevel) {
+                return [
+                    'semester_id' => $semester->semester_id,
+                    'semester' => $semester->semester,
+                    'courses' => $this->getCourses(
+                        $semester,
+                        $yearLevel->year_level_id
+                    ),
+                ];
+            }
+        );
     }
 
-    private function getCourses($curriculaProgram, $semesterId)
+    // Get courses from the eager loaded semester model in memory.
+    private function getCourses($semester, $yearLevelId)
     {
-        $courseAssignments = CourseAssignment::where('curricula_program_id', $curriculaProgram->curricula_program_id)
-            ->where('semester_id', $semesterId)
-            ->whereHas('curriculaProgram', function ($query) use ($curriculaProgram) {
-                $query->where('curriculum_id', $curriculaProgram->curriculum_id);
+        $courseAssignments = $semester->courseAssignments;
+
+        // Filter out orphaned assignments whose course was deleted
+        // without the DB cascade firing (defensive guard).
+        return $courseAssignments
+            ->filter(fn($a) => $a->course !== null)
+            ->map(function ($assignment) use ($yearLevelId) {
+                $course = $assignment->course;
+
+                return [
+                    'course_assignment_id' =>
+                        $assignment->course_assignment_id,
+                    'curricula_program_id' =>
+                        $assignment->curricula_program_id,
+                    'year_level_id' => $yearLevelId,
+                    'course_id' => $course->course_id,
+                    'course_code' => $course->course_code,
+                    'course_title' => $course->course_title,
+                    'lec_hours' => $course->lec_hours,
+                    'lab_hours' => $course->lab_hours,
+                    'units' => $course->units,
+                    'tuition_hours' => $course->tuition_hours,
+                    'prerequisites' =>
+                        $this->getRequirements($course, 'pre'),
+                    'corequisites' =>
+                        $this->getRequirements($course, 'co'),
+                ];
             })
-            ->with(['course.requirements.requiredCourse'])
-            ->get();
-
-        return $courseAssignments->map(function ($assignment) {
-            $course = $assignment->course;
-
-            return [
-                'course_assignment_id' => $assignment->course_assignment_id,
-                'curricula_program_id' => $assignment->curricula_program_id,
-                'year_level_id' => $assignment->semester->yearLevel->year_level_id,
-                'course_id' => $course->course_id,
-                'course_code' => $course->course_code,
-                'course_title' => $course->course_title,
-                'lec_hours' => $course->lec_hours,
-                'lab_hours' => $course->lab_hours,
-                'units' => $course->units,
-                'tuition_hours' => $course->tuition_hours,
-                'prerequisites' => $this->getRequirements($course, 'pre'),
-                'corequisites' => $this->getRequirements($course, 'co'),
-            ];
-        });
+            ->values();
     }
 
     private function getRequirements($course, $type)
     {
-        return $course->requirements->where('requirement_type', $type)->map(function ($req) {
-            return [
-                'course_id' => $req->requiredCourse->course_id,
-                'course_code' => $req->requiredCourse->course_code,
-                'course_title' => $req->requiredCourse->course_title,
-            ];
-        })->values();
+        // Skip requirements whose referenced course was deleted
+        // without the DB cascade removing this row (defensive guard).
+        return $course->requirements
+            ->where('requirement_type', $type)
+            ->filter(fn($req) => $req->requiredCourse !== null)
+            ->map(function ($req) {
+                return [
+                    'course_id' => $req->requiredCourse->course_id,
+                    'course_code' => $req->requiredCourse->course_code,
+                    'course_title' => $req->requiredCourse->course_title,
+                ];
+            })
+            ->values();
     }
 }

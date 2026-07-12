@@ -1,0 +1,41 @@
+<div class="designee-roles-management-container">
+  @if (isLoading) {
+  <div class="loading-wrapper">
+    <app-loading></app-loading>
+  </div>
+  } @else {
+
+  <!-- Table Header -->
+  <div class="designee-roles-header-container" [@fadeAnimation]>
+    <app-table-header
+      title="Designee Roles"
+      subtitle="Manage designee sub-roles (Director, HAP, etc.)"
+      [addButtonLabel]="'Add Designee Role'"
+      [inputFields]="headerInputFields"
+      [showExportButton]="false"
+      (inputChange)="onInputChange($event)"
+      (add)="openDialog('Add')"
+    ></app-table-header>
+  </div>
+
+  <!-- Back button to Faculty Types -->
+  <div class="navigation-actions" [@fadeAnimation]>
+    <a routerLink="/superadmin/faculty/types" class="back-link">
+      ← Back to Faculty Types
+    </a>
+  </div>
+
+  <!-- Designee Roles Table -->
+  <div class="designee-roles-table-container" [@fadeAnimation]>
+    <app-table-generic
+      [data]="filteredDesigneeRoles"
+      [columns]="columns"
+      [displayedColumns]="displayedColumns"
+      [tableName]="'designee-roles'"
+      (edit)="openDialog('Edit', $event)"
+      (delete)="onDelete($event)"
+    ></app-table-generic>
+  </div>
+
+  }
+</div>

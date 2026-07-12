@@ -2,12 +2,10 @@
   <!-- Mobile Header-->
   <div class="mobile-header">
     <div class="header-name">
-      <img
-        src="assets/images/pup_taguig_logo.svg"
-        alt="University Logo"
-        class="university-logo" />
+      <img src="assets/images/pup_taguig_logo.svg" alt="University Logo" class="university-logo" />
       <div class="header-text">
-        <div class="university-name">PUP TAGUIG BRANCH</div>
+        <div class="university-name">Polytechnic University of the Philipphines</div>
+        <div class="campus-name">TAGUIG CAMPUS</div>
         <div class="system-name">FACULTY LOADING & SCHEDULING</div>
       </div>
     </div>
@@ -16,12 +14,10 @@
   <!-- Desktop Header & Navigation Bar -->
   <header class="desktop-header">
     <div class="header-name">
-      <img
-        src="assets/images/pup_taguig_logo.svg"
-        alt="University Logo"
-        class="university-logo" />
+      <img src="assets/images/pup_taguig_logo.svg" alt="University Logo" class="university-logo" />
       <div class="header-text">
-        <div class="university-name">PUP TAGUIG BRANCH</div>
+        <div class="university-name">Polytechnic University of the Philipphines</div>
+        <div class="campus-name">TAGUIG CAMPUS</div>
         <div class="system-name">FACULTY LOADING & SCHEDULING</div>
       </div>
     </div>
@@ -33,12 +29,10 @@
         <span mat-symbol="home"></span><span class="nav-text">Home</span>
       </a>
       <a routerLink="preferences" routerLinkActive="active">
-        <span mat-symbol="settings"></span
-        ><span class="nav-text">Set Preferences</span>
+        <span mat-symbol="settings"></span><span class="nav-text">Set Preferences</span>
       </a>
       <a routerLink="load-and-schedule" routerLinkActive="active">
-        <span mat-symbol="calendar_month"></span
-        ><span class="nav-text">Load and Schedule</span>
+        <span mat-symbol="calendar_month"></span><span class="nav-text">Load and Schedule</span>
       </a>
     </nav>
 
@@ -49,12 +43,8 @@
         <div class="account-email">{{ facultyEmail }}</div>
       </div>
       <div class="profile-dropdown">
-        <img
-          [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
-          alt="Profile Icon"
-          class="profile-icon"
-          [matMenuTriggerFor]="desktopProfileMenu"
-          matTooltip="Click to open settings"
+        <img [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'" alt="Profile Icon"
+          class="profile-icon" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings"
           matTooltipPosition="below" />
       </div>
     </div>
@@ -104,19 +94,13 @@
       </div>
       <span class="bottom-nav-label">Home</span>
     </a>
-    <a
-      routerLink="preferences"
-      routerLinkActive="active"
-      class="bottom-nav-item">
+    <a routerLink="preferences" routerLinkActive="active" class="bottom-nav-item">
       <div class="icon-container">
         <span mat-symbol="settings"></span>
       </div>
       <span class="bottom-nav-label">Preferences</span>
     </a>
-    <a
-      routerLink="load-and-schedule"
-      routerLinkActive="active"
-      class="bottom-nav-item">
+    <a routerLink="load-and-schedule" routerLinkActive="active" class="bottom-nav-item">
       <div class="icon-container">
         <span mat-symbol="calendar_month"></span>
       </div>
@@ -134,9 +118,7 @@
   @if (isDropdownOpen) {
   <div class="mobile-dropdown" [@slideUpDown]>
     <div class="mobile-dropdown-header">
-      <img
-        [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'"
-        alt="Profile Icon"
+      <img [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'" alt="Profile Icon"
         class="mobile-profile-icon" />
       <div class="mobile-account-info">
         <div class="account-name">{{ facultyName }}</div>
@@ -148,10 +130,7 @@
         <span mat-symbol="account_circle"></span>
         My Profile
       </button>
-      <button
-        matRipple
-        class="mobile-dropdown-item"
-        (click)="openChangePasswordDialog()">
+      <button matRipple class="mobile-dropdown-item" (click)="openChangePasswordDialog()">
         <span mat-symbol="lock"></span>
         Change Password
       </button>
@@ -159,11 +138,7 @@
         <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode'"></span>
         Switch Theme
       </button>
-      <button
-        matRipple
-        [matRippleColor]="'#a932321a'"
-        class="mobile-dropdown-item logout"
-        (click)="logout()">
+      <button matRipple [matRippleColor]="'#a932321a'" class="mobile-dropdown-item logout" (click)="logout()">
         <span mat-symbol="door_open"></span>
         Logout
       </button>

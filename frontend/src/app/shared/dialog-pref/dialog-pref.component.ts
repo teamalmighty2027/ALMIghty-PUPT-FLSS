@@ -24,6 +24,7 @@ import 'jspdf-autotable';
 import { MatFormField, MatLabel } from "@angular/material/form-field";
 import { MatSelect, MatOption } from "@angular/material/select";
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -43,6 +44,8 @@ interface Course {
   petition_required?: boolean;
   preferences_id?: number;
   is_ignored?: boolean;
+  original_course_code?: string;
+  elective_slot_name?: string;
 }
 
 interface DialogPrefData {
@@ -81,7 +84,8 @@ interface Semester {
     MatFormField,
     MatLabel,
     MatSelect,
-    MatOption
+    MatOption,
+    MatTooltipModule
 ],
   templateUrl: './dialog-pref.component.html',
   styleUrls: ['./dialog-pref.component.scss'],
@@ -170,14 +174,37 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
               lab_hours: course.lab_hours,
               units: course.units,
               preferred_days: course.preferred_days,
-              year_section: `${course.course_details.year_level}-${course.section_details.section_name}`,
-              program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+              year_section:
+                `${course.course_details.year_level}-` +
+                `${course.section_details.section_name}`,
+              program_code:
+                course.course_details?.program_code ??
+                course.program_details?.program_code ??
+                null,
               preferences_id: course.preferences_id,
               is_ignored: course.is_ignored,
-              is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
-              temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
-              temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
-              petition_required: course.petition_required ?? course.course_details?.petition_required ?? null,
+              is_temporary:
+                course.is_temporary ??
+                course.course_details?.is_temporary ??
+                false,
+              temporary_type:
+                course.temporary_type ??
+                course.course_details?.temporary_type ??
+                null,
+              temporary_status:
+                course.temporary_status ??
+                course.course_details?.temporary_status ??
+                null,
+              petition_required:
+                course.petition_required ??
+                course.course_details?.petition_required ??
+                null,
+              original_course_code:
+                course.original_course_code ??
+                course.course_details?.original_course_code,
+              elective_slot_name:
+                course.elective_slot_name ??
+                course.course_details?.elective_slot_name,
             }));
           }
 
@@ -301,20 +328,52 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
         '');
 
     this.courses = sourceCourses.map((course: any) => ({
-      course_code: course.course_details?.course_code ?? course.course_code ?? 'N/A',
-      course_title: course.course_details?.course_title ?? course.course_title ?? 'N/A',
+      course_code:
+        course.course_details?.course_code ??
+        course.course_code ??
+        'N/A',
+      course_title:
+        course.course_details?.course_title ??
+        course.course_title ??
+        'N/A',
       lec_hours: course.lec_hours ?? 0,
       lab_hours: course.lab_hours ?? 0,
       units: course.units ?? 0,
-      preferred_days: course.preferred_days ?? course.preferredDays ?? [],
-      year_section: `${course.course_details?.year_level ?? 'N/A'}-${course.section_details?.section_name ?? 'N/A'}`,
-      program_code: course.course_details?.program_code ?? course.program_details?.program_code ?? null,
+      preferred_days:
+        course.preferred_days ??
+        course.preferredDays ??
+        [],
+      year_section:
+        `${course.course_details?.year_level ?? 'N/A'}-` +
+        `${course.section_details?.section_name ?? 'N/A'}`,
+      program_code:
+        course.course_details?.program_code ??
+        course.program_details?.program_code ??
+        null,
       preferences_id: course.preferences_id,
       is_ignored: course.is_ignored,
-      is_temporary: course.is_temporary ?? course.course_details?.is_temporary ?? false,
-      temporary_type: course.temporary_type ?? course.course_details?.temporary_type ?? null,
-      temporary_status: course.temporary_status ?? course.course_details?.temporary_status ?? null,
-      petition_required: course.petition_required ?? course.course_details?.petition_required ?? null,
+      is_temporary:
+        course.is_temporary ??
+        course.course_details?.is_temporary ??
+        false,
+      temporary_type:
+        course.temporary_type ??
+        course.course_details?.temporary_type ??
+        null,
+      temporary_status:
+        course.temporary_status ??
+        course.course_details?.temporary_status ??
+        null,
+      petition_required:
+        course.petition_required ??
+        course.course_details?.petition_required ??
+        null,
+      original_course_code:
+        course.original_course_code ??
+        course.course_details?.original_course_code,
+      elective_slot_name:
+        course.elective_slot_name ??
+        course.course_details?.elective_slot_name,
     }));
 
     this.isLoading = false;
@@ -442,23 +501,40 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     });
 
     this.courses.forEach((course: Course, index: number) => {
-      const scheduleString = this.formatPreferredDaysAndTime(course).replace(/\n/g, ', ');
-      
+      const scheduleString = this.formatPreferredDaysAndTime(course)
+        .replace(/\n/g, ', ');
+
+      const displayCode = course.original_course_code
+        ? `${course.course_code} (${course.original_course_code})`
+        : course.course_code;
+
       const row = worksheet.addRow([
         index + 1,
         course.program_code || '—',
         course.year_section || '—',
-        course.course_code,
+        displayCode,
         course.course_title,
         course.lec_hours || 0,
         course.lab_hours || 0,
         course.units || 0,
-        scheduleString === 'Click to select day and time' || !scheduleString ? 'Not Set' : scheduleString
+        scheduleString === 'Click to select day and time' || !scheduleString
+          ? 'Not Set'
+          : scheduleString
       ]);
 
       row.eachCell((cell, colNum) => {
-        cell.alignment = { vertical: 'middle', horizontal: colNum === 5 || colNum === 9 ? 'left' : 'center', wrapText: true };
-        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal:
+            colNum === 5 || colNum === 9 ? 'left' : 'center',
+          wrapText: true
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
       });
     });
 
@@ -541,17 +617,23 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
             });
             currentY += 5;
 
-            const courseData = courses.map((course: Course, index: number) => [
-              (index + 1).toString(),
-              course.program_code || 'N/A',
-              course.year_section || 'N/A',
-              course.course_code || 'N/A',
-              course.course_title || 'N/A',
-              course.lec_hours.toString(),
-              course.lab_hours.toString(),
-              course.units.toString(),
-              this.formatPreferredDaysAndTime(course),
-            ]);
+            const courseData = courses.map((course: Course, index: number) => {
+              const displayCode = course.original_course_code
+                ? `${course.course_code} (${course.original_course_code})`
+                : (course.course_code || 'N/A');
+
+              return [
+                (index + 1).toString(),
+                course.program_code || 'N/A',
+                course.year_section || 'N/A',
+                displayCode,
+                course.course_title || 'N/A',
+                course.lec_hours.toString(),
+                course.lab_hours.toString(),
+                course.units.toString(),
+                this.formatPreferredDaysAndTime(course),
+              ];
+            });
 
             const tableHead = [
               [
@@ -685,12 +767,39 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
       return `${daysString}, Any Time`;
     }
 
-    return course.preferred_days
-      .map((pref) => {
-        const time = `${this.convertTo12HourFormat(
-          pref.start_time,
-        )} - ${this.convertTo12HourFormat(pref.end_time)}`;
-        return `${pref.day} (${time})`;
+    const daysOrder = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    const grouped: { [key: string]: any[] } = {};
+    course.preferred_days.forEach((pref) => {
+      if (!grouped[pref.day]) {
+        grouped[pref.day] = [];
+      }
+      grouped[pref.day].push(pref);
+    });
+
+    return Object.keys(grouped)
+      .sort((a, b) => daysOrder.indexOf(a) - daysOrder.indexOf(b))
+      .map((dayName) => {
+        const slots = grouped[dayName].sort((a, b) =>
+          a.start_time.localeCompare(b.start_time)
+        );
+        const formattedSlots = slots
+          .map(
+            (pref) =>
+              `${this.convertTo12HourFormat(
+                pref.start_time
+              )} - ${this.convertTo12HourFormat(pref.end_time)}`
+          )
+          .join(', ');
+        return `${dayName} (${formattedSlots})`;
       })
       .join('\n');
   }

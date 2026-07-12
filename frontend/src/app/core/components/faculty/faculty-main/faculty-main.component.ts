@@ -16,7 +16,6 @@ import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-
 
 import { ThemeService } from '../../../services/theme/theme.service';
 import { AuthService } from '../../../services/auth/auth.service';
-import { CookieService } from 'ngx-cookie-service';
 
 import { slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
@@ -70,7 +69,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private ngZone: NgZone,
     private authService: AuthService,
     private dialog: MatDialog,
-    private cookieService: CookieService,
     private facultyService: FacultyService
   ) {}
 
@@ -86,7 +84,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.facultyProfilePictureUrl = url);
 
-    if (this.cookieService.get('termsAccepted') !== 'true') {
+    if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
@@ -285,7 +283,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const confirmDialogRef = this.dialog.open(DialogGenericComponent, {
       data: dialogConfig,
-      disableClose: true,
       panelClass: 'dialog-base',
       autoFocus: true,
     });
@@ -300,7 +297,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         const loadingDialogRef = this.dialog.open(DialogGenericComponent, {
           data: loadingDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
 
@@ -319,7 +315,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -334,7 +329,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
       }

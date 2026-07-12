@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../../../environments/environment.dev';
@@ -23,6 +23,11 @@ export interface AuditEntry {
   description?: string;
 }
 
+export interface PaginatedAuditResponse {
+  data: AuditEntry[];
+  total: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -31,9 +36,19 @@ export class AuditLogService {
 
   constructor(private http: HttpClient) {}
 
-  getAuditLogs(): Observable<AuditEntry[]> {
-    return this.http.get<any[]>(`${this.baseUrl}/audit-logs`).pipe(
-      map(logs => logs.map(log => this.transformLog(log)))
+  getAuditLogs(page: number, perPage: number): Observable<PaginatedAuditResponse> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('per_page', perPage.toString());
+
+    return this.http.get<any>(`${this.baseUrl}/audit-logs`, { params }).pipe(
+      map(response => {
+        return {
+          // Map over the 'data' array provided by Laravel's paginator
+          data: response.data.map((log: any) => this.transformLog(log)),
+          total: response.total // Extract total for the table paginator
+        };
+      })
     );
   }
 

@@ -121,7 +121,7 @@
                       <mat-slide-toggle 
                         [checked]="isAllAppealsEnabled"
                         (change)="toggleAllAppeals($event)"
-                        color="primary"
+                        class="header-toggle"
                         matTooltip="Enable appeals submission for ALL faculty"
                         matTooltipPosition="above">
                       </mat-slide-toggle>
@@ -140,7 +140,7 @@
                       <mat-slide-toggle 
                         [checked]="element.isAppealEnabled"
                         (change)="toggleAppealAccess(element, $event)"
-                        color="primary"
+                        class="header-toggle"
                         [matTooltip]="'Enable appeal submission for ' + element.facultyName + ' only'"
                         matTooltipPosition="above">
                       </mat-slide-toggle>

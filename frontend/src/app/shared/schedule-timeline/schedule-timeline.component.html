@@ -40,7 +40,7 @@
             </div>
 
             <!-- Program Details (Visible for faculty and room) -->
-            @if (entity === 'faculty' || entity === 'room') {
+            @if ((entity === 'faculty' || entity === 'room') && !getBlockProperty(day, i, "isTimePlot")) {
             <div>
               @if (getBlockProperty(day, i, "combinedLabel")) {
               <div class="combined-label">
@@ -55,15 +55,15 @@
             </div>
             }
             <!-- Faculty Name (Visible for program and room) -->
-            @if (entity === 'program' || entity === 'room') {
+            @if ((entity === 'program' || entity === 'room') && !getBlockProperty(day, i, "isTimePlot")) {
             <div>
               {{ getBlockProperty(day, i, "facultyName") }}
             </div>
             }
             <!-- Room Code (Visible for faculty and program) -->
-            @if (entity === 'faculty' || entity === 'program') {
+            @if ((entity === 'faculty' || entity === 'program') && !getBlockProperty(day, i, "isTimePlot")) {
             <div>
-              {{ getBlockProperty(day, i, "roomCode") }}
+              Room: {{ getBlockProperty(day, i, "roomCode") }}
             </div>
             }
             <!-- Time (Visible for all entities) -->

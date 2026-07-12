@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Faculty;
 use App\Models\User;
+use App\Models\UserProfile;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Jobs\RegisterUserToIdpJob;
 use App\Jobs\SendFacultyFirstLoginPasswordJob;
 
@@ -31,25 +33,24 @@ class FacultyController extends Controller
         $prefix = 'FA';
         $suffix = "TG{$year}";
 
-        // Find the highest numeric sequence for codes following the pattern FA{seq}TG{year}
+        // Find the most recently added faculty user by ID
         $lastCode = User::where('role', 'faculty')
-            ->where('code', 'LIKE', "{$prefix}%{$suffix}")
-            ->orderBy('code', 'desc')
+            ->where('code', 'LIKE', "{$prefix}%")
+            ->orderBy('id', 'desc')
             ->first();
 
         $nextNumber = 1;
 
         if ($lastCode) {
-            // Extract the number between prefix and suffix
-            // e.g., from FA001TG2024 extract 001
-            $pattern = "/^" . preg_quote($prefix) . "(\d+)" . preg_quote($suffix) . "$/";
+            // Extract the number following the prefix FA
+            $pattern = '/^' . preg_quote($prefix) . '(\d+)/';
             if (preg_match($pattern, $lastCode->code, $matches)) {
                 $nextNumber = (int)$matches[1] + 1;
             }
         }
 
-        // Pad with at least 3 zeroes (or more if the number is large)
-        $paddedNumber = str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+        // Pad with at least 4 zeroes (or more if the number is large)
+        $paddedNumber = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         $suggestedCode = "{$prefix}{$paddedNumber}{$suffix}";
 
         return response()->json(['suggested_code' => $suggestedCode]);
@@ -90,9 +91,8 @@ class FacultyController extends Controller
             $faculty = $user->faculty()->create([
                 'faculty_type_id' => $validatedData['faculty_type_id'],
             ]);
-
-            $facultyProfile = \App\Models\FacultyProfile::create([
-                'faculty_id' => $faculty->id,
+            UserProfile::create([
+                'user_id' => $user->id,
                 'house_num' => null,
                 'street' => null,
                 'barangay' => null,
@@ -100,13 +100,9 @@ class FacultyController extends Controller
                 'province' => null,
                 'country' => null,
                 'zipcode' => null,
-                'program_id' => null,
                 'birthdate' => null,
                 'sex' => null,
             ]);
-
-            $faculty->faculty_profile_id = $facultyProfile->getKey();
-            $faculty->save();
 
             $facultyType = $faculty->facultyType;
 
@@ -129,7 +125,7 @@ class FacultyController extends Controller
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {
             DB::rollBack();
-            \Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            Log::error('Faculty creation failed: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'message' => 'Failed to create faculty',
                 'error' => config('app.debug') ? $e->getMessage() : 'An error occurred'
@@ -156,7 +152,7 @@ class FacultyController extends Controller
                     $oldFacultyTypeModel = \App\Models\FacultyType::find($user->faculty->faculty_type_id);
                     $oldFacultyType = $oldFacultyTypeModel ? $oldFacultyTypeModel->faculty_type : null;
                 } catch (\Exception $e) {
-                    \Log::warning("Could not load old faculty type: " . $e->getMessage());
+                    Log::warning("Could not load old faculty type: " . $e->getMessage());
                 }
             }
 
@@ -260,7 +256,7 @@ class FacultyController extends Controller
             return response()->json($user->load('faculty.facultyType'));
 
         } catch (\Exception $e) {
-            \Log::error('Faculty update failed: ' . $e->getMessage(), [
+            Log::error('Faculty update failed: ' . $e->getMessage(), [
                 'user_id' => $user->id,
                 'trace' => $e->getTraceAsString()
             ]);

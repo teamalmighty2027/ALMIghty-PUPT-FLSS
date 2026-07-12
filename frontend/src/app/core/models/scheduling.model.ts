@@ -94,7 +94,9 @@ export interface PopulateSchedulesResponse {
   semester_id: number;
   is_submission_enabled: number;
   programs: ProgramResponse[];
+  time_plots?: any[];
 }
+
 
 export interface ProgramResponse {
   program_id: number;
@@ -181,21 +183,6 @@ export interface Elective {
   is_active: boolean;
 }
 
-export interface AcademicYearElective {
-  academic_year_elective_id: number;
-  academic_year_id: number;
-  semester_id: number;
-  program_id: number;
-  year_level: number;
-  elective_slot_name: string;
-  selected_elective_id: number;
-  elective?: Elective;
-}
-
-export interface AcademicYearElectivesResponse {
-  academic_year_id: number;
-  electives: AcademicYearElective[];
-}
 
 export interface BridgingCourseOption {
   bridging_course_id: number;

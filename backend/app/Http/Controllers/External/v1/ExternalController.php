@@ -147,6 +147,34 @@ class ExternalController extends Controller
     }
 
     /**
+     * Returns the current active academic year and semester
+     * For: Dental Management System (DMS)
+     */
+    public function academicYearAndSemester()
+    {
+        $activeSemester = $this->getActiveSemester();
+
+        if ($activeSemester) {
+            $academicYearLabel = $activeSemester
+                ? $activeSemester->year_start . '-' . $activeSemester->year_end
+                : 'N/A';
+
+            return response()->json([
+                'academic_year' => $academicYearLabel,
+                'year_start' => $activeSemester->year_start,
+                'year_end' => $activeSemester->year_end,
+                'semester' => $this->formatSemesterLabel($activeSemester->semester),
+                'start_date' => $activeSemester->start_date,
+                'end_date' => $activeSemester->end_date,
+            ]);
+        }
+
+        return response()->json([
+          'message' => 'No active academic year and semester found'
+        ], 404);
+    }
+
+    /**
      * For: Faculty Reportorial Requirements System (FRRS)
      * Retrieves course schedules with room codes.
      */
@@ -295,7 +323,14 @@ class ExternalController extends Controller
             ->values();
 
         return response()->json([
-            'course_schedules' => $groupedSchedules,
+            'semester'         => $this->formatSemesterLabel(
+                $activeSemester->semester
+            ),
+            'academic_year'      => $activeSemester->year_start . 
+                '-' . $activeSemester->year_end,
+            'start_date'        => $activeSemester->start_date,
+            'end_date'          => $activeSemester->end_date,
+            'course_schedules'  => $groupedSchedules,
         ]);
     }
 
@@ -387,6 +422,13 @@ class ExternalController extends Controller
             ->get();
 
         return response()->json([
+            'semester'         => $this->formatSemesterLabel(
+                $activeSemester->semester
+            ),
+            'academic_year'      => $activeSemester->year_start . 
+                '-' . $activeSemester->year_end,
+            'start_date'        => $activeSemester->start_date,
+            'end_date'          => $activeSemester->end_date,
             'courses_files' => $courseFiles,
         ]);
     }
@@ -430,11 +472,39 @@ class ExternalController extends Controller
             ->distinct()
             ->get();
 
-        $assignedUnits = $rows->groupBy('faculty_id')->map(fn($items) => (int) $items->sum('units'))->toArray();
+        $assignedUnits = $rows->groupBy('faculty_id')
+            ->map(fn($items) => (int) $items->sum('units'))
+            ->toArray();
 
-        $formattedFaculties = $faculties->map(function ($faculty) use ($clientSystem, $assignedUnits) {
-            // Format assigned units as integer, defaulting to 0 if not found
-            $facultyAssignedUnits = (int) ($assignedUnits[$faculty->faculty_id] ?? 0);
+        $profiles = UserProfile::whereIn(
+            'user_id',
+            $faculties->pluck('user_id')
+        )->get()->keyBy('user_id');
+
+        $formattedFaculties = $faculties->map(function ($faculty) use (
+            $clientSystem,
+            $assignedUnits,
+            $profiles
+        ) {
+            $facultyAssignedUnits = (int) (
+                $assignedUnits[$faculty->faculty_id] ?? 0
+            );
+
+            // Get or create user profile for this faculty
+            $profile = $profiles->get($faculty->user_id);
+
+            if (! $profile) {
+                $profile = UserProfile::firstOrCreate([
+                    'user_id' => $faculty->user_id,
+                ]);
+            }
+
+            $department = $profile->department;
+
+            // If department is missing, try to infer and save permanently
+            if (empty($department)) {
+                $department = $this->assignDepartmentFromSchedules($profile);
+            }
 
             $data = [
                 'faculty_id'    => $faculty->faculty_id,
@@ -445,6 +515,7 @@ class ExternalController extends Controller
                 'suffix_name'   => $faculty->suffix_name ?? null,
                 'faculty_code'  => $faculty->faculty_code,
                 'faculty_type'  => $faculty->faculty_type,
+                'department'    => $department,
                 'email'         => $faculty->email,
                 'status'        => $faculty->status,                
                 'assigned_units'=> $facultyAssignedUnits,
@@ -795,11 +866,15 @@ class ExternalController extends Controller
 
     /**
      * Retrieves the current active semester with academic year details.
-     *
+     * 
      * @return object|null
      */
     private function getActiveSemester()
     {
+        // NOTE: Replace the condition to switch the active semester logic 
+        // by viewing based on the faculty view instead
+        // ->where('active_semesters.is_faculty_view', 1)
+
         return DB::table('active_semesters')
             ->join('academic_years', 'active_semesters.academic_year_id', '=', 'academic_years.academic_year_id')
             ->join('semesters', 'active_semesters.semester_id', '=', 'semesters.semester_id')

@@ -525,6 +525,12 @@ html body div.asw-container div.asw-widget a.asw-menu-btn {
     z-index: 9999 !important;
 }
 
+@media screen and (max-width: 512px) {
+  html body div.asw-container div.asw-widget a.asw-menu-btn {
+    bottom: 5.5rem !important;
+  }
+}
+
 /* Ensure the icon is white, but IGNORE the invisible square bounding box */
 html body div.asw-container div.asw-widget a.asw-menu-btn svg path:not([fill="none"]) {
     fill: #ffffff !important;
@@ -630,15 +636,29 @@ html body div.asw-container .asw-menu * {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     gap: var(--spacing-sm) !important;
     width: 100% !important;
     font-family: var(--font-base) !important;
   }
 
+  .mat-mdc-menu-item-text {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: var(--spacing-sm) !important;
+    width: 100%;
+  }
+
   span[mat-symbol] {
     font-size: 20px !important;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25em;
+    height: 1.25em;
+    line-height: 1;
     color: inherit;
   }
 

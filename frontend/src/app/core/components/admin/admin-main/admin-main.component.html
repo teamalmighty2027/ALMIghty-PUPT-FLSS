@@ -154,6 +154,9 @@
             <div class="panel-button theme" matRipple (click)="toggleTheme()">
               <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'dark_mode' : 'light_mode'"></span>
             </div>
+            <div class="panel-button notification" matRipple [matMenuTriggerFor]="notificationMenu">
+              <span mat-symbol="notifications" [matBadge]="unreadCount > 0 ? unreadCount : null" matBadgeColor="warn"></span>
+            </div>
           </div>
           <div class="admin-account" [class.profile-active]="isProfileRoute" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings" matTooltipPosition="below">
             <div class="profile-dropdown">
@@ -165,6 +168,12 @@
             </div>
           </div>
         </div>
+        } @else {
+          <div class="mobile-notification-container">
+            <button mat-icon-button [matMenuTriggerFor]="notificationMenu">
+              <span mat-symbol="notifications" [matBadge]="unreadCount > 0 ? unreadCount : null" matBadgeColor="warn"></span>
+            </button>
+          </div>
         }
       </header>
     </mat-toolbar>
@@ -193,6 +202,77 @@
         <span mat-symbol="door_open" class="menu-icon"></span>
         <span>Logout</span>
       </button>
+    </mat-menu>
+
+    <mat-menu #notificationMenu="matMenu" yPosition="below" xPosition="before" class="admin-notification-menu">
+      <div class="notif-header" (click)="$event.stopPropagation()">
+        <h3>Notifications</h3>
+        
+        <div class="notif-header-actions">
+          @if (unreadCount > 0) {
+            <button
+              mat-icon-button
+              color="primary"
+              (click)="markAllRead()"
+              matTooltip="Mark all as read">
+              <mat-icon>done_all</mat-icon>
+            </button>
+          }
+          
+          @if (notifications.length > 0) {
+            <button
+              mat-icon-button
+              color="warn"
+              (click)="clearAllNotifs()"
+              matTooltip="Clear all notifications">
+              <mat-icon>delete_sweep</mat-icon>
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="notif-list">
+        @if (notifications.length > 0) {
+          @for (notif of notifications; track notif.id) {
+            <button
+              mat-menu-item 
+              class="notif-item"
+              (click)="onNotificationClick(notif)"
+              [ngClass]="{'unread-notif': !notif.read_at}">
+              
+              <div class="notif-item-content">
+                <span
+                  mat-symbol="check_circle"
+                  class="notif-item-icon"
+                  [ngStyle]="{
+                    'color': !notif.read_at
+                      ? 'var(--primary-one)'
+                      : 'var(--neutral-base)'
+                  }">
+                </span>
+                
+                <div class="notif-details">
+                  <strong>{{ notif.data.title }}</strong>
+                  <span class="notif-message">
+                    {{ notif.data.message }}
+                  </span>
+                  <span class="notif-date">
+                    {{ notif.created_at | date:'short' }}
+                  </span>
+                </div>
+              </div>
+            </button>
+          }
+        } @else {
+          <div class="notif-empty-state">
+            <span
+              mat-symbol="notifications_off"
+              class="notif-empty-icon">
+            </span>
+            <p>You're all caught up!</p>
+          </div>
+        }
+      </div>
     </mat-menu>
 
     <div class="sidenav-main" [ngClass]="{ 'reports-view': isReportsView }">

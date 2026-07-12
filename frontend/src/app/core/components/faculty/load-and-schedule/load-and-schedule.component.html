@@ -22,27 +22,46 @@
         }
       </div>
 
-      <div class="schedule-overview" [@fadeAnimation]>
+      <div class="schedule-overview-group" [@fadeAnimation]>
 
-        <div class="schedule-summary">
-          <h4 class="mini-heading">
-            <span mat-symbol="article"></span>Schedule Summary
-          </h4>
-          <div class="summary-numbers">
-            <p>Total Units: @if (isPublished) { {{ facultySchedule.assigned_units }} units } @else { 0 }</p>
-            <p>Total Hours: @if (isPublished) { {{ facultySchedule.total_hours }} hours } @else { 0 }</p>
+        @if (!isMobileView) {
+          <div class="schedule-tutorial-card"
+               (click)="openRescheduleTutorial()"
+               matRipple
+               role="button"
+               tabindex="0"
+               aria-label="Open rescheduling tutorial"
+               (keydown.enter)="openRescheduleTutorial()">
+            <span mat-symbol="menu_book" class="schedule-tutorial-icon"></span>
+            <div class="schedule-tutorial-text">
+              <span class="schedule-tutorial-title">Reschedule Tutorial</span>
+              <span class="schedule-tutorial-sub">Guide &amp; Video</span>
+            </div>
           </div>
-        </div>
+        }
 
-        <div class="schedule-history"
-          matTooltip="Click to view your past schedules"
-          (click)="openScheduleHistory()">
-          <h4 class="mini-heading">
-            <span mat-symbol="history"></span>Schedule History
-          </h4>
-          <p>View your past load and schedule here.</p>
-        </div>
+        <div class="schedule-overview">
 
+          <div class="schedule-summary">
+            <h4 class="mini-heading">
+              <span mat-symbol="article"></span>Schedule Summary
+            </h4>
+            <div class="summary-numbers">
+              <p>Total Units: @if (isPublished) { {{ facultySchedule.assigned_units }} units } @else { 0 }</p>
+              <p>Total Hours: @if (isPublished) { {{ facultySchedule.total_hours }} hours } @else { 0 }</p>
+            </div>
+          </div>
+
+          <div class="schedule-history"
+            matTooltip="Click to view your past schedules"
+            (click)="openScheduleHistory()">
+            <h4 class="mini-heading">
+              <span mat-symbol="history"></span>Schedule History
+            </h4>
+            <p>View your past load and schedule here.</p>
+          </div>
+
+        </div>
       </div>
     </div>
 
@@ -79,18 +98,45 @@
           </div>
         </div>
 
-        <div class="toggle-right-section" style="display: flex; gap: 8px;">
-          <button mat-flat-button class="export-excel-btn" style="background-color: #1d6f42; color: white;" (click)="onExportExcel()">
-            <mat-icon class="btn-icon">table_chart</mat-icon>
-            <span class="btn-label">Export Excel</span>
-          </button>
-          
-          <button mat-flat-button class="export-pdf-btn" (click)="onExportPdf()">
-            <mat-icon class="btn-icon">picture_as_pdf</mat-icon>
-            <span class="btn-label">Export PDF</span>
-          </button>
+        @if (!isMobileView) {
+          <div class="toggle-right-section" style="display: flex; gap: 8px;">
+            <button mat-flat-button class="export-excel-btn" style="background-color: #1d6f42; color: white;" (click)="onExportExcel()">
+              <mat-icon class="btn-icon">table_chart</mat-icon>
+              <span class="btn-label">Export Excel</span>
+            </button>
+
+            <button mat-flat-button class="export-pdf-btn" (click)="onExportPdf()">
+              <mat-icon class="btn-icon">picture_as_pdf</mat-icon>
+              <span class="btn-label">Export PDF</span>
+            </button>
+          </div>
+        }
+
+      </div>
+    }
+
+    @if (isMobileView && isPublished) {
+      <div class="mobile-quick-actions" [@fadeAnimation]>
+        <div class="mobile-action-block">
+          <div class="mobile-action-label">Download through</div>
+          <div class="mobile-action-buttons">
+            <button mat-icon-button class="export-excel-btn action-icon-btn" (click)="onExportExcel()" matTooltip="Export Excel" type="button" aria-label="Export Excel">
+              <mat-icon class="btn-icon">table_chart</mat-icon>
+            </button>
+            <button mat-icon-button class="export-pdf-btn action-icon-btn" (click)="onExportPdf()" matTooltip="Export PDF" type="button" aria-label="Export PDF">
+              <mat-icon class="btn-icon">description</mat-icon>
+            </button>
+          </div>
         </div>
 
+        <div class="mobile-action-block">
+          <div class="mobile-action-label">Watch Tutorial</div>
+          <div class="mobile-action-buttons">
+            <button mat-icon-button class="tutorial-action-btn action-icon-btn" (click)="openRescheduleTutorial()" matTooltip="Watch tutorial" type="button" aria-label="Open rescheduling tutorial">
+              <mat-icon class="btn-icon">menu_book</mat-icon>
+            </button>
+          </div>
+        </div>
       </div>
     }
 

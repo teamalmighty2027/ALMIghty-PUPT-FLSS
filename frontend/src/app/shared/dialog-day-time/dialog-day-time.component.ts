@@ -14,14 +14,19 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { PreferencesService } from '../../core/services/faculty/preference/preferences.service';
 import { showHideFieldsAnimation } from '../../core/animations/animations';
+import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
+
+interface TimeSlot {
+  startTime: string;
+  endTime: string;
+  endTimeOptions: string[];
+}
 
 interface DayButton {
   name: string;
   shortName: string;
   selected: boolean;
-  startTime: string;
-  endTime: string;
-  endTimeOptions: string[];
+  timeSlots: TimeSlot[];
 }
 
 interface DialogData {
@@ -49,6 +54,7 @@ interface DialogData {
     MatRippleModule,
     MatSlideToggleModule,
     MatProgressSpinnerModule,
+    MatSymbolDirective,
   ],
   templateUrl: './dialog-day-time.component.html',
   styleUrls: ['./dialog-day-time.component.scss'],
@@ -104,9 +110,13 @@ export class DialogDayTimeComponent implements OnInit {
       name: day,
       shortName: day.substring(0, 3),
       selected: false,
-      startTime: '',
-      endTime: '',
-      endTimeOptions: [...this.timeOptions],
+      timeSlots: [
+        {
+          startTime: '',
+          endTime: '',
+          endTimeOptions: [...this.timeOptions],
+        },
+      ],
     }));
   }
 
@@ -135,21 +145,43 @@ export class DialogDayTimeComponent implements OnInit {
     selectedDays: Array<{ day: string; start_time: string; end_time: string }>
   ): void {
     if (!selectedDays) return;
+
+    // First clear existing time slots for selected days to build from fresh list
+    const daysToClear = new Set(selectedDays.map((sd) => sd.day));
+    this.dayButtons.forEach((dayButton) => {
+      if (daysToClear.has(dayButton.name)) {
+        dayButton.timeSlots = [];
+        dayButton.selected = false;
+      }
+    });
+
     selectedDays.forEach((selectedDay) => {
       const dayButton = this.dayButtons.find((d) => d.name === selectedDay.day);
       if (dayButton) {
         if (selectedDay.start_time && selectedDay.end_time) {
           dayButton.selected = true;
-          dayButton.startTime = this.convertTo12HourFormat(
-            selectedDay.start_time
-          );
-          dayButton.endTime = this.convertTo12HourFormat(selectedDay.end_time);
-          this.updateEndTimeOptions(dayButton);
-        } else {
-          dayButton.selected = false;
-          dayButton.startTime = '';
-          dayButton.endTime = '';
+          const start12 = this.convertTo12HourFormat(selectedDay.start_time);
+          const end12 = this.convertTo12HourFormat(selectedDay.end_time);
+
+          const slot: TimeSlot = {
+            startTime: start12,
+            endTime: end12,
+            endTimeOptions: [],
+          };
+          this.updateSlotEndTimeOptions(slot);
+          dayButton.timeSlots.push(slot);
         }
+      }
+    });
+
+    // Ensure all days have at least one slot for UI inputs
+    this.dayButtons.forEach((dayButton) => {
+      if (dayButton.timeSlots.length === 0) {
+        dayButton.timeSlots.push({
+          startTime: '',
+          endTime: '',
+          endTimeOptions: [...this.timeOptions],
+        });
       }
     });
   }
@@ -166,9 +198,10 @@ export class DialogDayTimeComponent implements OnInit {
       .padStart(2, '0')} ${ampm}`;
   }
 
-  private updateEndTimeOptions(day: DayButton): void {
-    const startIndex = this.timeOptions.indexOf(day.startTime);
-    day.endTimeOptions =
+  // Updates end time options for a slot based on its start time
+  private updateSlotEndTimeOptions(slot: TimeSlot): void {
+    const startIndex = this.timeOptions.indexOf(slot.startTime);
+    slot.endTimeOptions =
       startIndex !== -1
         ? this.timeOptions.slice(startIndex + 1)
         : [...this.timeOptions];
@@ -184,14 +217,25 @@ export class DialogDayTimeComponent implements OnInit {
    */
   toggleDay(day: DayButton): void {
     day.selected = !day.selected;
-    if (day.selected && this.anyTimeMode) {
-      // If Any Time mode is on and we're selecting a day, apply the time range
-      day.startTime = '07:00 AM';
-      day.endTime = '09:00 PM';
-      this.updateEndTimeOptions(day);
-    } else if (!day.selected) {
-      day.startTime = '';
-      day.endTime = '';
+    if (day.selected) {
+      if (this.anyTimeMode) {
+        day.timeSlots = [
+          {
+            startTime: '07:00 AM',
+            endTime: '09:00 PM',
+            endTimeOptions: [...this.timeOptions],
+          },
+        ];
+        this.updateSlotEndTimeOptions(day.timeSlots[0]);
+      }
+    } else {
+      day.timeSlots = [
+        {
+          startTime: '',
+          endTime: '',
+          endTimeOptions: [...this.timeOptions],
+        },
+      ];
     }
   }
 
@@ -203,18 +247,26 @@ export class DialogDayTimeComponent implements OnInit {
       // Enable: Select all days and apply default times
       this.dayButtons.forEach((day) => {
         day.selected = true;
-        // Apply default times to ensure Confirm button stays enabled
-        day.startTime = '07:00 AM';
-        day.endTime = '09:00 PM';
-        this.updateEndTimeOptions(day);
+        day.timeSlots = [
+          {
+            startTime: '07:00 AM',
+            endTime: '09:00 PM',
+            endTimeOptions: [...this.timeOptions],
+          },
+        ];
+        this.updateSlotEndTimeOptions(day.timeSlots[0]);
       });
     } else {
       // Disable: Deselect all days and clear times
       this.dayButtons.forEach((day) => {
         day.selected = false;
-        day.startTime = '';
-        day.endTime = '';
-        day.endTimeOptions = [...this.timeOptions];
+        day.timeSlots = [
+          {
+            startTime: '',
+            endTime: '',
+            endTimeOptions: [...this.timeOptions],
+          },
+        ];
       });
     }
   }
@@ -230,13 +282,15 @@ export class DialogDayTimeComponent implements OnInit {
         : this.dayButtons.filter(day => day.selected);
       
       daysToUpdate.forEach((day) => {
-        day.startTime = '07:00 AM';
-        day.endTime = '09:00 PM';
-        this.updateEndTimeOptions(day);
+        day.timeSlots = [
+          {
+            startTime: '07:00 AM',
+            endTime: '09:00 PM',
+            endTimeOptions: [...this.timeOptions],
+          },
+        ];
+        this.updateSlotEndTimeOptions(day.timeSlots[0]);
       });
-    } else {
-      // Disable: Keep current times, allow manual editing
-      // No action needed on disable
     }
   }
 
@@ -244,24 +298,53 @@ export class DialogDayTimeComponent implements OnInit {
    * Apply the first day's times to all other days
    */
   applyTimeToAllDays(): void {
-    if (this.dayButtons.length > 0 && this.dayButtons[0].startTime && this.dayButtons[0].endTime) {
-      const startTime = this.dayButtons[0].startTime;
-      const endTime = this.dayButtons[0].endTime;
-
-      this.dayButtons.forEach((day) => {
-        day.startTime = startTime;
-        day.endTime = endTime;
-        this.updateEndTimeOptions(day);
-      });
+    if (this.dayButtons.length > 0) {
+      const sourceSlots = this.dayButtons[0].timeSlots.filter(
+        (s) => s.startTime && s.endTime
+      );
+      if (sourceSlots.length > 0) {
+        this.dayButtons.forEach((day, index) => {
+          if (index === 0) return;
+          day.timeSlots = sourceSlots.map((slot) => {
+            const newSlot: TimeSlot = {
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              endTimeOptions: [],
+            };
+            this.updateSlotEndTimeOptions(newSlot);
+            return newSlot;
+          });
+          day.selected = true;
+        });
+      }
     }
   }
 
-  /**
-   * Updates end time options when start time changes
-   * @param day 
-   */
-  onStartTimeChange(day: DayButton): void {
-    this.updateEndTimeOptions(day);
+  // Updates end time options for a slot when its start time changes
+  onSlotStartTimeChange(slot: TimeSlot): void {
+    this.updateSlotEndTimeOptions(slot);
+    slot.endTime = '';
+  }
+
+  // Adds a new time slot to the day button
+  addTimeSlot(day: DayButton): void {
+    day.timeSlots.push({
+      startTime: '',
+      endTime: '',
+      endTimeOptions: [...this.timeOptions],
+    });
+  }
+
+  // Removes a time slot at the specified index from the day button
+  removeTimeSlot(day: DayButton, index: number): void {
+    day.timeSlots.splice(index, 1);
+    if (day.timeSlots.length === 0) {
+      day.timeSlots.push({
+        startTime: '',
+        endTime: '',
+        endTimeOptions: [...this.timeOptions],
+      });
+    }
   }
 
   onCancel(): void {
@@ -276,23 +359,34 @@ export class DialogDayTimeComponent implements OnInit {
     let daysToProcess: DayButton[] = [];
 
     if (this.anyDayMode) {
-      // Use all days
       daysToProcess = this.dayButtons;
-    } else if (this.anyTimeMode) {
-      // Use only selected days (any time applies to those specific days)
-      daysToProcess = this.dayButtons.filter((day) => day.selected);
     } else {
-      // Use only selected days
       daysToProcess = this.dayButtons.filter((day) => day.selected);
     }
 
-    return daysToProcess
-      .filter((day) => day.startTime && day.endTime)
-      .map((day) => ({
-        day: day.name,
-        start_time: String(this.convertTo24HourFormat(day.startTime)),
-        end_time: String(this.convertTo24HourFormat(day.endTime)),
-      }));
+    const payload: Array<{
+      day: string;
+      start_time: string;
+      end_time: string;
+    }> = [];
+
+    daysToProcess.forEach((day) => {
+      const slots = this.anyDayMode
+        ? this.dayButtons[0].timeSlots
+        : day.timeSlots;
+
+      slots.forEach((slot) => {
+        if (slot.startTime && slot.endTime) {
+          payload.push({
+            day: day.name,
+            start_time: String(this.convertTo24HourFormat(slot.startTime)),
+            end_time: String(this.convertTo24HourFormat(slot.endTime)),
+          });
+        }
+      });
+    });
+
+    return payload;
   }
 
   /**
@@ -346,7 +440,8 @@ export class DialogDayTimeComponent implements OnInit {
     this.preferencesService.submitSinglePreference(preferenceData).subscribe({
       next: () => {
         this.snackBar.open(
-          'Your preferences has been saved successfully.',
+          `Your schedule for ${this.courseCode} ` +
+            `has been automatically submitted to the admin.`,
           'Close',
           {
             duration: 3000,
@@ -372,7 +467,7 @@ export class DialogDayTimeComponent implements OnInit {
   // Utility Methods
   // ===========================
 
-    /**
+  /**
    * Helper method to convert 12-hour time format to 24-hour format for API submission
    * @param time12 
    * @returns 
@@ -398,23 +493,28 @@ export class DialogDayTimeComponent implements OnInit {
   }
 
   isAnyDaySelected(): boolean {
-    // If Any Day mode is enabled, we need times set
     if (this.anyDayMode) {
-      return this.dayButtons[0].startTime !== '' && this.dayButtons[0].endTime !== '';
+      return this.dayButtons[0].timeSlots.some(
+        (s) => s.startTime !== '' && s.endTime !== ''
+      );
     }
     
-    // If Any Time mode is enabled without Any Day, need at least one day selected
     if (this.anyTimeMode) {
       return this.dayButtons.some((day) => day.selected);
     }
 
-    // Normal mode: need at least one day with both times set
     const anyDaySelected = this.dayButtons.some((day) => day.selected);
     if (!anyDaySelected) {
       return false;
     }
+
     return this.dayButtons
       .filter((day) => day.selected)
-      .every((day) => day.startTime !== '' && day.endTime !== '');
+      .every((day) =>
+        day.timeSlots.length > 0 &&
+        day.timeSlots.every(
+          (slot) => slot.startTime !== '' && slot.endTime !== ''
+        )
+      );
   }
 }

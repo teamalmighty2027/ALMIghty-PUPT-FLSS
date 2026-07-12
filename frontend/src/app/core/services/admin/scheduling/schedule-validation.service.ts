@@ -23,6 +23,7 @@ export class ScheduleValidationService {
     schedules: PopulateSchedulesResponse,
     rooms: { rooms: Room[] },
     params: {
+      course_id: number;
       schedule_id: number;
       program_id: number;
       year_level: number;
@@ -32,9 +33,11 @@ export class ScheduleValidationService {
       section_id: number;
       faculty_id: number | null;
       room_id: number | null;
+      hoursAlreadyAssigned?: number;
     }
-  ): { hasConflicts: boolean; messages: string[] } {
+  ): { hasConflicts: boolean; messages: string[]; warnings: string[] } {
     const conflicts: string[] = [];
+    const warnings: string[] = [];
 
     // Check program overlap
     const programOverlap = this.checkProgramTimeOverlap(
@@ -77,27 +80,74 @@ export class ScheduleValidationService {
       if (!roomAvailability.isValid) conflicts.push(roomAvailability.message);
     }
   
-    // Check course hours against selected time range
-    if (params.start_time && params.end_time) {
-      const courseHoursValidation = this.validateCourseHours(
-        schedules,
-        params.schedule_id,
-        params.start_time,
-        params.end_time
+    // Resolve course_id from params or from schedules by schedule_id
+    let courseId = params.course_id;
+
+    if (!courseId && params.schedule_id) {
+      const courseWithSchedule = this.flattenCourses(schedules).find(
+        ({ course }) => course.schedule?.schedule_id === params.schedule_id
       );
-      if (!courseHoursValidation.isValid) {
-        conflicts.push(courseHoursValidation.message);
+      if (courseWithSchedule) {
+        courseId = courseWithSchedule.course.course_id;
       }
     }
 
-    return { hasConflicts: conflicts.length > 0, messages: conflicts };
+    // Check course hours against selected time range
+    if (params.start_time && params.end_time && courseId) {
+      const courseHoursValidation = this.validateCourseHours(
+        schedules,
+        params.schedule_id,
+        courseId,
+        params.start_time,
+        params.end_time,
+        params.section_id,
+        params.day,
+        params.hoursAlreadyAssigned
+      );
+      if (!courseHoursValidation.isValid) {
+        warnings.push(courseHoursValidation.message);
+      }
+    }
+
+    // Check faculty breaks
+    if (params.faculty_id) {
+      const facultyBreakWarning = this.checkFacultyBreaks(
+        schedules,
+        params.faculty_id,
+        params.day,
+        params.start_time,
+        params.end_time,
+        params.schedule_id
+      );
+      if (facultyBreakWarning) {
+        warnings.push(facultyBreakWarning);
+      }
+    }
+
+    return {
+      hasConflicts: conflicts.length > 0,
+      messages: conflicts,
+      warnings: warnings,
+    };
   }
 
   /**
-   * Checks if a schedule has an exact match from another program.
-   * For bridging courses, matches are allowed (returns undefined).
-   * For non-bridging courses, matches are conflicts (returns details).
-   * @returns Conflict details if a conflict exists, otherwise undefined
+   * Checks if a bridging-course schedule has an exact match in another
+   * program. Only courses with temporary_type === 'bridging' are
+   * considered — non-bridging matches are intentionally ignored to
+   * prevent false-positive combine prompts.
+   *
+   * A combine match requires ALL four conditions to be fulfilled:
+   * same day, overlapping time, same faculty, and same room.
+   * If faculty or room are not yet set (null), no match is returned
+   * and the normal conflict path runs instead.
+   *
+   * NOTE: For temporary/bridging courses the backend places room_id
+   * inside course.room.room_id, NOT inside course.schedule.room_id,
+   * so we read from the correct location here.
+   *
+   * @returns ConflictingScheduleDetail if a bridging match is found,
+   * otherwise undefined
    */
   public checkMatchingSchedule(
     schedules: PopulateSchedulesResponse,
@@ -113,29 +163,19 @@ export class ScheduleValidationService {
       room_id: number | null;
     }
   ): ConflictingScheduleDetail | undefined {
-    let targetCourse: CourseResponse | undefined;
-    
-    // TODO: Optimize searching
-    for (const program of schedules.programs) {
-      for (const yearLevel of program.year_levels) {
-        for (const semester of yearLevel.semesters) {
-          for (const section of semester.sections) {
-            const course = section.courses.find(
-              (c) => c.schedule?.schedule_id === params.schedule_id
-            );
-            if (course) {
-              targetCourse = course;
-              break;
-            }
-          }
-        }
-      }
+    // Require both faculty and room to be set — a partial match must
+    // not trigger the combine prompt (falls through to conflict check).
+    if (!params.faculty_id || !params.room_id) {
+      return undefined;
     }
 
-    // Find matching schedule in OTHER programs
-    const matchingDetail = this.findConflictingScheduleForPredicate(
+    // NOTE: Currently scoped to bridging courses only.
+    // To extend to other temporary types, adjust the
+    // temporary_type guard in the predicate below.
+    return this.findConflictingScheduleForPredicate(
       schedules,
       (course) =>
+        course.temporary_type === 'bridging' &&
         course.schedule?.day === params.day &&
         course.schedule?.schedule_id !== params.schedule_id &&
         this.doTimesOverlap(
@@ -144,17 +184,11 @@ export class ScheduleValidationService {
           course.schedule?.start_time,
           course.schedule?.end_time
         ) &&
-        (params.faculty_id ? course.faculty_id === params.faculty_id : true) &&
-        (params.room_id ? course.schedule?.room_id === params.room_id : true)
+        course.faculty_id === params.faculty_id &&
+        // Room is stored in course.room for temporary courses,
+        // not in course.schedule (the backend never puts it there).
+        course.room?.room_id === params.room_id
     );
-
-    // If no match found, return undefined
-    if (!matchingDetail) {
-      return undefined;
-    }
-
-    // For non-bridging courses, return the conflict details
-    return matchingDetail;
   }
 
   /**
@@ -176,6 +210,7 @@ export class ScheduleValidationService {
     rooms: { rooms: Room[] },
     arrangements: ScheduleArrangementOverride[],
     params: {
+      course_id?: number;
       schedule_id: number;
       program_id: number;
       year_level: number;
@@ -185,15 +220,19 @@ export class ScheduleValidationService {
       section_id: number;
       faculty_id: number | null;
       room_id: number | null;
+      hoursAlreadyAssigned?: number;
     }
-  ): { hasConflicts: boolean; messages: string[] } {
+  ): { hasConflicts: boolean; messages: string[]; warnings: string[] } {
     const mergedSchedules = this.mergeSchedulesWithArrangements(
       schedules,
       rooms,
       arrangements
     );
 
-    return this.validateScheduleConflicts(mergedSchedules, rooms, params);
+    return this.validateScheduleConflicts(mergedSchedules, rooms, {
+      course_id: params.course_id || 0,
+      ...params,
+    });
   }
 
   /**
@@ -288,8 +327,33 @@ export class ScheduleValidationService {
       };
     }
 
+    if (schedules.time_plots && Array.isArray(schedules.time_plots)) {
+      const conflictingPlot = schedules.time_plots.find(
+        (plot) =>
+          plot.faculty_id === faculty_id &&
+          plot.day === day &&
+          this.doTimesOverlap(
+            start_time,
+            end_time,
+            plot.start_time.substring(0, 5),
+            plot.end_time.substring(0, 5)
+          )
+      );
+
+      if (conflictingPlot) {
+        const displayType = conflictingPlot.time_type
+          .replace('_', ' ')
+          .replace(/\b\w/g, (c: string) => c.toUpperCase());
+        return {
+          isValid: false,
+          message: `This slot conflicts with the faculty's plotted ${displayType}.`,
+        };
+      }
+    }
+
     return { isValid: true, message: 'Faculty is available' };
   }
+
 
   /**
    * Checks the availability of a room.
@@ -360,7 +424,9 @@ export class ScheduleValidationService {
     currentScheduleId: number,
     section_id: number
   ): ConflictingCourseDetail | undefined {
-    const program = schedules.programs.find((p) => p.program_id === program_id);
+    const program = schedules.programs.find(
+      (p) => p.program_id === program_id
+    );
     if (!program) return undefined;
 
     const yearLevel = program.year_levels.find(
@@ -368,61 +434,73 @@ export class ScheduleValidationService {
     );
     if (!yearLevel) return undefined;
 
-    for (const semester of yearLevel.semesters) {
-      for (const section of semester.sections) {
-        if (section.section_per_program_year_id !== section_id) continue;
-        for (const course of section.courses) {
-          if (
-            course.schedule?.day !== day ||
-            course.schedule?.schedule_id === currentScheduleId
-          )
-            continue;
-          if (
-            this.doTimesOverlap(
-              start_time,
-              end_time,
-              course.schedule?.start_time,
-              course.schedule?.end_time
-            )
-          ) {
-            return { course, sectionName: section.section_name };
-          }
-        }
-        return undefined;
-      }
-    }
-    return undefined;
+    const section = yearLevel.semesters
+      .flatMap((s) => s.sections)
+      .find((sec) => sec.section_per_program_year_id === section_id);
+
+    if (!section) return undefined;
+
+    const conflictingCourse = section.courses.find(
+      (course) =>
+        course.schedule?.day === day &&
+        course.schedule?.schedule_id !== currentScheduleId &&
+        this.doTimesOverlap(
+          start_time,
+          end_time,
+          course.schedule?.start_time,
+          course.schedule?.end_time
+        )
+    );
+
+    return conflictingCourse
+      ? { course: conflictingCourse, sectionName: section.section_name }
+      : undefined;
   }
 
   /**
-   * Finds conflicting schedules based on a provided predicate function.
-   * @returns A ConflictingScheduleDetail object if a conflict is found,
-   * otherwise undefined.
+   * Finds the first course entry that satisfies the given predicate.
+   * Delegates to flattenCourses() for a single-pass search instead
+   * of manually nesting five for-loops.
+   * @returns A ConflictingScheduleDetail if found, otherwise undefined.
    */
   private findConflictingScheduleForPredicate(
     schedules: PopulateSchedulesResponse,
     predicate: (course: CourseResponse) => boolean
   ): ConflictingScheduleDetail | undefined {
+    return this.flattenCourses(schedules).find(
+      ({ course }) => predicate(course)
+    );
+  }
+
+  /**
+   * Flattens the nested program/year-level/semester/section/course
+   * tree into a single array so that callers can use a single
+   * Array.find() or Array.filter() pass instead of nested loops.
+   */
+  private flattenCourses(
+    schedules: PopulateSchedulesResponse
+  ): ConflictingScheduleDetail[] {
+    const result: ConflictingScheduleDetail[] = [];
+
     for (const program of schedules.programs) {
       for (const yearLevel of program.year_levels) {
         for (const semester of yearLevel.semesters) {
           for (const section of semester.sections) {
             for (const course of section.courses) {
-              if (predicate(course)) {
-                return {
-                  course,
-                  programCode: program.program_code,
-                  programId: program.program_id,
-                  yearLevel: yearLevel.year_level,
-                  sectionName: section.section_name,
-                };
-              }
+              result.push({
+                course,
+                programCode: program.program_code,
+                programId: program.program_id,
+                yearLevel: yearLevel.year_level,
+                sectionName: section.section_name,
+              });
             }
           }
         }
       }
     }
-    return undefined;
+
+    return result;
   }
 
   /**
@@ -482,78 +560,186 @@ export class ScheduleValidationService {
   }
 
   /**
-   * Validates if the selected time range matches the required course hours
+   * Validates if the selected time range matches the required course hours.
    */
   private validateCourseHours(
     schedules: PopulateSchedulesResponse,
     schedule_id: number,
+    course_id: number,
     start_time: string,
-    end_time: string
+    end_time: string,
+    section_id: number,
+    day: string,
+    hoursAlreadyAssigned?: number,
   ): { isValid: boolean; message: string } {
 
-    // Skip hours validation for Summer term (semester_id === 3)
-    // as subjects may be scheduled multiple times a week
-    if (schedules.semester_id === 3) {
-      return { isValid: true, message: '' };
+    const section = schedules.programs
+      .flatMap((p) => p.year_levels)
+      .flatMap((y) => y.semesters)
+      .flatMap((s) => s.sections)
+      .find((sec) => sec.section_per_program_year_id === section_id);
+
+    if (!section) {
+      return { isValid: true, message: 'Section not found' };
     }
 
-    let targetCourse: any;
-    let allCourseSchedules: any[] = [];
-
-    for (const program of schedules.programs) {
-      for (const yearLevel of program.year_levels) {
-        for (const semester of yearLevel.semesters) {
-          for (const section of semester.sections) {
-            const course = section.courses.find(
-              (c) => c.schedule?.schedule_id === schedule_id
-            );
-            if (course) {
-              targetCourse = course;
-
-              allCourseSchedules = section.courses.filter(
-                (c) =>
-                  c.course_id === course.course_id &&
-                  c.schedule?.schedule_id !== schedule_id &&
-                  c.schedule?.start_time &&
-                  c.schedule?.end_time
-              );
-              break;
-            }
-          }
-        }
-      }
-    }
+    const targetCourse = section.courses.find(
+      (c) => c.course_id === course_id
+    );
 
     if (!targetCourse) {
       return { isValid: true, message: 'Course not found' };
     }
 
-    const totalRequiredHours = targetCourse.lec_hours + targetCourse.lab_hours;
+    // Check for contiguous slots on the same day exceeding 6 hours
+    const sameDaySlots = section.courses.filter(
+      (c) =>
+        c.course_id === course_id &&
+        c.schedule?.schedule_id !== schedule_id &&
+        c.schedule?.day === day &&
+        c.schedule?.start_time &&
+        c.schedule?.end_time
+    );
 
-    let hoursAlreadyScheduled = 0;
-    allCourseSchedules.forEach((course) => {
-      const startMins = this.timeToMinutes(course.schedule.start_time);
-      const endMins = this.timeToMinutes(course.schedule.end_time);
-      hoursAlreadyScheduled += (endMins - startMins) / 60;
+    const intervals: [number, number][] = [
+      [this.timeToMinutes(start_time), this.timeToMinutes(end_time)],
+    ];
+
+    sameDaySlots.forEach((c) => {
+      if (c.schedule) {
+        intervals.push([
+          this.timeToMinutes(c.schedule.start_time),
+          this.timeToMinutes(c.schedule.end_time),
+        ]);
+      }
     });
 
-    const remainingHours = totalRequiredHours - hoursAlreadyScheduled;
+    intervals.sort((a, b) => a[0] - b[0]);
+
+    const mergedIntervals: [number, number][] = [];
+    
+    for (const interval of intervals) {
+      if (mergedIntervals.length === 0) {
+        mergedIntervals.push(interval);
+      } else {
+        const last = mergedIntervals[mergedIntervals.length - 1];
+        if (interval[0] <= last[1]) {
+          last[1] = Math.max(last[1], interval[1]);
+        } else {
+          mergedIntervals.push(interval);
+        }
+      }
+    }
+
+    for (const [start, end] of mergedIntervals) {
+      if ((end - start) > 360) {
+        return {
+          isValid: false,
+          message:
+            `The course cannot be continuously scheduled for more than ` +
+            `6 hours on the same day.`,
+        };
+      }
+    }
+
+    // Skip remaining hours validation for Summer term (semester_id === 3)
+    // as subjects may be scheduled multiple times a week
+    if (schedules.semester_id === 3) {
+      return { isValid: true, message: '' };
+    }
+
+    let calculatedHoursAlreadyScheduled = 0;
+    if (hoursAlreadyAssigned !== undefined) {
+      calculatedHoursAlreadyScheduled = hoursAlreadyAssigned;
+    } else {
+      const allCourseSchedules = section.courses.filter(
+        (c) =>
+          c.course_id === course_id &&
+          c.schedule?.schedule_id !== schedule_id &&
+          c.schedule?.start_time &&
+          c.schedule?.end_time
+      );
+      allCourseSchedules.forEach((course) => {
+        if (course.schedule) {
+          const startMins = this.timeToMinutes(course.schedule.start_time);
+          const endMins = this.timeToMinutes(course.schedule.end_time);
+          calculatedHoursAlreadyScheduled += (endMins - startMins) / 60;
+        }
+      });
+    }
+
+    const totalRequiredHours =
+      targetCourse.lec_hours + targetCourse.lab_hours;
+    const remainingHours = totalRequiredHours - calculatedHoursAlreadyScheduled;
 
     const startMinutes = this.timeToMinutes(start_time);
     const endMinutes = this.timeToMinutes(end_time);
     const selectedDurationHours = (endMinutes - startMinutes) / 60;
 
     if (selectedDurationHours > remainingHours) {
-      const totalScheduledHours = hoursAlreadyScheduled + selectedDurationHours;
       return {
         isValid: false,
-        message: `The selected time range (${selectedDurationHours} hours)
-        exceeds the remaining allowed hours (${remainingHours} hours) for
-        this course.`,
+        message:
+          `The selected time range (${selectedDurationHours} hours) ` +
+          `exceeds the remaining allowed hours (${remainingHours} hours) ` +
+          `for this course.`,
       };
     }
 
     return { isValid: true, message: '' };
+  }
+
+  /**
+   * Checks if scheduling creates breaks of 3 hours or more for the faculty.
+   */
+  private checkFacultyBreaks(
+    schedules: PopulateSchedulesResponse,
+    faculty_id: number,
+    day: string,
+    start_time: string,
+    end_time: string,
+    currentScheduleId: number
+  ): string | null {
+    if (!faculty_id || !day || !start_time || !end_time) {
+      return null;
+    }
+
+    const facultyCourses = this.flattenCourses(schedules).filter(
+      ({ course }) =>
+        course.faculty_id === faculty_id &&
+        course.schedule?.day === day &&
+        course.schedule?.schedule_id !== currentScheduleId &&
+        course.schedule?.start_time &&
+        course.schedule?.end_time
+    );
+
+    const intervals: [number, number][] = [
+      [this.timeToMinutes(start_time), this.timeToMinutes(end_time)],
+    ];
+
+    facultyCourses.forEach(({ course }) => {
+      if (course.schedule) {
+        intervals.push([
+          this.timeToMinutes(course.schedule.start_time),
+          this.timeToMinutes(course.schedule.end_time),
+        ]);
+      }
+    });
+
+    intervals.sort((a, b) => a[0] - b[0]);
+
+    for (let i = 0; i < intervals.length - 1; i++) {
+      const currentEnd = intervals[i][1];
+      const nextStart = intervals[i + 1][0];
+      const gap = nextStart - currentEnd;
+
+      if (gap >= 180) {
+        return `This schedule creates a break of ` +
+          `${(gap / 60).toFixed(1)} hours for the assigned faculty.`;
+      }
+    }
+
+    return null;
   }
 
   /**

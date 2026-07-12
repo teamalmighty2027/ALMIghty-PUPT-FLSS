@@ -40,8 +40,18 @@
       @if (!isDraftMode) {
         <div class="draft-toggle-container">
           <button
+            mat-stroked-button
+            class="course-centric-btn"
+            (click)="goToCourseCentric()"
+            [disabled]="isCreatingTemporaryCourse"
+          >
+            <mat-icon>list_alt</mat-icon>
+            GenEd Courses
+          </button>
+
+          <button
             mat-flat-button
-            color="accent"
+            class="draft-mode-btn"
             (click)="toggleDraftMode()"
             [disabled]="!selectedSection || isCreatingTemporaryCourse"
           >
@@ -168,6 +178,16 @@
                     [matTooltip]="getTemporaryTooltip(element)"
                   >
                     {{ getTemporaryBadgeText(element) }}
+                  </span>
+                }
+
+                @if (element.elective_slot_name) {
+                  <span
+                    class="elective-badge"
+                    [matTooltip]="'Original slot: ' +
+                                  element.elective_slot_name"
+                  >
+                    {{ element.elective_slot_name }}
                   </span>
                 }
 
@@ -360,6 +380,7 @@
             [class.last-copy]="isLastCopy(row, i)"
             [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
             [class.draft-conflict]="isDraftMode && isDraftConflict(row)"
+            [class.copy-conflict]="!isDraftMode && hasCopyConflict(row)"
             [@fadeAnimation]
           ></tr>
 

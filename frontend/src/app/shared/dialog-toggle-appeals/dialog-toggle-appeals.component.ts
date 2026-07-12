@@ -8,7 +8,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
-import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
+import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, NativeDateAdapter, MatNativeDateModule } from '@angular/material/core';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 // 1. The custom adapter (Notice the @Injectable decorator here)
@@ -52,9 +52,11 @@ export const MY_DATE_FORMATS = {
     MatInputModule,
     MatCheckboxModule,
     MatIconModule,
+    MatNativeDateModule,
     MatSymbolDirective
   ],
   providers: [
+    MatNativeDateModule,
     { provide: DateAdapter, useClass: CustomDateAdapter },
     { provide: MAT_DATE_LOCALE, useValue: 'en-US' },
     { provide: MAT_DATE_FORMATS, useValue: MY_DATE_FORMATS },
@@ -94,6 +96,32 @@ export class DialogToggleAppealsComponent implements OnInit {
     if (this.endDate && event.value > this.endDate) {
       this.endDate = null;
     }
+  }
+
+  /** Returns a human-readable description of when the submission ends. */
+  getEndDateDescription(): string {
+    if (!this.endDate) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = new Date(this.endDate);
+    end.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return 'today at 11:59 PM';
+    if (diff === 1) return 'tomorrow at 11:59 PM';
+    return `on ${this.endDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at 11:59 PM`;
+  }
+
+  /** Returns a human-readable description of when the submission starts. */
+  getStartDateDescription(): string {
+    if (!this.startDate) return '';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(this.startDate);
+    start.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) return 'today, immediately';
+    if (diff === 1) return 'tomorrow';
+    return `in ${diff} days`;
   }
 
   confirm(): void {

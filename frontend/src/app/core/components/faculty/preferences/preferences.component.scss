@@ -7,6 +7,9 @@
 
 :host {
   @include mixins.custom-spinner;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .faculty-preferences-container {
@@ -16,7 +19,8 @@
     $justify: flex-start
   );
   @include mixins.default-transition;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .preferences-content-wrapper {
@@ -26,7 +30,8 @@
     $justify: flex-start,
     $gap: var(--spacing-md)
   );
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 
   .total-container {
     @include mixins.flex-layout($gap: var(--spacing-md));
@@ -65,10 +70,28 @@
       }
 
       &.mobile {
-        @include mixins.flex-layout($align: stretch, $gap: var(--spacing-md));
+        @include mixins.flex-layout(
+          $align: center,
+          $gap: var(--spacing-sm)
+        );
 
         & .total {
           flex: 1;
+          @include mixins.flex-layout(
+            $direction: row,
+            $align: center,
+            $justify: center,
+            $gap: var(--spacing-xs)
+          );
+          padding: var(--spacing-xs) var(--spacing-sm);
+
+          h2 {
+            font-size: var(--font-size-mdx);
+          }
+
+          span {
+            font-size: var(--font-size-xs);
+          }
         }
       }
     }
@@ -117,12 +140,94 @@
       }
     }
   }
+
+  // Right-side actions wrapper: tutorial card + totals — row layout
+  .pref-header-actions {
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: stretch,
+      $justify: flex-end,
+      $gap: var(--spacing-md)
+    );
+    flex-shrink: 0;
+  }
+
+  // Standalone tutorial card — ~half height of adjacent cards
+  .tutorial-card {
+    &.mobile-only {
+      display: none !important;
+    }
+
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
+    @include mixins.default-transition;
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-xs) var(--spacing-md);
+    min-width: 7rem;
+    cursor: pointer;
+    text-align: left;
+    border: 1.5px solid var(--primary-one-fade);
+    background: var(--primary-fade);
+    position: relative;
+    overflow: hidden;
+
+    // Clip the matRipple effect to the card's rounded corners
+    ::ng-deep .mat-ripple {
+      border-radius: inherit;
+    }
+
+    .tutorial-card-icon {
+      font-size: 2rem;
+      color: var(--primary-text);
+      flex-shrink: 0;
+      @include mixins.flex-layout;
+    }
+
+    .tutorial-card-text {
+      @include mixins.flex-layout($direction: column, $gap: 1px);
+
+      .tutorial-card-title {
+        font-size: var(--font-size-sm);
+        font-weight: 700;
+        color: var(--primary-text);
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .tutorial-card-sub {
+        font-size: var(--font-size-sm);
+        color: var(--primary-text);
+        opacity: 0.6;
+        white-space: nowrap;
+      }
+    }
+
+    // arrow removed — cleaner look
+
+    &:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-one);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-level-1);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-one);
+      outline-offset: 2px;
+    }
+  }
 }
 
 /* Second Row - Course List and Table */
 .preferences-row-two {
   @include mixins.flex-layout($gap: var(--spacing-lg));
-  height: calc(100vh - 17rem);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   box-sizing: border-box;
 
   .temp-pill {
@@ -138,10 +243,26 @@
     white-space: nowrap;
   }
 
+  .elective-badge {
+    background-color: #efebe9;
+    color: #5d4037;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    border: 1px solid #d7ccc8;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    line-height: 1;
+  }
+
   #courses_container,
   #table_container {
     border-radius: var(--border-radius-md);
     height: 100%;
+    min-height: 0;
   }
 
   /* Courses Picker Container */
@@ -160,6 +281,33 @@
       .custom-mat-search {
         flex: 1;
         min-width: 250px;
+
+        ::ng-deep {
+          /* Keep default top padding so floating label sits correctly */
+          .mat-mdc-text-field-wrapper {
+            border-radius: var(--border-radius-md) !important;
+
+            .mat-mdc-form-field-flex {
+              height: 3.5rem;
+              align-items: center;
+            }
+          }
+
+          .mat-mdc-form-field-infix {
+            padding-top: 1.2rem !important;
+            padding-bottom: 0.3rem !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+
+          .mdc-floating-label {
+            top: 1.5rem !important;
+
+            &.mdc-floating-label--float-above {
+              top: 0.8rem !important;
+            }
+          }
+        }
 
         input::placeholder {
           color: var(--neutral-button-lighter);
@@ -185,38 +333,46 @@
         }
       }
 
-      .import-history-btn {
-        height: 3.5rem;
-        padding: 0 var(--spacing-md);
-        border-radius: var(--border-radius-md);
-        border: 1.5px solid var(--primary-one);
-        color: white;
-        background-color: var(--primary-one);
-        font-weight: 600;
-        @include mixins.flex-layout($gap: var(--spacing-xs));
-        @include mixins.default-transition;
-        box-shadow: var(--shadow-sm);
+      .courses-search-buttons {
+        width: 100%;
+        @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
+        flex-wrap: wrap;
 
-        span[mat-symbol] {
-          font-size: var(--font-size-lg);
+        .tutorial-card.mobile-only {
+          display: none !important;
         }
 
-        &:hover {
-          background-color: var(--primary-one-hover);
-          border-color: var(--primary-one-hover);
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-        }
-
-        &:active {
-          transform: translateY(0);
+        .import-history-btn {
+          height: 3.5rem;
+          padding: 0 var(--spacing-md);
+          border-radius: var(--border-radius-md);
+          border: 1.5px solid var(--primary-one);
+          color: white;
+          background-color: var(--primary-one);
+          font-weight: 600;
+          @include mixins.flex-layout($gap: var(--spacing-xs));
+          @include mixins.default-transition;
           box-shadow: var(--shadow-sm);
-        }
 
-        @media screen and (max-width: bp.$breakpoint-sm) {
-          width: 100%;
-          justify-content: center;
-          margin-top: var(--spacing-xs);
+          ::ng-deep .mdc-button__label {
+            @include mixins.flex-layout($gap: var(--spacing-xs));
+          }
+
+          span[mat-symbol] {
+            font-size: var(--font-size-lg);
+          }
+
+          &:hover {
+            background-color: var(--primary-one-hover);
+            border-color: var(--primary-one-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+          }
+
+          &:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-sm);
+          }
         }
       }
     }
@@ -274,6 +430,35 @@
       .progress-wrapper {
         height: 100%;
         @include mixins.flex-layout;
+      }
+
+      .year-level-group {
+        margin-bottom: var(--spacing-md);
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      .year-level-header {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        color: var(--neutral-base);
+        margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        background-color: var(--neutral-bar);
+        border-radius: var(--border-radius-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-left: 3px solid var(--accent-base);
+
+        span[mat-symbol] {
+          font-size: var(--font-size-md);
+          color: var(--accent-base);
+        }
       }
     }
 
@@ -522,10 +707,13 @@
 }
 
 .year-level-item {
+  white-space: nowrap !important;
+
   .menu-item-content {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
+    white-space: nowrap !important;
 
     .mat-icon {
       margin-right: 0;
@@ -546,50 +734,214 @@
   }
 }
 
-/* Media Query */
+// Ensure the filter dropdown is wide enough and has correct padding/styling
+::ng-deep .filter-year-menu.mat-mdc-menu-panel {
+  min-width: 220px !important;
+  max-width: none !important;
+
+  .mat-mdc-menu-item {
+    padding: 0 var(--spacing-md) !important;
+    text-align: left !important;
+  }
+}
+
+/* ─── Mobile overhaul: viewport-fit layout (≤ breakpoint-md) ─────────────── */
 @media screen and (max-width: bp.$breakpoint-md) {
-  #courses_container {
-    max-height: 25rem;
+
+  // Show tutorial card in header on mobile too
+  .pref-header-actions .tutorial-card.desktop-only {
+    display: flex !important;
   }
 
+  // Host fills the viewport — no page scroll
+  :host {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .faculty-preferences-container {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  // Content wrapper becomes a fixed-height flex column
+  .preferences-content-wrapper {
+    height: 100%;
+    overflow: hidden;
+    gap: var(--spacing-xs) !important;
+    padding-bottom: 0;
+  }
+
+  // ── Row one: compact header strip ──────────────────────────────────────────
   .preferences-row-one {
+    flex-shrink: 0;
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
 
-    #total_container {
-      .total {
-        flex: 1;
-      }
+    // Title text shrinks
+    #preferences_title {
+      h1 { font-size: var(--font-size-xl) !important; }
+      .pref-description { font-size: var(--font-size-sm); }
     }
+
+    // Totals row stays compact (already handled by .mobile class)
+    #total_container .total { flex: 1; }
   }
 
+  // ── Row two: fills remaining space, internal scroll per panel ──────────────
   .preferences-row-two {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
-      $gap: var(--spacing-lg)
+      $gap: var(--spacing-xs)
     );
 
-    height: auto;
-
+    // Courses/programs picker — fixed slice
     #courses_container {
+      flex: 0 0 auto;
+      height: 16rem !important;
+      min-height: 16rem !important;
+      max-height: 18rem !important;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+
+      // Search bar row
+      #courses_search {
+        flex-shrink: 0;
+        gap: var(--spacing-xs) !important;
+        row-gap: var(--spacing-xs) !important;
+        margin-bottom: var(--spacing-xs) !important;
+
+        // Search input fills remaining width
+        .custom-mat-search {
+          min-width: 0 !important;
+
+          ::ng-deep {
+            .mat-mdc-form-field-flex {
+              height: 3rem !important;
+            }
+
+            .mat-mdc-form-field-infix {
+              padding-top: 1rem !important;
+              padding-bottom: 0.2rem !important;
+            }
+
+            .mdc-floating-label {
+              top: 1.3rem !important;
+
+              &.mdc-floating-label--float-above {
+                top: 0.75rem !important;
+              }
+            }
+          }
+        }
+
+        // Button pair below the search input
+        .courses-search-buttons {
+          width: 100%;
+          display: flex;
+          flex-direction: row;
+          gap: var(--spacing-xs);
+
+          // Hide mobile-only button on medium screens; shown on sm below
+          .tutorial-card.mobile-only {
+            display: none !important;
+          }
+
+          // Import button full-width on md
+          .import-history-btn {
+            width: 100% !important;
+            height: 2.4rem !important;
+            padding: 0 var(--spacing-sm) !important;
+            font-size: var(--font-size-sm) !important;
+            justify-content: center;
+
+            span[mat-symbol] {
+              font-size: var(--font-size-md) !important;
+            }
+          }
+        }
+      }
+
+      // Card list scrolls internally
       .courses-scroll-container,
       .programs-scroll-container {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
         padding-right: var(--spacing-xs);
+      }
+    }
+
+    // Preferences table — fills remaining height, scrolls both axes
+    #table_container {
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto !important;
+      overflow-y: auto !important;
+
+      .table-main {
+        table-layout: auto !important;
+        min-width: 520px;
       }
     }
   }
 }
 
+/* ─── Extra-small mobile (≤ breakpoint-sm) ───────────────────────────────── */
 @media screen and (max-width: bp.$breakpoint-sm) {
-  .preferences-row-two {
-    padding-bottom: var(--spacing-5xxl);
+
+  // Title even more compact
+  .preferences-row-one {
+    #preferences_title {
+      h1 { font-size: var(--font-size-lg) !important; }
+    }
+  }
+
+  // Full-width buttons on mobile
+  .courses-search-buttons {
+    .import-history-btn {
+      width: 100% !important;
+    }
   }
 
   .preferences-closed .button-options {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-sm));
+  }
+
+  /* Hide less critical columns to save horizontal space */
+  .mat-column-lec_hours,
+  .mat-column-lab_hours,
+  .mat-column-program {
+    display: none !important;
+  }
+}
+
+.auto-save-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  background-color: rgba(25, 118, 210, 0.05); /* Faint blue to indicate info */
+  border-left: 4px solid var(--primary-one); /* Matches the PUP red theme */
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+
+  .info-icon {
+    color: var(--primary-one);
+    margin-top: 2px;
+  }
+
+  .note-content {
+    font-size: var(--font-size-sm);
+    color: var(--primary-text);
+    line-height: var(--line-height-md);
   }
 }

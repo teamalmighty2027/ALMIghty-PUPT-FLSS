@@ -250,7 +250,6 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     const config = this.getDialogConfig();
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -289,7 +288,6 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     const config = this.getDialogConfig(program);
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -390,7 +388,7 @@ export class ProgramsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- NEW: EXCEL EXPORT LOGIC ---
+  // EXCEL EXPORT LOGIC
   private async generateExcelBlob(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Programs Offered');

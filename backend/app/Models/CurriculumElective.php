@@ -18,6 +18,7 @@ class CurriculumElective extends Model
         'semester_id',
         'elective_slot_name',
         'selected_elective_id',
+        'academic_year_id',
     ];
 
     /**
@@ -65,6 +66,18 @@ class CurriculumElective extends Model
             Semester::class,
             'semester_id',
             'semester_id'
+        );
+    }
+
+    /**
+     * Get the academic year this assignment is scoped to.
+     */
+    public function academicYear()
+    {
+        return $this->belongsTo(
+            AcademicYear::class,
+            'academic_year_id',
+            'academic_year_id'
         );
     }
 }

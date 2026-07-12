@@ -1,0 +1,127 @@
+<div class="video-tutorial-dialog">
+
+  <!-- Gradient header -->
+  <div class="dialog-header">
+    <div class="header-top">
+      <div class="header-label">
+        <span mat-symbol="menu_book" class="header-icon"></span>
+        <span class="header-eyebrow">Rescheduling Tutorial</span>
+      </div>
+      <button mat-icon-button class="close-btn" (click)="close()" aria-label="Close tutorial">
+        <span mat-symbol="close"></span>
+      </button>
+    </div>
+    <h2 class="dialog-title">{{ title }}</h2>
+  </div>
+
+  <!-- Tab bar — only shown when there are guide steps -->
+  @if (hasTabs) {
+  <div class="tab-bar" role="tablist">
+    <button class="tab-item" [class.active]="activeTab === 'guide'" (click)="setTab('guide')" role="tab"
+      [attr.aria-selected]="activeTab === 'guide'">
+      Step-by-Step Guide
+    </button>
+    <button class="tab-item" [class.active]="activeTab === 'video'" (click)="setTab('video')" role="tab"
+      [attr.aria-selected]="activeTab === 'video'">
+      Video Tutorial
+    </button>
+    <div class="tab-indicator" [class.video-tab]="activeTab === 'video'"></div>
+  </div>
+  <div class="tab-progress-separator"></div>
+  }
+
+  <!-- ── GUIDE TAB ── -->
+  @if (hasTabs && activeTab === 'guide') {
+
+  <!-- Step progress bar -->
+  <div class="progress-track" role="progressbar" [attr.aria-valuenow]="progressPercent" aria-valuemin="0"
+    aria-valuemax="100">
+    <div class="progress-fill" [style.width.%]="progressPercent"></div>
+  </div>
+
+  <!-- Body -->
+  <div class="dialog-body">
+
+    <div class="step-icon-wrapper">
+      <div class="step-icon-bg">
+        <span [mat-symbol]="currentStep.icon" [fill]="false" class="step-icon"></span>
+      </div>
+      <span class="step-badge">{{ currentStep.stepNumber }}</span>
+    </div>
+
+    <div class="step-content">
+      <h3 class="step-title">{{ currentStep.title }}</h3>
+      <p class="step-description">{{ currentStep.description }}</p>
+      @if (currentStep.highlight) {
+      <div class="step-highlight">
+        <span mat-symbol="info" class="highlight-icon"></span>
+        <span>{{ currentStep.highlight }}</span>
+      </div>
+      }
+    </div>
+
+    <p class="step-counter">Step {{ currentStep.stepNumber }} of {{ steps.length }}</p>
+
+    <div class="step-dots" role="tablist" aria-label="Tutorial steps">
+      @for (step of steps; track step.stepNumber; let i = $index) {
+      <button class="dot" [class.active]="i === currentStepIndex" [class.visited]="i < currentStepIndex"
+        (click)="goToStep(i)" role="tab" [attr.aria-selected]="i === currentStepIndex"
+        [attr.aria-label]="'Go to step ' + step.stepNumber">
+      </button>
+      }
+    </div>
+
+  </div>
+
+  <!-- Guide footer -->
+  <div class="dialog-buttons">
+    <button mat-button class="skip-btn" (click)="close()">Close</button>
+    <div class="nav-buttons">
+      <button mat-stroked-button class="prev-btn" (click)="previous()" [disabled]="isFirstStep">
+        <span mat-symbol="arrow_back" class="nav-icon"></span>
+        Previous
+      </button>
+      @if (!isLastStep) {
+      <button mat-flat-button class="next-btn" (click)="next()">
+        Next
+        <span mat-symbol="arrow_forward" class="nav-icon"></span>
+      </button>
+      } @else {
+      <button mat-flat-button class="finish-btn" (click)="close()">
+        Got it!
+        <span mat-symbol="check" class="nav-icon"></span>
+      </button>
+      }
+    </div>
+  </div>
+
+  }
+
+  <!-- ── VIDEO TAB (or sole content when no steps) ── -->
+  @if (!hasTabs || activeTab === 'video') {
+
+  <div class="video-tab-body">
+    <div class="video-wrapper">
+      <iframe class="video-player" [src]="safeEmbedUrl" [title]="title" frameborder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen loading="lazy">
+      </iframe>
+    </div>
+
+    <p class="video-note">
+      <span mat-symbol="info" class="video-note-icon"></span>
+      Video plays inside the system. No external redirect.
+    </p>
+  </div>
+
+  <div class="dialog-buttons">
+    <span></span>
+    <button mat-flat-button class="finish-btn" (click)="close()">
+      Done
+      <span mat-symbol="check" class="nav-icon"></span>
+    </button>
+  </div>
+
+  }
+
+</div>

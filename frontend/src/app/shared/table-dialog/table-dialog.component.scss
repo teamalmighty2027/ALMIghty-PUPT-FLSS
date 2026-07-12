@@ -6,6 +6,11 @@
   // max-width: none; // Remove max-width constraint
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 :host {
   @include mixins.custom-spinner(var(--primary-text));
 }
@@ -118,5 +123,55 @@
     font-size: 18px;
     height: 18px;
     width: 18px;
+  }
+}
+
+.password-field-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input {
+  flex: 1;
+  min-width: 0;
+
+  &::-ms-reveal,
+  &::-ms-clear {
+    display: none !important;
+  }
+}
+
+.password-buttons-suffix {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xxs, 4px);
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.password-action-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--neutral-base, #888);
+  border-radius: 50%;
+  transition: background-color 0.2s, color 0.2s;
+  width: 28px;
+  height: 28px;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+    color: var(--primary-text);
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
   }
 }

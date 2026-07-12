@@ -46,6 +46,7 @@ export class ProfilePageComponent implements OnInit {
   provinces: any[] = [];
   cities: any[] = [];
   barangays: any[] = [];
+  activePrograms: any[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -66,6 +67,7 @@ export class ProfilePageComponent implements OnInit {
     this.loadProvinces();
     this.setupAddressListeners();
     this.loadProfileData();
+    this.loadActivePrograms();
   }
 
   // Initialize reactive form controls
@@ -92,10 +94,7 @@ export class ProfilePageComponent implements OnInit {
       zipcode: ['', [Validators.pattern('^[0-9]{4}$')]],
     };
 
-    // Only add faculty_profile_id for faculty users
-    if (!this.isAdmin) {
-      formConfig.faculty_profile_id = [{ value: '', disabled: true }];
-    }
+
 
     this.profileForm = this.fb.group(formConfig);
     this.patchInitialValuesFromAuth();
@@ -193,6 +192,20 @@ export class ProfilePageComponent implements OnInit {
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
     });
   }
+  
+  /**
+   * Load active programs for the Department dropdown
+   */
+  loadActivePrograms(): void {
+    this.facultyService.getActivePrograms().subscribe({
+      next: (data) => {
+        this.activePrograms = data;
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Failed to load active programs', err);
+      }
+    });
+  }
 
   /**
    * Load the user's profile and initialize dependent address lists.
@@ -222,9 +235,6 @@ export class ProfilePageComponent implements OnInit {
         // Re-disable read-only fields
         this.profileForm.get('email')?.disable();
         this.profileForm.get('code')?.disable();
-        if (!this.isAdmin) {
-          this.profileForm.get('faculty_profile_id')?.disable();
-        }
 
         this.isLoading = false;
       },
@@ -241,9 +251,6 @@ export class ProfilePageComponent implements OnInit {
     this.profileForm.enable();
     this.profileForm.get('email')?.disable();
     this.profileForm.get('code')?.disable();
-    if (!this.isAdmin) {
-      this.profileForm.get('faculty_profile_id')?.disable();
-    }
   }
 
   /**

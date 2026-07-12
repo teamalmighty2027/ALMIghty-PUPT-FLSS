@@ -248,15 +248,17 @@ export class AdminComponent implements OnInit, OnDestroy {
           {
             label: 'Password',
             formControlName: 'password',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
             label: 'Confirm Password',
             formControlName: 'confirmPassword',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
             confirmPassword: true,
           },
@@ -288,7 +290,6 @@ export class AdminComponent implements OnInit, OnDestroy {
 
         const dialogRef = this.dialog.open(TableDialogComponent, {
           data: config,
-          disableClose: true,
           autoFocus: true,
         });
 
@@ -345,7 +346,6 @@ export class AdminComponent implements OnInit, OnDestroy {
 
     const dialogRef = this.dialog.open(TableDialogComponent, {
       data: config,
-      disableClose: true,
       autoFocus: true,
     });
 

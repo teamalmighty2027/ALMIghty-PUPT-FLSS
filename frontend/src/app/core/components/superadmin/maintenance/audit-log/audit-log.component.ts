@@ -30,6 +30,11 @@ export class AuditLogComponent implements OnInit, OnDestroy {
   columns: any[] = [];
   displayedColumns: string[] = ['id', 'date_time', 'role', 'user', 'action_type', 'changes_summary'];
 
+  // Pagination State
+  totalLogs = 0;
+  pageSize = 10;
+  currentPage = 1; // Laravel's paginator expects pages to start at 1
+
   constructor(
     private cdr: ChangeDetectorRef,
     private auditService: AuditLogService,
@@ -50,7 +55,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
 
   fetchLogs() {
     this.isLoading = true;
-    this.auditService.getAuditLogs()
+    this.auditService.getAuditLogs(this.currentPage, this.pageSize)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -59,9 +64,19 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: (logs) => this.logsSubject.next(logs),
+        next: (response) => {
+          this.logsSubject.next(response.data);
+          this.totalLogs = response.total;
+        },
         error: (err) => console.error('Failed to load audit logs:', err)
       });
+  }
+
+  onPageChange(event: any) {
+    // Angular Material's paginator is 0-indexed, so we add 1 for Laravel
+    this.currentPage = event.pageIndex + 1; 
+    this.pageSize = event.pageSize;
+    this.fetchLogs();
   }
 
   onViewDetails(log: AuditEntry) {

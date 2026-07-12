@@ -40,15 +40,18 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      */
     public function handle()
     {
+        // Convert array to object if needed for consistency
+        $faculty = (object) $this->faculty;
+
         $data = [
-            'first_name' => $this->faculty->first_name,
-            'last_name'  => $this->faculty->last_name,
+            'first_name' => $faculty->first_name ?? 'Faculty',
+            'last_name'  => $faculty->last_name ?? 'Member',
             'password'   => $this->password,
-            'login_url'  => url('/login'), // This generates your site's login URL
+            'login_url'  => $this->loginUrl ?? url('/login'),
         ];
 
-        Mail::send('emails.faculty_first_login_password', $data, function ($message) {
-            $message->to($this->faculty->email)
+        Mail::send('emails.faculty_first_login_password', $data, function ($message) use ($faculty) {
+            $message->to($faculty->email)
                 ->subject('Your PUPT FLSS Account Password');
         });
     }

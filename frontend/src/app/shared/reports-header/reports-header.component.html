@@ -51,7 +51,6 @@
   @if (showTermFilter) {
   <div class="term-filter-container">
     <div class="term-filter-flex">
-      <span class="term-filter-label">Academic Term:</span>
       <mat-form-field
         appearance="fill"
         class="term-filter-dropdown"
@@ -91,7 +90,7 @@
     
     @if (showExportByProgramButton) {
       <span class="tooltip-container" [matTooltip]="tooltipMessage" [matTooltipDisabled]="!buttonDisabled">
-        <button mat-flat-button class="ter-ripple custom-mat-button" style="margin-right: 12px; background-color: white; color: #800000; border: 1px solid #800000;" (click)="onExportByProgram()" [disabled]="buttonDisabled" [ngClass]="{ 'disabled-button': buttonDisabled }">
+        <button mat-flat-button class="ter-ripple custom-mat-button export-program" (click)="onExportByProgram()" [disabled]="buttonDisabled" [ngClass]="{ 'disabled-button': buttonDisabled }">
           <mat-icon>import_contacts</mat-icon>
           <span>Export by Program</span>
         </button>

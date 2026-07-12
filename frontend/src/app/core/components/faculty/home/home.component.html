@@ -4,56 +4,75 @@
     <app-loading></app-loading>
   </div>
   } @else {
-  <!-- Home first row -->
-  <div class="home-row-one" [@fadeAnimation]>
-    <!-- Home greetings -->
+  @if (isMobileView()) {
+  <div class="mobile-home-layout" [@fadeAnimation]>
     <div id="home_greetings">
       <h1>Hello, {{ facultyName }}</h1>
       <p>Here's your schedule for this month and announcements.</p>
     </div>
 
-    <!-- Calendar -->
+    <div class="active-year-sem-container">
+      <div class="icon-container">
+        <span mat-symbol="event_note" weight="300"></span>
+      </div>
+      <div class="text-container">
+        <p class="text">A.Y. {{ academicYear }}, {{ semester }}</p>
+        <p class="label">Current Academic Year & Semester</p>
+      </div>
+    </div>
+
+    <div class="mobile-calendar-toolbar" aria-label="Calendar navigation">
+      <button class="calendar-nav-btn" type="button" (click)="goToPrevious()">
+        <span mat-symbol="chevron_left"></span>
+      </button>
+      <button class="calendar-nav-btn" type="button" (click)="goToNext()">
+        <span mat-symbol="chevron_right"></span>
+      </button>
+      <button class="calendar-nav-btn calendar-today-btn" type="button" (click)="goToToday()">
+        <span mat-symbol="calendar_month"></span>
+      </button>
+    </div>
+
+    <div class="mobile-calendar-title">{{ calendarTitle }}</div>
+
+    <div class="mobile-view-switcher" role="tablist" aria-label="Calendar view selector">
+      <ng-container *ngFor="let view of mobileViewOptions; trackBy: trackByViewKey">
+        <button
+          class="view-switch-btn"
+          [class.active]="currentView === view.key"
+          type="button"
+          (click)="changeView(view.key)"
+        >
+          {{ view.label }}
+        </button>
+      </ng-container>
+    </div>
+
     <div class="faculty-calendar">
       <full-calendar
         class="full-calendar"
         #calendar
         [options]="calendarOptions"></full-calendar>
     </div>
-  </div>
 
-  <!-- Home second row -->
-  <div class="home-row-two" [@fadeAnimation]>
-    <!-- Active Semester -->
-    <div class="active-year-sem-container">
-      <!--Icon Container-->
-      <div class="icon-container">
-        <span mat-symbol="event_note" weight="300"></span>
+    <div class="all-day-section" aria-label="All-day events">
+      <div class="all-day-header">
+        <span mat-symbol="event_available" class="all-day-icon"></span>
+        <span>All-day</span>
       </div>
-      <!--Text Container-->
-      <div class="text-container">
-        <p class="text">
-          A.Y. {{ academicYear }},
-          {{ semester }}
-        </p>
-        <p class="label">Current Academic Year & Semester</p>
-      </div>
+      <p class="all-day-empty">No all-day events</p>
     </div>
 
-    <!--Announcement-->
     <div class="faculty-announcement">
-      <!--Title-->
       <h2 class="card-title">
         <span mat-symbol="campaign"></span>Announcements
       </h2>
-      <!--Content-->
       <div class="notifications-content">
         <div class="announcements-list">
-          <!-- Preferences Submission Card -->
           @if (facultyStatus.preferences_enabled ||
           !facultyStatus.preferences_enabled &&
           !facultyStatus.schedule_published) {
           <div class="announcement-card preferences">
-            <!--Card Header-->
             <div class="header">
               <div class="icon-wrapper">
                 <span mat-symbol="clinical_notes"></span>
@@ -61,7 +80,6 @@
               <h3>Faculty Preferences Submission</h3>
             </div>
 
-            <!--Card Content-->
             <div class="content">
               @if (facultyStatus.preferences_enabled) {
               <p>
@@ -93,17 +111,14 @@
           </div>
           }
 
-          <!-- Schedule Publication Card -->
           @if (facultyStatus.schedule_published) {
           <div class="announcement-card schedule">
-            <!--Card Header-->
             <div class="header">
               <div class="icon-wrapper">
                 <span mat-symbol="calendar_month"></span>
               </div>
               <h3>Faculty Official Load & Schedule</h3>
             </div>
-            <!--Card Content-->
             <div class="content">
               <p>
                 Your official load and schedule for A.Y. {{ academicYear }},
@@ -121,5 +136,116 @@
       </div>
     </div>
   </div>
+  } @else {
+  <div class="home-row-one" [@fadeAnimation]>
+    <div id="home_greetings">
+      <h1>Hello, {{ facultyName }}</h1>
+      <p>Here's your schedule for this month and announcements.</p>
+    </div>
+
+    <div class="faculty-calendar">
+      <full-calendar
+        class="full-calendar"
+        #calendar
+        [options]="calendarOptions"></full-calendar>
+    </div>
+
+    <div class="all-day-section" aria-label="All-day events">
+      <div class="all-day-header">
+        <span mat-symbol="event_available" class="all-day-icon"></span>
+        <span>All-day</span>
+      </div>
+      <p class="all-day-empty">No all-day events</p>
+    </div>
+  </div>
+
+  <div class="home-row-two" [@fadeAnimation]>
+    <div class="active-year-sem-container">
+      <div class="icon-container">
+        <span mat-symbol="event_note" weight="300"></span>
+      </div>
+      <div class="text-container">
+        <p class="text">
+          A.Y. {{ academicYear }},
+          {{ semester }}
+        </p>
+        <p class="label">Current Academic Year & Semester</p>
+      </div>
+    </div>
+
+    <div class="faculty-announcement">
+      <h2 class="card-title">
+        <span mat-symbol="campaign"></span>Announcements
+      </h2>
+      <div class="notifications-content">
+        <div class="announcements-list">
+          @if (facultyStatus.preferences_enabled ||
+          !facultyStatus.preferences_enabled &&
+          !facultyStatus.schedule_published) {
+          <div class="announcement-card preferences">
+            <div class="header">
+              <div class="icon-wrapper">
+                <span mat-symbol="clinical_notes"></span>
+              </div>
+              <h3>Faculty Preferences Submission</h3>
+            </div>
+
+            <div class="content">
+              @if (facultyStatus.preferences_enabled) {
+              <p>
+                The submission for your course and schedule preferences is
+                <span class="highlight open">now open</span>. Go to
+                <em>Set Preferences</em> page to start.
+              </p>
+
+              <p class="secondary-text">
+                Make sure to finalize your preferences on or before the
+                submission closes on
+                <strong>
+                  {{ facultyStatus.preferences_deadline | date : 'MMMM d, y' }}.
+                </strong>
+              </p>
+              } @else if (!facultyStatus.preferences_enabled &&
+              !facultyStatus.schedule_published) {
+              <p>
+                The preferences submission for the upcoming semester is now
+                <span class="highlight close">closed.</span>
+              </p>
+              <p class="secondary-text">
+                If you have not submitted your preferences yet or wish to make
+                changes, you may request to re-open your submission access
+                temporarily in <em>Set Preferences</em> page.
+              </p>
+              }
+            </div>
+          </div>
+          }
+
+          @if (facultyStatus.schedule_published) {
+          <div class="announcement-card schedule">
+            <div class="header">
+              <div class="icon-wrapper">
+                <span mat-symbol="calendar_month"></span>
+              </div>
+              <h3>Faculty Official Load & Schedule</h3>
+            </div>
+            <div class="content">
+              <p>
+                Your official load and schedule for A.Y. {{ academicYear }},
+                {{ semester }} has been
+                <span class="highlight published">published.</span>
+              </p>
+              <p class="secondary-text">
+                You may now view them in the
+                <em>Load & Schedule</em> page.
+              </p>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+  }
   }
 </div>

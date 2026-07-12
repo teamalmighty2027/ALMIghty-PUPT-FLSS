@@ -23,10 +23,10 @@ import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-
 
 import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
-import { CookieService } from 'ngx-cookie-service';
 
-// Added AdminService Import
 import { AdminService } from '../../../services/superadmin/management/admin/admin-profile.service';
+import { MatBadgeModule } from '@angular/material/badge';
+import { AdminNotificationService, AppNotification } from '../../../services/admin/notification/admin-notification.service';
 
 import { slideInAnimation, fadeAnimation, slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
@@ -49,6 +49,7 @@ import { HasPermissionDirective } from '../../../directives/has-permission.direc
     MatMenuModule,
     MatSymbolDirective,
     HasPermissionDirective,
+    MatBadgeModule,
   ],
   animations: [fadeAnimation, slideInAnimation, slideUpDown],
 })
@@ -77,6 +78,11 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   public isProfileRoute: boolean = false;
   public accountProfilePictureUrl: string | null = null;
 
+  // --- Notification Variables ---
+  public notifications: AppNotification[] = [];
+  public unreadCount = 0;
+  private pollingInterval: any;
+
   public isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
     .pipe(
@@ -90,11 +96,11 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private authService: AuthService,
     private dialog: MatDialog,
-    private cookieService: CookieService,
     private el: ElementRef,
     private renderer: Renderer2,
     private ngZone: NgZone,
-    private adminService: AdminService // Injected AdminService
+    private adminService: AdminService,
+    private notificationService: AdminNotificationService
   ) {
     this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
@@ -111,7 +117,7 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.accountProfilePictureUrl = url);
     
-    if (this.cookieService.get('termsAccepted') !== 'true') {
+    if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
@@ -127,6 +133,11 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .subscribe(() => this.setPageTitle());
 
     this.setPageTitle();
+
+    this.fetchNotifications();
+    this.pollingInterval = setInterval(() => {
+      this.fetchNotifications();
+    }, 30000);
   }
 
   ngAfterViewInit() {
@@ -136,10 +147,15 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
+
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
     }
     this.removeDocumentClickListener();
+
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
   }
 
   private initializeUserData(): void {
@@ -188,7 +204,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
         action: 'Log Out',
       },
       autoFocus: true,
-      disableClose: true,
       panelClass: 'dialog-base',
     });
 
@@ -206,7 +221,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
         content: 'Currently logging you out...',
         showProgressBar: true,
       },
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -223,7 +237,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openChangePasswordDialog() {
     const dialogRef = this.dialog.open(DialogChangePasswordComponent, {
-      disableClose: true,
       autoFocus: true,
     });
 
@@ -238,7 +251,6 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.dialog.open(DialogGenericComponent, {
           data: successDialogConfig,
-          disableClose: true,
           autoFocus: true,
         });
       }
@@ -298,5 +310,42 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.documentClickListener) {
       this.documentClickListener();
     }
+  }
+
+  // ============================================================
+  // NOTIFICATIONS LOGIC
+  // ============================================================
+
+  fetchNotifications(): void {
+    this.notificationService.getNotifications().subscribe(res => {
+      this.notifications = res.notifications;
+      this.unreadCount = res.unread_count;
+    });
+  }
+
+  onNotificationClick(notification: AppNotification): void {
+    if (!notification.read_at) {
+      this.notificationService.markAsRead(notification.id).subscribe(() => {
+        notification.read_at = new Date().toISOString();
+      });
+    }
+    
+    this.router.navigate([notification.data.action_url], { 
+      queryParams: { search: notification.data.faculty_id } 
+    });
+  }
+
+  markAllRead(): void {
+    this.notificationService.markAllAsRead().subscribe(() => {
+      this.notifications.forEach(n => n.read_at = new Date().toISOString());
+      this.unreadCount = 0;
+    });
+  }
+
+  clearAllNotifs(): void {
+    this.notificationService.clearAll().subscribe(() => {
+      this.notifications = []; // Empty the list in the UI instantly
+      this.unreadCount = 0;
+    });
   }
 }
