@@ -615,8 +615,11 @@ class ScheduleController extends Controller
     /**
      * Removes a duplicated course.
      */
-    public function removeDuplicateCourse(Request $request)
+    public function removeDuplicateCourse(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['section_course_id' => $id]);
+        }
         $validator = Validator::make($request->all(), [
             'section_course_id' => 'required|exists:section_courses,section_course_id',
         ]);
@@ -1530,8 +1533,13 @@ class ScheduleController extends Controller
     /**
      * Toggle a single faculty schedules publication status
      */
-    public function toggleSingleSchedule(Request $request)
+    // Toggle a single faculty schedule publication status using path parameter
+    public function toggleSingleSchedule(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['faculty_id' => $id]);
+        }
+
         // Step 1: Validate the input
         $validated = $request->validate([
             'faculty_id' => 'required|integer|exists:faculty,id',

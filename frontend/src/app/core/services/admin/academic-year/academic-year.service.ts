@@ -21,16 +21,13 @@ export class AcademicYearService {
    */
   getAcademicYears(): Observable<AcademicYear[]> {
     return this.http
-      .get<AcademicYear[]>(`${this.baseUrl}/get-academic-years`)
+      .get<AcademicYear[]>(`${this.baseUrl}/academic-years`)
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Add a new academic year with improved error handling
-   */
   addAcademicYear(yearStart: string, yearEnd: string): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/add-academic-year`, {
+      .post<any>(`${this.baseUrl}/academic-years`, {
         year_start: yearStart,
         year_end: yearEnd,
       })
@@ -42,7 +39,6 @@ export class AcademicYearService {
             errorMessage = error.error.message;
           }
 
-          // Handle 422 Unprocessable Entity responses specifically
           if (error.status === 422) {
             errorMessage = error.error.message;
           }
@@ -52,14 +48,9 @@ export class AcademicYearService {
       );
   }
 
-  /**
-   * Delete an existing academic year.
-   */
   deleteAcademicYear(academicYearId: number): Observable<any> {
     return this.http
-      .request('DELETE', `${this.baseUrl}/delete-academic-year`, {
-        body: { academic_year_id: academicYearId },
-      })
+      .delete<any>(`${this.baseUrl}/academic-years/${academicYearId}`)
       .pipe(
         catchError((error: HttpErrorResponse) => {
           if (error.error?.status === 'error') {
@@ -72,9 +63,7 @@ export class AcademicYearService {
 
   updateAcademicYear(academicYearId: number): Observable<any> {
     return this.http
-      .request('PUT', `${this.baseUrl}/update-academic-year`, {
-        body: { academic_year_id: academicYearId },
-      })
+      .put<any>(`${this.baseUrl}/academic-years/${academicYearId}`, {})
       .pipe(
         catchError((error: HttpErrorResponse) => {
           if (error.error?.status === 'error') {
@@ -85,9 +74,6 @@ export class AcademicYearService {
       );
   }
 
-  /**
-   * Get active academic year and semester details.
-   */
   getActiveYearAndSemester(): Observable<{
     activeYear: string;
     activeSemester: number;
@@ -104,28 +90,22 @@ export class AcademicYearService {
         endDate: string;
         facultyViewYear: string;
         facultyViewSemester: number;
-      }>(`${this.baseUrl}/get-active-year-semester`)
+      }>(`${this.baseUrl}/academic-years/active-semester`)
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Sets which semester faculty can view their published schedules for.
-   */
   setFacultyViewSemester(
     academicYearId: number,
     semesterId: number
   ): Observable<void> {
     return this.http
-      .post<void>(`${this.baseUrl}/set-faculty-view-semester`, {
+      .put<void>(`${this.baseUrl}/academic-years/faculty-view-semester`, {
         academic_year_id: academicYearId,
         semester_id: semesterId,
       })
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Set the active academic year and semester.
-   */
   setActiveYearAndSemester(
     academicYearId: number,
     semesterId: number,
@@ -133,7 +113,7 @@ export class AcademicYearService {
     endDate: string
   ): Observable<void> {
     return this.http
-      .post<void>(`${this.baseUrl}/set-active-year-semester`, {
+      .put<void>(`${this.baseUrl}/academic-years/active-semester`, {
         academic_year_id: academicYearId,
         semester_id: semesterId,
         start_date: startDate,
@@ -142,27 +122,22 @@ export class AcademicYearService {
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Fetches program details, including year levels and curriculum versions, for a specific academic year.
-   */
   fetchProgramDetailsByAcademicYear(payload: {
     academic_year_id: number;
   }): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/fetch-ay-prog-details`, payload)
+      .get<any>(
+        `${this.baseUrl}/academic-years/${payload.academic_year_id}/program-details`
+      )
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Updates the curriculum versions for year levels within a specific academic year and program.
-   */
   updateYearLevelsCurricula(
     academicYearId: number,
     programId: number,
     yearLevels: YearLevel[]
   ): Observable<any> {
     const payload = {
-      academic_year_id: academicYearId,
       program_id: programId,
       year_levels: yearLevels.map((yl) => ({
         year_level: yl.year_level,
@@ -170,14 +145,13 @@ export class AcademicYearService {
       })),
     };
     return this.http
-      .post<any>(`${this.baseUrl}/update-yr-lvl-curricula`, payload)
+      .put<any>(
+        `${this.baseUrl}/academic-years/${academicYearId}/year-level-curricula`,
+        payload
+      )
       .pipe(catchError(this.handleError));
   }
 
-  /**
-   * Updates the number of sections for a specific year level
-   * within a program and academic year.
-   */
   updateSections(
     academicYearId: number,
     programId: number,
@@ -185,12 +159,14 @@ export class AcademicYearService {
     numberOfSections: number
   ): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/update-sections`, {
-        academic_year_id: academicYearId,
-        program_id: programId,
-        year_level: yearLevel,
-        number_of_sections: numberOfSections,
-      })
+      .put<any>(
+        `${this.baseUrl}/academic-years/${academicYearId}/sections`,
+        {
+          program_id: programId,
+          year_level: yearLevel,
+          number_of_sections: numberOfSections,
+        }
+      )
       .pipe(
         catchError((error: HttpErrorResponse) => {
           if (error.error?.status === 'error') {
@@ -201,17 +177,14 @@ export class AcademicYearService {
       );
   }
 
-  /**
-   * Removes a specific program from an academic year.
-   */
   removeProgramFromAcademicYear(
     academicYearId: number,
     programId: number
   ): Observable<any> {
     return this.http
-      .request('DELETE', `${this.baseUrl}/remove-program`, {
-        body: { academic_year_id: academicYearId, program_id: programId },
-      })
+      .delete<any>(
+        `${this.baseUrl}/academic-years/${academicYearId}/programs/${programId}`
+      )
       .pipe(catchError(this.handleError));
   }
 
