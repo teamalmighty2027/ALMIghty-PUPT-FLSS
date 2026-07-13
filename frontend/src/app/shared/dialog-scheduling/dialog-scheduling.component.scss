@@ -277,7 +277,7 @@
   }
 
   &.selected-faculty,
-  &.selected-history {
+  &.selected-assignment {
     border-color: var(--green-primary);
     background-color: var(--green-fade-lighter);
   }
@@ -367,8 +367,8 @@
   }
 }
 
-// ── Course History block ──────────────────────────────────────────────────────
-.course-history-block {
+// ── Current Assignment block ──────────────────────────────────────────────────
+.current-assignment-block {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
@@ -381,26 +381,26 @@
   padding: var(--spacing-sm) var(--spacing-md);
 
   // Header mirrors .ai-block-header exactly
-  .course-history-header {
+  .current-assignment-header {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
     margin-bottom: var(--spacing-sm);
     flex-wrap: wrap;
 
-    .history-header-icon {
+    .assignment-header-icon {
       font-size: 18px;
       color: var(--primary-text);
       flex-shrink: 0;
     }
 
-    .history-header-label {
+    .assignment-header-label {
       font-size: var(--font-size-sm);
       font-weight: 700;
       color: var(--primary-text);
     }
 
-    .history-header-sublabel {
+    .assignment-header-sublabel {
       font-size: var(--font-size-xs);
       color: var(--secondary-text);
       opacity: 0.75;
@@ -408,15 +408,15 @@
   }
 }
 
-// History card matches AI suggestion card — font bump only, no forced colors
-.history-card {
+// Assignment card matches AI suggestion card — font bump only, no forced colors
+.assignment-card {
   .faculty-name {
     font-size: var(--font-size-md) !important;
   }
 }
 
-// "Previous" badge — uses the same neutral fallback as any untyped card
-.history-type {
+// "Current" badge — uses the same neutral fallback as any untyped card
+.assignment-type {
   background-color: var(--neutral-fade) !important;
   color: var(--neutral-base) !important;
 }
