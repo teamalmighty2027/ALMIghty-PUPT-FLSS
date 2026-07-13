@@ -271,6 +271,12 @@
       border-color: #a5d6a7 !important;
       color: #2e7d32;
     }
+
+    &.badge-exceeded {
+      background-color: #ffebee;
+      border-color: #ffcdd2 !important;
+      color: #c62828;
+    }
   }
 }
 

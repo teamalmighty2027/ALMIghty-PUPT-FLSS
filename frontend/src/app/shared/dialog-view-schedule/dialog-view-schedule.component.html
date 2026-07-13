@@ -144,7 +144,7 @@
           <div class="time-plots-form" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px;">
             <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 150px;" subscriptSizing="dynamic">
               <mat-label>Type</mat-label>
-              <mat-select [(ngModel)]="selectedType">
+              <mat-select [(ngModel)]="selectedType" (selectionChange)="onTypeChange($event.value)">
                 @for (type of eligibleTypes; track type) {
                   <mat-option [value]="type">{{ getDisplayTypeName(type) }}</mat-option>
                 }
@@ -164,23 +164,52 @@
               </mat-select>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="form-field" style="width: 135px;" subscriptSizing="dynamic">
-              <mat-label>Start Time</mat-label>
-              <mat-select [(ngModel)]="startTime" (selectionChange)="onStartTimeChange($event.value)">
-                @for (opt of timeOptions; track opt.value) {
-                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+            @if (selectedType === 'night_service') {
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 200px;"
+                subscriptSizing="dynamic">
+                <mat-label>Time Slot</mat-label>
+                <mat-select
+                  [(ngModel)]="selectedNightSlot"
+                  (selectionChange)="onNightSlotChange($event.value)">
+                  @for (slot of NIGHT_SERVICE_SLOTS; track slot.start) {
+                    <mat-option [value]="slot.start">
+                      {{ slot.label }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 135px;"
+                subscriptSizing="dynamic">
+                <mat-label>Start Time</mat-label>
+                <mat-select
+                  [(ngModel)]="startTime"
+                  (selectionChange)="onStartTimeChange($event.value)">
+                  @for (opt of timeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-            <mat-form-field appearance="outline" class="form-field" style="width: 135px;" subscriptSizing="dynamic">
-              <mat-label>End Time</mat-label>
-              <mat-select [(ngModel)]="endTime" [disabled]="!startTime">
-                @for (opt of endTimeOptions; track opt.value) {
-                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 135px;"
+                subscriptSizing="dynamic">
+                <mat-label>End Time</mat-label>
+                <mat-select [(ngModel)]="endTime" [disabled]="!startTime">
+                  @for (opt of endTimeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
 
 
             <button mat-flat-button color="primary" class="add-button" (click)="onAddTimePlot()" [disabled]="isAddingTimePlot" style="height: 48px;">
@@ -191,8 +220,15 @@
           <!-- Cap & Remaining Badges -->
           <div class="remaining-hours-badges" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
             @for (type of eligibleTypes; track type) {
-              <div class="badge" [ngClass]="{'badge-complete': getRemainingHours(type) === 0}" 
-                   style="padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.85rem; border: 1px solid #ccc; display: flex; align-items: center; gap: 8px;">
+              <div
+                class="badge"
+                [ngClass]="{
+                  'badge-complete': getRemainingHours(type) === 0 &&
+                    !(type === 'night_service' && getPlottedHours(type) > 15),
+                  'badge-exceeded': type === 'night_service' &&
+                    getPlottedHours(type) > 15
+                }"
+                style="padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.85rem; border: 1px solid #ccc; display: flex; align-items: center; gap: 8px;">
                 <span class="badge-label" style="opacity: 0.8;">{{ getDisplayTypeName(type) }}:</span>
                 <span class="badge-value" style="font-weight: 600;">
                   {{ getPlottedHours(type) }}h plotted / {{ getRemainingHours(type) }}h remaining

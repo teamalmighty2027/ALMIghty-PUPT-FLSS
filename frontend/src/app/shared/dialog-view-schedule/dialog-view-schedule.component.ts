@@ -104,6 +104,14 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   selectedDay: string = 'Monday';
   startTime: string = '07:00';
   endTime: string = '08:30';
+
+  // Fixed Night Service slots
+  readonly NIGHT_SERVICE_SLOTS = [
+    { label: '5:00 PM – 8:00 PM', start: '17:00', end: '20:00' },
+    { label: '6:00 PM – 9:00 PM', start: '18:00', end: '21:00' },
+  ];
+
+  selectedNightSlot: string = '17:00';
   isAddingTimePlot = false;
   timeOptions: { value: string; label: string; minutes: number }[] = [];
   endTimeOptions: { value: string; label: string; minutes: number }[] = [];
@@ -158,9 +166,14 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     if (this.showTimePlotPanel) {
       this.getEligibleTypes();
       this.generateTimeOptions();
-      if (this.startTime) {
+
+      if (this.selectedType === 'night_service') {
+        this.startTime = '17:00';
+        this.endTime = '20:00';
+      } else if (this.startTime) {
         this.onStartTimeChange(this.startTime);
       }
+
       this.loadTimePlots();
     }
 
@@ -515,6 +528,34 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Updates start and end times automatically when a night service slot is selected
+  onNightSlotChange(startValue: string): void {
+    const slot = this.NIGHT_SERVICE_SLOTS.find(
+      s => s.start === startValue
+    );
+    if (slot) {
+      this.startTime = slot.start;
+      this.endTime = slot.end;
+    }
+  }
+
+  // Resets or initializes time options when the assignment type changes
+  onTypeChange(newType: string): void {
+    if (newType === 'night_service') {
+      this.selectedNightSlot = '17:00';
+      this.startTime = '17:00';
+      this.endTime = '20:00';
+    } else {
+      this.startTime = '07:00';
+      this.onStartTimeChange(this.startTime);
+    }
+  }
+
+  // Checks if total plotted night service hours exceed the hard limit of 15 hours
+  isNightServiceOverCap(): boolean {
+    return this.getPlottedHours('night_service') > 15;
+  }
+
   /**
    * Fetches time plots for the faculty member from the database.
    */
@@ -625,14 +666,44 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
 
     // 1. Check plotted overlaps
-    if (this.timePlots.some(p => p.day === this.selectedDay && this.doTimesOverlap(this.startTime, this.endTime, p.start_time.substring(0, 5), p.end_time.substring(0, 5)))) {
-      this.snackBar.open('This time slot overlaps with another plotted time slot.', 'Close', { duration: 5000 });
+    const hasOverlap = this.timePlots.some(p =>
+      p.day === this.selectedDay &&
+      this.doTimesOverlap(
+        this.startTime,
+        this.endTime,
+        p.start_time.substring(0, 5),
+        p.end_time.substring(0, 5)
+      )
+    );
+
+    if (hasOverlap) {
+      this.snackBar.open(
+        'This time slot overlaps with another plotted time slot.',
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
     // 2. Check teaching schedule conflicts
-    if (this.scheduleDataCopy.some(s => s.day === this.selectedDay && s.start_time && s.end_time && this.doTimesOverlap(this.startTime, this.endTime, s.start_time.substring(0, 5), s.end_time.substring(0, 5)))) {
-      this.snackBar.open('This time slot overlaps with an assigned class schedule.', 'Close', { duration: 5000 });
+    const hasScheduleConflict = this.scheduleDataCopy.some(s =>
+      s.day === this.selectedDay &&
+      s.start_time &&
+      s.end_time &&
+      this.doTimesOverlap(
+        this.startTime,
+        this.endTime,
+        s.start_time.substring(0, 5),
+        s.end_time.substring(0, 5)
+      )
+    );
+
+    if (hasScheduleConflict) {
+      this.snackBar.open(
+        'This time slot overlaps with an assigned class schedule.',
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
@@ -641,7 +712,13 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     const plotted = this.getPlottedHours(this.selectedType);
     const duration = (endMin - startMin) / 60;
     if (plotted + duration > cap) {
-      this.snackBar.open(`Adding this slot exceeds the weekly limit of ${cap} hours for ${this.getDisplayTypeName(this.selectedType)}.`, 'Close', { duration: 5000 });
+      const typeName = this.getDisplayTypeName(this.selectedType);
+      this.snackBar.open(
+        `Adding this slot exceeds the weekly limit of ${cap} hours ` +
+        `for ${typeName}.`,
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
