@@ -734,3 +734,8 @@ html body div.asw-container .asw-menu * {
   60%  { left: 107%; right: -8%; }
   100% { left: 107%; right: -8%; }
 }
+
+/* Hide mobile notification icon specifically on Course-Centric Scheduling page to prevent horizontal layout overflow */
+.sidenav-container:has(app-course-centric-scheduling) .mobile-notification-container {
+  display: none !important;
+}

@@ -729,3 +729,67 @@
     }
   }
 }
+
+@media (max-width: 768px) {
+  .scheduling-dialog-container {
+    flex-direction: column !important;
+    min-height: auto !important;
+    max-height: 90vh !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .suggested-faculty {
+    flex: none !important;
+    border-right: none !important;
+    border-bottom: 1.5px solid var(--neutral-base) !important;
+    padding: 0 var(--spacing-md) var(--spacing-md) !important;
+
+    .title {
+      padding: var(--spacing-md) 0 var(--spacing-xs) !important;
+    }
+
+    .content.faculty-list {
+      max-height: none !important;
+      overflow-y: visible !important;
+      padding-bottom: var(--spacing-sm) !important;
+    }
+  }
+
+  .edit-schedule-details {
+    flex: none !important;
+    padding: 0 var(--spacing-md) var(--spacing-md) !important;
+
+    .title {
+      padding: var(--spacing-md) 0 var(--spacing-xs) !important;
+    }
+
+    .content.forms-list {
+      max-height: none !important;
+      overflow-y: visible !important;
+    }
+  }
+
+  // Ensure day picker doesn't break and is neat
+  .day-buttons-container {
+    margin-bottom: var(--spacing-md) !important;
+    gap: 4px !important;
+    justify-content: space-around !important;
+    
+    .day-button {
+      width: 32px !important;
+      height: 32px !important;
+      padding: 0 !important;
+      font-size: var(--font-size-xs) !important;
+      aspect-ratio: 1 / 1 !important;
+    }
+  }
+
+  // Spacing for date fields
+  .date-fields {
+    flex-direction: row !important;
+    gap: var(--spacing-sm) !important;
+  }
+}
+
