@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   AbstractControl,
@@ -18,6 +18,8 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DialogBirthdateWarningComponent } from '../dialog-birthdate-warning/dialog-birthdate-warning.component';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { provideNativeDateAdapter } from '@angular/material/core';
 
 @Component({
   selector: 'app-profile-page',
@@ -28,6 +30,10 @@ import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
     MatSnackBarModule,
     MatDialogModule,
     MatSymbolDirective,
+    MatDatepickerModule,
+  ],
+  providers: [
+    provideNativeDateAdapter(),
   ],
   templateUrl: './profile-page.component.html',
   styleUrls: ['./profile-page.component.scss'],
@@ -47,6 +53,102 @@ export class ProfilePageComponent implements OnInit {
   cities: any[] = [];
   barangays: any[] = [];
   activePrograms: any[] = [];
+
+  // Mobile Inline Dropdown variables
+  isMobileView: boolean = window.innerWidth <= 768;
+  activeMobileDropdown: string | null = null;
+  mobileDropdownSearchable: boolean = false;
+  mobileDropdownSearch: string = '';
+
+  @HostListener('window:resize', ['$event'])
+  onResize() {
+    this.isMobileView = window.innerWidth <= 768;
+    if (!this.isMobileView && this.activeMobileDropdown) {
+      this.closeAllMobileDropdowns();
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event) {
+    if (!this.isMobileView) return;
+    const clickedInside = (event.target as HTMLElement).closest('.select-wrapper');
+    if (!clickedInside) {
+      this.closeAllMobileDropdowns();
+    }
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscapeKey(event: KeyboardEvent) {
+    this.closeAllMobileDropdowns();
+  }
+
+  toggleMobileDropdown(event: Event, controlName: string, searchable: boolean = false) {
+    event.stopPropagation();
+    if (this.activeMobileDropdown === controlName) {
+      this.closeAllMobileDropdowns();
+    } else {
+      this.activeMobileDropdown = controlName;
+      this.mobileDropdownSearchable = searchable;
+      this.mobileDropdownSearch = '';
+    }
+  }
+
+  closeAllMobileDropdowns() {
+    this.activeMobileDropdown = null;
+    this.mobileDropdownSearch = '';
+  }
+
+  onDropdownSearch(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.mobileDropdownSearch = input.value;
+  }
+
+  selectDropdownOption(controlName: string, value: any) {
+    const control = this.profileForm.get(controlName);
+    if (control) {
+      control.setValue(value);
+      control.markAsTouched();
+      control.updateValueAndValidity();
+    }
+    this.closeAllMobileDropdowns();
+  }
+
+  getDropdownOptions(controlName: string): { value: any; label: string }[] {
+    let options: { value: any; label: string }[] = [];
+    if (controlName === 'department') {
+      options = this.activePrograms.map(p => ({
+        value: p.program_title,
+        label: p.program_title
+      }));
+    } else if (controlName === 'sex') {
+      options = [
+        { value: 'Male', label: 'Male' },
+        { value: 'Female', label: 'Female' },
+        { value: 'Prefer not to say', label: 'Prefer not to say' }
+      ];
+    } else if (controlName === 'province') {
+      options = this.provinces.map(p => ({
+        value: p.name,
+        label: p.name
+      }));
+    } else if (controlName === 'city') {
+      options = this.cities.map(c => ({
+        value: c.name,
+        label: c.name
+      }));
+    } else if (controlName === 'barangay') {
+      options = this.barangays.map(b => ({
+        value: b.name,
+        label: b.name
+      }));
+    }
+
+    if (!this.mobileDropdownSearch) {
+      return options;
+    }
+    const searchLower = this.mobileDropdownSearch.toLowerCase();
+    return options.filter(opt => opt.label.toLowerCase().includes(searchLower));
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -82,7 +184,7 @@ export class ProfilePageComponent implements OnInit {
         [Validators.required, Validators.email],
       ],
       code: [{ value: '', disabled: true }],
-      department: [''],
+      department: ['', Validators.required],
       birthdate: ['', [this.birthdateValidator.bind(this)]],
       sex: [''],
       house_num: [''],
@@ -269,7 +371,16 @@ export class ProfilePageComponent implements OnInit {
   }
 
   onBirthdateChange(event: any): void {
-    const value = event.target?.value;
+    let value = event.target?.value;
+    if (!value && event.value) {
+      const date = event.value as Date;
+      if (date && date.getFullYear) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        value = `${year}-${month}-${day}`;
+      }
+    }
     if (value && this.isToday(value)) {
       this.profileForm.get('birthdate')?.setValue('');
       this.openBirthdateWarning();
