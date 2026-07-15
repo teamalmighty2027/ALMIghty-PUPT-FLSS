@@ -678,13 +678,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
     this.dialog.open(DialogPrefComponent, {
-      maxWidth: '70rem',
+      maxWidth: '90vw',
       width: '100%',
       data: {
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
         termId: this.selectedTermId,
         isAdmin: true,
+        hasSubmitted: this.hasSubmittedPreferences(faculty),
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
