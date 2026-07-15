@@ -13,9 +13,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
-import { forkJoin, Observable } from 'rxjs';
+import { forkJoin, Observable, of } from 'rxjs';
 
-import { tap } from 'rxjs/operators';
+import { tap, switchMap } from 'rxjs/operators';
 
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { LoadingComponent } from '../loading/loading.component';
@@ -104,6 +104,14 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   selectedDay: string = 'Monday';
   startTime: string = '07:00';
   endTime: string = '08:30';
+
+  // Fixed Night Service slots
+  readonly NIGHT_SERVICE_SLOTS = [
+    { label: '5:00 PM – 8:00 PM', start: '17:00', end: '20:00' },
+    { label: '6:00 PM – 9:00 PM', start: '18:00', end: '21:00' },
+  ];
+
+  selectedNightSlot: string = '17:00';
   isAddingTimePlot = false;
   timeOptions: { value: string; label: string; minutes: number }[] = [];
   endTimeOptions: { value: string; label: string; minutes: number }[] = [];
@@ -158,9 +166,14 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     if (this.showTimePlotPanel) {
       this.getEligibleTypes();
       this.generateTimeOptions();
-      if (this.startTime) {
+
+      if (this.selectedType === 'night_service') {
+        this.startTime = '17:00';
+        this.endTime = '20:00';
+      } else if (this.startTime) {
         this.onStartTimeChange(this.startTime);
       }
+
       this.loadTimePlots();
     }
 
@@ -227,8 +240,6 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   public closeDialog(): void {
-    // Pass the saved state back to the parent component
-    console.log('closeDialog() called, wasSaved =', this.wasSaved);
     this.dialogRef.close(this.wasSaved);
   }
 
@@ -370,55 +381,61 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     const hasTimePlotChanges = this.pendingAdditions.length > 0 ||
                                this.pendingDeletions.length > 0;
     if (changedSchedules.length === 0 && !hasTimePlotChanges) {
-      console.log('saveChanges: No changes detected.');
       return;
     }
 
     this.isSaving = true;
-    const requests: Observable<any>[] = [];
 
-    changedSchedules.forEach(s => {
-      const scheduleId = s.schedule_id || s.id;
-      console.log('Adding schedule assignment type update request:', {
-        scheduleId,
-        assignment_type_id: s.assignment_type_id
-      });
-      requests.push(
-        this.schedulingService.updateAssignmentType(
-          scheduleId,
-          s.assignment_type_id
-        ).pipe(
-          tap(() => {
-            s.originalAssignmentTypeId = s.assignment_type_id; 
-            s.originalAssignmentType = s.assignment_type; 
-          }) 
-        )
+    // We execute deletions first to clear database slots,
+    // preventing overlap validation errors on new creations.
+    let deletionObservable: Observable<any> = of(null);
+    if (this.pendingDeletions.length > 0) {
+      const deleteRequests = this.pendingDeletions.map(id =>
+        this.reportsService.deleteFacultyTimePlot(id)
       );
-    });
+      deletionObservable = forkJoin(deleteRequests);
+    }
 
-    this.pendingAdditions.forEach(plot => {
-      const payload = {
-        faculty_id: plot.faculty_id,
-        active_semester_id: plot.active_semester_id,
-        time_type: plot.time_type,
-        day: plot.day,
-        start_time: plot.start_time,
-        end_time: plot.end_time
-      };
-      console.log('Adding time plot create request payload:', payload);
-      requests.push(this.reportsService.createFacultyTimePlot(payload));
-    });
+    deletionObservable.pipe(
+      switchMap(() => {
+        const remainingRequests: Observable<any>[] = [];
 
-    this.pendingDeletions.forEach(id => {
-      console.log('Adding time plot delete request for ID:', id);
-      requests.push(this.reportsService.deleteFacultyTimePlot(id));
-    });
+        changedSchedules.forEach(s => {
+          const scheduleId = s.schedule_id || s.id;
+          remainingRequests.push(
+            this.schedulingService.updateAssignmentType(
+              scheduleId,
+              s.assignment_type_id
+            ).pipe(
+              tap(() => {
+                s.originalAssignmentTypeId = s.assignment_type_id; 
+                s.originalAssignmentType = s.assignment_type; 
+              }) 
+            )
+          );
+        });
 
-    console.log(`Executing ${requests.length} save requests via forkJoin...`);
+        this.pendingAdditions.forEach(plot => {
+          const payload = {
+            faculty_id: plot.faculty_id,
+            active_semester_id: plot.active_semester_id,
+            time_type: plot.time_type,
+            day: plot.day,
+            start_time: plot.start_time,
+            end_time: plot.end_time
+          };
+          remainingRequests.push(
+            this.reportsService.createFacultyTimePlot(payload)
+          );
+        });
 
-    forkJoin(requests).subscribe({
+        if (remainingRequests.length === 0) {
+          return of([]);
+        }
+        return forkJoin(remainingRequests);
+      })
+    ).subscribe({
       next: (responses) => {
-        console.log('Save requests executed successfully. Responses:', responses);
         this.isSaving = false;
         this.wasSaved = true;
         this.pendingAdditions = [];
@@ -513,6 +530,34 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
         this.endTime = '';
       }
     }
+  }
+
+  // Updates start and end times automatically when a night service slot is selected
+  onNightSlotChange(startValue: string): void {
+    const slot = this.NIGHT_SERVICE_SLOTS.find(
+      s => s.start === startValue
+    );
+    if (slot) {
+      this.startTime = slot.start;
+      this.endTime = slot.end;
+    }
+  }
+
+  // Resets or initializes time options when the assignment type changes
+  onTypeChange(newType: string): void {
+    if (newType === 'night_service') {
+      this.selectedNightSlot = '17:00';
+      this.startTime = '17:00';
+      this.endTime = '20:00';
+    } else {
+      this.startTime = '07:00';
+      this.onStartTimeChange(this.startTime);
+    }
+  }
+
+  // Checks if total plotted night service hours exceed the hard limit of 15 hours
+  isNightServiceOverCap(): boolean {
+    return this.getPlottedHours('night_service') > 15;
   }
 
   /**
@@ -625,14 +670,44 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     }
 
     // 1. Check plotted overlaps
-    if (this.timePlots.some(p => p.day === this.selectedDay && this.doTimesOverlap(this.startTime, this.endTime, p.start_time.substring(0, 5), p.end_time.substring(0, 5)))) {
-      this.snackBar.open('This time slot overlaps with another plotted time slot.', 'Close', { duration: 5000 });
+    const hasOverlap = this.timePlots.some(p =>
+      p.day === this.selectedDay &&
+      this.doTimesOverlap(
+        this.startTime,
+        this.endTime,
+        p.start_time.substring(0, 5),
+        p.end_time.substring(0, 5)
+      )
+    );
+
+    if (hasOverlap) {
+      this.snackBar.open(
+        'This time slot overlaps with another plotted time slot.',
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
     // 2. Check teaching schedule conflicts
-    if (this.scheduleDataCopy.some(s => s.day === this.selectedDay && s.start_time && s.end_time && this.doTimesOverlap(this.startTime, this.endTime, s.start_time.substring(0, 5), s.end_time.substring(0, 5)))) {
-      this.snackBar.open('This time slot overlaps with an assigned class schedule.', 'Close', { duration: 5000 });
+    const hasScheduleConflict = this.scheduleDataCopy.some(s =>
+      s.day === this.selectedDay &&
+      s.start_time &&
+      s.end_time &&
+      this.doTimesOverlap(
+        this.startTime,
+        this.endTime,
+        s.start_time.substring(0, 5),
+        s.end_time.substring(0, 5)
+      )
+    );
+
+    if (hasScheduleConflict) {
+      this.snackBar.open(
+        'This time slot overlaps with an assigned class schedule.',
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
@@ -641,7 +716,13 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     const plotted = this.getPlottedHours(this.selectedType);
     const duration = (endMin - startMin) / 60;
     if (plotted + duration > cap) {
-      this.snackBar.open(`Adding this slot exceeds the weekly limit of ${cap} hours for ${this.getDisplayTypeName(this.selectedType)}.`, 'Close', { duration: 5000 });
+      const typeName = this.getDisplayTypeName(this.selectedType);
+      this.snackBar.open(
+        `Adding this slot exceeds the weekly limit of ${cap} hours ` +
+        `for ${typeName}.`,
+        'Close',
+        { duration: 5000 }
+      );
       return;
     }
 
