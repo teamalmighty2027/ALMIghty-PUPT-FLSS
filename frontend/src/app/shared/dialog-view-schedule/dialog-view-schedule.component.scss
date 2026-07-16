@@ -23,15 +23,23 @@
   flex-shrink: 0; 
   margin-bottom: var(--spacing-md);
 
+  .schedule-title-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .schedule-title {
     .dialog-title {
       @include mixins.reset-styles;
       font-weight: 600;
       color: var(--primary-text);
+      margin-bottom: 2px;
     }
 
     .dialog-subtitle {
       color: var(--primary-text);
+      font-size: 0.95rem;
     }
   }
 }
@@ -44,7 +52,7 @@
   padding-right: 8px; 
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md); 
+  gap: var(--spacing-sm); 
   
   &::-webkit-scrollbar {
     width: 8px;
@@ -70,7 +78,7 @@
       $direction: column,
       $align: stretch,
       $justify: flex-start,
-      $gap: var(--spacing-xs)
+      $gap: var(--spacing-xxs)
     );
     border-radius: var(--border-radius-md);
 
@@ -104,6 +112,15 @@
 }
 
 @media screen and (max-width: bp.$breakpoint-md) {
+  .summary-table-container {
+    overflow: visible;
+  }
+
+  .mobile-table-scroll {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
   .pdf-warning {
     @include mixins.flex-layout($gap: var(--spacing-xs));
     background-color: var(--primary-fade);
@@ -122,6 +139,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
+    margin-top: 4px;
 
     .schedule-title {
       .dialog-title { font-size: var(--font-size-lg); line-height: 1.3; }
@@ -167,24 +185,40 @@
 
 // --- Summary Table Styles ---
 .summary-table-container {
-  margin-top: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-  overflow-x: auto;
+  margin-top: 0;
+  margin-bottom: var(--spacing-sm);
   flex-shrink: 0;
 
   .summary-title {
-    margin-bottom: var(--spacing-sm);
+    margin: 2px 0 10px;
     color: var(--primary-text);
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.2;
   }
 
   .summary-table {
-    width: 100%;
-    margin-bottom: var(--spacing-sm);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.05); 
-    border-radius: 4px;
+    width: max-content;
+    min-width: 100%;
+    margin-bottom: 0;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+    border-radius: 6px;
+    overflow: hidden;
   }
+}
+
+.mobile-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.schedule-scroll-wrapper {
+  width: 100%;
 }
 
 .section-divider {
@@ -197,17 +231,118 @@
 // Let Material handle the height naturally, just hide the bottom margin
 ::ng-deep .dense-dropdown {
   width: 100%;
-  min-width: 190px;
+  min-width: 210px;
+  max-width: 280px;
+  margin: 0;
   
   .mat-mdc-form-field-subscript-wrapper {
-    display: none; // Hides the empty space reserved for hints/errors
+    display: none;
   }
 
-  // Adjust padding slightly to make it compact without breaking the text
   .mat-mdc-text-field-wrapper {
-    padding-top: 4px;
-    padding-bottom: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 36px;
   }
+
+  .mat-mdc-form-field-flex {
+    min-height: 36px;
+  }
+}
+
+::ng-deep .summary-table {
+  .summary-table-header {
+    background-color: var(--primary-one);
+    min-height: 44px;
+  }
+
+  .mat-mdc-header-row {
+    height: 44px;
+  }
+
+  .mat-mdc-header-cell {
+    color: white;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    text-align: center;
+    text-transform: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    vertical-align: middle;
+  }
+
+  .summary-table-row {
+    &:nth-child(even) {
+      background-color: #f7f7f7;
+    }
+
+    &:nth-child(odd) {
+      background-color: #ffffff;
+    }
+  }
+
+  .mat-mdc-cell {
+    padding: 8px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #ececec;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: #333;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .mat-mdc-cell:nth-child(2) {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .assignment-type-cell {
+    vertical-align: middle;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+}
+
+.schedule-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  align-items: center;
+  column-gap: 22px;
+  row-gap: 8px;
+  margin-top: 14px;
+  padding: 10px 8px 4px;
+  color: #555;
+  font-size: 0.78rem;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: visible;
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-regular { background-color: var(--primary-text); }
+  .legend-part-time { background-color: var(--blue-primary); }
+  .legend-temporary { background-color: var(--aqua-primary); }
+  .legend-tutorial { background-color: var(--purple-primary); }
 }
 
 /* ==========================================================================
