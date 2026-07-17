@@ -1,9 +1,57 @@
 @use "../../../styles/mixins";
 
 .table-dialog-container {
+  position: relative;
   max-width: var(--dialog-base);
-  // width: 100%; // Use full width of the dialog
-  // max-width: none; // Remove max-width constraint
+  padding: 1.4rem 1.35rem 0.2rem;
+  background: #fdfbfb;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.accent-bar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 7px;
+  background: linear-gradient(90deg, #700b0b 0%, #800000 100%);
+}
+
+.dialog-header-shell {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding-top: 0.2rem;
+  margin-bottom: 0.9rem;
+}
+
+.header-icon-shell {
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  border-radius: 50%;
+  background: #700b0b;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 8px 18px rgba(112, 11, 11, 0.2);
+  flex-shrink: 0;
+}
+
+.header-icon-shell svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.table-dialog-subtitle {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #6d6161;
 }
 
 input[type="password"]::-ms-reveal,
@@ -17,13 +65,14 @@ input[type="password"]::-ms-clear {
 
 .table-dialog-title {
   font-family: "Inter Tight", sans-serif !important;
-  color: var(--primary-text) !important;
+  color: #222222 !important;
+  margin: 0;
 
   span {
-    font-weight: 500;
+    font-weight: 700;
+    font-size: 1.05rem;
   }
 }
-
 .table-dialog-content {
   .academic-year-list {
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-smx));
@@ -55,6 +104,26 @@ input[type="password"]::-ms-clear {
     .form-field {
       width: 100%;
       padding: var(--spacing-xxs) 0;
+
+      .mat-mdc-form-field-flex {
+        border: 1px solid #4a0e0e;
+        border-radius: 12px;
+        background: #fffdfd;
+        padding: 0.15rem 0.7rem;
+      }
+
+      .mat-mdc-form-field-focus-overlay {
+        background: transparent;
+      }
+
+      .mdc-line-ripple {
+        display: none;
+      }
+
+      .mdc-text-field--focused .mat-mdc-form-field-flex {
+        border-color: #a41f1f;
+        box-shadow: 0 0 0 3px rgba(112, 11, 11, 0.12);
+      }
     }
 
     .horizontal-field-container {
@@ -99,23 +168,29 @@ input[type="password"]::-ms-clear {
 }
 
 .table-dialog-button {
-  .cancel-button {
-    color: var(--primary-text) !important;
-  }
-
   padding-bottom: var(--spacing-lg);
 
+  .cancel-button {
+    color: #700b0b !important;
+    background: transparent !important;
+    font-weight: 600;
+    border-radius: 999px;
+  }
+
   .action-button {
-    @include mixins.gradient-primary(315deg);
+    background: linear-gradient(135deg, #700b0b 0%, #800000 100%) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    border-radius: 999px;
+    box-shadow: 0 8px 16px rgba(112, 11, 11, 0.2);
 
     &:disabled {
-      background: var(--neutral-fade);
+      background: var(--neutral-fade) !important;
       color: var(--neutral-base) !important;
       opacity: var(--opacity-semi-opaque);
     }
   }
 }
-
 .config-option {
   mat-icon {
     margin-right: 8px;
@@ -173,5 +248,32 @@ input[type="password"]::-ms-clear {
     font-size: 18px;
     width: 18px;
     height: 18px;
+  }
+}
+
+@media (max-width: 640px) {
+  :host {
+    display: block;
+    max-height: 85dvh;
+    overflow-y: auto;
+    border-radius: 18px;
+  }
+
+  .table-dialog-container {
+    padding: 1rem 1rem 0.2rem;
+    border-radius: 18px;
+    box-shadow: none;
+  }
+
+  .table-dialog-button {
+    padding-bottom: var(--spacing-md);
+    flex-direction: column-reverse;
+    align-items: stretch;
+
+    .cancel-button,
+    .action-button {
+      width: 100%;
+      justify-content: center;
+    }
   }
 }
