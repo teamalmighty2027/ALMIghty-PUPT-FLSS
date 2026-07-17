@@ -1,0 +1,145 @@
+::ng-deep .mat-dialog-content {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  max-height: min(70vh, 560px);
+  overflow: hidden;
+}
+
+::ng-deep .mat-mdc-dialog-surface {
+  overflow: hidden;
+}
+
+.dialog-title {
+  margin: 2px 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--primary-text);
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dialog-subtitle {
+  margin: 0 0 8px;
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.add-container {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.add-field {
+  flex: 1 1 auto;
+}
+
+.add-button {
+  min-height: 44px;
+  align-self: stretch;
+  white-space: nowrap;
+}
+
+.loading-state {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.load-types-table-wrapper {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid #e3e3e3;
+  border-radius: 6px;
+}
+
+.load-types-table {
+  width: 100%;
+  border: none;
+  border-radius: 0;
+  display: table;
+}
+
+::ng-deep .load-types-table {
+  .load-types-table-header {
+    background-color: var(--primary-one);
+    min-height: 44px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .mat-mdc-header-row {
+    background-color: var(--primary-one);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .mat-mdc-header-cell {
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .load-types-table-row {
+    &:nth-child(even) {
+      background-color: #f7f7f7;
+    }
+
+    &:nth-child(odd) {
+      background-color: #ffffff;
+    }
+  }
+
+  .mat-mdc-row {
+    display: table-row;
+  }
+
+  .mat-mdc-cell {
+    padding: 7px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #ececec;
+    font-size: 0.92rem;
+  }
+
+  .load-type-name {
+    font-weight: 500;
+  }
+
+  .action-header {
+    width: 80px;
+    text-align: right;
+  }
+
+  .action-cell {
+    text-align: right;
+  }
+}
+
+.delete-action-button {
+  color: #c62828;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #fdeaea;
+  }
+}
+
+.dialog-footer {
+  margin-top: 12px;
+  padding-bottom: 16px;
+  display: flex;
+  justify-content: center;
+}

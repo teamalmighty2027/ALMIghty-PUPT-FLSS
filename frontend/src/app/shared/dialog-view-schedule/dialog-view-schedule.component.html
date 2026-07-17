@@ -6,7 +6,7 @@
   } @else {
   
   <div class="entity-info" [@fadeAnimation]>
-    <div class="schedule-title-wrapper" style="display: flex; flex-direction: column; gap: 12px;">
+    <div class="schedule-title-wrapper">
       <div class="schedule-title">
         <h2 class="dialog-title">
           {{ title }}
@@ -64,42 +64,43 @@
     
     @if (data.entity === 'faculty' && selectedView === 'table-view') {
       <div class="summary-table-container" [@fadeAnimation]>
-        <h3 class="summary-title">Faculty Load Assignment</h3>
-        
-        <table mat-table [dataSource]="summaryDataSource" class="custom-table summary-table">
+        <h3 class="summary-title">FACULTY LOAD ASSIGNMENT</h3>
+
+        <div class="mobile-table-scroll">
+          <table mat-table [dataSource]="summaryDataSource" class="custom-table summary-table">
           <ng-container matColumnDef="subjectCode">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Subject Code </th>
+            <th mat-header-cell *matHeaderCellDef> Subject Code </th>
             <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_code }} </td>
           </ng-container>
 
           <ng-container matColumnDef="description">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Description </th>
+            <th mat-header-cell *matHeaderCellDef> Description </th>
             <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_title }} </td>
           </ng-container>
 
           <ng-container matColumnDef="hrs">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Hrs </th>
+            <th mat-header-cell *matHeaderCellDef> Hours </th>
             <td mat-cell *matCellDef="let element"> {{ calculateHours(element.start_time, element.end_time) }} </td>
           </ng-container>
 
           <ng-container matColumnDef="yearSection">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Year & Section </th>
+            <th mat-header-cell *matHeaderCellDef> Year & Section </th>
             <td mat-cell *matCellDef="let element"> {{ element.program_code }} {{ element.year_level }}-{{ element.section_name }} </td>
           </ng-container>
 
           <ng-container matColumnDef="day">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Day </th>
+            <th mat-header-cell *matHeaderCellDef> Day </th>
             <td mat-cell *matCellDef="let element"> {{ element.day }} </td>
           </ng-container>
 
           <ng-container matColumnDef="time">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Time </th>
+            <th mat-header-cell *matHeaderCellDef> Time </th>
             <td mat-cell *matCellDef="let element"> {{ formatTimeDisplay(element.start_time) }} - {{ formatTimeDisplay(element.end_time) }} </td>
           </ng-container>
 
           <ng-container matColumnDef="assignmentType">
-            <th mat-header-cell *matHeaderCellDef style="font-weight: bold;"> Load Type </th>
-            <td mat-cell *matCellDef="let element" style="vertical-align: top; padding-top: 12px; padding-bottom: 12px;">
+            <th mat-header-cell *matHeaderCellDef> Load Type </th>
+            <td mat-cell *matCellDef="let element" class="assignment-type-cell">
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dense-dropdown" [ngClass]="{'has-error': getRowWarning(element)}">
                 <mat-select 
                   placeholder="Select Load Type"
@@ -128,9 +129,10 @@
             </td>
           </ng-container>
 
-          <tr mat-header-row *matHeaderRowDef="summaryColumns" style="background-color: #f5f5f5;"></tr>
-          <tr mat-row *matRowDef="let row; columns: summaryColumns;"></tr>
-        </table>
+          <tr mat-header-row *matHeaderRowDef="summaryColumns" class="summary-table-header"></tr>
+          <tr mat-row *matRowDef="let row; columns: summaryColumns;" class="summary-table-row"></tr>
+          </table>
+        </div>
       </div>
 
       <!-- Faculty Time Plots Panel -->
@@ -288,10 +290,12 @@
         @for (group of scheduleGroups; track group) {
         <div class="schedule-group">
           <h3 class="group-title">{{ group.title }}</h3>
-          <app-schedule-timeline
-            [scheduleData]="group.scheduleData"
-            [entity]="data.entity"
-            [@fadeAnimation]></app-schedule-timeline>
+          <div class="mobile-table-scroll schedule-scroll-wrapper">
+            <app-schedule-timeline
+              [scheduleData]="group.scheduleData"
+              [entity]="data.entity"
+              [@fadeAnimation]></app-schedule-timeline>
+          </div>
         </div>
         }
       </div>
@@ -299,14 +303,22 @@
 
       @if (!scheduleGroups) {
       <div class="single-schedule-container">
-        <app-schedule-timeline
-          [scheduleData]="scheduleDataCopy"
-          [entity]="data.entity"
-          [timePlots]="timePlots"
-          [@fadeAnimation]></app-schedule-timeline>
-
+        <div class="mobile-table-scroll schedule-scroll-wrapper">
+          <app-schedule-timeline
+            [scheduleData]="scheduleDataCopy"
+            [entity]="data.entity"
+            [timePlots]="timePlots"
+            [@fadeAnimation]></app-schedule-timeline>
+        </div>
       </div>
       }
+
+      <div class="schedule-legend" [@fadeAnimation]>
+        <span class="legend-item"><span class="legend-dot legend-regular"></span>Regular</span>
+        <span class="legend-item"><span class="legend-dot legend-part-time"></span>Part-Time</span>
+        <span class="legend-item"><span class="legend-dot legend-temporary"></span>Temporary Substitution</span>
+        <span class="legend-item"><span class="legend-dot legend-tutorial"></span>Tutorial</span>
+      </div>
     }
 
     @if (selectedView === 'pdf-view' || data.exportType === 'all') {
