@@ -36,6 +36,8 @@ import {
   DialogConfig,
   DialogFieldConfig,
 } from '../../../../../shared/table-dialog/table-dialog.component';
+import { DialogEditFacultyComponent } from '../../../../../shared/dialog-edit-faculty/dialog-edit-faculty.component';
+import { DialogAddFacultyComponent } from '../../../../../shared/dialog-add-faculty/dialog-add-faculty.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
 import {
   InputField,
@@ -622,13 +624,17 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       console.warn('Could not fetch suggested code', error);
     }
 
-    const config = this.getDialogConfig(undefined, suggestedCode);
-
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: config,
+    const dialogRef = this.dialog.open(DialogAddFacultyComponent, {
+      data: {
+        suggestedCode,
+        facultyTypes: this.facultyTypes,
+        facultyStatuses: this.facultyStatuses,
+        onConfigureTypes: () => {
+          this.router.navigate(['/superadmin/faculty/types']);
+        },
+      },
+      autoFocus: true,
     });
-
-    this.handleFacultyTypeConfig(dialogRef);
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
@@ -670,14 +676,25 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   openEditFacultyDialog(faculty: Faculty) {
     this.selectedFacultyIndex = this.faculty.indexOf(faculty);
-    const config = this.getDialogConfig(faculty);
 
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: config,
+    const dialogRef = this.dialog.open(DialogEditFacultyComponent, {
+      data: {
+        faculty: {
+          id: faculty.id,
+          code: faculty.code,
+          last_name: faculty.last_name,
+          first_name: faculty.first_name,
+          middle_name: faculty.middle_name,
+          suffix_name: faculty.suffix_name,
+          email: faculty.email,
+          faculty_type_id: faculty.faculty?.faculty_type_id,
+          status: faculty.status,
+        },
+        facultyTypes: this.facultyTypes,
+        facultyStatuses: this.facultyStatuses,
+      },
       autoFocus: true,
     });
-
-    this.handleFacultyTypeConfig(dialogRef);
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result && this.selectedFacultyIndex !== null) {

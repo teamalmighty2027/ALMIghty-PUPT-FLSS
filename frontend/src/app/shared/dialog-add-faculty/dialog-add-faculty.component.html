@@ -1,0 +1,134 @@
+<div class="dialog-add-faculty" role="dialog" aria-labelledby="addFacultyTitle" aria-describedby="addFacultyDescription">
+  <div class="accent-bar"></div>
+
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true">
+      <!-- Add Faculty icon: person + plus -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+        <circle cx="10" cy="7" r="4"></circle>
+        <line x1="20" y1="8" x2="20" y2="14"></line>
+        <line x1="17" y1="11" x2="23" y2="11"></line>
+      </svg>
+    </div>
+
+    <div class="code-panel">
+      <span class="code-label">Faculty Code</span>
+      <div class="code-pill">{{ data.suggestedCode || '—' }}</div>
+    </div>
+  </div>
+
+  <div class="section-title" id="addFacultyTitle">Add New Faculty</div>
+  <p class="section-description" id="addFacultyDescription">Fill in the details below to register a new faculty member.</p>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="faculty-form">
+    <div class="form-grid">
+
+      <div class="form-field full-width">
+        <label for="code">Faculty Code</label>
+        <input id="code" formControlName="code" type="text" placeholder="FAC001" />
+      </div>
+
+      <div class="form-field">
+        <label for="last_name">Last Name</label>
+        <input id="last_name" formControlName="last_name" type="text" placeholder="Dela Cruz" />
+      </div>
+
+      <div class="form-field">
+        <label for="first_name">First Name</label>
+        <input id="first_name" formControlName="first_name" type="text" placeholder="Juan" />
+      </div>
+
+      <div class="form-field">
+        <label for="middle_name">Middle Name</label>
+        <input id="middle_name" formControlName="middle_name" type="text" placeholder="S." />
+      </div>
+
+      <div class="form-field">
+        <label for="suffix_name">Suffix</label>
+        <input id="suffix_name" formControlName="suffix_name" type="text" placeholder="" />
+      </div>
+
+      <div class="form-field full-width">
+        <label for="email">Email</label>
+        <input id="email" formControlName="email" type="email" placeholder="juan.delacruz@example.com" />
+      </div>
+
+      <div class="form-field">
+        <label for="faculty_type_id">Type</label>
+        <select id="faculty_type_id" formControlName="faculty_type_id">
+          <option value="configure" class="config-option">⚙ Configure faculty types...</option>
+          @for (type of data.facultyTypes; track type.faculty_type_id) {
+            <option [value]="type.faculty_type_id">{{ type.faculty_type }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="status">Status</label>
+        <select id="status" formControlName="status">
+          @for (s of data.facultyStatuses; track s) {
+            <option [value]="s">{{ s }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="password">Password</label>
+        <div class="password-wrapper">
+          <input
+            id="password"
+            formControlName="password"
+            [type]="showPassword ? 'text' : 'password'"
+            placeholder="Min. 12 characters"
+          />
+          <button type="button" class="eye-btn" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              @if (showPassword) {
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              } @else {
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              }
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label for="confirmPassword">Confirm Password</label>
+        <div class="password-wrapper">
+          <input
+            id="confirmPassword"
+            formControlName="confirmPassword"
+            [type]="showConfirmPassword ? 'text' : 'password'"
+            placeholder="Re-enter password"
+          />
+          <button type="button" class="eye-btn" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              @if (showConfirmPassword) {
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              } @else {
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              }
+            </svg>
+          </button>
+        </div>
+        @if (form.hasError('passwordMismatch') && form.get('confirmPassword')?.touched) {
+          <span class="field-error">Passwords do not match.</span>
+        }
+      </div>
+
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="cancel-btn" (click)="onCancel()">Cancel</button>
+      <button type="submit" class="save-btn" [disabled]="form.invalid">Add Faculty</button>
+    </div>
+  </form>
+</div>
