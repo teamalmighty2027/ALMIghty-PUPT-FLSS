@@ -4,39 +4,43 @@
   <div class="dialog-header-shell">
     <div class="header-icon-shell" aria-hidden="true">
       <!-- Edit Faculty -->
-      @if ((data.title ?? '').toLowerCase().includes('faculty')) {
+      @if (data.title.toLowerCase().includes('faculty')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
           <circle cx="12" cy="7" r="4"></circle>
           <path d="M18 8l2 2-5 5-2-1-1 3-3-3 3-1-1-2 5-5 2 2z" stroke-width="1.5"></path>
         </svg>
       <!-- Edit Curriculum -->
-      } @else if ((data.title ?? '').toLowerCase().includes('curriculum')) {
+      } @else if (data.title.toLowerCase().includes('curriculum')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
         </svg>
       <!-- Manage Programs / Program-related -->
-      } @else if ((data.title ?? '').toLowerCase().includes('program') && !(data.title ?? '').toLowerCase().includes('edit program') && !(data.title ?? '').toLowerCase().includes('add program')) {
+      } @else if (
+        data.title.toLowerCase().includes('program') &&
+        !data.title.toLowerCase().includes('edit program') &&
+        !data.title.toLowerCase().includes('add program')
+      ) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
           <polyline points="2 17 12 22 22 17"></polyline>
           <polyline points="2 12 12 17 22 12"></polyline>
         </svg>
       <!-- Edit / Add Program (standalone) -->
-      } @else if ((data.title ?? '').toLowerCase().includes('program')) {
+      } @else if (data.title.toLowerCase().includes('program')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
           <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
         </svg>
       <!-- Edit Course / Add Course -->
-      } @else if ((data.title ?? '').toLowerCase().includes('course')) {
+      } @else if (data.title.toLowerCase().includes('course')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
         </svg>
       <!-- Edit Building / Add Building -->
-      } @else if ((data.title ?? '').toLowerCase().includes('building')) {
+      } @else if (data.title.toLowerCase().includes('building')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
           <line x1="9" y1="22" x2="9" y2="12"></line>
@@ -47,7 +51,7 @@
           <line x1="15" y1="7" x2="15" y2="2"></line>
         </svg>
       <!-- Edit Room / Add Room -->
-      } @else if ((data.title ?? '').toLowerCase().includes('room')) {
+      } @else if (data.title.toLowerCase().includes('room')) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="4" width="20" height="16" rx="2"></rect>
           <path d="M10 8h4M12 8v8"></path>

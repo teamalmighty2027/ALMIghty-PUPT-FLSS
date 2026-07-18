@@ -19,7 +19,6 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService } from '../../core/services/auth/auth.service';
 
@@ -33,7 +32,6 @@ import { AuthService } from '../../core/services/auth/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatSymbolDirective,
     MatProgressSpinnerModule,
     MatSnackBarModule,
   ],
