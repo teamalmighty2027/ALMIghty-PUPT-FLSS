@@ -93,6 +93,8 @@
   AddType text/css css
   AddType image/svg+xml svg
   AddType image/webp webp
+  AddType application/wasm wasm
+  AddType application/javascript mjs
 </IfModule>
 
 <IfModule mod_headers.c>
