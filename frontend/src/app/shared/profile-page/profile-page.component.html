@@ -67,32 +67,92 @@
             <input formControlName="code" class="pill-input" placeholder="e.g., 1234" readonly>
           </div>
           <div class="field-group department" *ngIf="!isAdmin">
-            <label>Department</label>
-            <select formControlName="department" class="pill-input" [title]="profileForm.get('department')?.value || ''">
-              <option [value]="''" disabled selected>Select a Department...</option>
-              <option *ngFor="let program of activePrograms" [value]="program.program_title">
-                {{ program.program_title }}
-              </option>
-            </select>
+            <label>Department <span class="required-asterisk" style="color: #d32f2f;">*</span></label>
+            <div class="select-wrapper">
+              <select formControlName="department" class="pill-input native-select" [title]="profileForm.get('department')?.value || ''" [class.mobile-hidden]="isMobileView">
+                <option [value]="''" disabled selected>Select a Department...</option>
+                <option *ngFor="let program of activePrograms" [value]="program.program_title">
+                  {{ program.program_title }}
+                </option>
+              </select>
+              <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'department', true)">
+                <span class="trigger-text">{{ profileForm.get('department')?.value || 'Select a Department...' }}</span>
+                <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+              </div>
+              
+              <!-- Inline Dropdown Card -->
+              <div *ngIf="isMobileView && activeMobileDropdown === 'department'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+                <div *ngIf="mobileDropdownSearchable" class="mobile-dropdown-search-box">
+                  <input type="text" placeholder="Search..." [value]="mobileDropdownSearch" (input)="onDropdownSearch($event)" autofocus>
+                </div>
+                <div class="mobile-dropdown-list">
+                  <div *ngFor="let opt of getDropdownOptions('department')" 
+                       class="mobile-dropdown-option" 
+                       [class.selected]="opt.value === profileForm.get('department')?.value"
+                       (click)="selectDropdownOption('department', opt.value)">
+                    <span class="option-label">{{ opt.label }}</span>
+                    <span *ngIf="opt.value === profileForm.get('department')?.value" mat-symbol class="option-check">check</span>
+                  </div>
+                  <div *ngIf="getDropdownOptions('department').length === 0" class="mobile-dropdown-no-results">
+                    No options found
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span class="error-text" *ngIf="profileForm.get('department')?.invalid && profileForm.get('department')?.touched">
+              Department is required.
+            </span>
           </div>
         </div>
 
         <div class="compact-row">
           <div class="field-group birthdate">
             <label>Birthdate</label>
-            <input type="date" formControlName="birthdate" class="pill-input" (change)="onBirthdateChange($event)">
+            <div class="select-wrapper">
+              <!-- Desktop native datepicker -->
+              <input *ngIf="!isMobileView" type="date" formControlName="birthdate" class="pill-input native-select" (change)="onBirthdateChange($event)">
+              
+              <!-- Mobile Material Datepicker -->
+              <ng-container *ngIf="isMobileView">
+                <input [matDatepicker]="picker" formControlName="birthdate" style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;" (dateChange)="onBirthdateChange($event)">
+                <div class="pill-input mobile-select-trigger" (click)="picker.open()">
+                  <span class="trigger-text">{{ (profileForm.get('birthdate')?.value | date:'longDate') || 'Select Birthdate...' }}</span>
+                  <span mat-symbol class="trigger-chevron">calendar_today</span>
+                </div>
+                <mat-datepicker #picker></mat-datepicker>
+              </ng-container>
+            </div>
             <span class="error-text" *ngIf="profileForm.get('birthdate')?.hasError('birthdateToday') && profileForm.get('birthdate')?.touched">
               Birthdate cannot be today. Please choose a valid date of birth.
             </span>
           </div>
           <div class="field-group sex">
             <label>Sex</label>
-            <select formControlName="sex" class="pill-input">
-              <option [value]="''" disabled selected>Select option...</option> 
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Prefer not to say">Prefer not to say</option>
-            </select>
+            <div class="select-wrapper">
+              <select formControlName="sex" class="pill-input native-select" [class.mobile-hidden]="isMobileView">
+                <option [value]="''" disabled selected>Select option...</option> 
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+              <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'sex', false)">
+                <span class="trigger-text">{{ profileForm.get('sex')?.value || 'Select option...' }}</span>
+                <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+              </div>
+              
+              <!-- Inline Dropdown Card -->
+              <div *ngIf="isMobileView && activeMobileDropdown === 'sex'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+                <div class="mobile-dropdown-list">
+                  <div *ngFor="let opt of getDropdownOptions('sex')" 
+                       class="mobile-dropdown-option" 
+                       [class.selected]="opt.value === profileForm.get('sex')?.value"
+                       (click)="selectDropdownOption('sex', opt.value)">
+                    <span class="option-label">{{ opt.label }}</span>
+                    <span *ngIf="opt.value === profileForm.get('sex')?.value" mat-symbol class="option-check">check</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -112,33 +172,108 @@
 
       <!-- Province Dropdown -->
       <div class="field-group">
-        <select formControlName="province" class="pill-input">
-          <!-- Note the brackets around [value]="''" -->
-          <option [value]="''" disabled selected>Select Province...</option>
-          <option *ngFor="let prov of provinces" [value]="prov.name">
-            {{ prov.name }}
-          </option>
-        </select>
+        <div class="select-wrapper">
+          <select formControlName="province" class="pill-input native-select" [class.mobile-hidden]="isMobileView">
+            <!-- Note the brackets around [value]="''" -->
+            <option [value]="''" disabled selected>Select Province...</option>
+            <option *ngFor="let prov of provinces" [value]="prov.name">
+              {{ prov.name }}
+            </option>
+          </select>
+          <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'province', true)">
+            <span class="trigger-text">{{ profileForm.get('province')?.value || 'Select Province...' }}</span>
+            <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+          </div>
+
+          <!-- Inline Dropdown Card -->
+          <div *ngIf="isMobileView && activeMobileDropdown === 'province'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+            <div *ngIf="mobileDropdownSearchable" class="mobile-dropdown-search-box">
+              <input type="text" placeholder="Search..." [value]="mobileDropdownSearch" (input)="onDropdownSearch($event)" autofocus>
+            </div>
+            <div class="mobile-dropdown-list">
+              <div *ngFor="let opt of getDropdownOptions('province')" 
+                   class="mobile-dropdown-option" 
+                   [class.selected]="opt.value === profileForm.get('province')?.value"
+                   (click)="selectDropdownOption('province', opt.value)">
+                <span class="option-label">{{ opt.label }}</span>
+                <span *ngIf="opt.value === profileForm.get('province')?.value" mat-symbol class="option-check">check</span>
+              </div>
+              <div *ngIf="getDropdownOptions('province').length === 0" class="mobile-dropdown-no-results">
+                No options found
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- City Dropdown -->
       <div class="field-group">
-        <select formControlName="city" class="pill-input">
-          <option [value]="''" disabled selected>Select City/Municipality...</option>
-          <option *ngFor="let city of cities" [value]="city.name">
-            {{ city.name }}
-          </option>
-        </select>
+        <div class="select-wrapper">
+          <select formControlName="city" class="pill-input native-select" [class.mobile-hidden]="isMobileView">
+            <option [value]="''" disabled selected>Select City/Municipality...</option>
+            <option *ngFor="let city of cities" [value]="city.name">
+              {{ city.name }}
+            </option>
+          </select>
+          <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'city', true)">
+            <span class="trigger-text">{{ profileForm.get('city')?.value || 'Select City/Municipality...' }}</span>
+            <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+          </div>
+
+          <!-- Inline Dropdown Card -->
+          <div *ngIf="isMobileView && activeMobileDropdown === 'city'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+            <div *ngIf="mobileDropdownSearchable" class="mobile-dropdown-search-box">
+              <input type="text" placeholder="Search..." [value]="mobileDropdownSearch" (input)="onDropdownSearch($event)" autofocus>
+            </div>
+            <div class="mobile-dropdown-list">
+              <div *ngFor="let opt of getDropdownOptions('city')" 
+                   class="mobile-dropdown-option" 
+                   [class.selected]="opt.value === profileForm.get('city')?.value"
+                   (click)="selectDropdownOption('city', opt.value)">
+                <span class="option-label">{{ opt.label }}</span>
+                <span *ngIf="opt.value === profileForm.get('city')?.value" mat-symbol class="option-check">check</span>
+              </div>
+              <div *ngIf="getDropdownOptions('city').length === 0" class="mobile-dropdown-no-results">
+                No options found
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Barangay Dropdown -->
       <div class="field-group">
-        <select formControlName="barangay" class="pill-input">
-          <option [value]="''" disabled selected>Select Barangay...</option>
-          <option *ngFor="let brgy of barangays" [value]="brgy.name">
-            {{ brgy.name }}
-          </option>
-        </select>
+        <div class="select-wrapper">
+          <select formControlName="barangay" class="pill-input native-select" [class.mobile-hidden]="isMobileView">
+            <option [value]="''" disabled selected>Select Barangay...</option>
+            <option *ngFor="let brgy of barangays" [value]="brgy.name">
+              {{ brgy.name }}
+            </option>
+          </select>
+          <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'barangay', true)">
+            <span class="trigger-text">{{ profileForm.get('barangay')?.value || 'Select Barangay...' }}</span>
+            <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+          </div>
+
+          <!-- Inline Dropdown Card -->
+          <div *ngIf="isMobileView && activeMobileDropdown === 'barangay'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+            <div *ngIf="mobileDropdownSearchable" class="mobile-dropdown-search-box">
+              <input type="text" placeholder="Search..." [value]="mobileDropdownSearch" (input)="onDropdownSearch($event)" autofocus>
+            </div>
+            <div class="mobile-dropdown-list">
+              <div *ngFor="let opt of getDropdownOptions('barangay')" 
+                   class="mobile-dropdown-option" 
+                   [class.selected]="opt.value === profileForm.get('barangay')?.value"
+                   (click)="selectDropdownOption('barangay', opt.value)">
+                <span class="option-label">{{ opt.label }}</span>
+                <span *ngIf="opt.value === profileForm.get('barangay')?.value" mat-symbol class="option-check">check</span>
+              </div>
+              <div *ngIf="getDropdownOptions('barangay').length === 0" class="mobile-dropdown-no-results">
+                No options found
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="field-group">

@@ -261,18 +261,26 @@
     padding-bottom: var(--spacing-xs);
   }
 
-  .input-container {
+  :host-context(.scheduling-container) .input-container {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--spacing-xs);
 
     mat-form-field {
       flex: 1 1 100%;
       min-width: 0;
+      width: 100%;
+      max-width: 100%;
     }
 
-    .program-field,
-    .year-level-field,
-    .sections-field {
-      flex: 1 1 100%;
+    mat-form-field[data-field='program'] {
+      grid-column: 1 / -1;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    mat-form-field[data-field='yearLevel'],
+    mat-form-field[data-field='section'] {
       width: 100%;
       max-width: 100%;
     }

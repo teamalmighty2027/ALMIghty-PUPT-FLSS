@@ -135,6 +135,12 @@ body {
   transition: background-color 0.3s ease;
 }
 
+.edit-admin-dialog-panel .mat-mdc-dialog-surface {
+  border-radius: 20px !important;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16) !important;
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
   font-family: var(--font-base);
@@ -239,6 +245,113 @@ span[mat-symbol] {
 
 .dialog-base {
   width: var(--dialog-small);
+}
+
+.cdk-overlay-pane .mat-mdc-dialog-surface,
+.cdk-overlay-pane .mdc-dialog__surface {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16) !important;
+  background: #fdfbfb !important;
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  /* Constrain the overlay pane so dialogs are never full-screen on mobile */
+  .cdk-overlay-pane {
+    max-width: 92vw !important;
+    width: 92vw !important;
+  }
+
+  /* Cap height and allow vertical scroll inside the surface */
+  .cdk-overlay-pane .mat-mdc-dialog-surface,
+  .cdk-overlay-pane .mdc-dialog__surface {
+    border-radius: 18px !important;
+    max-height: 85dvh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Remove extra padding Material adds inside the dialog container on mobile */
+  .mat-mdc-dialog-container .mat-mdc-dialog-surface {
+    padding: 0 !important;
+  }
+}
+
+.cdk-overlay-pane .mat-mdc-dialog-surface::before,
+.cdk-overlay-pane .mdc-dialog__surface::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 7px;
+  background: linear-gradient(90deg, #700b0b 0%, #800000 100%);
+  border-radius: 20px 20px 0 0;
+}
+
+.cdk-overlay-pane [mat-dialog-title],
+.cdk-overlay-pane .mat-mdc-dialog-title {
+  position: relative;
+  z-index: 1;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #222222;
+  margin: 1rem 1.25rem 0.35rem;
+  padding-top: 0.15rem;
+}
+
+.cdk-overlay-pane [mat-dialog-content],
+.cdk-overlay-pane .mat-mdc-dialog-content {
+  position: relative;
+  z-index: 1;
+  color: #5e3c3c;
+  line-height: 1.6;
+  padding: 0 1.25rem 1rem;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.25rem 1.25rem 1rem;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button-base {
+  border-radius: 999px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button-base:hover,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button-base:focus-visible {
+  transform: translateY(-1px);
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button) {
+  color: #700b0b;
+  background: transparent;
+  font-weight: 600;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):hover,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):focus-visible {
+  background: rgba(112, 11, 11, 0.08);
+  color: #4a0e0e;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-unelevated-button {
+  background: linear-gradient(135deg, #700b0b 0%, #800000 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 16px rgba(112, 11, 11, 0.2);
+  font-weight: 700;
+}
+
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button:hover,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-unelevated-button:hover,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button:focus-visible,
+.cdk-overlay-pane [mat-dialog-actions] .mat-mdc-unelevated-button:focus-visible {
+  filter: brightness(1.03);
+  box-shadow: 0 10px 18px rgba(112, 11, 11, 0.25);
 }
 
 .custom-cell {
@@ -733,4 +846,9 @@ html body div.asw-container .asw-menu * {
   0%   { left: -200%; right: 100%; }
   60%  { left: 107%; right: -8%; }
   100% { left: 107%; right: -8%; }
+}
+
+/* Hide mobile notification icon specifically on Course-Centric Scheduling page to prevent horizontal layout overflow */
+.sidenav-container:has(app-course-centric-scheduling) .mobile-notification-container {
+  display: none !important;
 }

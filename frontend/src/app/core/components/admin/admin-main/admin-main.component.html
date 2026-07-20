@@ -75,60 +75,47 @@
       @if (isHandset$ | async) {
       <div class="navbar-group-two">
         <div class="mobile-admin-settings">
+          <!-- Theme Toggle -->
           <a mat-list-item class="list-item" (click)="toggleTheme()">
-            <span [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'dark_mode' : 'light_mode'" matListItemIcon></span>
-            <span matListItemTitle>{{ (themeService.isDarkTheme$ | async) ? 'Dark Mode' : 'Light Mode' }}</span>
+            <span
+              [mat-symbol]="(themeService.isDarkTheme$ | async) ? 'dark_mode' : 'light_mode'"
+              matListItemIcon></span>
+            <span matListItemTitle>
+              {{ (themeService.isDarkTheme$ | async) ? 'Dark Mode' : 'Light Mode' }}
+            </span>
           </a>
         </div>
-        <button mat-list-item class="list-item" (click)="toggleDropdown($event)">
-          <span mat-symbol="person" matListItemIcon></span>
+
+        <!-- Logout -->
+        <a mat-list-item class="list-item" (click)="logout()">
+          <span mat-symbol="door_open" matListItemIcon></span>
+          <span matListItemTitle>Logout</span>
+        </a>
+
+        <!-- Change Password -->
+        <a mat-list-item class="list-item" (click)="openChangePasswordDialog()">
+          <span mat-symbol="lock" matListItemIcon></span>
+          <span matListItemTitle>Change Password</span>
+        </a>
+
+        <!-- Account / Profile -->
+        <a mat-list-item class="list-item" routerLink="/admin/profile" routerLinkActive="active-link" (click)="drawer.close()">
+          <span mat-symbol="account_circle" matListItemIcon></span>
           <span matListItemTitle>Account</span>
-        </button>
-        <div class="mobile-admin-account" *ngIf="!isDropdownOpen">
+        </a>
+
+        <!-- Admin Account Info -->
+        <div class="mobile-admin-account">
           <div class="profile-dropdown">
-            <img [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'" alt="Profile Icon" class="profile-icon" />
+            <img
+              [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'"
+              alt="Profile Icon"
+              class="profile-icon" />
           </div>
           <div class="account-text">
             <div class="account-name">{{ accountName }}</div>
             <div class="account-role">{{ accountRole }}istrator</div>
           </div>
-        </div>
-      </div>
-      }
-
-      <!-- Mobile Account Dropdown -->
-      @if (isDropdownOpen) {
-      <div class="mobile-dropdown" [@slideUpDown]>
-        <div class="mobile-dropdown-header">
-          <img
-            [src]="accountProfilePictureUrl || '../../../../../assets/images/default_admin_icon.png'"
-            alt="Profile Icon"
-            class="mobile-profile-icon" />
-          <div class="mobile-account-info">
-            <div class="account-name">{{ accountName }}</div>
-            <div class="account-role">{{ accountRole }}istrator</div>
-          </div>
-        </div>
-        <div class="mobile-dropdown-content">
-          <button matRipple class="mobile-dropdown-item" (click)="onMenuAction('profile')">
-            <span mat-symbol="account_circle"></span>
-            My Profile
-          </button>
-          <button
-            matRipple
-            class="mobile-dropdown-item"
-            (click)="onMenuAction('change-password')">
-            <span mat-symbol="lock"></span>
-            Change Password
-          </button>
-          <button
-            matRipple
-            [matRippleColor]="'#a932321a'"
-            class="mobile-dropdown-item logout"
-            (click)="onMenuAction('logout')">
-            <span mat-symbol="door_open"></span>
-            Logout
-          </button>
         </div>
       </div>
       }
@@ -146,7 +133,9 @@
       }
       <header class="sidenav-header">
         <div class="title-container">
-          <h1 class="page-title">{{ pageTitle }}</h1>
+          <h1 class="page-title">
+            {{ (isHandset$ | async) && pageTitle === 'Course-Centric Scheduling' ? 'Course-Centric' : pageTitle }}
+          </h1>
         </div>
         @if ((isHandset$ | async) === false) {
         <div class="admin-panel">

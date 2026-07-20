@@ -19,6 +19,9 @@ bazel-out/
 .settings/
 *.sublime-workspace
 .agents
+.vscode
+.vscode/settings.json
+.github/agents
 .agent/
 .workflows/
 

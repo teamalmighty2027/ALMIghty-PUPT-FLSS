@@ -79,17 +79,30 @@ $day-colors: (
         padding: var(--spacing-xs);
         border-right: 1px solid var(--neutral-fade);
         border-bottom: 1px solid var(--neutral-fade);
+        font-weight: 400;
       }
     }
 
     .schedule-timeline-table-body {
+      tr:nth-child(even) {
+        td {
+          background-color: #f7f7f7;
+        }
+      }
+
+      tr:nth-child(odd) {
+        td {
+          background-color: #ffffff;
+        }
+      }
+
       td {
         padding: 0;
         border-bottom: 1px solid var(--neutral-fade);
         border-right: 1px solid var(--neutral-fade);
         min-width: 5rem;
         max-width: 5rem;
-        height: 1.5rem;
+        height: 1.75rem;
         position: relative;
       }
 
@@ -99,11 +112,12 @@ $day-colors: (
 
       .time-slot {
         @include mixins.default-transition;
-        font-weight: 500;
+        font-weight: 400;
         border-right: 1px solid var(--neutral-fade);
         background-color: var(--neutral-space);
         z-index: 1;
-        padding: var(--spacing-xxxs);
+        padding: 6px var(--spacing-xxxs);
+        font-size: 0.85rem;
       }
 
       .schedule-cell {

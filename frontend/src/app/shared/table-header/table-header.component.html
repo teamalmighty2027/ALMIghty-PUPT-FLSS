@@ -33,6 +33,7 @@
         <mat-form-field
           appearance="fill"
           class="select-field"
+          [attr.data-field]="field.key"
           [ngClass]="{
             'program-field': field.key === 'program',
             'year-level-field': field.key === 'yearLevel',
