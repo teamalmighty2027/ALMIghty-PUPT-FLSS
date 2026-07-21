@@ -61,6 +61,52 @@ class AuditLogger
     }
 
     /**
+     * Log failed login attempt for an inactive/retired user
+     */
+    public static function logFailedLogin(
+        string $email,
+        string $reason,
+        $user = null
+    ): void {
+        self::log(
+            action: 'login',
+            description: "Failed login attempt for {$email} ({$reason})",
+            model: 'User',
+            modelId: $user?->id,
+            metadata: [
+                'reason' => $reason,
+                'user_id' => $user?->id,
+                'status' => $user?->status,
+                'timestamp' => now()->toDateTimeString()
+            ]
+        );
+    }
+
+    /**
+     * Log a user status change (e.g. Active to Inactive or Retired)
+     */
+    public static function logStatusChange(
+        $subject,
+        string $oldStatus,
+        string $newStatus
+    ): void {
+        self::log(
+            action: 'update',
+            description: "Changed status for {$subject->email}: {$oldStatus} -> {$newStatus}",
+            model: 'User',
+            modelId: $subject->id,
+            oldValues: ['status' => $oldStatus],
+            newValues: ['status' => $newStatus],
+            metadata: [
+                'user_id' => $subject->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'timestamp' => now()->toDateTimeString()
+            ]
+        );
+    }
+
+    /**
      * Log logout action
      */
     public static function logLogout(): void

@@ -9,8 +9,11 @@ use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\RegisterUserToIdpJob;
-use App\Jobs\SendFacultyFirstLoginPasswordJob;
+use App\Services\FacultyDataService;
+use App\Services\IdpSyncService;
+use App\Notifications\FacultyStatusChangedNotification;
+use App\Notifications\FacultyReactivationRequestNotification;
+use Illuminate\Support\Facades\Notification;
 
 class FacultyController extends Controller
 {
@@ -228,6 +231,42 @@ class FacultyController extends Controller
 
             if ($oldData['status'] != $user->status) {
                 $changes[] = "Status: {$oldData['status']} → {$user->status}";
+
+                // Revoke tokens and log status change
+                $user->tokens()->delete();
+                AuditLogger::logStatusChange(
+                    $user,
+                    $oldData['status'],
+                    $user->status
+                );
+
+                $facultyDataService = app(FacultyDataService::class);
+                $idpSyncService = app(IdpSyncService::class);
+
+                if ($user->status === 'Inactive') {
+                    $facultyDataService->scrubInactive($user);
+                    $idpSyncService->syncUserToIdp(
+                        $user,
+                        ['status' => 'Inactive']
+                    );
+                } elseif ($user->status === 'Retired') {
+                    $facultyDataService->scrubRetired($user);
+                    $idpSyncService->deleteUserFromIdp($user);
+                }
+
+                // Notify admin and superadmin users
+                $admins = User::whereIn('role', ['admin', 'superadmin'])
+                    ->get();
+                if ($admins->isNotEmpty()) {
+                    Notification::send(
+                        $admins,
+                        new FacultyStatusChangedNotification(
+                            $user,
+                            $oldData['status'],
+                            $user->status
+                        )
+                    );
+                }
             }
 
             if ($oldData['faculty_type_id'] != $validatedData['faculty_type_id']) {
@@ -330,4 +369,73 @@ class FacultyController extends Controller
         return response()->json(['faculty' => $response], 200);
     }
 
+    /**
+     * Public endpoint for inactive faculty to request account reactivation.
+     */
+    public function requestReactivation(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::where('email', $request->email)
+            ->where('role', 'faculty')
+            ->where('status', 'Inactive')
+            ->first();
+
+        if ($user && $user->faculty) {
+            $user->faculty->update([
+                'has_reactivation_request' => true,
+            ]);
+
+            $admins = User::whereIn('role', ['admin', 'superadmin'])
+                ->get();
+            if ($admins->isNotEmpty()) {
+                Notification::send(
+                    $admins,
+                    new FacultyReactivationRequestNotification($user)
+                );
+            }
+        }
+
+        return response()->json([
+            'message' => 'If an inactive account exists with this email, ' . 
+                'a reactivation request has been submitted to administrators.',
+        ], 202);
+    }
+
+    /**
+     * Admin endpoint to approve reactivation request and restore Active status.
+     */
+    public function approveReactivation(Request $request, User $user)
+    {
+        if ($user->role !== 'faculty') {
+            return response()->json([
+                'message' => 'User is not a faculty member.',
+            ], 400);
+        }
+
+        if ($user->status !== 'Inactive') {
+            return response()->json([
+                'message' => 'Only inactive faculty accounts can be reactivated.',
+            ], 400);
+        }
+
+        $user->update([
+            'status' => 'Active',
+        ]);
+
+        if ($user->faculty) {
+            $user->faculty->update([
+                'has_reactivation_request' => false,
+            ]);
+        }
+
+        AuditLogger::logStatusChange($user, 'Inactive', 'Active');
+
+        return response()->json([
+            'message' => 'Faculty account reactivated successfully.',
+            'user'    => $user->load('faculty.facultyType'),
+        ]);
+    }
 }
