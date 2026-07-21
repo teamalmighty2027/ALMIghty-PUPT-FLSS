@@ -234,6 +234,26 @@
   .profile-dropdown {
     @include mixins.flex-layout;
 
+    .profile-icon-wrapper {
+      position: relative;
+      display: inline-flex;
+
+      .desktop-badge {
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        width: 14px;
+        height: 14px;
+        background-color: #d32f2f;
+        border: 2px solid var(--main-bg);
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        animation: pulseAlert 2s infinite;
+        pointer-events: none;
+        z-index: 2;
+      }
+    }
+
     .profile-icon {
       width: 3rem;
       height: 3rem;
@@ -409,6 +429,19 @@
       padding: var(--spacing-xxs) var(--spacing-mdx);
       border-radius: var(--border-radius-xl);
       transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+      .mobile-badge {
+        position: absolute;
+        top: 2px;
+        right: 12px;
+        width: 10px;
+        height: 10px;
+        background-color: #d32f2f;
+        border: 2px solid var(--main-bg);
+        border-radius: 50%;
+        animation: pulseAlert 2s infinite;
+        pointer-events: none;
+      }
     }
 
     span[mat-symbol] {
@@ -504,6 +537,16 @@
         &:hover {
           background-color: var(--primary-fade);
         }
+      }
+
+      .menu-notification-badge {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        background-color: #d32f2f;
+        border-radius: 50%;
+        margin-left: 4px;
+        animation: pulseAlert 2s infinite;
       }
     }
   }
@@ -750,6 +793,16 @@
   .mat-mdc-menu-item {
     height: 48px !important;
 
+    .menu-notification-badge {
+      display: inline-block !important;
+      width: 10px !important;
+      height: 10px !important;
+      background-color: #d32f2f !important;
+      border-radius: 50% !important;
+      margin-left: 8px !important;
+      animation: pulseAlert 2s infinite;
+    }
+
     .menu-icon {
       margin-right: var(--spacing-md) !important;
       color: var(--neutral-base);
@@ -775,5 +828,23 @@
         background-color: rgba(211, 47, 47, 0.05) !important;
       }
     }
+  }
+}
+
+// ==========================
+// NEW NOTIFICATION KEYFRAMES
+// ==========================
+@keyframes pulseAlert {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.5);
+  }
+  70% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 6px rgba(211, 47, 47, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
   }
 }
