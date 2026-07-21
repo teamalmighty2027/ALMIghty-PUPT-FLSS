@@ -303,7 +303,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         this.authService.logout().subscribe({
           next: () => {
             loadingDialogRef.close();
-            this.router.navigate(['/login']);
           },
           error: () => {
             loadingDialogRef.close();
