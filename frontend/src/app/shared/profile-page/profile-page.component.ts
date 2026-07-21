@@ -249,57 +249,91 @@ export class ProfilePageComponent implements OnInit {
    * Wire form controls to address API calls and derived values.
    */
   setupAddressListeners(): void {
-    // When Province changes, load Cities
+    // When Province changes
     this.profileForm.get('province')?.valueChanges.subscribe((provinceName: any) => {
-      const selectedProv = this.provinces.find(p => p.name === provinceName);
-
-      if (selectedProv) {
-        this.addressService.getCities(selectedProv.code).subscribe((data: any[]) => {
-          this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
-          this.profileForm.get('city')?.setValue('');
-          this.profileForm.get('barangay')?.setValue('');
-          this.barangays = [];
-        });
-      }
+      this.loadCitiesForProvince(provinceName);
     });
 
-    // When City changes, load Barangays & Zip Code
+    // When City changes
     this.profileForm.get('city')?.valueChanges.subscribe((cityName: any) => {
-      const selectedCity = this.cities.find(c => c.name === cityName);
-
-      if (selectedCity) {
-        this.addressService.getBarangays(selectedCity.code).subscribe((data: any[]) => {
-          this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
-          this.profileForm.get('barangay')?.setValue('');
-        });
-      }
-
-      const zipCodeMap: { [key: string]: string } = {
-        'City of Taguig': '1630',
-        'City of Manila': '1000',
-        'Quezon City': '1100',
-        'City of Makati': '1200',
-        'City of Pasig': '1600',
-        'City of Mandaluyong': '1550',
-        'City of Marikina': '1800',
-        'City of Muntinlupa': '1770',
-        'City of Parañaque': '1700',
-        'City of Las Piñas': '1740',
-        'City of Valenzuela': '1440',
-        'City of Malabon': '1470',
-        'City of Navotas': '1490',
-        'City of San Juan': '1500',
-        'Pasay City': '1300',
-        'Pateros': '1620',
-        'City of Caloocan': '1400',
-        'Bacoor City': '4102',
-        'Dasmariñas City': '4114',
-        'Imus City': '4103',
-      };
-
-      const foundZip = zipCodeMap[cityName];
-      this.profileForm.get('zipcode')?.setValue(foundZip ?? '');
+      this.loadBarangaysForCity(cityName);
+      this.updateZipCode(cityName);
     });
+  }
+
+  /**
+   * Smartly load cities without wiping out pre-loaded database addresses
+   */
+  private loadCitiesForProvince(provinceName: string): void {
+    const selectedProv = this.provinces.find(p => p.name === provinceName);
+    if (!selectedProv) return;
+
+    this.addressService.getCities(selectedProv.code).subscribe((data: any[]) => {
+      this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
+      
+      const currentCity = this.profileForm.get('city')?.value;
+      const cityExists = this.cities.some(c => c.name === currentCity);
+      
+      // ONLY clear city & barangay if the user selected a completely new province!
+      if (!cityExists) {
+        this.profileForm.get('city')?.setValue('', { emitEvent: false });
+        this.profileForm.get('barangay')?.setValue('', { emitEvent: false });
+        this.barangays = [];
+      } else if (currentCity) {
+        // If city exists (from database reload), safely load its barangays
+        this.loadBarangaysForCity(currentCity);
+      }
+    });
+  }
+
+  /**
+   * Smartly load barangays without wiping out pre-loaded database addresses
+   */
+  private loadBarangaysForCity(cityName: string): void {
+    const selectedCity = this.cities.find(c => c.name === cityName);
+    if (!selectedCity) return;
+
+    this.addressService.getBarangays(selectedCity.code).subscribe((data: any[]) => {
+      this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
+      
+      const currentBrgy = this.profileForm.get('barangay')?.value;
+      const brgyExists = this.barangays.some(b => b.name === currentBrgy);
+      
+      // ONLY clear barangay if the user selected a completely new city!
+      if (!brgyExists) {
+        this.profileForm.get('barangay')?.setValue('', { emitEvent: false });
+      }
+    });
+  }
+
+  private updateZipCode(cityName: string): void {
+    const zipCodeMap: { [key: string]: string } = {
+      'City of Taguig': '1630',
+      'City of Manila': '1000',
+      'Quezon City': '1100',
+      'City of Makati': '1200',
+      'City of Pasig': '1600',
+      'City of Mandaluyong': '1550',
+      'City of Marikina': '1800',
+      'City of Muntinlupa': '1770',
+      'City of Parañaque': '1700',
+      'City of Las Piñas': '1740',
+      'City of Valenzuela': '1440',
+      'City of Malabon': '1470',
+      'City of Navotas': '1490',
+      'City of San Juan': '1500',
+      'Pasay City': '1300',
+      'Pateros': '1620',
+      'City of Caloocan': '1400',
+      'Bacoor City': '4102',
+      'Dasmariñas City': '4114',
+      'Imus City': '4103',
+    };
+
+    const foundZip = zipCodeMap[cityName];
+    if (foundZip) {
+      this.profileForm.get('zipcode')?.setValue(foundZip, { emitEvent: false });
+    }
   }
 
   /**
@@ -312,6 +346,12 @@ export class ProfilePageComponent implements OnInit {
         data.push({ code: '130000000', name: 'Metro Manila' });
       }
       this.provinces = data.sort((a, b) => a.name.localeCompare(b.name));
+
+      // If the profile already loaded from backend while provinces were fetching, load cities now
+      const currentProv = this.profileForm.get('province')?.value;
+      if (currentProv) {
+        this.loadCitiesForProvince(currentProv);
+      }
     });
   }
   
@@ -355,7 +395,14 @@ export class ProfilePageComponent implements OnInit {
 
         // Enable first so disabled fields get patched correctly
         this.enableProfileForm();
-        this.profileForm.patchValue(formData);
+        
+        // Use { emitEvent: false } to prevent cascading dropdown resets on load
+        this.profileForm.patchValue(formData, { emitEvent: false });
+
+        // Safely populate address lists for the loaded database values
+        if (formData.province) {
+          this.loadCitiesForProvince(formData.province);
+        }
 
         // Re-disable read-only fields
         this.profileForm.get('email')?.disable();
@@ -469,6 +516,17 @@ export class ProfilePageComponent implements OnInit {
           }
 
           const savedValues = this.profileForm.getRawValue();
+
+          // Instantly update the name in the header & local storage
+          if ((this.authService as any).updateUserName) {
+            (this.authService as any).updateUserName(
+              savedValues.first_name,
+              savedValues.last_name,
+              savedValues.middle_name,
+              savedValues.suffix_name
+            );
+          }
+
           this.authService.updateProfileCompletionStatus(savedValues, this.authService.getUserRole());
 
           this.snackBar.open('Profile updated successfully!', 'Close', {

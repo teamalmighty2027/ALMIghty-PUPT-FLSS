@@ -50,6 +50,9 @@ export class AuthService {
   private profileIncompleteSubject = new BehaviorSubject<boolean>(false);
   public profileIncomplete$ = this.profileIncompleteSubject.asObservable();
 
+  private userNameSubject = new BehaviorSubject<string | null>(null);
+  public userName$ = this.userNameSubject.asObservable();
+
   // Initialize AuthService dependencies.
   constructor(
     private http: HttpClient,
@@ -454,6 +457,7 @@ export class AuthService {
 
     // Update the profile picture observable
     this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
+    this.userNameSubject.next(this.userDataCache.name);
     // Save to localStorage (not cookies) if needed for page reloads
     localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(this.userDataCache.expires_at);
@@ -469,9 +473,40 @@ export class AuthService {
       if (this.userDataCache?.profile_picture_url) {
         this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
       }
+
+      if (this.userDataCache?.name) {
+        this.userNameSubject.next(this.userDataCache.name);
+      }
     }
 
     return this.userDataCache;
+  }
+
+  /**
+   * Instantly update the cached user name and notify all headers/navbars
+   */
+  updateUserName(firstName: string, lastName: string, middleName?: string, suffixName?: string): void {
+    const userData = this.getUserData();
+    if (!userData) return;
+
+    // Format full name (e.g. First M. Last Suffix or First Last)
+    let fullName = `${firstName} ${lastName}`.trim();
+    if (middleName) {
+      const middleInitial = middleName.charAt(0).toUpperCase() + '.';
+      fullName = `${firstName} ${middleInitial} ${lastName}`.trim();
+    }
+    if (suffixName) {
+      fullName = `${fullName} ${suffixName}`.trim();
+    }
+
+    userData.name = fullName;
+    if (firstName) userData.first_name = firstName;
+    if (lastName) userData.last_name = lastName;
+    if (middleName) userData.middle_name = middleName;
+    if (suffixName) userData.suffix_name = suffixName;
+
+    localStorage.setItem('user_data', JSON.stringify(userData));
+    this.userNameSubject.next(fullName);
   }
 
   /**

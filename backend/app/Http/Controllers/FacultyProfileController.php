@@ -54,17 +54,14 @@ class FacultyProfileController extends Controller
         DB::beginTransaction();
 
         try {
-            // Get the faculty record
-            $faculty = Faculty::where('user_id', $user->id)->firstOrFail();
-
-            // Update the name fields on the Faculty model
-            $faculty->update($request->only(['first_name', 'last_name', 'middle_name', 'suffix_name']));
-            
+            // 1. Update personal identity and code on the main User model
+            $userData = $request->only(['first_name', 'last_name', 'middle_name', 'suffix_name']);
             if ($request->has('code')) {
-                $faculty->update(['code' => $request->code]); 
+                $userData['code'] = $request->code;
             }
+            $user->update($userData);
 
-            // ADDED: 'academic_rank' added to the array below
+            // 2. Update address, professional info, and rank on UserProfile model
             $profileData = $request->only([
                 'house_num', 'street', 'barangay', 'city', 
                 'province', 'country', 'zipcode', 'department',

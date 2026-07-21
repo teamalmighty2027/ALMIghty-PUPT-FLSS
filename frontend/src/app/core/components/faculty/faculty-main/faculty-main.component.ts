@@ -84,6 +84,17 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.facultyProfilePictureUrl = url);
 
+    // Listen for real-time name updates!
+    this.authService.userName$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(name => {
+        if (name) {
+          this.facultyName = name;
+        } else {
+          this.facultyName = this.authService.getUserName();
+        }
+      });
+
     if (localStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
