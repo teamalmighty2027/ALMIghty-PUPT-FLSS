@@ -18,8 +18,10 @@ export class ScheduleSuggestionService {
   public isModelReady$ = this.isModelReadySubject.asObservable();
 
   constructor(private http: HttpClient) {
-    // Set WASM paths for onnxruntime-web
-    ort.env.wasm.wasmPaths = 'assets/onnxruntime-wasm/';
+    // Set WASM paths dynamically based on base href
+    const base = document.getElementsByTagName('base')[0];
+    const baseHref = base?.getAttribute('href') || '/';
+    ort.env.wasm.wasmPaths = baseHref + 'assets/onnxruntime-wasm/';
   }
 
   /**
