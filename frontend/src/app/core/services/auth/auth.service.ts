@@ -47,12 +47,30 @@ export class AuthService {
   private profilePictureUrlSubject = new BehaviorSubject<string | null>(null);
   public profilePictureUrl$ = this.profilePictureUrlSubject.asObservable();
 
+  private profileIncompleteSubject = new BehaviorSubject<boolean>(false);
+  public profileIncomplete$ = this.profileIncompleteSubject.asObservable();
+
   // Initialize AuthService dependencies.
   constructor(
     private http: HttpClient,
     private cookieService: CookieService,
     private router: Router,
   ) {}
+
+  // ==============================
+  // Profile Completion State
+  // ==============================
+  updateProfileCompletionStatus(data: { department?: string; academic_rank?: string }, role: string): void {
+    // Admins/Superadmins are never flagged for missing faculty details
+    if (role === 'admin' || role === 'superadmin') {
+      this.profileIncompleteSubject.next(false);
+      return;
+    }
+    
+    // Incomplete if either field is missing, null, or empty string
+    const isIncomplete = !data?.department || !data?.academic_rank;
+    this.profileIncompleteSubject.next(isIncomplete);
+  }
 
   // ==============================
   // IDP auth methods 

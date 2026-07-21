@@ -64,10 +64,11 @@ class FacultyProfileController extends Controller
                 $faculty->update(['code' => $request->code]); 
             }
 
+            // ADDED: 'academic_rank' added to the array below
             $profileData = $request->only([
                 'house_num', 'street', 'barangay', 'city', 
                 'province', 'country', 'zipcode', 'department',
-                'birthdate', 'sex'
+                'birthdate', 'sex', 'academic_rank'
             ]);
 
             if ($request->hasFile('profile_picture')) {

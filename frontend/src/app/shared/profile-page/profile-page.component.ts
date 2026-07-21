@@ -54,6 +54,14 @@ export class ProfilePageComponent implements OnInit {
   barangays: any[] = [];
   activePrograms: any[] = [];
 
+  academicRanks: string[] = [
+    'Instructor I', 'Instructor II', 'Instructor III',
+    'Assistant Professor I', 'Assistant Professor II', 'Assistant Professor III', 'Assistant Professor IV',
+    'Associate Professor I', 'Associate Professor II', 'Associate Professor III', 'Associate Professor IV', 'Associate Professor V',
+    'Professor I', 'Professor II', 'Professor III', 'Professor IV', 'Professor V', 'Professor VI',
+    'Special Lecturer'
+  ];
+
   // Mobile Inline Dropdown variables
   isMobileView: boolean = window.innerWidth <= 768;
   activeMobileDropdown: string | null = null;
@@ -120,6 +128,11 @@ export class ProfilePageComponent implements OnInit {
         value: p.program_title,
         label: p.program_title
       }));
+    } else if (controlName === 'academic_rank') {
+      options = this.academicRanks.map(r => ({
+        value: r,
+        label: r
+      }));
     } else if (controlName === 'sex') {
       options = [
         { value: 'Male', label: 'Male' },
@@ -185,6 +198,7 @@ export class ProfilePageComponent implements OnInit {
       ],
       code: [{ value: '', disabled: true }],
       department: ['', Validators.required],
+      academic_rank: ['', Validators.required],
       birthdate: ['', [this.birthdateValidator.bind(this)]],
       sex: [''],
       house_num: [''],
@@ -196,10 +210,16 @@ export class ProfilePageComponent implements OnInit {
       zipcode: ['', [Validators.pattern('^[0-9]{4}$')]],
     };
 
-
-
     this.profileForm = this.fb.group(formConfig);
     this.patchInitialValuesFromAuth();
+
+    // Safeguard: Remove required validators for Admin/Superadmin users
+    if (this.isAdmin) {
+      this.profileForm.get('department')?.clearValidators();
+      this.profileForm.get('academic_rank')?.clearValidators();
+      this.profileForm.get('department')?.updateValueAndValidity();
+      this.profileForm.get('academic_rank')?.updateValueAndValidity();
+    }
   }
 
   // Pre-fill name/email for admin from cached auth data
@@ -230,11 +250,11 @@ export class ProfilePageComponent implements OnInit {
    */
   setupAddressListeners(): void {
     // When Province changes, load Cities
-    this.profileForm.get('province')?.valueChanges.subscribe(provinceName => {
+    this.profileForm.get('province')?.valueChanges.subscribe((provinceName: any) => {
       const selectedProv = this.provinces.find(p => p.name === provinceName);
 
       if (selectedProv) {
-        this.addressService.getCities(selectedProv.code).subscribe(data => {
+        this.addressService.getCities(selectedProv.code).subscribe((data: any[]) => {
           this.cities = data.sort((a, b) => a.name.localeCompare(b.name));
           this.profileForm.get('city')?.setValue('');
           this.profileForm.get('barangay')?.setValue('');
@@ -244,11 +264,11 @@ export class ProfilePageComponent implements OnInit {
     });
 
     // When City changes, load Barangays & Zip Code
-    this.profileForm.get('city')?.valueChanges.subscribe(cityName => {
+    this.profileForm.get('city')?.valueChanges.subscribe((cityName: any) => {
       const selectedCity = this.cities.find(c => c.name === cityName);
 
       if (selectedCity) {
-        this.addressService.getBarangays(selectedCity.code).subscribe(data => {
+        this.addressService.getBarangays(selectedCity.code).subscribe((data: any[]) => {
           this.barangays = data.sort((a, b) => a.name.localeCompare(b.name));
           this.profileForm.get('barangay')?.setValue('');
         });
@@ -286,7 +306,7 @@ export class ProfilePageComponent implements OnInit {
    * Load provinces from PSGC and include Metro Manila as an option.
    */
   loadProvinces(): void {
-    this.addressService.getProvinces().subscribe(data => {
+    this.addressService.getProvinces().subscribe((data: any[]) => {
       const hasNCR = data.some(p => p.code === '130000000');
       if (!hasNCR) {
         data.push({ code: '130000000', name: 'Metro Manila' });
@@ -300,7 +320,7 @@ export class ProfilePageComponent implements OnInit {
    */
   loadActivePrograms(): void {
     this.facultyService.getActivePrograms().subscribe({
-      next: (data) => {
+      next: (data: any[]) => {
         this.activePrograms = data;
       },
       error: (err: HttpErrorResponse) => {
@@ -316,19 +336,22 @@ export class ProfilePageComponent implements OnInit {
     this.isLoading = true;
     this.profileForm.disable();
 
-    const service = this.isAdmin ? this.adminService : this.facultyService;
+    const service: any = this.isAdmin ? this.adminService : this.facultyService;
 
     service.getProfile().subscribe({
-      next: (data) => {
+      next: (data: any) => {
         const formData = {
           ...data,
           sex: data.sex || '',
           province: data.province || '',
           city: data.city || '',
           barangay: data.barangay || '',
+          academic_rank: data.academic_rank || '',
         };
 
         this.profilePictureUrl = data.profile_picture_url || null;
+
+        this.authService.updateProfileCompletionStatus(data, this.authService.getUserRole());
 
         // Enable first so disabled fields get patched correctly
         this.enableProfileForm();
@@ -435,15 +458,19 @@ export class ProfilePageComponent implements OnInit {
         formData.append('profile_picture', this.selectedFile);
       }
 
-      const service = this.isAdmin ? this.adminService : this.facultyService;
+      const service: any = this.isAdmin ? this.adminService : this.facultyService;
 
       service.updateProfile(formData).subscribe({
-        next: (response) => {
+        next: (response: any) => {
           this.isLoading = false;
           if (response.profile_picture_url) {
             this.profilePictureUrl = response.profile_picture_url;
             this.authService.updateProfilePictureUrl(response.profile_picture_url);
           }
+
+          const savedValues = this.profileForm.getRawValue();
+          this.authService.updateProfileCompletionStatus(savedValues, this.authService.getUserRole());
+
           this.snackBar.open('Profile updated successfully!', 'Close', {
             duration: 3000,
             horizontalPosition: 'center',
