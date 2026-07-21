@@ -10,6 +10,10 @@
   padding: var(--spacing-lg);
   height: 90vh;
   max-height: 90vh;
+  width: 100%;
+  min-width: 85vw; /* Forces dialog to open wide for dual-panel */
+  box-sizing: border-box; /* Fixes background scrolling */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -32,13 +36,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  position: relative; // NEW: anchor for the stacked views below
+  position: relative; 
 
-  // NEW: stack views instead of letting them share flex space.
-  // Fixes the overlap during fade transitions and restores a
-  // reliable, definite height for nested scroll containers
-  // (e.g. .programs-scroll-container) that were being starved
-  // when two views briefly coexisted mid-animation.
   > .preferences-row-two,
   > .dialog-pref-table-container,
   > .dialog-pref-pdf-container {
@@ -63,7 +62,6 @@
     margin-bottom: var(--spacing-sm);
   }
 
-  /* make form controls stack as rows and fit container */
   form {
     display: flex;
     flex-direction: row;
@@ -113,7 +111,6 @@
         color: white;
         font-weight: 500;
         text-align: center;
-
         position: sticky;
         top: 0;
         z-index: 2;
@@ -206,7 +203,6 @@
   padding-top: var(--spacing-md);
   flex-shrink: 0;
 
-  // Close sits on the left — matches rescheduling cancel/close position
   button:first-child {
     margin-right: auto;
     color: var(--primary-text);
@@ -247,7 +243,9 @@
    SET PREFERENCES VIEW STYLES
    ======================================================== */
 .preferences-row-two {
-  @include mixins.flex-layout($gap: var(--spacing-lg));
+  display: flex;
+  flex-direction: row; /* Strict row layout */
+  gap: var(--spacing-lg);
   flex: 1;
   height: 100%;
   min-height: 0;
@@ -272,23 +270,23 @@
     border-radius: var(--border-radius-md);
     height: 100%;
     min-height: 0;
-    min-width: 0;
   }
 
   /* Courses Picker Container */
   #courses_container {
     flex: 2;
+    min-width: 320px; /* Prevents squishing */
     display: flex;
     flex-direction: column;
     font-weight: 500;
-    overflow: hidden; /* CRITICAL: Traps the scroll inside */
+    overflow: hidden; 
 
     #courses_search {
       @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
       flex-wrap: wrap;
       row-gap: var(--spacing-sm);
       margin-bottom: var(--spacing-sm);
-      flex-shrink: 0; /* CRITICAL: Prevents search bar from disappearing */
+      flex-shrink: 0; 
       
       .custom-mat-search {
         flex: 1;
@@ -318,23 +316,34 @@
       }
     }
 
-    /* Fixed cards-label to ensure back button aligns well */
-    .cards-label {
-      @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-sm), $align: center);
-      font-weight: 500;
-      margin-bottom: 1rem;
-      flex-shrink: 0;
+    #courses_list,
+    #programs_list,
+    #search_results,
+    #empty-results {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0; /* CRITICAL: Enables scrolling for inner lists */
+      overflow: hidden;
 
-      .arrow_back {
-        cursor: pointer;
-        border-radius: 100%;
-        padding: 4px;
-        &:hover { background-color: var(--neutral-bar); }
+      .cards-label {
+        @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-sm), $align: center);
+        font-weight: 500;
+        margin-bottom: 1rem;
+        flex-shrink: 0;
+
+        .arrow_back {
+          cursor: pointer;
+          border-radius: 100%;
+          padding: 4px;
+          &:hover { background-color: var(--neutral-bar); }
+        }
       }
     }
 
     #empty-results {
       align-items: center;
+      justify-content: center;
       font-size: var(--font-size-md);
       text-align: center;
       gap: var(--spacing-md);
@@ -347,7 +356,7 @@
       @include mixins.custom-scrollbar;
       flex: 1;
       overflow-y: auto;
-      min-height: 0; /* CRITICAL: Forces flexbox to scroll */
+      min-height: 0; 
       padding-right: var(--spacing-xs);
 
       .year-level-group {
@@ -405,8 +414,11 @@
   #table_container {
     @include mixins.default-transition;
     @include mixins.hide-scrollbar;
-    @include mixins.flex-layout($direction: column, $align: none, $justify: none);
-    flex: 3; /* Slightly smaller ratio than faculty view */
+    display: flex;
+    flex-direction: column;
+    flex: 3; 
+    min-width: 500px; /* Protects table width */
+    min-height: 0;
     overflow: auto;
     background-color: var(--neutral-light);
 
@@ -479,6 +491,7 @@
   border-left: 4px solid var(--primary-one);
   padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
   border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
   
   .info-icon {
