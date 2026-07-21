@@ -38,6 +38,7 @@ import {
 } from '../../../../../shared/table-dialog/table-dialog.component';
 import { DialogEditFacultyComponent } from '../../../../../shared/dialog-edit-faculty/dialog-edit-faculty.component';
 import { DialogAddFacultyComponent } from '../../../../../shared/dialog-add-faculty/dialog-add-faculty.component';
+import { DialogGenericComponent, DialogData } from '../../../../../shared/dialog-generic/dialog-generic.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
 import {
   InputField,
@@ -698,7 +699,56 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result && this.selectedFacultyIndex !== null) {
-        this.updateFaculty(result);
+        if (result.status !== faculty.status) {
+          this.confirmStatusChange(faculty, result);
+        } else {
+          this.updateFaculty(result);
+        }
+      }
+    });
+  }
+
+  /**
+   * Prompts admin with a confirmation dialog before changing faculty status.
+   */
+  private confirmStatusChange(faculty: Faculty, updatedFaculty: Faculty): void {
+    let dialogData: DialogData;
+
+    if (updatedFaculty.status === 'Inactive') {
+      dialogData = {
+        title: 'Set Faculty to Inactive',
+        content: `Are you sure you want to set ${faculty.name} to Inactive? ` +
+          'Profile details will be cleared while keeping basic reference data.',
+        actionText: 'Set Inactive',
+        cancelText: 'Cancel',
+        action: 'Confirm',
+      };
+    } else if (updatedFaculty.status === 'Retired') {
+      dialogData = {
+        title: 'WARNING: Set Faculty to Retired',
+        content: `WARNING: Retiring ${faculty.name} is permanent and irreversible. ` +
+          'All personal identifiable information (name, email, password, profile) ' +
+          'will be immediately and permanently scrubbed from the database.',
+        actionText: 'Permanently Scrub & Retire',
+        cancelText: 'Cancel',
+        action: 'Confirm',
+        actionTextColor: '#ffffff',
+        actionBgColor: '#dc2626',
+      };
+    } else {
+      this.updateFaculty(updatedFaculty);
+      return;
+    }
+
+    const confirmRef = this.dialog.open(DialogGenericComponent, {
+      data: dialogData,
+      autoFocus: true,
+      panelClass: 'dialog-base',
+    });
+
+    confirmRef.afterClosed().subscribe((res) => {
+      if (res === 'Confirm') {
+        this.updateFaculty(updatedFaculty);
       }
     });
   }
@@ -794,5 +844,27 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         duration: 3000,
       });
     }
+  }
+
+  /**
+   * Approves a pending reactivation request for an inactive faculty member.
+   */
+  approveReactivation(faculty: Faculty): void {
+    if (!faculty.id) return;
+
+    this.facultyService.approveReactivation(faculty.id).subscribe({
+      next: () => {
+        this.snackBar.open('Faculty account reactivated successfully.', 'Close', {
+          duration: 3000,
+        });
+        this.fetchFaculty();
+      },
+      error: (err) => {
+        console.error('Approve reactivation failed:', err);
+        this.snackBar.open('Failed to reactivate account.', 'Close', {
+          duration: 4000,
+        });
+      },
+    });
   }
 }

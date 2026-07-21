@@ -137,6 +137,16 @@ export class FacultyService {
     return this.http.put<Faculty>(`${this.baseUrl}/faculty/${id}`, faculty);
   }
 
+  /**
+   * Approves account reactivation for an inactive faculty member.
+   */
+  approveReactivation(id: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/faculty/${id}/approve-reactivation`,
+      {}
+    );
+  }
+
   // ==========================================
   // PERSONAL PROFILE METHODS
   // ==========================================

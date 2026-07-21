@@ -46,6 +46,11 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
+Route::post('/faculty/request-reactivation', [
+    FacultyController::class,
+    'requestReactivation'
+]);
+
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
@@ -248,6 +253,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
+    Route::post('/faculty/{user}/approve-reactivation', [
+        FacultyController::class,
+        'approveReactivation'
+    ]);
 
     /**
      * Faculty Notification

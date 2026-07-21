@@ -231,7 +231,7 @@
               
               <div class="notif-item-content">
                 <span
-                  mat-symbol="check_circle"
+                  [mat-symbol]="notif.data.icon || 'notifications'"
                   class="notif-item-icon"
                   [ngStyle]="{
                     'color': !notif.read_at
