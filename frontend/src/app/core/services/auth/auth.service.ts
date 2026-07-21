@@ -42,7 +42,7 @@ export class AuthService {
   private requestedRole: string[] = [];
   private userDataCache: any = null;
   private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null;
-  private refreshLeewayMs = 30 * 60 * 1000;
+  private refreshLeewayMs = 15 * 60 * 1000;
   private refreshInFlight: Observable<RefreshResponse> | null = null;
   private profilePictureUrlSubject = new BehaviorSubject<string | null>(null);
   public profilePictureUrl$ = this.profilePictureUrlSubject.asObservable();
