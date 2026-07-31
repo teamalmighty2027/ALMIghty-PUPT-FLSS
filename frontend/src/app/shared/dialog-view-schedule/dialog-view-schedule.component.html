@@ -343,8 +343,13 @@
       <span class="warning-text" style="color: #666; font-size: 0.9rem;">PDF preview may not work on some devices.</span>
     </div>
 
-    <div class="action-buttons-wrapper" style="display: flex; gap: 8px;">
+    <div class="action-buttons-wrapper" style="display: flex; gap: 8px; align-items: center;">
       
+      <!-- NEW: Inline Unsaved Indicator -->
+      @if (hasChanges && data.entity === 'faculty' && selectedView === 'table-view') {
+        <span class="inline-unsaved-text" [@fadeAnimation]>* Unsaved changes</span>
+      }
+
       <!-- NEW CLEAR AND SAVE BUTTONS -->
       @if (data.entity === 'faculty' && selectedView === 'table-view') {
         <button mat-stroked-button color="warn" (click)="clearAll()" [disabled]="isSaving">
@@ -369,5 +374,26 @@
       }
     </div>
   </div>
+
+  <!-- UNSAVED CHANGES WARNING OVERLAY -->
+  @if (showUnsavedWarning) {
+    <div class="unsaved-warning-overlay" [@fadeAnimation]>
+      <div class="unsaved-warning-dialog">
+        <div class="warning-header">
+          <mat-icon class="warning-icon-large">warning</mat-icon>
+          <h3>Unsaved Changes</h3>
+        </div>
+        <div class="warning-body">
+          <p>You have unsaved changes in the faculty schedule. If you close now, all your modifications will be lost.</p>
+          <p>Are you sure you want to discard your changes and exit?</p>
+        </div>
+        <div class="warning-actions">
+          <button mat-button (click)="cancelClose()">Cancel</button>
+          <button mat-flat-button color="warn" (click)="confirmClose()">Discard & Exit</button>
+        </div>
+      </div>
+    </div>
   }
-</div>
+
+  }
+</div> 
