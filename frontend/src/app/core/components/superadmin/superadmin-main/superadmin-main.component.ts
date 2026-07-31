@@ -60,6 +60,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     rooms: 'Rooms',
     'manage-admin': 'Manage Admin',
     'manage-faculty': 'Manage Faculty',
+    'academic-ranks': 'Academic Ranks',
   };
 
   isHandset$: Observable<boolean> = this.breakpointObserver

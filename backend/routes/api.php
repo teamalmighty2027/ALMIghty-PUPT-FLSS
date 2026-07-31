@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\AssignmentTypeController;
+use App\Http\Controllers\AdminConfigurationController;
 
 /*
 |----------------------------
@@ -188,6 +189,22 @@ Route::middleware([
     Route::post('/admin/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead']);
     Route::post('/admin/notifications/read-all', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead']);
     Route::delete('/admin/notifications/clear-all', [\App\Http\Controllers\AdminNotificationController::class, 'clearAll']);
+
+    Route::prefix('admin/config')->group(function () {
+        
+        // Academic Ranks Endpoints
+        Route::get('/academic-ranks', [AdminConfigurationController::class, 'getAcademicRanks']);
+        Route::post('/academic-ranks', [AdminConfigurationController::class, 'addAcademicRank']);
+        Route::put('/academic-ranks/{id}', [AdminConfigurationController::class, 'updateAcademicRank']);
+        Route::delete('/academic-ranks/{id}', [AdminConfigurationController::class, 'deleteAcademicRank']);
+
+        // Departments Endpoints
+        Route::get('/departments', [AdminConfigurationController::class, 'getDepartments']);
+        Route::post('/departments', [AdminConfigurationController::class, 'addDepartment']);
+        Route::put('/departments/{id}', [AdminConfigurationController::class, 'updateDepartment']);
+        Route::delete('/departments/{id}', [AdminConfigurationController::class, 'deleteDepartment']);
+        
+    });
 
     /**
      * Buildings

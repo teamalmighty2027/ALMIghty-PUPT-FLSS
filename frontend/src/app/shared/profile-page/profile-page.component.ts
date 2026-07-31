@@ -21,6 +21,9 @@ import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { provideNativeDateAdapter } from '@angular/material/core';
 
+// ALIAS ADDED HERE TO PREVENT COLLISION WITH ADMIN-PROFILE SERVICE
+import { AdminService as AdminConfigService, AcademicRank } from '../../core/services/superadmin/management/admin/admin.service';
+
 @Component({
   selector: 'app-profile-page',
   standalone: true,
@@ -54,13 +57,8 @@ export class ProfilePageComponent implements OnInit {
   barangays: any[] = [];
   activePrograms: any[] = [];
 
-  academicRanks: string[] = [
-    'Instructor I', 'Instructor II', 'Instructor III',
-    'Assistant Professor I', 'Assistant Professor II', 'Assistant Professor III', 'Assistant Professor IV',
-    'Associate Professor I', 'Associate Professor II', 'Associate Professor III', 'Associate Professor IV', 'Associate Professor V',
-    'Professor I', 'Professor II', 'Professor III', 'Professor IV', 'Professor V', 'Professor VI',
-    'Special Lecturer'
-  ];
+  // EMPTIED HARDCODED ARRAY
+  academicRanks: string[] = [];
 
   // Mobile Inline Dropdown variables
   isMobileView: boolean = window.innerWidth <= 768;
@@ -166,7 +164,8 @@ export class ProfilePageComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private facultyService: FacultyService,
-    private adminService: AdminService,
+    private adminService: AdminService, // Original profile service
+    private adminConfigService: AdminConfigService, // Config service
     private authService: AuthService,
     private addressService: PhAddressService,
     private snackBar: MatSnackBar,
@@ -183,6 +182,7 @@ export class ProfilePageComponent implements OnInit {
     this.setupAddressListeners();
     this.loadProfileData();
     this.loadActivePrograms();
+    this.loadAcademicRanks(); // NEW: Trigger fetch on init
   }
 
   // Initialize reactive form controls
@@ -365,6 +365,23 @@ export class ProfilePageComponent implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         console.error('Failed to load active programs', err);
+      }
+    });
+  }
+
+  /**
+   * Load active academic ranks from the database config
+   */
+  loadAcademicRanks(): void {
+    this.adminConfigService.getAcademicRanks().subscribe({
+      next: (data: AcademicRank[]) => {
+        // Map the objects back into a simple string array of active rank names
+        this.academicRanks = data
+          .filter(rank => rank.is_active)
+          .map(rank => rank.name);
+      },
+      error: (err: HttpErrorResponse) => {
+        console.error('Failed to load academic ranks', err);
       }
     });
   }
