@@ -14,7 +14,6 @@ class TemporaryCourseOffering extends Model
 
     protected $fillable = [
         'course_id',
-        'bridging_course_id',
         'academic_year_id',
         'semester_id',
         'program_id',
@@ -38,11 +37,6 @@ class TemporaryCourseOffering extends Model
     public function course()
     {
         return $this->belongsTo(Course::class, 'course_id', 'course_id');
-    }
-
-    public function bridgingCourse()
-    {
-        return $this->belongsTo(BridgingCourse::class, 'bridging_course_id', 'bridging_course_id');
     }
 
     public function academicYear()
