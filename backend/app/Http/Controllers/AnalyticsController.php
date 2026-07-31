@@ -159,15 +159,15 @@ class AnalyticsController extends Controller
             ->select(
                 'rooms.room_id',
                 'rooms.room_code',
-                'rooms.capacity',
-                DB::raw("
-                    SUM(CASE WHEN 
-                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
-                        semesters.semester = {$activeSemester->semester}
-                    THEN TIMESTAMPDIFF(MINUTE, schedules.start_time, schedules.end_time) 
-                    ELSE 0 END) as total_scheduled_minutes
-                ")
+                'rooms.capacity'
             )
+            ->selectRaw("
+                SUM(CASE WHEN 
+                    sections_per_program_year.academic_year_id = ? AND 
+                    semesters.semester = ?
+                THEN TIMESTAMPDIFF(MINUTE, schedules.start_time, schedules.end_time) 
+                ELSE 0 END) as total_scheduled_minutes
+            ", [$activeSemester->academic_year_id, $activeSemester->semester])
             ->groupBy('rooms.room_id', 'rooms.room_code', 'rooms.capacity')
             ->get();
 
@@ -236,14 +236,14 @@ class AnalyticsController extends Controller
                 'users.first_name',
                 'users.last_name',
                 'faculty_type.regular_units',
-                'faculty_type.additional_units',
-                DB::raw("
-                    SUM(DISTINCT CASE WHEN 
-                        sections_per_program_year.academic_year_id = {$activeSemester->academic_year_id} AND 
-                        semesters.semester = {$activeSemester->semester}
-                    THEN courses.units ELSE 0 END) as assigned_units
-                ")
+                'faculty_type.additional_units'
             )
+            ->selectRaw("
+                SUM(DISTINCT CASE WHEN 
+                    sections_per_program_year.academic_year_id = ? AND 
+                    semesters.semester = ?
+                THEN courses.units ELSE 0 END) as assigned_units
+            ", [$activeSemester->academic_year_id, $activeSemester->semester])
             ->groupBy(
                 'faculty.id', 
                 'users.first_name', 
