@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialogRef } from '@angular/material/dialog';
 
 import { DialogUnsavedPreferencesComponent } from './dialog-unsaved-preferences.component';
 
@@ -8,7 +9,10 @@ describe('DialogUnsavedPreferencesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogUnsavedPreferencesComponent]
+      imports: [DialogUnsavedPreferencesComponent],
+      providers: [
+        { provide: MatDialogRef, useValue: { close: () => {} } }
+      ]
     })
     .compileComponents();
 

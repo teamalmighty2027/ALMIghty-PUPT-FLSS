@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { RoomTypesComponent } from './room-types.component';
 
@@ -8,7 +10,11 @@ describe('RoomTypesComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [RoomTypesComponent]
+      imports: [
+        RoomTypesComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ]
     })
     .compileComponents();
 

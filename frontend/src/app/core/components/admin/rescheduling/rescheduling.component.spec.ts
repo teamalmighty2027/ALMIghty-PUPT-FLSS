@@ -3,22 +3,40 @@ import { ReschedulingComponent } from './rescheduling.component';
 import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { MatDialog } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 
-// 1. Create a Dummy Service
+import { MatSnackBar } from '@angular/material/snack-bar';
+import {
+  ReportsService
+} from '../../../services/admin/reports/reports.service';
+import {
+  ReportHeaderService
+} from '../../../services/report-header/report-header.service';
+import {
+  SpeechRecognitionService
+} from '../../../services/speech/speech-recognition.service';
+
 class MockReschedulingService {
   getAllAppeals() {
-    // Return an empty array or dummy data
     return of([
       {
         appeal_id: 1,
+        schedule_id: 101,
         faculty_name: 'John Doe',
         program_code: 'BSIT',
         course_title: 'Web Dev',
         original_day: 'Monday',
         original_start_time: '08:00',
         original_end_time: '10:00',
-        is_approved: null // Pending
+        original_room: 'LAB 1',
+        is_approved: null,
+        appeal_day: 'Tuesday',
+        appeal_start_time: '09:00',
+        appeal_end_time: '11:00',
+        appeal_room: 'LAB 2',
+        file_path: 'test.pdf',
+        reasoning: 'Test reason'
       }
     ]);
   }
@@ -30,22 +48,74 @@ class MockReschedulingService {
 describe('ReschedulingComponent', () => {
   let component: ReschedulingComponent;
   let fixture: ComponentFixture<ReschedulingComponent>;
-  let dialogSpy: jasmine.SpyObj<MatDialog>;
+  let dialogSpy: any;
 
   beforeEach(async () => {
-    // 2. Create a Spy for MatDialog
-    dialogSpy = jasmine.createSpyObj('MatDialog', ['open', 'closeAll']);
+    dialogSpy = {
+      open: jasmine.createSpy('open').and.returnValue({}),
+      closeAll: jasmine.createSpy('closeAll')
+    };
+
+    const mockReportsService = {
+      getAllTermsForDropdown: () => of([
+        {
+          active_semester_id: 1,
+          year_start: 2023,
+          year_end: 2024,
+          semester: '1',
+          is_active: 1
+        }
+      ]),
+      getFacultySchedulesReport: (termId: number) => of({
+        faculty_schedule_reports: {
+          faculties: [
+            {
+              faculty_id: 1,
+              faculty_name: 'John Doe',
+              assigned_units: 3,
+              is_appeal_enabled: true,
+              has_appeal_request: false,
+              schedules: []
+            }
+          ]
+        }
+      }),
+      clearAllCaches: () => {}
+    };
+
+    const mockReportHeaderService = {
+      getReportHeader: () => of({})
+    };
+
+    const mockSnackBar = {
+      open: () => {}
+    };
+
+    const mockSpeechService = {
+      isSupported: () => false,
+      abort: () => {}
+    };
 
     await TestBed.configureTestingModule({
       imports: [
         ReschedulingComponent,
-        NoopAnimationsModule // Important for Material components in tests
+        NoopAnimationsModule,
+        HttpClientTestingModule
       ],
       providers: [
-        // Provide our mocks instead of real services
         { provide: ReschedulingService, useClass: MockReschedulingService },
-        { provide: MatDialog, useValue: dialogSpy }
+        { provide: ReportsService, useValue: mockReportsService },
+        { provide: ReportHeaderService, useValue: mockReportHeaderService },
+        { provide: MatSnackBar, useValue: mockSnackBar },
+        { provide: SpeechRecognitionService, useValue: mockSpeechService }
       ]
+    })
+    .overrideComponent(ReschedulingComponent, {
+      set: {
+        providers: [
+          { provide: MatDialog, useValue: dialogSpy }
+        ]
+      }
     })
     .compileComponents();
 

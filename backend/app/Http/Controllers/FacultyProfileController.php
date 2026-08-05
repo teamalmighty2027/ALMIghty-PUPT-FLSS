@@ -51,8 +51,6 @@ class FacultyProfileController extends Controller
     {
         $user = $request->user();
 
-        // 1. STRICT VALIDATION: This acts as our shield. 
-        // If anything fails here, Laravel automatically throws a 422 error.
         $validated = $request->validate([
             'first_name'      => 'nullable|string|max:255',
             'last_name'       => 'nullable|string|max:255',
@@ -68,7 +66,7 @@ class FacultyProfileController extends Controller
             'zipcode'         => 'nullable|string|max:20',
             'department'      => 'nullable|string|max:255',
             'birthdate'       => 'nullable|date',
-            'sex'             => 'nullable|string|in:Male,Female',
+            'sex'             => 'nullable|string|in:Male,Female', // Adjust if you have more options
             'academic_rank'   => 'nullable|string|max:255',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120', // Max 5MB image
         ]);
@@ -76,7 +74,6 @@ class FacultyProfileController extends Controller
         DB::beginTransaction();
 
         try {
-            // 2. Use ONLY the $validated data, never raw $request data
             $userData = array_intersect_key($validated, array_flip(['first_name', 'last_name', 'middle_name', 'suffix_name', 'code']));
             $user->update($userData);
 
@@ -114,8 +111,6 @@ class FacultyProfileController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Profile POST Error: ' . $e->getMessage());
-            // Because of our Phase 2 Handler.php fix, this will now safely return a 500 
-            // without leaking system details in production.
             return response()->json(['message' => 'Failed to update profile. Please try again later.'], 500);
         }
     }

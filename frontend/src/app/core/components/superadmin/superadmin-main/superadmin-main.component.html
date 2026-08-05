@@ -106,6 +106,19 @@
             <span mat-symbol="history" matListItemIcon></span>
             <span matListItemTitle>Audit Log</span>
           </a>
+          <a
+            mat-list-item
+            class="list-item"
+            routerLink="/superadmin/system-notices"
+            routerLinkActive="active-link">
+            <span
+              mat-symbol="warning"
+              matListItemIcon
+              [matBadge]="unresolvedNoticesCount"
+              [matBadgeHidden]="unresolvedNoticesCount === 0"
+              matBadgeColor="warn"></span>
+            <span matListItemTitle>System Notices</span>
+          </a>
         </div>
       </div>
 

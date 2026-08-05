@@ -16,6 +16,8 @@ import { OfflineStatusComponent } from './shared/offline-status/offline-status.c
   animations: [routeAnimation],
 })
 export class AppComponent implements OnInit {
+  title = 'PUPT-FLSS';
+
   constructor(
     private themeService: ThemeService,
     private titleService: TitleService,

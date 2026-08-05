@@ -1,8 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AnalyticsHeatmapComponent } from './analytics-heatmap.component';
+import {
+  AnalyticsHeatmapComponent
+} from './analytics-heatmap.component';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 describe('AnalyticsHeatmapComponent', () => {
   let component: AnalyticsHeatmapComponent;
@@ -14,6 +17,7 @@ describe('AnalyticsHeatmapComponent', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideCharts(withDefaultRegisterables()),
       ],
     }).compileComponents();
 

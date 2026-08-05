@@ -13,18 +13,36 @@ describe('DialogImportHistoryComponent', () => {
 
   const mockData = {
     facultyId: 1,
-    availableCourses: [
+    programs: [
       {
-        course_id: 101,
-        course_code: 'CS101',
-        course_title: 'Intro to CS',
-        units: 3,
-        lec_hours: 3,
-        lab_hours: 0
+        program_id: 1,
+        program_code: 'BSCS',
+        program_name: 'BS Computer Science',
+        year_levels: [
+          {
+            year_level: 1,
+            sections: [
+              { section_id: 1, section_name: 'A' }
+            ],
+            semester: {
+              courses: [
+                {
+                  course_id: 101,
+                  course_code: 'CS101',
+                  course_title: 'Intro to CS',
+                  units: 3,
+                  lec_hours: 3,
+                  lab_hours: 0
+                }
+              ]
+            }
+          }
+        ]
       }
-    ] as any,
-    existingKeys: [],
-    currentSemesterId: 1
+    ] as any[],
+    existingKeys: [] as string[],
+    currentSemesterId: 1,
+    currentActiveSemesterId: 2
   };
 
   const mockHistoryResponse = {
@@ -35,13 +53,19 @@ describe('DialogImportHistoryComponent', () => {
         semesters: [
           {
             semester_id: 1,
+            active_semester_id: 1,
             preferences: [
               {
                 is_temporary: false,
                 course_details: {
                   course_code: 'CS101',
-                  course_title: 'Intro to CS'
-                }
+                  course_title: 'Intro to CS',
+                  program_code: 'BSCS'
+                },
+                section_details: {
+                  section_name: 'A'
+                },
+                preferred_days: ['Monday']
               }
             ]
           }
@@ -98,9 +122,16 @@ describe('DialogImportHistoryComponent', () => {
   it('should import selected courses', () => {
     const importable = component.importableCourses()[0];
     component.toggleSelection(importable.key);
-    
+
     component.importSelected();
-    
-    expect(mockDialogRef.close).toHaveBeenCalledWith([importable.currentMatch]);
+
+    expect(mockDialogRef.close).toHaveBeenCalledWith([
+      {
+        ...importable.currentMatch,
+        previousSectionName: importable.section_details?.section_name,
+        previousProgramCode: importable.course_details?.program_code,
+        preferred_days: importable.preferred_days
+      }
+    ]);
   });
 });
