@@ -42,6 +42,9 @@ export class DialogFacultyLoginComponent implements OnInit {
   passwordHasValue = false;
   isLoading = false;
   isRedirectDialogOpen = false;
+  isAccountInactive = false;
+  isReactivationSent = false;
+  isReactivationLoading = false;
 
   constructor(
     public dialogRef: MatDialogRef<DialogFacultyLoginComponent>,
@@ -115,11 +118,44 @@ export class DialogFacultyLoginComponent implements OnInit {
           this.router.navigateByUrl('/faculty/home', { replaceUrl: true });
         },
         error: (error: LoginError) => {
-          this.showErrorSnackbar(error.message);
           this.isLoading = false;
+          if (
+            error.status === 403 ||
+            error.message.toLowerCase().includes('inactive')
+          ) {
+            this.isAccountInactive = true;
+          }
+          this.showErrorSnackbar(error.message);
         },
       });
     }
+  }
+
+  // Request account reactivation for inactive faculty.
+  onRequestReactivation(): void {
+    const userEmail = this.loginForm.get('email')?.value;
+    if (!userEmail) return;
+
+    this.isReactivationLoading = true;
+    this.authService.requestReactivation(userEmail).subscribe({
+      next: () => {
+        this.isReactivationLoading = false;
+        this.isReactivationSent = true;
+        this.snackbar.open(
+          'Reactivation request sent to system administrators.',
+          'Close',
+          { duration: 5000 }
+        );
+      },
+      error: () => {
+        this.isReactivationLoading = false;
+        this.snackbar.open(
+          'Failed to submit reactivation request. Please try again.',
+          'Close',
+          { duration: 5000 }
+        );
+      },
+    });
   }
 
   // Start the IDP login flow.

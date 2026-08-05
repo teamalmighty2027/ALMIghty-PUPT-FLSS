@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\AssignmentTypeController;
+use App\Http\Controllers\SystemNoticeController;
 use App\Http\Controllers\AdminConfigurationController;
 
 /*
@@ -46,6 +47,11 @@ use App\Http\Controllers\AdminConfigurationController;
 Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
+
+Route::post('/faculty/request-reactivation', [
+    FacultyController::class,
+    'requestReactivation'
+]);
 
 Route::middleware([
     'auth:sanctum',
@@ -146,6 +152,30 @@ Route::middleware([
         '/bridging-courses/{id}/combine',
         [BridgingCourseController::class, 'combine']
     );
+
+    /*
+    |----------------------------------
+    | System Notices Management Routes
+    |----------------------------------
+     */
+    Route::prefix('system-notices')->group(function () {
+        Route::get('/', [SystemNoticeController::class, 'index']);
+        Route::post('/', [SystemNoticeController::class, 'store']);
+        Route::get(
+            '/unresolved-count',
+            [SystemNoticeController::class, 'unresolvedCount']
+        );
+        Route::get('/{id}', [SystemNoticeController::class, 'show']);
+        Route::patch(
+            '/{id}/resolve',
+            [SystemNoticeController::class, 'resolve']
+        );
+    });
+
+    Route::post('/faculty/{user}/approve-reactivation', [
+        FacultyController::class,
+        'approveReactivation'
+    ]);
 });
 
 /*
@@ -321,6 +351,7 @@ Route::middleware([
 
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
+
 
     /**
      * Faculty Notification

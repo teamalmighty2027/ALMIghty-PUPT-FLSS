@@ -328,6 +328,21 @@ class AuthController extends Controller
                 ], 401);
             }
 
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "IDP login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'message' => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the system administrator.',
+                    'error'   => true
+                ], 403);
+            }
+
             // Persist the IDP user ID on the faculty record only if it has changed
             if ($user && $user->faculty && $id && strlen($id) <= 36) {
                 if ($user->faculty->idp_user_id !== $id) {
@@ -571,6 +586,22 @@ class AuthController extends Controller
 
             // --- Single role: issue a Sanctum token and return ---
             $user = $users->first();
+
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "OnePortal login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'session'     => false,
+                    'message'     => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the administrator.',
+                    'redirect_to' => '/login',
+                ], 403);
+            }
 
             // Persist IDP user ID on the faculty record if changed
             if (

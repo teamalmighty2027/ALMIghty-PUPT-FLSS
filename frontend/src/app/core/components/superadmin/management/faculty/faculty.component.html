@@ -144,6 +144,36 @@
   </div>
 </ng-template>
 
+<!-- Status Template -->
+<ng-template #statusTemplate let-element>
+  <div class="status-badge-container">
+    <span
+      class="status-badge"
+      [ngClass]="{
+        'status-active': element.status === 'Active',
+        'status-inactive': element.status === 'Inactive',
+        'status-retired': element.status === 'Retired'
+      }"
+    >
+      {{ element.status }}
+    </span>
+    <ng-container *ngIf="element.has_reactivation_request">
+      <span class="reactivation-badge" matTooltip="Reactivation Requested">
+        Pending
+      </span>
+      <button
+        type="button"
+        class="reactivate-btn"
+        (click)="approveReactivation(element); $event.stopPropagation()"
+        matTooltip="Approve Reactivation"
+        matRipple
+      >
+        <span class="material-symbols-rounded">task_alt</span>
+      </button>
+    </ng-container>
+  </div>
+</ng-template>
+
 <!-- Mobile Filter Dialog -->
 <ng-template #mobileFilterTemplate>
   <div class="mobile-filter-panel">

@@ -262,6 +262,14 @@ export class AuthService {
     });
   }
 
+  // Submit account reactivation request for inactive faculty.
+  requestReactivation(email: string): Observable<any> {
+    return this.http.post(
+      `${this.baseUrl}/faculty/request-reactivation`,
+      { email }
+    );
+  }
+
   // ==============================
   // Helper methods
   // ==============================
