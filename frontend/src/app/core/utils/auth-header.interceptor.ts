@@ -5,11 +5,10 @@ import {
   HttpRequest,
 } from '@angular/common/http';
 import { Router } from '@angular/router';
-
 import { catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
-
 import { AuthService } from '../services/auth/auth.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 const REFRESH_PATH = '/auth/refresh';
 
@@ -33,10 +32,13 @@ const buildAuthRequest = (
   return authReq;
 };
 
-// Attach auth headers and handle token refresh for FLSS sessions.
+// Attach auth headers and handle token refresh for sessions.
 export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  
+  // 1. INJECT THE SNACKBAR HERE
+  const snackBar = inject(MatSnackBar);
 
   const token = authService.getToken();
   const isRefreshRequest = req.url.includes(REFRESH_PATH);
@@ -119,21 +121,26 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
         if (error.status === 401) {
           authService.expireSession();
         } 
-        // Handle 422 Validation Errors
+        // 2. USE SNACKBAR FOR VALIDATION ERRORS (422)
         else if (error.status === 422) {
           console.warn('Validation Error:', error.error.errors);
-          // Optional: If you have a toast/snackbar service, call it here
-          alert('Please check your inputs. Some data was invalid.');
+          snackBar.open('Please check your inputs. Some data was invalid.', 'Close', { 
+            duration: 4000 
+          });
         } 
-        // Handle 400 Bad Request
+        // 3. USE SNACKBAR FOR BAD REQUESTS (400)
         else if (error.status === 400) {
           console.error('Bad Request:', error.error.message);
-          alert(error.error.message || 'Invalid request format. Please try again.');
+          snackBar.open(error.error.message || 'Invalid request format. Please try again.', 'Close', { 
+            duration: 4000 
+          });
         } 
-        // Handle 500 Internal Server Error
+        // 4. USE SNACKBAR FOR SERVER ERRORS (500)
         else if (error.status === 500) {
           console.error('Server Error:', error.error.message);
-          alert('A server error occurred. Our team has been notified.');
+          snackBar.open('A server error occurred. Our team has been notified.', 'Close', { 
+            duration: 4000 
+          });
         }
       }
 

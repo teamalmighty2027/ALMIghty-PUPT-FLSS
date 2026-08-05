@@ -1091,6 +1091,12 @@ class ReportsController extends Controller
                 'temporary_course_offerings.temporary_course_offering_id'
             )
             ->leftJoin(
+                'assignment_types',
+                'schedules.assignment_type_id',
+                '=',
+                'assignment_types.id'
+            )
+            ->leftJoin(
                 'bridging_courses',
                 'temporary_course_offerings.bridging_course_id',
                 '=',
