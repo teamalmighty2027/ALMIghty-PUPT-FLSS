@@ -54,10 +54,16 @@ class PreferenceController extends Controller
         $currentDate = Carbon::now();
         $deadline    = $individualDeadline ?? $globalDeadline;
 
-        if ($preferenceSetting->is_enabled == 0 || ($deadline && $currentDate->greaterThan(Carbon::parse($deadline)->endOfDay()))) {
-            return response()->json([
-                'message' => 'Submission is now closed. You cannot submit preferences anymore.',
-            ], 403);
+        // Check if the user is an admin by checking the role directly
+        $isAdmin = $request->user() && $request->user()->role === 'admin';
+
+        // Only block the submission if the user is NOT an admin
+        if (!$isAdmin) {
+            if ($preferenceSetting->is_enabled == 0 || ($deadline && $currentDate->greaterThan(Carbon::parse($deadline)->endOfDay()))) {
+                return response()->json([
+                    'message' => 'Submission is now closed. You cannot submit preferences anymore.',
+                ], 403);
+            }
         }
 
         if (($courseAssignmentId && $temporaryCourseOfferingId) || (! $courseAssignmentId && ! $temporaryCourseOfferingId)) {

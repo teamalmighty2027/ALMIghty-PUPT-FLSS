@@ -24,7 +24,7 @@ return new class extends Migration
         DB::table('faculty_time_plot_configs')->insert([
             [
                 'time_type' => 'night_service',
-                'weekly_hours_cap' => 9,
+                'weekly_hours_cap' => 15,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],

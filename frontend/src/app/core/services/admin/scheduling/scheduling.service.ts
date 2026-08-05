@@ -641,14 +641,27 @@ export class SchedulingService {
             ).pipe(
               map(ml => ({ ...c, ml }))
             );
-          }, 4), // Run up to 4 predictions in parallel
+          }, 1), // Run predictions sequentially to avoid WASM conflicts
+          tap((result: any) => {
+            if (result && result.ml) {
+              console.log(
+                `🤖 ML Candidate: ${result.faculty_name} | ${result.day} ` +
+                `| ${result.start_time} - ${result.end_time} | ` +
+                `Confidence: ${result.ml.confidence.toFixed(4)}`
+              );
+            }
+          }),
           reduce((best: any, current: any) => {
             const currentConfidence = current.ml?.confidence || 0;
             const bestConfidence = best?.ml?.confidence || 0;
             return currentConfidence > bestConfidence ? current : best;
           }, null),
           map(bestMatch => {
-            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+            if (bestMatch && bestMatch.ml!.confidence >= 0.3) {
+              console.log(
+                `✅ ML Suggestion Accepted: ${bestMatch.faculty_name} ` +
+                `with confidence ${bestMatch.ml!.confidence.toFixed(4)}`
+              );
               return {
                 faculty_id: bestMatch.faculty_id,
                 faculty_name: bestMatch.faculty_name,
@@ -659,6 +672,19 @@ export class SchedulingService {
                 isMl: true,
                 success: true
               } as SmartSuggestion;
+            }
+
+            if (bestMatch) {
+              console.log(
+                `⚠️ ML Match Rejected (Confidence ` +
+                `${bestMatch.ml!.confidence.toFixed(4)} < 0.3). ` +
+                `Falling back to heuristics.`
+              );
+            } else {
+              console.log(
+                `⚠️ No ML candidates found for this course. ` +
+                `Falling back to heuristics.`
+              );
             }
 
             return null;

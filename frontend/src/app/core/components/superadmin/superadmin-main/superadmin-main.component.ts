@@ -3,8 +3,8 @@ import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
 
-import { Observable } from 'rxjs';
-import { map, shareReplay, filter } from 'rxjs/operators';
+import { Observable, Subject } from 'rxjs';
+import { map, shareReplay, filter, takeUntil } from 'rxjs/operators';
 
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -44,6 +44,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   @ViewChild('drawer') drawer!: MatSidenav;
 
   private breakpointObserver = inject(BreakpointObserver);
+  private destroy$ = new Subject<void>();
   private documentClickListener!: () => void;
   public showSidenav = false;
   public isDropdownOpen = false;
@@ -59,6 +60,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     rooms: 'Rooms',
     'manage-admin': 'Manage Admin',
     'manage-faculty': 'Manage Faculty',
+    'academic-ranks': 'Academic Ranks',
   };
 
   isHandset$: Observable<boolean> = this.breakpointObserver
@@ -98,6 +100,20 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
       )
       .subscribe(() => this.setPageTitle());
 
+    // Close sidebar on mobile after navigation
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.isHandset$.pipe(takeUntil(this.destroy$)).subscribe(isHandset => {
+          if (isHandset && this.drawer?.opened) {
+            this.drawer.close();
+          }
+        }).unsubscribe();
+      });
+
     this.setPageTitle();
   }
 
@@ -106,6 +122,8 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
     this.removeDocumentClickListener();
   }
 

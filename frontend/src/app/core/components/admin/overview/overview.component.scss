@@ -476,6 +476,14 @@
           box-shadow: var(--shadow-level-0);
           flex-shrink: 0;
 
+          .request-content {
+            @include mixins.flex-layout(
+              $direction: column,
+              $align: stretch,
+              $gap: var(--spacing-xs)
+            );
+          }
+
           .faculty-name {
             font-weight: 500;
             color: var(--neutral-base);
@@ -561,6 +569,25 @@
     .main-cluster-two {
       height: auto;
       min-height: 0;
+      flex: none;
+    }
+
+    // Kill the fixed height on requests content once stacked
+    .main-cluster-two .requests {
+      height: auto;
+      flex: none;
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow-y: visible;
+        }
+      }
     }
   }
 }
@@ -577,6 +604,15 @@
 }
 
 @media screen and (max-width: bp.$breakpoint-md) {
+  // Break the height: 100% / height: inherit chain on mobile
+  .overview-container {
+    height: auto;
+  }
+
+  .overview-main-container {
+    height: auto;
+  }
+
   .overview-main-container .main-cluster-one {
     @include mixins.flex-layout(
       $direction: column,
@@ -601,32 +637,114 @@
         $align: stretch,
         $gap: var(--spacing-md)
       );
-    }
-  }
 
-  .overview-main-container .main-cluster-two {
-    .requests {
-      margin-bottom: var(--spacing-md);
-    }
-  }
-}
+      /* Shrink progress circles on mobile */
+      .academic-overview .overview-group .overview-item .progress-container {
+        width: 9vh;
+        height: 9vh;
+      }
 
-@media screen and (max-width: bp.$breakpoint-sm) {
-  .overview-main-container .main-cluster-one {
-    .academic-and-action {
-      .academic-overview .overview-group {
-        @include mixins.flex-layout(
-          $direction: column,
-          $align: stretch,
-          $gap: var(--spacing-sm)
-        );
+      /* Action center: release fixed heights on mobile, keep 2x2 grid */
+      .action-center {
+        height: auto;
+        flex: none;
+
+        .action-items {
+          height: auto;
+          flex: none;
+
+          .item-group {
+            flex: none;
+            height: auto;
+
+            &.one,
+            &.two {
+              height: auto;
+            }
+          }
+        }
       }
     }
   }
 
   .overview-main-container .main-cluster-two {
     .requests {
+      height: auto;
+      flex: none;
       margin-bottom: var(--spacing-md);
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow-y: visible;
+        }
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .overview-main-container .main-cluster-two {
+    .requests {
+      margin-bottom: var(--spacing-md);
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow: visible;
+        }
+      }
+    }
+  }
+}
+
+// Touch devices: :hover doesn't fire reliably, use :active for gradient effect
+@media (hover: none) and (pointer: coarse) {
+  .overview-main-container .main-cluster-one .academic-and-action .action-center {
+    .action-items .item-group .item {
+      &:active {
+        transform: scale(0.98);
+
+        &::before {
+          opacity: 1;
+        }
+
+        span[mat-symbol] {
+          background: none;
+          -webkit-text-fill-color: white;
+        }
+
+        .desc {
+          color: white;
+        }
+      }
+
+      &.disabled-action:active {
+        transform: none;
+
+        &::before {
+          opacity: 0.2;
+        }
+
+        span[mat-symbol] {
+          background: inherit;
+          -webkit-text-fill-color: inherit;
+        }
+
+        .desc {
+          color: inherit;
+        }
+      }
     }
   }
 }

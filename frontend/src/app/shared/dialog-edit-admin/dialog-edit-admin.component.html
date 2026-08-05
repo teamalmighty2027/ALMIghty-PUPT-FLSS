@@ -1,0 +1,69 @@
+<div class="dialog-edit-admin" role="dialog" aria-labelledby="editAdminTitle" aria-describedby="editAdminDescription">
+  <div class="accent-bar"></div>
+
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path>
+        <circle cx="10" cy="7" r="4"></circle>
+        <path d="M20 8v6"></path>
+        <path d="M23 11h-6"></path>
+      </svg>
+    </div>
+
+    <div class="code-panel">
+      <span class="code-label">Admin Code</span>
+      <div class="code-pill">{{ data.admin.code }}</div>
+    </div>
+  </div>
+
+  <div class="section-title" id="editAdminTitle">Edit Admin Details</div>
+  <p class="section-description" id="editAdminDescription">Update the profile information for this administrator.</p>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="admin-form">
+    <div class="form-grid">
+      <div class="form-field full-width">
+        <label for="code">Admin Code</label>
+        <input id="code" formControlName="code" type="text" placeholder="ADM001TG2024" />
+      </div>
+
+      <div class="form-field">
+        <label for="last_name">Last Name</label>
+        <input id="last_name" formControlName="last_name" type="text" placeholder="Ferrer" />
+      </div>
+
+      <div class="form-field">
+        <label for="first_name">First Name</label>
+        <input id="first_name" formControlName="first_name" type="text" placeholder="Marissa" />
+      </div>
+
+      <div class="form-field">
+        <label for="middle_name">Middle Name</label>
+        <input id="middle_name" formControlName="middle_name" type="text" placeholder="B." />
+      </div>
+
+      <div class="form-field">
+        <label for="suffix_name">Suffix</label>
+        <input id="suffix_name" formControlName="suffix_name" type="text" placeholder="" />
+      </div>
+
+      <div class="form-field full-width">
+        <label for="email">Email</label>
+        <input id="email" formControlName="email" type="email" placeholder="marissa.ferrer@example.com" />
+      </div>
+
+      <div class="form-field full-width">
+        <label for="status">Status</label>
+        <select id="status" formControlName="status">
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="cancel-btn" (click)="onCancel()">Cancel</button>
+      <button type="submit" class="update-btn">Update Admin</button>
+    </div>
+  </form>
+</div>

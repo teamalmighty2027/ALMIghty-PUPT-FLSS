@@ -100,28 +100,19 @@
             <span
               [matTooltip]="
                 element.is_enabled || isToggleAllChecked
-                  ? 'Preferences submission is open; viewing disabled'
-                  : !hasSubmittedPreferences(element)
-                  ? 'No preferences submitted yet'
-                  : ''
+                  ? 'Preferences submission is open; editing disabled'
+                  : 'Modify or view preferences for this faculty'
               ">
               <button
                 mat-button
                 class="view-button sec-ripple"
                 (click)="onView(element)"
-                [disabled]="
-                  element.is_enabled ||
-                  isToggleAllChecked ||
-                  !hasSubmittedPreferences(element)
-                "
+                [disabled]="element.is_enabled || isToggleAllChecked"
                 [ngClass]="{
-                  'disabled-button':
-                    element.is_enabled ||
-                    isToggleAllChecked ||
-                    !hasSubmittedPreferences(element)
+                  'disabled-button': element.is_enabled || isToggleAllChecked
                 }">
-                <mat-icon>visibility</mat-icon>
-                <span>View Preferences</span>
+                <mat-icon>{{ hasSubmittedPreferences(element) ? 'visibility' : 'edit_square' }}</mat-icon>
+                <span>{{ hasSubmittedPreferences(element) ? 'View Preferences' : 'Set Preferences' }}</span>
               </button>
             </span>
 

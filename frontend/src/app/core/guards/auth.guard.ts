@@ -15,21 +15,28 @@ export class AuthGuard implements CanActivate {
     private permissionService: PermissionService,
   ) {}
 
+  // Validate authentication, token expiration, and role permissions.
   canActivate(
     next: ActivatedRouteSnapshot,
     state: RouterStateSnapshot
   ): boolean | UrlTree {
+    const isLogin = this.isLoginRoute(next);
     const isAuthenticated = this.authService.isAuthenticated();
+    const isExpired = this.authService.isTokenExpired();
+
+    if (!isAuthenticated || isExpired) {
+      if (isAuthenticated && isExpired) {
+        this.authService.expireSession();
+      }
+
+      return isLogin ? true : this.router.createUrlTree(['/login']);
+    }
+
     const userRole = this.authService.getUserRole() || '';
     const expectedRole = next.data['role'] as string;
-    const requiredPermission = next.data['requirePermission'] as string | string[] | undefined;
+    const requiredPermission = next.data['requirePermission'] as
+      string | string[] | undefined;
     const userRoles = this.authService.getUserRoles();
-
-    if (!isAuthenticated) {
-      return this.isLoginRoute(next)
-        ? true
-        : this.router.createUrlTree(['/login']);
-    }
 
     if (
       expectedRole &&
@@ -42,13 +49,15 @@ export class AuthGuard implements CanActivate {
     if (
       requiredPermission &&
       !this.permissionService.hasAnyPermission(
-        Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission]
+        Array.isArray(requiredPermission)
+          ? requiredPermission
+          : [requiredPermission]
       )
     ) {
       return this.router.createUrlTree(['/forbidden']);
     }
 
-    return this.isLoginRoute(next)
+    return isLogin
       ? this.roleService.getHomeUrlForRole(userRole)
       : true;
   }

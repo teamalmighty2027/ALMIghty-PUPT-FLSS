@@ -980,7 +980,6 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       fType.includes('full time');
 
     if (isEligibleForOfficialTimeReport) {
-      doc.addPage();
       this.drawReportOnOfficialTime(doc, faculty, dynamicDailyHours);
     }
   }
@@ -1078,7 +1077,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     ];
 
     const subHeaderRow: any[] = [
-      { content: 'Administrative Time', styles: { halign: 'center' as const } },
+      { content: 'Official Time', styles: { halign: 'center' as const } },
       { content: 'Teaching Time', styles: { halign: 'center' as const } },
       { content: 'No.\nof\nHrs.', styles: { halign: 'center' as const, cellWidth: 10 } }
     ];
@@ -1098,7 +1097,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     const grandOtherHrs: Record<string, number> = {};
     activeOtherTypes.forEach(t => grandOtherHrs[t] = 0);
 
-    // HELPER: Grabs both 'official_time' and 'advising_time' for the Administrative Time column
+    // HELPER: Grabs both 'official_time' and 'advising_time' for the Official Time column
     const getAdminDisplay = (dayName: string) => {
        if (!faculty.time_plots) return { timeStr: '', hrs: 0 };
        const plots = faculty.time_plots.filter((p: any) => 
@@ -1137,7 +1136,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     days.forEach(day => {
       const rowData: string[] = [day];
 
-      // 1. Administrative Time string (Groups both official_time and advising_time)
+      // 1. Official Time string (Groups both official_time and advising_time)
       const adminData = getAdminDisplay(day);
       
       // 2. Teaching Time string (from regular schedules)

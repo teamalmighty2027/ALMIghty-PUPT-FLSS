@@ -883,37 +883,26 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         const isTopRow = index === 0;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        // Draw horizontal line for every 30-minute slot except the very top edge
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
-      });
-
-      // Draw the last time label at finalY
-      const finalY = currentY + chunkSlots.length * rowHeight;
-      const lastSlot = chunkSlots[chunkSlots.length - 1];
-      if (lastSlot) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        doc.setFontSize(9);
+        
+        // Print the time label for every 30-minute slot
+        doc.setFontSize(8); // Optional: reduced from 9 to 8 to prevent cramping
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
-        doc.text(lastSlot.time, margin + timeColWidth / 2, finalY - rowHeight + 5, { align: 'center' });
-      } else {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-      }
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+      });
+
+      // Draw the bottom border line of the chunk
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
 
       // Vertical grid lines
       doc.line(margin, currentY, margin, finalY);

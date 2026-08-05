@@ -1,1 +1,27 @@
-<p>dialog-confirm-delete works!</p>
+<div class="dialog-confirm-delete" role="alertdialog" aria-labelledby="confirmDeleteTitle" aria-describedby="confirmDeleteMessage">
+  <div class="accent-bar"></div>
+
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true">
+      <!-- Trash / Warning icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+        <path d="M10 11v6"></path>
+        <path d="M14 11v6"></path>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+      </svg>
+    </div>
+    <div class="header-copy">
+      <h2 class="dialog-title" id="confirmDeleteTitle">Confirm Deletion</h2>
+      <p class="dialog-subtitle">This action cannot be undone.</p>
+    </div>
+  </div>
+
+  <p class="confirm-message" id="confirmDeleteMessage">{{ data.message }}</p>
+
+  <div class="dialog-actions">
+    <button type="button" class="cancel-btn" (click)="onDismiss()">Cancel</button>
+    <button type="button" class="delete-btn" (click)="onConfirm()">Delete</button>
+  </div>
+</div>

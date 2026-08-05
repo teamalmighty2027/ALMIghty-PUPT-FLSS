@@ -8,7 +8,12 @@
     $gap: var(--spacing-md)
   );
   padding: var(--spacing-lg);
+  height: 90vh;
   max-height: 90vh;
+  width: 100%;
+  min-width: 85vw; /* Forces dialog to open wide for dual-panel */
+  box-sizing: border-box; /* Fixes background scrolling */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -31,6 +36,16 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  position: relative; 
+
+  > .preferences-row-two,
+  > .dialog-pref-table-container,
+  > .dialog-pref-pdf-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .dialog-pref-history-container {
@@ -47,7 +62,6 @@
     margin-bottom: var(--spacing-sm);
   }
 
-  /* make form controls stack as rows and fit container */
   form {
     display: flex;
     flex-direction: row;
@@ -97,7 +111,6 @@
         color: white;
         font-weight: 500;
         text-align: center;
-
         position: sticky;
         top: 0;
         z-index: 2;
@@ -190,7 +203,6 @@
   padding-top: var(--spacing-md);
   flex-shrink: 0;
 
-  // Close sits on the left — matches rescheduling cancel/close position
   button:first-child {
     margin-right: auto;
     color: var(--primary-text);
@@ -225,4 +237,270 @@
   margin-left: 6px;
   display: inline-block;
   vertical-align: middle;
+}
+
+/* ========================================================
+   SET PREFERENCES VIEW STYLES
+   ======================================================== */
+.preferences-row-two {
+  display: flex;
+  flex-direction: row; /* Strict row layout */
+  gap: var(--spacing-lg);
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  .temp-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xxs);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--primary-text);
+    background-color: var(--primary-fade);
+    white-space: nowrap;
+  }
+
+  #courses_container,
+  #table_container {
+    border-radius: var(--border-radius-md);
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* Courses Picker Container */
+  #courses_container {
+    flex: 2;
+    min-width: 320px; /* Prevents squishing */
+    display: flex;
+    flex-direction: column;
+    font-weight: 500;
+    overflow: hidden; 
+
+    #courses_search {
+      @include mixins.flex-layout($gap: var(--spacing-sm), $align: center);
+      flex-wrap: wrap;
+      row-gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-sm);
+      flex-shrink: 0; 
+      
+      .custom-mat-search {
+        flex: 1;
+        min-width: 250px;
+
+        ::ng-deep {
+          .mat-mdc-text-field-wrapper {
+            border-radius: var(--border-radius-md) !important;
+            .mat-mdc-form-field-flex {
+              height: 3.5rem;
+              align-items: center;
+            }
+          }
+          .mat-mdc-form-field-infix {
+            padding-top: 1.2rem !important;
+            padding-bottom: 0.3rem !important;
+            display: flex !important;
+            align-items: center !important;
+          }
+          .mdc-floating-label {
+            top: 1.5rem !important;
+            &.mdc-floating-label--float-above {
+              top: 0.8rem !important;
+            }
+          }
+        }
+      }
+    }
+
+    #courses_list,
+    #programs_list,
+    #search_results,
+    #empty-results {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0; /* CRITICAL: Enables scrolling for inner lists */
+      overflow: hidden;
+
+      .cards-label {
+        @include mixins.flex-layout($justify: flex-start, $gap: var(--spacing-sm), $align: center);
+        font-weight: 500;
+        margin-bottom: 1rem;
+        flex-shrink: 0;
+
+        .arrow_back {
+          cursor: pointer;
+          border-radius: 100%;
+          padding: 4px;
+          &:hover { background-color: var(--neutral-bar); }
+        }
+      }
+    }
+
+    #empty-results {
+      align-items: center;
+      justify-content: center;
+      font-size: var(--font-size-md);
+      text-align: center;
+      gap: var(--spacing-md);
+      opacity: var(--opacity-semi-opaque);
+      span[mat-symbol] { font-size: var(--font-size-3xl); }
+    }
+
+    .courses-scroll-container,
+    .programs-scroll-container {
+      @include mixins.custom-scrollbar;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0; 
+      padding-right: var(--spacing-xs);
+
+      .year-level-group {
+        margin-bottom: var(--spacing-md);
+        &:last-child { margin-bottom: 0; }
+      }
+    }
+
+    .course-card,
+    .program-card {
+      @include mixins.default-transition;
+      @include mixins.gradient-soft-secondary(30deg);
+      @include mixins.flex-layout($justify: space-between);
+      padding: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease;
+
+      &:hover { opacity: var(--opacity-semi-opaque); }
+      &:active { transform: scale(0.96); }
+
+      .course-info,
+      .program-info {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-xxs);
+      }
+      .course-meta {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xxs);
+        flex-wrap: wrap;
+      }
+      .course-code,
+      .program-code {
+        @include mixins.default-transition;
+        font-weight: 600;
+        font-size: var(--font-size-md);
+        color: var(--neutral-base);
+      }
+      .course-title,
+      .program-title {
+        font-weight: 400;
+        font-size: var(--font-size-md);
+      }
+      .add-button {
+        @include mixins.flex-layout;
+        color: var(--neutral-base);
+      }
+    }
+  }
+
+  /* Admin Active Selections Table */
+  #table_container {
+    @include mixins.default-transition;
+    @include mixins.hide-scrollbar;
+    display: flex;
+    flex-direction: column;
+    flex: 3; 
+    min-width: 500px; /* Protects table width */
+    min-height: 0;
+    overflow: auto;
+    background-color: var(--neutral-light);
+
+    .table-main {
+      @include mixins.default-transition;
+      width: 100%;
+      background-color: var(--neutral-light);
+      table-layout: auto;
+    }
+    .table-header {
+      @include mixins.sticky;
+      color: white;
+      text-align: center;
+      background-color: var(--primary-one);
+    }
+    .table-cell {
+      @include mixins.default-transition;
+      padding: var(--spacing-sm);
+      text-wrap: wrap;
+      text-align: center;
+      background-color: var(--neutral-light);
+
+      .day-time-button-container {
+        @include mixins.flex-layout;
+        .day-time-button {
+          color: var(--primary-text);
+          transition: opacity 0.3s ease;
+          cursor: pointer;
+          white-space: pre-line;
+          text-align: left;
+          line-height: 1.5;
+          &:hover { opacity: var(--opacity-semi-opaque); }
+        }
+        .display-day-time { text-align: justify; }
+      }
+      &.title-cell { width: 12rem; }
+      &.day-time-cell {
+        min-width: 9rem;
+        text-align: left;
+        padding: var(--spacing-sm) var(--spacing-md);
+      }
+      .remove-button {
+        @include mixins.flex-layout;
+        span[mat-symbol] {
+          font-size: var(--font-size-lg);
+          color: var(--primary-text);
+          @include mixins.flex-layout;
+        }
+      }
+    }
+    .no-data-text {
+      @include mixins.default-transition;
+      @include mixins.flex-layout($gap: var(--spacing-xs));
+      width: 100%;
+      text-align: center;
+      background-color: var(--neutral-light);
+      font-size: var(--font-size-md);
+      padding: var(--spacing-lg) 0;
+      span { opacity: var(--opacity-semi-opaque); }
+      span[mat-symbol] { font-size: 100%; }
+    }
+  }
+}
+
+.auto-save-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  background-color: rgba(25, 118, 210, 0.05);
+  border-left: 4px solid var(--primary-one);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
+  border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
+  
+  .info-icon {
+    color: var(--primary-one);
+    margin-top: 2px;
+  }
+  .note-content {
+    font-size: var(--font-size-sm);
+    color: var(--primary-text);
+    line-height: var(--line-height-md);
+  }
 }

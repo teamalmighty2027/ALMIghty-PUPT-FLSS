@@ -2,7 +2,7 @@
 
   <!-- ═══════════════════════════════════════════════
        LEFT PANEL — Faculty Preferences, AI Suggestions,
-       and Course History
+       and Current Assignment
        ═══════════════════════════════════════════════ -->
   <section class="section suggested-faculty">
 
@@ -142,25 +142,25 @@
       </div>
 
       <!-- ════════════════════════════════════════
-           COURSE HISTORY — Faculty who previously
-           handled this course
+           CURRENT ASSIGNMENT — Faculty currently
+           assigned to this course slot
            ════════════════════════════════════════ -->
-      <div class="course-history-block">
-        <div class="course-history-header">
-          <span mat-symbol="history_edu" class="history-header-icon"></span>
-          <span class="history-header-label">Course History</span>
-          <span class="history-header-sublabel">Faculty who previously handled this course</span>
+      <div class="current-assignment-block">
+        <div class="current-assignment-header">
+          <span mat-symbol="assignment" class="assignment-header-icon"></span>
+          <span class="assignment-header-label">Current Assignment</span>
+          <span class="assignment-header-sublabel">Faculty currently assigned to this course slot</span>
         </div>
 
         @if (data.existingSchedule?.professor && data.existingSchedule?.professor !== 'Not set') {
           <div
-            class="faculty-card history-card"
-            (click)="selectHistoryEntry()"
-            [class.selected-history]="historyCardSelected"
+            class="faculty-card assignment-card"
+            (click)="selectCurrentAssignment()"
+            [class.selected-assignment]="currentAssignmentSelected"
             matRipple
           >
             <div class="card-row-top">
-              <span class="faculty-type history-type">Previous</span>
+              <span class="faculty-type assignment-type">Current</span>
             </div>
             <div class="faculty-name">{{ data.existingSchedule?.professor }}</div>
             <div class="faculty-pref">
@@ -172,11 +172,11 @@
             </div>
           </div>
         } @else {
-          <p class="empty-state-text">No course history available for this slot.</p>
+          <p class="empty-state-text">No current assignment configured for this slot.</p>
         }
       </div>
 
-      <!-- COURSE HISTORY — end marker -->
+      <!-- CURRENT ASSIGNMENT — end marker -->
       <div class="formal-end-marker">
         <div class="end-marker-line"></div>
         <span class="end-marker-text">— Nothing Follows —</span>

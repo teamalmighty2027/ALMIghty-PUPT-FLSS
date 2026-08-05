@@ -1,38 +1,56 @@
-<div class="mat-dialog-container">
-  <!--Dialog Title-->
-  <h1 mat-dialog-title class="custom-dialog-title">{{ data.title }}</h1>
+<div class="dialog-generic-container" role="dialog" aria-labelledby="genericDialogTitle" aria-describedby="genericDialogContent">
+  <div class="accent-bar"></div>
 
-  <!--Dialog Content-->
-  <div mat-dialog-content class="custom-dialog-content dialog-content">
-    <p>{{ data.content }}</p>
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true">
+      @if (data.title.toLowerCase().includes('log out') || data.title.toLowerCase().includes('logout') || data.title.toLowerCase().includes('sign out')) {
+        <!-- Logout icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      } @else {
+        <!-- Generic info / alert icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      }
+    </div>
+    <div class="header-copy">
+      <h2 class="dialog-title" id="genericDialogTitle">{{ data.title }}</h2>
+    </div>
+  </div>
 
-    <!-- OPTIONAL: Show Progress Bar -->
-    @if (data.showProgressBar) {
+  <p class="dialog-content" id="genericDialogContent">{{ data.content }}</p>
+
+  @if (data.showProgressBar) {
     <app-loading [showLoadingText]="false"></app-loading>
-    }
-  </div>
+  }
 
-  <!-- OPTIONAL: Show buttons ONLY if actionText or cancelText is provided -->
   @if (data.actionText || data.cancelText) {
-  <div mat-dialog-actions class="custom-dialog-buttons">
-    @if (data.cancelText) {
-    <button mat-button (click)="onNoClick()" class="dialog-cancel">
-      {{ data.cancelText }}
-    </button>
-    } @if (data.actionText) {
-    <button
-      mat-button
-      (click)="onActionClick(data.action)"
-      class="dialog-action"
-      [ngStyle]="{
-        color: data.actionTextColor,
-        'background-color': data.actionBgColor
-      }"
-      cdkFocusInitial
-    >
-      {{ data.actionText }}
-    </button>
-    }
-  </div>
+    <div class="dialog-actions">
+      @if (data.cancelText) {
+        <button type="button" class="cancel-btn" (click)="onNoClick()">
+          {{ data.cancelText }}
+        </button>
+      }
+      @if (data.actionText) {
+        <button
+          type="button"
+          class="action-btn"
+          (click)="onActionClick(data.action)"
+          [ngStyle]="{
+            color: data.actionTextColor,
+            'background-color': data.actionBgColor
+          }"
+          cdkFocusInitial
+        >
+          {{ data.actionText }}
+        </button>
+      }
+    </div>
   }
 </div>

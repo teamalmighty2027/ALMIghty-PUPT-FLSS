@@ -79,17 +79,30 @@ $day-colors: (
         padding: var(--spacing-xs);
         border-right: 1px solid var(--neutral-fade);
         border-bottom: 1px solid var(--neutral-fade);
+        font-weight: 400;
       }
     }
 
     .schedule-timeline-table-body {
+      tr:nth-child(even) {
+        td {
+          background-color: #f7f7f7;
+        }
+      }
+
+      tr:nth-child(odd) {
+        td {
+          background-color: #ffffff;
+        }
+      }
+
       td {
         padding: 0;
         border-bottom: 1px solid var(--neutral-fade);
         border-right: 1px solid var(--neutral-fade);
         min-width: 5rem;
         max-width: 5rem;
-        height: 1.5rem;
+        height: 1.75rem;
         position: relative;
       }
 
@@ -99,11 +112,12 @@ $day-colors: (
 
       .time-slot {
         @include mixins.default-transition;
-        font-weight: 500;
+        font-weight: 400;
         border-right: 1px solid var(--neutral-fade);
         background-color: var(--neutral-space);
         z-index: 1;
-        padding: var(--spacing-xxxs);
+        padding: 6px var(--spacing-xxxs);
+        font-size: 0.85rem;
       }
 
       .schedule-cell {
@@ -119,41 +133,52 @@ $day-colors: (
           }
 
           .schedule-content {
-            @include mixins.hide-scrollbar;
-            @include mixins.flex-layout(
-              $direction: column,
-              $align: center,
-              $justify: flex-start,
-              $gap: var(--spacing-xs)
-            );
-
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             z-index: 1;
             height: 100%;
-            overflow-y: auto;
+            overflow: hidden; // Absolute boundary: Nothing spills outside the block
+            
+            // Flex layout to separate scrollable text and fixed time
+            display: flex;
+            flex-direction: column;
+            font-size: 0.75rem;
+            line-height: 1.25;
 
-            white-space: pre-wrap;
-            word-break: break-word;
-            font-size: var(--font-size-sm);
-            padding: var(--spacing-xs);
-
-            padding-bottom: var(--spacing-sm);
-
-            // Make content container take full width
-            > div {
+            // 1. Handles text overflow gracefully
+            .info-wrapper {
+              @include mixins.hide-scrollbar;
+              flex: 1 1 auto;
+              overflow-y: auto; // Allows scrolling INSIDE the block if it's too small
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              gap: 2px;
+              padding: 4px;
               width: 100%;
-              text-align: center;
-              min-height: fit-content;
+
+              > div {
+                width: 100%;
+                text-align: center;
+              }
+            }
+
+            // 2. Truncate long course names
+            .course {
+              display: -webkit-box;
+              -webkit-line-clamp: 3;
+              line-clamp: 3;
+              -webkit-box-orient: vertical;
+              overflow: hidden;
+              text-overflow: ellipsis;
             }
 
             .course-text {
               font-weight: 600;
             }
 
-            // Step 5: Combined label styles for overlapping schedules.
             .combined-label {
               display: inline-block;
               background-color: var(--secondary-hover);
@@ -177,14 +202,41 @@ $day-colors: (
               display: inline-block;
             }
 
+            // 3. Pins time securely to the bottom without overlap
             .time {
-              position: sticky;
-              bottom: 0;
-              margin-top: auto;
-              width: fit-content;
-              margin-left: auto;
-              margin-right: auto;
+              flex: 0 0 auto;
+              margin: 2px auto 4px auto;
+              width: max-content;
+              max-width: 95%;
+              text-align: center;
+              font-size: 0.7rem;
+              white-space: nowrap;
               z-index: 2;
+            }
+
+            &.compact {
+              .info-wrapper {
+                overflow: hidden; // no scroll ambiguity, deterministic truncation
+                gap: 0;
+                padding: 2px;
+              }
+
+              .course {
+                -webkit-line-clamp: 2; // code + title share 2 lines max, never 4+
+                line-clamp: 2;
+                font-size: 0.68rem;
+              }
+
+              // Hide secondary info (program/room) on short blocks so the
+              // course name always has room to render fully
+              .info-wrapper > div:not(.course) {
+                display: none;
+              }
+
+              .time {
+                font-size: 0.65rem;
+                margin: 1px auto 2px auto;
+              }
             }
           }
         }
@@ -199,5 +251,20 @@ $day-colors: (
         }
       }
     }
+  }
+
+  // Forces the block to strictly cut off any text that doesn't fit
+  .schedule-content {
+    overflow: hidden !important;
+  }
+
+  // Styles the Material Tooltip to allow multi-line text
+  ::ng-deep .schedule-block-tooltip {
+    white-space: pre-line !important;
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+    padding: 12px 16px !important;
+    background-color: rgba(50, 50, 50, 0.95) !important;
+    border-radius: 6px !important;
   }
 }

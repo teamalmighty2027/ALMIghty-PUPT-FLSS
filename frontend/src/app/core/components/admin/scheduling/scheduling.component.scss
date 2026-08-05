@@ -335,6 +335,37 @@
   }
 }
 
+@media (max-width: 768px) {
+  .draft-toggle-container {
+    width: 100%;
+    padding: var(--spacing-xs) 0 0;
+    justify-content: stretch;
+    gap: var(--spacing-xs);
+
+    .draft-mode-btn,
+    .course-centric-btn {
+      flex: 1 1 calc(50% - var(--spacing-xs) / 2);
+      min-width: 0;
+      max-width: none;
+      width: 100%;
+      height: 44px;
+      border-radius: 12px;
+      padding: 0 var(--spacing-sm);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      justify-content: center;
+      line-height: 1;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        margin-right: var(--spacing-xs);
+      }
+    }
+  }
+}
+
 .draft-toolbar {
   @include mixins.flex-layout($justify: space-between, $align: center, $gap: var(--spacing-md));
   flex-wrap: wrap;

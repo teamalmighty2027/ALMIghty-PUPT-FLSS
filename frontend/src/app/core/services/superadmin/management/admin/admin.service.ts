@@ -30,6 +30,19 @@ export interface User {
   fullName: string;
 }
 
+export interface AcademicRank {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Department {
+  program_id: number;
+  program_code: string;
+  program_title: string;
+  status: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -63,6 +76,44 @@ export class AdminService {
         updatedAdmin
       )
       .pipe(map((response) => response.admin));
+  }
+
+  // ==========================================
+  // CONFIGURATION: ACADEMIC RANKS
+  // ==========================================
+  getAcademicRanks(): Observable<AcademicRank[]> {
+    return this.http.get<AcademicRank[]>(`${this.baseUrl}/admin/config/academic-ranks`);
+  }
+
+  addAcademicRank(name: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/admin/config/academic-ranks`, { name });
+  }
+
+  updateAcademicRank(id: number, name: string, is_active: boolean): Observable<any> {
+    return this.http.put(`${this.baseUrl}/admin/config/academic-ranks/${id}`, { name, is_active });
+  }
+
+  deleteAcademicRank(id: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/admin/config/academic-ranks/${id}`);
+  }
+
+  // ==========================================
+  // CONFIGURATION: DEPARTMENTS (PROGRAMS)
+  // ==========================================
+  getDepartments(): Observable<Department[]> {
+    return this.http.get<Department[]>(`${this.baseUrl}/admin/config/departments`);
+  }
+
+  addDepartment(program_code: string, program_title: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/admin/config/departments`, { program_code, program_title });
+  }
+
+  updateDepartment(id: number, program_code: string, program_title: string): Observable<any> {
+    return this.http.put(`${this.baseUrl}/admin/config/departments/${id}`, { program_code, program_title });
+  }
+
+  deleteDepartment(id: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/admin/config/departments/${id}`);
   }
 
   // Generate next admin code

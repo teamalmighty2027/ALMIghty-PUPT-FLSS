@@ -145,7 +145,7 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
   rawProgramOptions: ProgramOption[] = [];
 
   selectedCourseCode = 'All';
-  selectedProgramId: number | null = null;
+  selectedProgramId: number | string = 'All';
 
   isDraftMode = false;
   isHistoricalLoading = false;
@@ -556,9 +556,10 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
     this.filteredGroups = groups.map((g) => {
       let offerings = g.offerings;
 
-      if (this.selectedProgramId !== null) {
+      if (this.selectedProgramId !== 'All') {
+        const progId = Number(this.selectedProgramId);
         offerings = offerings.filter(
-          (o) => o.program_id === this.selectedProgramId
+          (o) => o.program_id === progId
         );
       }
 

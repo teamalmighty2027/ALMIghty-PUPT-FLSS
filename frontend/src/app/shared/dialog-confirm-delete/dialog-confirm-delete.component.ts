@@ -7,16 +7,8 @@ import { MatButtonModule } from '@angular/material/button';
   selector: 'app-dialog-confirm-delete',
   standalone: true,
   imports: [CommonModule, MatDialogModule, MatButtonModule],
-  template: `
-    <h2 mat-dialog-title>Confirm Deletion</h2>
-    <mat-dialog-content>
-      <p style="color: #333; margin-top: 10px;">{{ data.message }}</p>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="onDismiss()">Cancel</button>
-      <button mat-flat-button color="warn" (click)="onConfirm()">Delete</button>
-    </mat-dialog-actions>
-  `
+  templateUrl: './dialog-confirm-delete.component.html',
+  styleUrls: ['./dialog-confirm-delete.component.scss'],
 })
 export class DialogConfirmDeleteComponent {
   constructor(

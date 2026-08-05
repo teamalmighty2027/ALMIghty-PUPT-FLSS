@@ -124,7 +124,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   originalDay: string = '';
 
   selectedFaculty: SuggestedFaculty | null = null;
-  historyCardSelected = false;
+  currentAssignmentSelected = false;
 
   hasConflicts = false;
   conflictMessage: string = '';
@@ -766,7 +766,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     preference: Preference
   ): void {
     this.selectedFaculty = faculty;
-    this.historyCardSelected = false;
+    this.currentAssignmentSelected = false;
     const [startTime, endTime] = preference.time
       .split(' - ')
       .map((t) => t.trim());
@@ -783,12 +783,14 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  public selectHistoryEntry(): void {
+
+  // Pre-fills the form with the current schedule slot assignment values.
+  public selectCurrentAssignment(): void {
     const schedule = this.data.existingSchedule;
     if (!schedule || schedule.professor === 'Not set') return;
 
     this.selectedFaculty = null;
-    this.historyCardSelected = true;
+    this.currentAssignmentSelected = true;
 
     // Parse "8:00 AM - 9:00 AM" → startTime / endTime
     const parts = schedule.time?.split(' - ').map((t) => t.trim()) ?? [];
@@ -807,6 +809,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.scheduleForm.markAllAsTouched();
     this.cdr.markForCheck();
   }
+
 
   public showNextFacultyPreference(faculty: SuggestedFaculty): void {
     if (faculty.animating) return;
@@ -852,7 +855,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.selectedDay = '';
     this.originalDay = '';
     this.selectedFaculty = null;
-    this.historyCardSelected = false;
+    this.currentAssignmentSelected = false;
     this.cdr.markForCheck();
   }
 
