@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 interface TimeSlot {
   time: string;
@@ -54,7 +55,7 @@ type Day =
 
 @Component({
   selector: 'app-schedule-timeline',
-  imports: [CommonModule],
+  imports: [CommonModule, MatTooltipModule],
   templateUrl: './schedule-timeline.component.html',
   styleUrls: ['./schedule-timeline.component.scss'],
 })
@@ -122,13 +123,11 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
           const endTime = this.convertTimeToMinutes(schedule.end_time);
           const startSlot = this.findTimeSlotIndex(startTime);
           const duration = Math.ceil((endTime - startTime) / 30);
-          const adjustedDuration =
-            (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
 
           this.scheduleBlocks.push({
             day: schedule.day,
             startSlot: startSlot,
-            duration: adjustedDuration,
+            duration: duration,
             courseCode: schedule.course_details.course_code,
             courseTitle: schedule.course_details.course_title,
             roomCode: schedule.room_code,
@@ -234,8 +233,13 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
 
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
-    return block ? block.duration * 26 - 2 : 0;
+    return block ? block.duration * 28 : 0;
   }
+
+  isCompactBlock(day: string, slotIndex: number): boolean {
+  const block = this.getScheduleBlock(day, slotIndex);
+  return block ? block.duration <= 2 : false; // 1 hour or less
+}
 
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
@@ -307,6 +311,33 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
       }
     }
     return '';
+  }
+
+  getTooltipText(day: string, slotIndex: number): string {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return '';
+
+    if (block.isTimePlot) {
+      return `${block.courseCode}\nTime: ${this.getFormattedTime(day, slotIndex)}`;
+    }
+
+    let tooltip = `${block.courseCode} - ${block.courseTitle}\n`;
+    
+    if (this.entity === 'faculty' || this.entity === 'room') {
+      const programLabel = block.combinedLabel || block.program;
+      tooltip += `Program: ${programLabel} (${block.yearLevel}-${block.section})\n`;
+    }
+    
+    if ((this.entity === 'program' || this.entity === 'room') && block.facultyName) {
+      tooltip += `Faculty: ${block.facultyName}\n`;
+    }
+    
+    if ((this.entity === 'faculty' || this.entity === 'program') && block.roomCode) {
+      tooltip += `Room: ${block.roomCode}\n`;
+    }
+    
+    tooltip += `Time: ${this.getFormattedTime(day, slotIndex)}`;
+    return tooltip;
   }
 
   private getBlockColors(day: Day) {
@@ -385,9 +416,6 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
           );
           const startSlot = this.findTimeSlotIndex(startTime);
           const duration = Math.ceil((endTime - startTime) / 30);
-          const adjustedDuration = (endTime - startTime) % 30 === 0
-            ? duration + 1
-            : duration;
 
           let displayTitle = '';
           if (plot.time_type === 'night_service') {
@@ -401,7 +429,7 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
           this.scheduleBlocks.push({
             day: plot.day,
             startSlot: startSlot,
-            duration: adjustedDuration,
+            duration: duration,
             courseCode: displayTitle.toUpperCase(),
             courseTitle: `${this.formatTimeTo12Hour(plot.start_time)} - ` +
                          `${this.formatTimeTo12Hour(plot.end_time)}`,

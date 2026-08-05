@@ -25,6 +25,7 @@ export interface AdminProfileData {
   province?: string;
   country?: string;
   zipcode?: number;
+  academic_rank?: string
 }
 
 @Injectable({

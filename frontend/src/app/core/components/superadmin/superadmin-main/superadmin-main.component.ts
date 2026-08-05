@@ -69,6 +69,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     'manage-admin': 'Manage Admin',
     'manage-faculty': 'Manage Faculty',
     'system-notices': 'System Notices',
+    'academic-ranks': 'Academic Ranks',
   };
 
 

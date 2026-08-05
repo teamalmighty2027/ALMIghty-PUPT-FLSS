@@ -37,6 +37,7 @@ use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\AssignmentTypeController;
 use App\Http\Controllers\SystemNoticeController;
+use App\Http\Controllers\AdminConfigurationController;
 
 /*
 |----------------------------
@@ -52,7 +53,11 @@ Route::post('/faculty/request-reactivation', [
     'requestReactivation'
 ]);
 
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
@@ -104,8 +109,12 @@ Route::get('/addresses/fallback/{file}', function ($file) {
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
-    ->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'super_admin',
+    'throttle:api',
+])->group(function () {
     Route::get('/showAccounts', [AccountController::class, 'index']);
     Route::post('/addAccount', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
@@ -174,7 +183,11 @@ Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
 | General Protected Routes
 |--------------------------
  */
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
 
     /**
      * Academic Year
@@ -206,6 +219,22 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('/admin/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead']);
     Route::post('/admin/notifications/read-all', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead']);
     Route::delete('/admin/notifications/clear-all', [\App\Http\Controllers\AdminNotificationController::class, 'clearAll']);
+
+    Route::prefix('admin/config')->group(function () {
+        
+        // Academic Ranks Endpoints
+        Route::get('/academic-ranks', [AdminConfigurationController::class, 'getAcademicRanks']);
+        Route::post('/academic-ranks', [AdminConfigurationController::class, 'addAcademicRank']);
+        Route::put('/academic-ranks/{id}', [AdminConfigurationController::class, 'updateAcademicRank']);
+        Route::delete('/academic-ranks/{id}', [AdminConfigurationController::class, 'deleteAcademicRank']);
+
+        // Departments Endpoints
+        Route::get('/departments', [AdminConfigurationController::class, 'getDepartments']);
+        Route::post('/departments', [AdminConfigurationController::class, 'addDepartment']);
+        Route::put('/departments/{id}', [AdminConfigurationController::class, 'updateDepartment']);
+        Route::delete('/departments/{id}', [AdminConfigurationController::class, 'deleteDepartment']);
+        
+    });
 
     /**
      * Buildings

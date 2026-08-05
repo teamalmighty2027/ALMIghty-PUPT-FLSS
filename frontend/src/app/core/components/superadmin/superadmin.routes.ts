@@ -62,6 +62,14 @@ export const SUPERADMIN_ROUTES: Routes = [
         data: { pageTitle: 'Programs' },
       },
       {
+        path: 'academic-ranks',
+        loadComponent: () =>
+          import('../../../pages/superadmin/maintenance/academic-ranks/academic-ranks.component').then(
+            (m) => m.AcademicRanksComponent,
+          ),
+        data: { pageTitle: 'Academic Ranks' },
+      },
+      {
         path: 'curriculum',
         loadComponent: () =>
           import('./maintenance/curriculum/curriculum.component').then(

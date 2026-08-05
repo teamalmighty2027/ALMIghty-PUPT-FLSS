@@ -410,10 +410,8 @@ class ExternalController extends Controller
                 'users.code as faculty_code',
                 'current_schedules.schedule_id as course_schedule_id',
                 'courses.course_title as subject',
-                DB::raw("'" . $this->formatSemesterLabel($activeSemester->semester) . 
-                    "' as semester"),
-                DB::raw("'" . $activeSemester->year_start . "-" . 
-                    $activeSemester->year_end . "' as school_year")
+                DB::raw("? as semester", [$this->formatSemesterLabel($activeSemester->semester)]),
+                DB::raw("? as school_year", ["{$activeSemester->year_start}-{$activeSemester->year_end}"])
             )
             ->whereNotNull('current_schedules.schedule_id')
             ->distinct()

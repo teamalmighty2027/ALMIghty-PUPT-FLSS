@@ -93,6 +93,8 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
   // State trackers for Save workflow
   isSaving = false;
+  // Warning Overlay State
+  showUnsavedWarning = false;
   wasSaved = false;
 
   // Faculty Time Plots properties
@@ -163,6 +165,19 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // 1. Hijack default close behaviors to handle the warning prompt
+    this.dialogRef.disableClose = true;
+    
+    this.dialogRef.backdropClick().subscribe(() => {
+      this.closeDialog();
+    });
+    
+    this.dialogRef.keydownEvents().subscribe((event) => {
+      if (event.key === 'Escape') {
+        this.closeDialog();
+      }
+    });
+
     if (this.showTimePlotPanel) {
       this.getEligibleTypes();
       this.generateTimeOptions();
@@ -176,7 +191,6 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
       this.loadTimePlots();
     }
-
 
     // Fetch dynamic load types from database
     this.schedulingService.getAssignmentTypes().subscribe({
@@ -240,7 +254,19 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   }
 
   public closeDialog(): void {
-    this.dialogRef.close(this.wasSaved);
+    if (this.hasChanges) {
+      this.showUnsavedWarning = true; // Show the overlay if there are changes
+    } else {
+      this.dialogRef.close(this.wasSaved); // Close normally if clean
+    }
+  }
+
+  public confirmClose(): void {
+    this.dialogRef.close(this.wasSaved); // User chose to discard changes
+  }
+
+  public cancelClose(): void {
+    this.showUnsavedWarning = false; // User chose to keep editing
   }
 
   onViewChange(view: 'table-view' | 'pdf-view'): void {
