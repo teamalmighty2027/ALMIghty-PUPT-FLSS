@@ -127,6 +127,14 @@ export const SUPERADMIN_ROUTES: Routes = [
           ),
         data: { pageTitle: 'Audit Log' },
       },
+      {
+        path: 'system-notices',
+        loadComponent: () =>
+          import('./maintenance/system-notices/system-notices.component').then(
+            (m) => m.SystemNoticesComponent,
+          ),
+        data: { pageTitle: 'System Notices' },
+      },
       { path: '**', redirectTo: 'admin' },
     ],
   },

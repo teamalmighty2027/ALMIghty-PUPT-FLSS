@@ -33,6 +33,7 @@ export interface Faculty {
   email: string;
   status: string;
   role: string;
+  has_reactivation_request?: boolean;
   password?: string;
   faculty?: {
     id: number;
@@ -104,6 +105,7 @@ export class FacultyService {
           status: user.status || 'Active',
           role: user.role,
           faculty: user.faculty,
+          has_reactivation_request: user.faculty?.has_reactivation_request ?? false,
         }));
       }),
       catchError((error) => {

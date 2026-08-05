@@ -1,0 +1,128 @@
+<div class="notice-details-container" role="dialog" aria-labelledby="noticeLogTitle">
+  <div class="accent-bar" [ngClass]="data.severity.toLowerCase()"></div>
+
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true" [ngClass]="data.severity.toLowerCase()">
+      <span class="material-symbols-rounded">warning</span>
+    </div>
+    <div class="header-copy">
+      <h2 class="dialog-title" id="noticeLogTitle">System Notice Details</h2>
+      <p class="dialog-subtitle">Review full system-wide notice details.</p>
+    </div>
+    <button class="close-btn" type="button" aria-label="Close dialog" (click)="close()">
+      <span class="material-symbols-rounded">close</span>
+    </button>
+  </div>
+
+  <div class="dialog-content">
+    
+    <!-- Summary Info -->
+    <div class="grid-section">
+      <section class="content-card primary-card">
+        <h3 class="card-label">General Notice Info</h3>
+        <div class="data-list">
+          <div class="data-item">
+            <span class="label">ID:</span>
+            <span class="value">#{{ data.id }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">Title:</span>
+            <span class="value font-weight-bold">{{ data.title }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">Type:</span>
+            <span class="value accent-text">{{ data.type }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">Source:</span>
+            <span class="value">{{ data.source | uppercase }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">Created At:</span>
+            <span class="value">{{ formatDateTime(data.created_at) }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-card primary-card">
+        <h3 class="card-label">Originating Audit Context</h3>
+        <div class="data-list">
+          <div class="data-item">
+            <span class="label">User:</span>
+            <span class="value">{{ data.context?.audit_info?.user_name || 'System / Unauthenticated' }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">Role:</span>
+            <span class="value accent-text">{{ data.context?.audit_info?.user_role || 'N/A' }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">IP Address:</span>
+            <span class="value">{{ data.context?.audit_info?.ip_address || 'N/A' }}</span>
+          </div>
+          <div class="data-item">
+            <span class="label">User Agent:</span>
+            <span class="value user-agent-text" matTooltip="{{ data.context?.audit_info?.user_agent }}">
+              {{ data.context?.audit_info?.user_agent || 'N/A' }}
+            </span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Severity & Status Badges Row -->
+    <div class="mid-section">
+      <section class="content-card compact">
+        <h3 class="card-label">Severity</h3>
+        <div class="badge-wrapper">
+          <span class="severity-badge" [ngClass]="data.severity.toLowerCase()">
+            {{ data.severity | uppercase }}
+          </span>
+        </div>
+      </section>
+
+      <section class="content-card compact">
+        <h3 class="card-label">Status</h3>
+        <div class="badge-wrapper">
+          @if (data.resolved_at) {
+            <span class="status-badge resolved">
+              Resolved ({{ formatDateTime(data.resolved_at) }})
+            </span>
+          } @else {
+            <span class="status-badge open">
+              Open
+            </span>
+          }
+        </div>
+      </section>
+    </div>
+
+    <!-- Message Description -->
+    <section class="content-card description-card">
+      <h3 class="card-label">Notice Message</h3>
+      <div class="message-box">
+        {{ data.message }}
+      </div>
+    </section>
+
+    <!-- Context Details Code Block -->
+    @if (data.context) {
+      <section class="content-card context-card">
+        <h3 class="card-label">Extra Context (JSON)</h3>
+        <pre class="json-block"><code>{{ getFormattedContext() }}</code></pre>
+      </section>
+    }
+  </div>
+
+  <div class="dialog-actions">
+    <button mat-button class="cancel-btn" (click)="close()">Close</button>
+    @if (!data.resolved_at) {
+      <button mat-flat-button color="primary" class="resolve-btn" [disabled]="isResolving" (click)="resolveNotice()">
+        @if (isResolving) {
+          Resolving...
+        } @else {
+          Mark as Resolved
+        }
+      </button>
+    }
+  </div>
+</div>

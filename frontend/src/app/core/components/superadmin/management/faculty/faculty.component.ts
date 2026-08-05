@@ -91,6 +91,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChild('facultyTypeTemplate') facultyTypeTemplate!: TemplateRef<any>;
   @ViewChild('facultyUnitsTemplate') facultyUnitsTemplate!: TemplateRef<any>;
+  @ViewChild('statusTemplate') statusTemplate!: TemplateRef<any>;
   @ViewChild('mobileFilterTemplate') mobileFilterTemplate!: TemplateRef<any>;
 
   faculty: Faculty[] = [];
@@ -204,6 +205,14 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
     if (facultyUnitsColumn) {
       facultyUnitsColumn.template = this.facultyUnitsTemplate;
+    }
+
+    const statusColumn = this.columns.find(
+      (col) => col.key === 'status'
+    );
+
+    if (statusColumn) {
+      statusColumn.template = this.statusTemplate;
     }
 
     this.cdr.detectChanges();
