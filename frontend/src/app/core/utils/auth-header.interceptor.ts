@@ -114,8 +114,27 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
         );
       }
 
-      if (error instanceof HttpErrorResponse && error.status === 401) {
-        authService.expireSession();
+      if (error instanceof HttpErrorResponse) {
+        // Handle 401 Unauthorized
+        if (error.status === 401) {
+          authService.expireSession();
+        } 
+        // Handle 422 Validation Errors
+        else if (error.status === 422) {
+          console.warn('Validation Error:', error.error.errors);
+          // Optional: If you have a toast/snackbar service, call it here
+          alert('Please check your inputs. Some data was invalid.');
+        } 
+        // Handle 400 Bad Request
+        else if (error.status === 400) {
+          console.error('Bad Request:', error.error.message);
+          alert(error.error.message || 'Invalid request format. Please try again.');
+        } 
+        // Handle 500 Internal Server Error
+        else if (error.status === 500) {
+          console.error('Server Error:', error.error.message);
+          alert('A server error occurred. Our team has been notified.');
+        }
       }
 
       return throwError(() => error);

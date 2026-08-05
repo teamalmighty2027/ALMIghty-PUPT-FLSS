@@ -51,36 +51,49 @@ class FacultyProfileController extends Controller
     {
         $user = $request->user();
 
+        $validated = $request->validate([
+            'first_name'      => 'nullable|string|max:255',
+            'last_name'       => 'nullable|string|max:255',
+            'middle_name'     => 'nullable|string|max:255',
+            'suffix_name'     => 'nullable|string|max:50',
+            'code'            => 'nullable|string|max:100',
+            'house_num'       => 'nullable|string|max:255',
+            'street'          => 'nullable|string|max:255',
+            'barangay'        => 'nullable|string|max:255',
+            'city'            => 'nullable|string|max:255',
+            'province'        => 'nullable|string|max:255',
+            'country'         => 'nullable|string|max:255',
+            'zipcode'         => 'nullable|string|max:20',
+            'department'      => 'nullable|string|max:255',
+            'birthdate'       => 'nullable|date',
+            'sex'             => 'nullable|string|in:Male,Female', // Adjust if you have more options
+            'academic_rank'   => 'nullable|string|max:255',
+            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120', // Max 5MB image
+        ]);
+
         DB::beginTransaction();
 
         try {
-            // 1. Update personal identity and code on the main User model
-            $userData = $request->only(['first_name', 'last_name', 'middle_name', 'suffix_name']);
-            if ($request->has('code')) {
-                $userData['code'] = $request->code;
-            }
+            $userData = array_intersect_key($validated, array_flip(['first_name', 'last_name', 'middle_name', 'suffix_name', 'code']));
             $user->update($userData);
 
-            // 2. Update address, professional info, and rank on UserProfile model
-            $profileData = $request->only([
+            $profileData = array_intersect_key($validated, array_flip([
                 'house_num', 'street', 'barangay', 'city', 
                 'province', 'country', 'zipcode', 'department',
                 'birthdate', 'sex', 'academic_rank'
-            ]);
+            ]));
 
             if ($request->hasFile('profile_picture')) {
                 $file = $request->file('profile_picture');
                 $path = $file->store('profile_pictures', 'public');
                 $profileData['profile_picture'] = $path;
                 
-                // Delete old picture if it exists, checking by user_id
                 $currentProfile = UserProfile::where('user_id', $user->id)->first();
                 if ($currentProfile && $currentProfile->profile_picture) {
                     Storage::disk('public')->delete($currentProfile->profile_picture);
                 }
             }
 
-            // Create or update the profile matching the user_id
             $updatedProfile = UserProfile::updateOrCreate(
                 ['user_id' => $user->id],
                 $profileData
@@ -88,7 +101,6 @@ class FacultyProfileController extends Controller
 
             DB::commit();
 
-            // Fallback added in case your model lacks a profile_picture_url accessor
             $pictureUrl = url('backend/public/storage/' . $updatedProfile->profile_picture);
 
             return response()->json([
@@ -99,7 +111,7 @@ class FacultyProfileController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Profile POST Error: ' . $e->getMessage());
-            return response()->json(['message' => 'Failed to update profile', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to update profile. Please try again later.'], 500);
         }
     }
 }
