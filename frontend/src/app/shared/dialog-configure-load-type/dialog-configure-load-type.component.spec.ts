@@ -1,4 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+  MAT_DIALOG_DATA,
+  MatDialogRef,
+  MatDialog
+} from '@angular/material/dialog';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { DialogConfigureLoadTypeComponent } from './dialog-configure-load-type.component';
 
@@ -8,7 +16,17 @@ describe('DialogConfigureLoadTypeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogConfigureLoadTypeComponent]
+      imports: [
+        DialogConfigureLoadTypeComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ],
+      providers: [
+        { provide: MatDialogRef, useValue: { close: () => {} } },
+        { provide: MAT_DIALOG_DATA, useValue: {} },
+        { provide: MatSnackBar, useValue: { open: () => {} } },
+        { provide: MatDialog, useValue: { open: () => {} } }
+      ]
     })
     .compileComponents();
 
