@@ -254,12 +254,11 @@ class FacultyController extends Controller
                     $idpSyncService->deleteUserFromIdp($user);
                 }
 
-                // Notify admin and superadmin users
-                $admins = User::whereIn('role', ['admin', 'superadmin'])
-                    ->get();
-                if ($admins->isNotEmpty()) {
+                // Notify superadmin users of status changes
+                $superAdmins = User::where('role', 'superadmin')->get();
+                if ($superAdmins->isNotEmpty()) {
                     Notification::send(
-                        $admins,
+                        $superAdmins,
                         new FacultyStatusChangedNotification(
                             $user,
                             $oldData['status'],
@@ -388,14 +387,28 @@ class FacultyController extends Controller
                 'has_reactivation_request' => true,
             ]);
 
-            $admins = User::whereIn('role', ['admin', 'superadmin'])
-                ->get();
-            if ($admins->isNotEmpty()) {
+            // Reactivation requests are managed exclusively by the Super Admin
+            $superAdmins = User::where('role', 'superadmin')->get();
+            if ($superAdmins->isNotEmpty()) {
                 Notification::send(
-                    $admins,
+                    $superAdmins,
                     new FacultyReactivationRequestNotification($user)
                 );
             }
+
+            // Create a trace notice in SystemNoticeService
+            \App\Services\SystemNoticeService::create(
+                'reactivation_request',
+                'info',
+                'backend',
+                'Reactivation Request Submitted',
+                "Faculty {$user->last_name}, {$user->first_name} is requesting account reactivation.",
+                [
+                    'email' => $user->email,
+                    'faculty_code' => $user->code,
+                ],
+                $user->id
+            );
         }
 
         return response()->json([
@@ -429,6 +442,16 @@ class FacultyController extends Controller
             $user->faculty->update([
                 'has_reactivation_request' => false,
             ]);
+        }
+
+        // Resolve any pending reactivation system notices for this user
+        $pendingNotices = \App\Models\SystemNotice::where('user_id', $user->id)
+            ->where('type', 'reactivation_request')
+            ->whereNull('resolved_at')
+            ->get();
+
+        foreach ($pendingNotices as $notice) {
+            \App\Services\SystemNoticeService::resolve($notice->id, Auth::id());
         }
 
         AuditLogger::logStatusChange($user, 'Inactive', 'Active');

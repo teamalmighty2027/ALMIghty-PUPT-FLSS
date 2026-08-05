@@ -80,6 +80,21 @@ class AuditLogger
                 'timestamp' => now()->toDateTimeString()
             ]
         );
+
+        // Notify super admin of failed login attempts for inactive/retired
+        \App\Services\SystemNoticeService::create(
+            'audit_event',
+            'warning',
+            'backend',
+            'Security Warning: Blocked Login',
+            "Failed login attempt for account {$email} because it is {$reason}.",
+            [
+                'email' => $email,
+                'status' => $user?->status,
+                'reason' => $reason,
+            ],
+            $user?->id
+        );
     }
 
     /**
@@ -103,6 +118,21 @@ class AuditLogger
                 'new_status' => $newStatus,
                 'timestamp' => now()->toDateTimeString()
             ]
+        );
+
+        // Notify super admin of status changes
+        \App\Services\SystemNoticeService::create(
+            'audit_event',
+            'info',
+            'backend',
+            'Account Status Changed',
+            "Status for user {$subject->email} changed from {$oldStatus} to {$newStatus}.",
+            [
+                'user_id' => $subject->id,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+            ],
+            $subject->id
         );
     }
 

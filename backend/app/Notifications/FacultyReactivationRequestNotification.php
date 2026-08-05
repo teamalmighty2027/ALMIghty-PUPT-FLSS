@@ -50,7 +50,7 @@ class FacultyReactivationRequestNotification extends Notification implements Sho
             'faculty_name' => $name,
             'title'        => 'Reactivation Request',
             'message'      => "Faculty {$name} is requesting account reactivation.",
-            'action_url'   => '/admin/faculty',
+            'action_url'   => '/superadmin/faculty',
             'icon'         => 'manage_accounts',
         ];
     }

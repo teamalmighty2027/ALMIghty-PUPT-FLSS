@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\AssignmentTypeController;
+use App\Http\Controllers\SystemNoticeController;
 
 /*
 |----------------------------
@@ -142,6 +143,30 @@ Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
         '/bridging-courses/{id}/combine',
         [BridgingCourseController::class, 'combine']
     );
+
+    /*
+    |----------------------------------
+    | System Notices Management Routes
+    |----------------------------------
+     */
+    Route::prefix('system-notices')->group(function () {
+        Route::get('/', [SystemNoticeController::class, 'index']);
+        Route::post('/', [SystemNoticeController::class, 'store']);
+        Route::get(
+            '/unresolved-count',
+            [SystemNoticeController::class, 'unresolvedCount']
+        );
+        Route::get('/{id}', [SystemNoticeController::class, 'show']);
+        Route::patch(
+            '/{id}/resolve',
+            [SystemNoticeController::class, 'resolve']
+        );
+    });
+
+    Route::post('/faculty/{user}/approve-reactivation', [
+        FacultyController::class,
+        'approveReactivation'
+    ]);
 });
 
 /*
@@ -253,10 +278,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
-    Route::post('/faculty/{user}/approve-reactivation', [
-        FacultyController::class,
-        'approveReactivation'
-    ]);
+
 
     /**
      * Faculty Notification

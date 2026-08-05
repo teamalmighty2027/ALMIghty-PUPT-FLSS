@@ -58,7 +58,7 @@ class FacultyStatusChangedNotification extends Notification implements ShouldQue
             'new_status'   => $this->newStatus,
             'title'        => 'Faculty Status Changed',
             'message'      => "{$name} account status changed to {$this->newStatus}.",
-            'action_url'   => '/admin/faculty',
+            'action_url'   => '/superadmin/faculty',
             'icon'         => 'person_off',
         ];
     }
