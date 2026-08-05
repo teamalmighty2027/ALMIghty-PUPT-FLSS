@@ -527,6 +527,14 @@ class ScheduleController extends Controller
         } else if (!is_null($originalSectionCourse->temporary_course_offering_id)) {
             $temporaryMeta = DB::table('temporary_course_offerings as t')
                 ->join('courses as co', 't.course_id', '=', 'co.course_id')
+                ->leftJoin('year_levels as bc_yl_match', 'bc_yl_match.year', '=', 't.year_level')
+                ->leftJoin('bridging_courses as bc', function ($join) {
+                    $join->on('bc.course_id', '=', 't.course_id')
+                        ->on('bc.program_id', '=', 't.program_id')
+                        ->on('bc.semester_id', '=', 't.semester_id')
+                        ->on('bc.year_level_id', '=', 'bc_yl_match.year_level_id')
+                        ->where('t.type', '=', 'bridging');
+                })
                 ->where(
                     't.temporary_course_offering_id',
                     $originalSectionCourse->temporary_course_offering_id
@@ -541,7 +549,7 @@ class ScheduleController extends Controller
                     'co.tuition_hours',
                     't.type',
                     't.status',
-                    't.bridging_course_id'
+                    'bc.bridging_course_id'
                 )
                 ->first();
             $course = $temporaryMeta;
@@ -1140,11 +1148,16 @@ class ScheduleController extends Controller
                     ->where('pylc.academic_year_id', $academicYearId);
             })
             ->leftJoin('curricula as c', 'pylc.curriculum_id', '=', 'c.curriculum_id')
+            ->leftJoin('year_levels as bc_yl_match', 'bc_yl_match.year', '=', 't.year_level')
             ->leftJoin(
                 'bridging_courses as bc',
-                't.bridging_course_id',
-                '=',
-                'bc.bridging_course_id'
+                function ($join) {
+                    $join->on('bc.course_id', '=', 't.course_id')
+                        ->on('bc.program_id', '=', 't.program_id')
+                        ->on('bc.semester_id', '=', 't.semester_id')
+                        ->on('bc.year_level_id', '=', 'bc_yl_match.year_level_id')
+                        ->where('t.type', '=', 'bridging');
+                }
             )
             ->where('t.academic_year_id', $academicYearId)
             ->where('t.semester_id', $semesterId)
@@ -1152,7 +1165,7 @@ class ScheduleController extends Controller
             ->where('t.status', 'Approved')
             ->select(
                 't.temporary_course_offering_id',
-                't.bridging_course_id',
+                'bc.bridging_course_id',
                 'bc.combined_with_program_id',
                 't.program_id',
                 't.year_level',

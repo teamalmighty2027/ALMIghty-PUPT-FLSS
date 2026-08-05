@@ -148,9 +148,9 @@ class TemporaryCourseOfferingController extends Controller
             if ((int) $bridgingCourse->course_id !== (int) $validated['course_id']) {
                 $validated['course_id'] = $bridgingCourse->course_id;
             }
-        } else {
-            $validated['bridging_course_id'] = null;
         }
+
+        unset($validated['bridging_course_id']);
 
         if (in_array($type, self::PETITION_TYPES, true) && ! $request->hasFile('petition_file')) {
             return response()->json([
@@ -253,16 +253,20 @@ class TemporaryCourseOfferingController extends Controller
         $programId = $validated['program_id'] ?? $offering->program_id;
         $yearLevel = $validated['year_level'] ?? $offering->year_level;
         $sectionId = $validated['section_per_program_year_id'] ?? $offering->section_per_program_year_id;
-        $bridgingCourseId = $validated['bridging_course_id'] ?? $offering->bridging_course_id;
+        $bridgingCourseId = $validated['bridging_course_id'] ?? null;
 
         if ($type === 'bridging') {
             if (empty($bridgingCourseId)) {
-                return response()->json([
-                    'message' => 'Bridging course is required for bridging type.',
-                ], 422);
+                $bridgingCourse = BridgingCourse::where('course_id', $validated['course_id'] ?? $offering->course_id)
+                    ->where('program_id', $programId)
+                    ->where('semester_id', $validated['semester_id'] ?? $offering->semester_id)
+                    ->whereHas('yearLevel', function ($q) use ($yearLevel) {
+                        $q->where('year', $yearLevel);
+                    })
+                    ->first();
+            } else {
+                $bridgingCourse = BridgingCourse::find($bridgingCourseId);
             }
-
-            $bridgingCourse = BridgingCourse::find($bridgingCourseId);
 
             $bridgingYearLevel = $bridgingCourse?->yearLevel?->year;
 
@@ -278,11 +282,9 @@ class TemporaryCourseOfferingController extends Controller
             if ((int) $bridgingCourse->course_id !== (int) ($validated['course_id'] ?? $offering->course_id)) {
                 $validated['course_id'] = $bridgingCourse->course_id;
             }
-
-            $validated['bridging_course_id'] = $bridgingCourseId;
-        } else {
-            $validated['bridging_course_id'] = null;
         }
+
+        unset($validated['bridging_course_id']);
 
         if (! $appliesToAll && empty($sectionId)) {
             return response()->json([

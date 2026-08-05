@@ -231,10 +231,40 @@ class ReportsController extends Controller
                 '.temporary_course_offering_id'
             )
             ->leftJoin(
-                'bridging_courses',
-                'temporary_course_offerings.bridging_course_id',
+                'year_levels as bc_yl_match',
+                'bc_yl_match.year',
                 '=',
-                'bridging_courses.bridging_course_id'
+                'temporary_course_offerings.year_level'
+            )
+            ->leftJoin(
+                'bridging_courses',
+                function ($join) {
+                    $join->on(
+                        'bridging_courses.course_id',
+                        '=',
+                        'temporary_course_offerings.course_id'
+                    )
+                        ->on(
+                            'bridging_courses.program_id',
+                            '=',
+                            'temporary_course_offerings.program_id'
+                        )
+                        ->on(
+                            'bridging_courses.semester_id',
+                            '=',
+                            'temporary_course_offerings.semester_id'
+                        )
+                        ->on(
+                            'bridging_courses.year_level_id',
+                            '=',
+                            'bc_yl_match.year_level_id'
+                        )
+                        ->where(
+                            'temporary_course_offerings.type',
+                            '=',
+                            'bridging'
+                        );
+                }
             )
             ->leftJoin(
                 'bridging_courses as peer_bc',
@@ -1091,10 +1121,40 @@ class ReportsController extends Controller
                 'temporary_course_offerings.temporary_course_offering_id'
             )
             ->leftJoin(
-                'bridging_courses',
-                'temporary_course_offerings.bridging_course_id',
+                'year_levels as bc_yl_match',
+                'bc_yl_match.year',
                 '=',
-                'bridging_courses.bridging_course_id'
+                'temporary_course_offerings.year_level'
+            )
+            ->leftJoin(
+                'bridging_courses',
+                function ($join) {
+                    $join->on(
+                        'bridging_courses.course_id',
+                        '=',
+                        'temporary_course_offerings.course_id'
+                    )
+                        ->on(
+                            'bridging_courses.program_id',
+                            '=',
+                            'temporary_course_offerings.program_id'
+                        )
+                        ->on(
+                            'bridging_courses.semester_id',
+                            '=',
+                            'temporary_course_offerings.semester_id'
+                        )
+                        ->on(
+                            'bridging_courses.year_level_id',
+                            '=',
+                            'bc_yl_match.year_level_id'
+                        )
+                        ->where(
+                            'temporary_course_offerings.type',
+                            '=',
+                            'bridging'
+                        );
+                }
             )
             ->leftJoin(
                 'bridging_courses as peer_bc',
@@ -1432,10 +1492,40 @@ class ReportsController extends Controller
                 'schedules.temporary_course_offering_id'
             )
             ->leftJoin(
-                'bridging_courses',
-                'temporary_course_offerings.bridging_course_id',
+                'year_levels as bc_yl_match',
+                'bc_yl_match.year',
                 '=',
-                'bridging_courses.bridging_course_id'
+                'temporary_course_offerings.year_level'
+            )
+            ->leftJoin(
+                'bridging_courses',
+                function ($join) {
+                    $join->on(
+                        'bridging_courses.course_id',
+                        '=',
+                        'temporary_course_offerings.course_id'
+                    )
+                        ->on(
+                            'bridging_courses.program_id',
+                            '=',
+                            'temporary_course_offerings.program_id'
+                        )
+                        ->on(
+                            'bridging_courses.semester_id',
+                            '=',
+                            'temporary_course_offerings.semester_id'
+                        )
+                        ->on(
+                            'bridging_courses.year_level_id',
+                            '=',
+                            'bc_yl_match.year_level_id'
+                        )
+                        ->where(
+                            'temporary_course_offerings.type',
+                            '=',
+                            'bridging'
+                        );
+                }
             )
             ->leftJoin(
                 'bridging_courses as peer_bc',
