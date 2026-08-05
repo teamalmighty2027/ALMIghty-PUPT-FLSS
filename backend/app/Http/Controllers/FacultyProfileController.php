@@ -68,7 +68,7 @@ class FacultyProfileController extends Controller
             'zipcode'         => 'nullable|string|max:20',
             'department'      => 'nullable|string|max:255',
             'birthdate'       => 'nullable|date',
-            'sex'             => 'nullable|string|in:Male,Female', // Adjust if you have more options
+            'sex'             => 'nullable|string|in:Male,Female',
             'academic_rank'   => 'nullable|string|max:255',
             'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120', // Max 5MB image
         ]);
