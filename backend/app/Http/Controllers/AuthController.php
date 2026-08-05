@@ -23,35 +23,36 @@ class AuthController extends Controller
         $loginUserData = $request->validate([
             'email'         => 'required|string|email|max:254',
             'password'      => 'required|string|min:8|max:128',
-            'allowed_roles' => 'required|array',
+            'allowed_roles' => 'required|array|min:1|max:3',
+            'allowed_roles.*' => 'required|string|distinct|in:faculty,admin,superadmin',
         ]);
+
+        $allowedRoles = array_values(array_unique($loginUserData['allowed_roles']));
 
         // Check if the user exists and the password is correct
         // Eager load permissions and allowed programs to avoid N+1 queries
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
-            ->whereIn('role', $loginUserData['allowed_roles'])
             ->first();
 
-        if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials. Check your email and password.',
-            ], 401);
+        if (! $user) {
+            // Keep failed-login timing closer to existing-user checks.
+            Hash::check($loginUserData['password'], '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/AT0jNhLx2fX2.');
+            return $this->invalidLoginResponse();
+        }
+
+        if (! Hash::check($loginUserData['password'], $user->password)) {
+            return $this->invalidLoginResponse();
         }
 
         // Check if user has allowed role
-        if (! in_array($user->role, $loginUserData['allowed_roles'])) {
-            return response()->json([
-                'message' => 'Access forbidden. You are not authorized as ' . 
-                implode(' or ', $loginUserData['allowed_roles']) . '.',
-            ], 403);
+        if (! in_array($user->role, $allowedRoles, true)) {
+            return $this->invalidLoginResponse();
         }
 
         // Check if admin/superadmin is active
         if (($user->role === 'admin' || $user->role === 'superadmin') && $user->status === 'Inactive') {
-            return response()->json([
-                'message' => 'Your account is currently inactive. Please contact the system administrator.',
-            ], 403);
+            return $this->invalidLoginResponse();
         }
 
         $tokenResult = $user->createToken('user-token');
@@ -108,6 +109,16 @@ class AuthController extends Controller
             'user'       => json_decode($userData, true),
         ])
         ->cookie('token', $token, 1440, null, null, true, true);
+    }
+
+    /**
+     * Return a generic failed login response.
+     */
+    private function invalidLoginResponse()
+    {
+        return response()->json([
+            'message' => 'Invalid credentials.',
+        ], 401);
     }
 
     /**
