@@ -405,7 +405,7 @@ export class SchedulingService {
       elective_id,
       assignment_type_id,
     };
-    return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
+    return this.http.post<any>(`${this.baseUrl}/schedules`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
       catchError(this.handleError)
     );
@@ -423,9 +423,10 @@ export class SchedulingService {
    */
   duplicateCourse(element: Schedule): Observable<{ course: Schedule }> {
     return this.http
-      .post<{ course: Schedule }>(`${this.baseUrl}/duplicate-course`, {
-        section_course_id: element.section_course_id,
-      })
+      .post<{ course: Schedule }>(
+        `${this.baseUrl}/schedules/duplicate-course`,
+        { section_course_id: element.section_course_id }
+      )
       .pipe(
         tap(() => this.resetCaches([CacheType.Schedules])),
         catchError(this.handleError)
@@ -555,7 +556,7 @@ export class SchedulingService {
     course_id: number
   ): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/suggestion-heuristic`, { 
+      .post<any>(`${this.baseUrl}/schedules/suggestions`, { 
         program_id, 
         year_level, 
         section_id,
