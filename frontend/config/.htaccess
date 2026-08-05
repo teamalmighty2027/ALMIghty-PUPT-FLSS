@@ -44,6 +44,8 @@
   Header set X-XSS-Protection "1; mode=block"
   Header set X-Frame-Options "SAMEORIGIN"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
   # CORS Headers
   # Dynamically set Access-Control-Allow-Origin based on incoming Origin request header.
