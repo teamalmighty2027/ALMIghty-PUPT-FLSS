@@ -79,18 +79,6 @@ export class AuthService {
   // IDP auth methods 
   // ==============================
 
-  // Check the IDP health status via backend proxy.
-  checkIdpHealth(): Observable<boolean> {
-    const url = `${this.baseUrl}/auth/idp-health`;
-    return this.http.get<{ healthy: boolean }>(url).pipe(
-      map((response) => response.healthy),
-      catchError((error) => {
-        console.error('Error checking IDP health:', error);
-        return of(false);
-      }),
-    );
-  }
-
   // Redirect to IDP login using URL retrieved from the backend.
   initiateIdpLogin(intendedRole: string[]): void {
     this.cookieService.set(

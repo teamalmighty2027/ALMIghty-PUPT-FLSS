@@ -109,16 +109,16 @@ Route::middleware([
     'super_admin',
     'throttle:api',
 ])->group(function () {
-    Route::get('/showAccounts', [AccountController::class, 'index']);
-    Route::post('/addAccount', [AccountController::class, 'store']);
+    Route::get('/accounts', [AccountController::class, 'index']);
+    Route::post('/accounts', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
-    Route::put('/updateAccount/{user}', [AccountController::class, 'update']);
-    Route::delete('/deleteAccount/{user}', [AccountController::class, 'destroy']);
+    Route::put('/accounts/{user}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{user}', [AccountController::class, 'destroy']);
 
-    Route::get('/getAdmins', [AccountController::class, 'indexAdmins']);
-    Route::post('/addAdmins', [AccountController::class, 'storeAdmin']);
-    Route::put('/updateAdmins/{admin}', [AccountController::class, 'updateAdmin']);
-    Route::delete('/deleteAdmins/{admin}', [AccountController::class, 'destroyAdmin']);
+    Route::get('/admins', [AccountController::class, 'indexAdmins']);
+    Route::post('/admins', [AccountController::class, 'storeAdmin']);
+    Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
+    Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
@@ -162,29 +162,50 @@ Route::middleware([
     /**
      * Academic Year
      */
-    Route::get('/get-academic-years', [AcademicYearController::class, 'getAcademicYears']);
-    Route::post('/add-academic-year', [AcademicYearController::class, 'addAcademicYear']);
-    Route::delete('/delete-academic-year', [AcademicYearController::class, 'deleteAcademicYear']);
-    Route::put('/update-academic-year', [AcademicYearController::class, 'updateAcademicYear']);
-    Route::get('/get-active-year-semester', [AcademicYearController::class, 'getActiveAcademicYearAndSemester']);
-    Route::post('/set-active-year-semester', [AcademicYearController::class, 'setActiveAcademicYearAndSemester']);
-    Route::post('/set-faculty-view-semester', [AcademicYearController::class, 'setFacultyViewSemester']);
-    Route::post('/fetch-ay-prog-details', [AcademicYearController::class, 'getProgramDetailsByAcademicYear']);
-    Route::get('/active-year-levels-curricula', [AcademicYearController::class, 'getActiveYearLevelsCurricula']);
-    Route::post('/update-yr-lvl-curricula', [AcademicYearController::class, 'updateYearLevelCurricula']);
-    Route::post('/update-sections', [AcademicYearController::class, 'updateSections']);
-    Route::delete('/remove-program', [AcademicYearController::class, 'removeProgramFromAcademicYear']);
-    Route::get('/offered-courses-sem', [AcademicYearController::class, 'getOfferedCoursesBySem']);
-    Route::get('/program-courses', [AcademicYearController::class, 'getProgramCourses']);
+    Route::get('/academic-years', [
+        AcademicYearController::class, 'getAcademicYears'
+    ]);
+    Route::post('/academic-years', [
+        AcademicYearController::class, 'addAcademicYear'
+    ]);
+    Route::delete('/academic-years/{id}', [
+        AcademicYearController::class, 'deleteAcademicYear'
+    ]);
+    Route::put('/academic-years/{id}', [
+        AcademicYearController::class, 'updateAcademicYear'
+    ]);
+    Route::get('/academic-years/active-semester', [
+        AcademicYearController::class, 'getActiveAcademicYearAndSemester'
+    ]);
+    Route::put('/academic-years/active-semester', [
+        AcademicYearController::class, 'setActiveAcademicYearAndSemester'
+    ]);
+    Route::put('/academic-years/faculty-view-semester', [
+        AcademicYearController::class, 'setFacultyViewSemester'
+    ]);
+    Route::get('/academic-years/{id}/program-details', [
+        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
+    ]);
+    Route::get('/academic-years/active/year-levels-curricula', [
+        AcademicYearController::class, 'getActiveYearLevelsCurricula'
+    ]);
+    Route::put('/academic-years/{id}/year-level-curricula', [
+        AcademicYearController::class, 'updateYearLevelCurricula'
+    ]);
+    Route::put('/academic-years/{id}/sections', [
+        AcademicYearController::class, 'updateSections'
+    ]);
+    Route::delete('/academic-years/{ayId}/programs/{progId}', [
+        AcademicYearController::class, 'removeProgramFromAcademicYear'
+    ]);
+    Route::get('/academic-years/active/offered-courses', [
+        AcademicYearController::class, 'getOfferedCoursesBySem'
+    ]);
+    Route::get('/programs/{id}/courses', [
+        AcademicYearController::class, 'getProgramCourses'
+    ]);
 
-    /**
-     * Admin
-     */
-    Route::get('/admins', [AccountController::class, 'indexAdmins']);
-    Route::post('/admins', [AccountController::class, 'storeAdmin']);
-    Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
-    Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
-    
+
     Route::get('/admin/notifications', [\App\Http\Controllers\AdminNotificationController::class, 'index']);
     Route::post('/admin/notifications/{id}/read', [\App\Http\Controllers\AdminNotificationController::class, 'markAsRead']);
     Route::post('/admin/notifications/read-all', [\App\Http\Controllers\AdminNotificationController::class, 'markAllAsRead']);
@@ -215,30 +236,47 @@ Route::middleware([
      * Course
      */
     Route::get('/courses', [CourseController::class, 'index']);
-    Route::post('/addCourse', [CourseController::class, 'addCourse']);
+    Route::post('/courses', [CourseController::class, 'addCourse']);
     Route::put('/courses/{id}', [CourseController::class, 'updateCourse']);
     Route::delete('/courses/{id}', [CourseController::class, 'deleteCourse']);
 
     /**
      * Bridging Courses
      */
-    Route::get('/bridging-courses', [BridgingCourseController::class, 'index']);
+    Route::get('/bridging-courses', [
+        BridgingCourseController::class, 'index'
+    ]);
 
     /**
      * Curriculum & Curriculum Details
      */
     Route::get('/curricula', [CurriculumController::class, 'index']);
     Route::get('/curricula/{id}', [CurriculumController::class, 'show']);
-    Route::post('/addCurriculum', [CurriculumController::class, 'addCurriculum']);
-    Route::post('/deleteCurriculum', [CurriculumController::class, 'deleteCurriculum']);
-    Route::post('/copyCurriculum', [CurriculumController::class, 'copyCurriculum']);
-    Route::put('/updateCurriculum/{id}', [CurriculumController::class, 'update']);
+    Route::post('/curricula', [
+        CurriculumController::class, 'addCurriculum'
+    ]);
+    Route::delete('/curricula/{id}', [
+        CurriculumController::class, 'deleteCurriculum'
+    ]);
+    Route::post('/curricula/{id}/copy', [
+        CurriculumController::class, 'copyCurriculum'
+    ]);
+    Route::put('/curricula/{id}', [CurriculumController::class, 'update']);
 
-    Route::post('/removeProgramFromCurriculum', [CurriculumController::class, 'removeProgramFromCurriculum']);
-    Route::get('/programs-by-curriculum-year/{curriculumYear}', [CurriculumController::class, 'getProgramsByCurriculumYear']);
-    Route::post('/addProgramToCurriculum', [CurriculumController::class, 'addProgramToCurriculum']);
+    Route::delete(
+        '/curricula/{curriculumYear}/programs/{programId}',
+        [CurriculumController::class, 'removeProgramFromCurriculum']
+    );
+    Route::get('/curricula/{curriculumYear}/programs', [
+        CurriculumController::class, 'getProgramsByCurriculumYear'
+    ]);
+    Route::post('/curricula/{curriculumYear}/programs', [
+        CurriculumController::class, 'addProgramToCurriculum'
+    ]);
 
-    Route::get('/curricula-details/{curriculumYear}/', [CurriculumDetailsController::class, 'getCurriculumDetails']);
+    Route::get('/curricula/{curriculumYear}/details', [
+        CurriculumDetailsController::class, 'getCurriculumDetails'
+    ]);
 
     /**
      * Electives
@@ -255,9 +293,15 @@ Route::middleware([
     /**
      * Email
      */
-    Route::post('/email-all-faculty-pref-submitted', [EmailController::class, 'emailPrefSubmitted']);
-    Route::post('/email-all-faculty-schedule', [EmailController::class, 'emailAllFacultySchedule']);
-    Route::post('/email-single-faculty-schedule', [EmailController::class, 'emailSingleFacultySchedule']);
+    Route::post('/emails/preference-submitted', [
+        EmailController::class, 'emailPrefSubmitted'
+    ]);
+    Route::post('/emails/faculty-schedules', [
+        EmailController::class, 'emailAllFacultySchedule'
+    ]);
+    Route::post('/emails/faculty-schedule', [
+        EmailController::class, 'emailSingleFacultySchedule'
+    ]);
 
     /**
      * Faculty
@@ -281,11 +325,21 @@ Route::middleware([
     /**
      * Faculty Notification
      */
-    Route::get('/faculty-notifications', [FacultyNotificationController::class, 'getFacultyNotifications']);
-    Route::get('/request-notifications', [FacultyNotificationController::class, 'getRequestNotifications']);
-    Route::get('/notify-faculty-deadlines-single', [EmailController::class, 'notifyFacultyBeforeDeadlineSingle']);
-    Route::post('/test-faculty-notification', [EmailController::class, 'singleDeadlineNotification']);
-    Route::get('/notify-global-deadline', [EmailController::class, 'notifyGlobalFacultyDeadline']);
+    Route::get('/faculty/notifications', [
+        FacultyNotificationController::class, 'getFacultyNotifications'
+    ]);
+    Route::get('/notifications/requests', [
+        FacultyNotificationController::class, 'getRequestNotifications'
+    ]);
+    Route::post('/notifications/deadline-single', [
+        EmailController::class, 'notifyFacultyBeforeDeadlineSingle'
+    ]);
+    Route::post('/notifications/deadline-test', [
+        EmailController::class, 'singleDeadlineNotification'
+    ]);
+    Route::post('/notifications/deadline-global', [
+        EmailController::class, 'notifyGlobalFacultyDeadline'
+    ]);
 
     /**
      * Faculty Type
@@ -308,18 +362,42 @@ Route::middleware([
     /**
      * Preferences
      */
-    Route::post('/submit-preferences', [PreferenceController::class, 'submitPreferences']);
-    Route::get('/get-unique-preferences', [PreferenceController::class, 'getUniqueFacultyPreferences']);
-    Route::get('/get-all-preferences', [PreferenceController::class, 'getAllFacultyPreferences']);
-    Route::get('/get-preferences/{faculty_id}', [PreferenceController::class, 'getFacultyPreferencesById']);
-    Route::get('/get-preferences-history/{faculty_id}', [PreferenceController::class, 'getPreferencesHistoryByFacultyId']);
-    Route::delete('/delete-preferences/{preference_id}', [PreferenceController::class, 'deletePreferences']);
-    Route::delete('/delete-all-preferences', [PreferenceController::class, 'deleteAllPreferences']);
-    Route::post('/toggle-all-preferences', [PreferenceController::class, 'toggleAllPreferences']);
-    Route::post('/toggle-single-preferences', [PreferenceController::class, 'toggleSinglePreferences']);
-    Route::post('/request-access', [PreferenceController::class, 'requestAccess']);
-    Route::post('/cancel-request-access', [PreferenceController::class, 'cancelRequestAccess']);
-    Route::patch('/preferences/{preference_id}/toggle-ignore', [PreferenceController::class, 'toggleIgnorePreference']);
+    Route::post('/preferences', [
+        PreferenceController::class, 'submitPreferences'
+    ]);
+    Route::get('/preferences/unique', [
+        PreferenceController::class, 'getUniqueFacultyPreferences'
+    ]);
+    Route::get('/preferences', [
+        PreferenceController::class, 'getAllFacultyPreferences'
+    ]);
+    Route::get('/faculty/{faculty_id}/preferences', [
+        PreferenceController::class, 'getFacultyPreferencesById'
+    ]);
+    Route::get('/faculty/{faculty_id}/preferences/history', [
+        PreferenceController::class, 'getPreferencesHistoryByFacultyId'
+    ]);
+    Route::delete('/preferences/{preference_id}', [
+        PreferenceController::class, 'deletePreferences'
+    ]);
+    Route::delete('/preferences', [
+        PreferenceController::class, 'deleteAllPreferences'
+    ]);
+    Route::patch('/preferences/toggle', [
+        PreferenceController::class, 'toggleAllPreferences'
+    ]);
+    Route::patch('/preferences/{faculty_id}/toggle', [
+        PreferenceController::class, 'toggleSinglePreferences'
+    ]);
+    Route::post('/preferences/access-requests', [
+        PreferenceController::class, 'requestAccess'
+    ]);
+    Route::delete('/preferences/access-requests', [
+        PreferenceController::class, 'cancelRequestAccess'
+    ]);
+    Route::patch('/preferences/{preference_id}/toggle-ignore', [
+        PreferenceController::class, 'toggleIgnorePreference'
+    ]);
 
     /**
      * Rescheduling Appeals
@@ -329,18 +407,11 @@ Route::middleware([
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
 
-    // In routes/api.php
     Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
     Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
     Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
     Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
-
     Route::post('/rescheduling-appeals/reject-access', [RescheduleController::class, 'rejectAppealAccessRequest']);
-    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
-    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
-    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
-    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
-
     Route::get('/rescheduling-appeals/{id}/download', [App\Http\Controllers\RescheduleController::class, 'downloadAppealDocument']);
 
     // ── ADMIN (View & Evaluate) ──
@@ -354,24 +425,46 @@ Route::middleware([
     /**
      * Programs
      */
-    Route::get('/programs/active', [ProgramController::class, 'getActivePrograms']);
+    Route::get('/programs/active', [
+        ProgramController::class, 'getActivePrograms'
+    ]);
     Route::get('/programs', [ProgramController::class, 'getPrograms']);
-    Route::post('/addProgram', [ProgramController::class, 'addProgram']);
-    Route::get('/programs/{id}', [ProgramController::class, 'getProgramDetails']);
-    Route::put('/updateProgram/{id}', [ProgramController::class, 'updateProgram']);
-    Route::delete('/deleteProgram/{id}', [ProgramController::class, 'deleteProgram']);
+    Route::post('/programs', [ProgramController::class, 'addProgram']);
+    Route::get('/programs/{id}', [
+        ProgramController::class, 'getProgramDetails'
+    ]);
+    Route::put('/programs/{id}', [ProgramController::class, 'updateProgram']);
+    Route::delete('/programs/{id}', [
+        ProgramController::class, 'deleteProgram'
+    ]);
 
     /**
      * Reports
      */
-    Route::get('/reports/terms', [ReportsController::class, 'getAllTermsForDropdown']);
-    Route::get('/faculty-schedules-report', [ReportsController::class, 'getFacultySchedulesReport']);
-    Route::get('/room-schedules-report', [ReportsController::class, 'getRoomSchedulesReport']);
-    Route::get('/program-schedules-report', [ReportsController::class, 'getProgramSchedulesReport']);
-    Route::get('/single-faculty-schedule/{faculty_id}', [ReportsController::class, 'getSingleFacultySchedule']);
-    Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
-    Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
-    Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+    Route::get('/reports/terms', [
+        ReportsController::class, 'getAllTermsForDropdown'
+    ]);
+    Route::get('/reports/faculty-schedules', [
+        ReportsController::class, 'getFacultySchedulesReport'
+    ]);
+    Route::get('/reports/room-schedules', [
+        ReportsController::class, 'getRoomSchedulesReport'
+    ]);
+    Route::get('/reports/program-schedules', [
+        ReportsController::class, 'getProgramSchedulesReport'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/schedule', [
+        ReportsController::class, 'getSingleFacultySchedule'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/schedule-history', [
+        ReportsController::class, 'getFacultyScheduleHistory'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/academic-years', [
+        ReportsController::class, 'getFacultyAcademicYearsHistory'
+    ]);
+    Route::get('/reports/overview', [
+        ReportsController::class, 'getOverviewDetails'
+    ]);
 
     /**
      * Analytics
@@ -396,7 +489,7 @@ Route::middleware([
      * Rooms
      */
     Route::get('/rooms', [RoomController::class, 'getRooms']);
-    Route::post('/addRoom', [RoomController::class, 'addRoom']);
+    Route::post('/rooms', [RoomController::class, 'addRoom']);
     Route::put('/rooms/{room_id}', [RoomController::class, 'updateRoom']);
     Route::delete('/rooms/{room_id}', [RoomController::class, 'deleteRoom']);
 
@@ -412,15 +505,29 @@ Route::middleware([
     /**
      * Scheduling
      */
-    Route::get('/populate-schedules', [ScheduleController::class, 'populateSchedules']);
-    Route::post('/assign-schedule', [ScheduleController::class, 'assignSchedule']);
-    Route::post('/duplicate-course', [ScheduleController::class, 'duplicateCourse']);
-    Route::delete('/remove-duplicate-course', [ScheduleController::class, 'removeDuplicateCourse']);
-    Route::get('/get-active-faculty', [FacultyController::class, 'getFacultyDetails']);
-    Route::get('/get-available-rooms', [RoomController::class, 'getAllRooms']);
-    Route::post('/toggle-all-schedule', [ScheduleController::class, 'toggleAllSchedules']);
-    Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
-    Route::patch('/schedules/{schedule}/assignment-type', [ScheduleController::class, 'updateAssignmentType']);
+    Route::get('/schedules/populate', [
+        ScheduleController::class, 'populateSchedules'
+    ]);
+    Route::post('/schedules', [ScheduleController::class, 'assignSchedule']);
+    Route::post('/schedules/duplicate-course', [
+        ScheduleController::class, 'duplicateCourse'
+    ]);
+    Route::delete('/schedules/duplicate-course/{id}', [
+        ScheduleController::class, 'removeDuplicateCourse'
+    ]);
+    Route::get('/faculty/active', [
+        FacultyController::class, 'getFacultyDetails'
+    ]);
+    Route::get('/rooms/available', [RoomController::class, 'getAllRooms']);
+    Route::patch('/schedules/publish', [
+        ScheduleController::class, 'toggleAllSchedules'
+    ]);
+    Route::patch('/schedules/{id}/publish', [
+        ScheduleController::class, 'toggleSingleSchedule'
+    ]);
+    Route::patch('/schedules/{schedule}/assignment-type', [
+        ScheduleController::class, 'updateAssignmentType'
+    ]);
     
     // Dynamic Load Types Configuration
     Route::get('/assignment-types', [AssignmentTypeController::class, 'index']);
@@ -439,25 +546,29 @@ Route::middleware([
      * Semester
      */
     Route::get('/semesters', [SemesterController::class, 'index']);
-    Route::post('/addSemester', [SemesterController::class, 'store']);
+    Route::post('/semesters', [SemesterController::class, 'store']);
     Route::get('/semesters/{id}', [SemesterController::class, 'show']);
-    Route::put('/updateSemester/{id}', [SemesterController::class, 'update']);
-    Route::delete('/deleteSemester/{id}', [SemesterController::class, 'destroy']);
+    Route::put('/semesters/{id}', [SemesterController::class, 'update']);
+    Route::delete('/semesters/{id}', [SemesterController::class, 'destroy']);
 
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
-    Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
+    Route::post('/schedules/suggestions', [
+        ScheduleController::class, 'getHeuristicSchedulingSuggestion'
+    ]);
+    Route::get('/schedules/historical', [
+        ScheduleController::class, 'getHistoricalSchedules'
+    ]);
 
     /**
      * Year Level
      */
-    Route::get('/year_levels', [YearLevelController::class, 'index']);
-    Route::post('/addYearLevel', [YearLevelController::class, 'store']);
-    Route::get('/year_levels/{id}', [YearLevelController::class, 'show']);
-    Route::put('/updateYearLevel/{id}', [YearLevelController::class, 'update']);
-    Route::delete('/deleteYearLevel/{id}', [YearLevelController::class, 'destroy']);
+    Route::get('/year-levels', [YearLevelController::class, 'index']);
+    Route::post('/year-levels', [YearLevelController::class, 'store']);
+    Route::get('/year-levels/{id}', [YearLevelController::class, 'show']);
+    Route::put('/year-levels/{id}', [YearLevelController::class, 'update']);
+    Route::delete('/year-levels/{id}', [YearLevelController::class, 'destroy']);
 });
 
 /*

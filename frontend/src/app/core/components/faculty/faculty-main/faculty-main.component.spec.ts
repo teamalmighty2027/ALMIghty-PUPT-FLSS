@@ -4,6 +4,11 @@ import { Router, NavigationEnd } from '@angular/router';
 import { FacultyMainComponent } from './faculty-main.component';
 import { MatIconModule } from '@angular/material/icon';
 import { of } from 'rxjs';
+import { AuthService } from '../../../services/auth/auth.service';
+import {
+  FacultyService
+} from
+'../../../services/superadmin/management/faculty/faculty.service';
 
 describe('FacultyMainComponent', () => {
   let component: FacultyMainComponent;
@@ -13,6 +18,25 @@ describe('FacultyMainComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [FacultyMainComponent, MatIconModule, RouterTestingModule],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: {
+            getUserName: () => 'Test Faculty',
+            getUserEmail: () => 'faculty@test.com',
+            getUserRole: () => 'Faculty',
+            profilePictureUrl$: of(null),
+            logout: () => of(null),
+            hasPermission: () => true
+          }
+        },
+        {
+          provide: FacultyService,
+          useValue: {
+            getProfile: () => of({ profile_picture_url: 'test-url' })
+          }
+        }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(FacultyMainComponent);

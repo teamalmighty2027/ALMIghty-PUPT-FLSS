@@ -1,4 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ActivatedRoute } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { CurriculumDetailComponent } from './curriculum-detail.component';
 
@@ -8,7 +13,25 @@ describe('CurriculumDetailComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CurriculumDetailComponent]
+      imports: [
+        CurriculumDetailComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ],
+      providers: [
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {
+                get: (key: string) => '2023'
+              }
+            }
+          }
+        },
+        { provide: MatDialog, useValue: { open: () => {} } },
+        { provide: MatSnackBar, useValue: { open: () => {} } }
+      ]
     })
     .compileComponents();
 
