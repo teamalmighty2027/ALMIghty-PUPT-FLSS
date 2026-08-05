@@ -277,4 +277,19 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
       }
     });
   }
+
+  /**
+   * Fetches the number of unresolved system notices.
+   */
+  public fetchUnresolvedNoticesCount(): void {
+    this.noticeService.getUnresolvedCount().subscribe({
+      next: (res) => {
+        this.unresolvedNoticesCount = res.count;
+      },
+      error: (err) => {
+        console.error('Failed to fetch unresolved notices count:', err);
+      }
+    });
+  }
 }
+

@@ -132,7 +132,7 @@ export class SystemNoticesComponent implements OnInit, OnDestroy {
    */
   onViewDetails(notice: SystemNotice) {
     const dialogRef = this.dialog.open(DialogSystemNoticeDetailsComponent, {
-      width: '850px',
+      width: '550px',
       data: notice,
       panelClass: 'custom-system-notice-panel',
       autoFocus: true,

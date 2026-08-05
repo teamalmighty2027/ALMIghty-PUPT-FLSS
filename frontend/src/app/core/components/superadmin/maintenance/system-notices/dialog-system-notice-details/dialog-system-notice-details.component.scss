@@ -1,4 +1,4 @@
-@use '../../../../../../styles/mixins.scss';
+@use '../../../../../../../styles/mixins.scss';
 
 :host {
   display: block;
@@ -12,29 +12,15 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   color: #222222;
-  width: 100%;
+  max-width: 550px;
+  box-sizing: border-box;
 }
 
 .accent-bar {
   position: absolute;
   inset: 0 0 auto 0;
   height: 7px;
-
-  &.info {
-    background: linear-gradient(90deg, #0284c7 0%, #0369a1 100%);
-  }
-
-  &.warning {
-    background: linear-gradient(90deg, #d97706 0%, #b45309 100%);
-  }
-
-  &.error {
-    background: linear-gradient(90deg, #dc2626 0%, #b91c1c 100%);
-  }
-
-  &.critical {
-    background: linear-gradient(90deg, #ef4444 0%, #7f1d1d 100%);
-  }
+  background: linear-gradient(90deg, #700b0b 0%, #800000 100%);
 }
 
 .dialog-header {
@@ -50,30 +36,12 @@
   height: 50px;
   min-width: 50px;
   border-radius: 50%;
+  background: #700b0b;
   color: #ffffff;
   display: grid;
   place-items: center;
+  box-shadow: 0 8px 18px rgba(112, 11, 11, 0.2);
   flex-shrink: 0;
-
-  &.info {
-    background: #0284c7;
-    box-shadow: 0 8px 18px rgba(2, 132, 199, 0.2);
-  }
-
-  &.warning {
-    background: #d97706;
-    box-shadow: 0 8px 18px rgba(217, 119, 6, 0.2);
-  }
-
-  &.error {
-    background: #dc2626;
-    box-shadow: 0 8px 18px rgba(220, 38, 38, 0.2);
-  }
-
-  &.critical {
-    background: #ef4444;
-    box-shadow: 0 8px 18px rgba(239, 68, 68, 0.2);
-  }
 
   span {
     font-size: 24px;
