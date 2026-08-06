@@ -11,22 +11,22 @@
 # Cache Control Headers
 <IfModule mod_headers.c>
   # Cache PWA assets for 1 year (versioned files)
-  <FilesMatch ".(js|css|ico|jpg|jpeg|png|gif|webp)$">
+  <FilesMatch "\.(js|css|ico|jpg|jpeg|png|gif|webp)$">
     Header set Cache-Control "public, max-age=31536000"
   </FilesMatch>
 
   # Don't cache service worker files
   <FilesMatch "ngsw.*\.js$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
+    Header always set Cache-Control "no-cache, no-store, must-revalidate"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
   </FilesMatch>
 
   # Don't cache manifest files
   <FilesMatch "manifest\.webmanifest$">
-    Header set Cache-Control "no-cache"
-    Header set Pragma "no-cache"
-    Header set Expires 0
+    Header always set Cache-Control "no-cache"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
   </FilesMatch>
 
   # Cache font files for 1 year
@@ -40,35 +40,33 @@
   </FilesMatch>
 
   # Security Headers
-  Header set X-Content-Type-Options "nosniff"
-  Header set X-XSS-Protection "1; mode=block"
-  Header set X-Frame-Options "SAMEORIGIN"
-  Header set Referrer-Policy "strict-origin-when-cross-origin"
-  Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
   # CORS Headers
-  # Dynamically set Access-Control-Allow-Origin based on incoming Origin request header.
-  # This supports both the test site and the main production site without hardcoding.
   SetEnvIf Origin "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" AccessControlAllowOrigin=$0
-  Header set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
-  Header set Access-Control-Allow-Credentials "true"
-  Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-  Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
+  Header always set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
+  Header always set Access-Control-Allow-Credentials "true"
+  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+  Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-    Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
+    Header always set Cache-Control "no-cache, no-store, must-revalidate"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+    Header always set X-LiteSpeed-Cache-Control "no-cache, no-store"
   </FilesMatch>
 
   <FilesMatch "ngsw\.json$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-    Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
+    Header always set Cache-Control "no-cache, no-store, must-revalidate"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+    Header always set X-LiteSpeed-Cache-Control "no-cache, no-store"
   </FilesMatch>
 </IfModule>
 
@@ -97,14 +95,4 @@
   AddType image/webp webp
   AddType application/wasm wasm
   AddType application/javascript mjs
-</IfModule>
-
-<IfModule mod_headers.c>
-    # Force the browser to NEVER cache the index.html file
-    <FilesMatch "^index\.html$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires 0
-        Header set X-LiteSpeed-Cache-Control "no-cache, no-store"
-    </FilesMatch>
 </IfModule>
