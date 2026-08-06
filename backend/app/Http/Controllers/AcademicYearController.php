@@ -44,7 +44,7 @@ class AcademicYearController extends Controller
         foreach ($academicYears as $year) {
             if (!isset($groupedAcademicYears[$year->academic_year_id])) {
                 $groupedAcademicYears[$year->academic_year_id] = [
-                    'academic_year_id' => $year->academic_year_id,
+                    'academic_year_id' => (int) $year->academic_year_id,
                     'academic_year' => $year->academic_year,
                     'semesters' => [],
                 ];
@@ -60,7 +60,8 @@ class AcademicYearController extends Controller
             }
 
             $groupedAcademicYears[$year->academic_year_id]['semesters'][] = [
-                'semester_id' => $year->semester_id,
+                // Cast to int for the same reason as academic_year_id above.
+                'semester_id' => (int) $year->semester_id,
                 'semester_number' => $semesterLabel,
                 'start_date' => $year->start_date,
                 'end_date' => $year->end_date,
