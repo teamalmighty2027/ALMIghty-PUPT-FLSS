@@ -645,25 +645,17 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
 
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
-        
-        // Flag the top row, the bottom row, and our standard 3-hour gaps
         const isTopRow = index === 0;
-        const isBottomRow = index === chunkSlots.length - 1;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        // Print the Time text if it matches any of those conditions
-        if (isTopRow || isBottomRow || isThreeHourGap) {
-          
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200); 
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200); 
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
       });
 
       const finalY = currentY + chunkSlots.length * rowHeight;
@@ -808,7 +800,11 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
   }
 
   private formatTime(time: string): string {
-    const [hours, minutes] = time.split(':').map(Number);
+    if (!time) return '';
+    const parts = time.split(':');
+    if (parts.length < 2) return '';
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
     const period = hours >= 12 ? 'PM' : 'AM';
     const formattedHours = hours % 12 || 12;
     return `${formattedHours}:${minutes.toString().padStart(2, '0')} ${period}`;

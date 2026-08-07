@@ -23,6 +23,7 @@ class UserProfile extends Model
         'department',
         'birthdate',
         'sex',
+        'academic_rank',
     ];
 
     // Automatically append the full image URL when this model is fetched

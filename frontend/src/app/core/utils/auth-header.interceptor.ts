@@ -115,9 +115,7 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
       }
 
       if (error instanceof HttpErrorResponse && error.status === 401) {
-        router.navigate(['/login'], {
-          queryParams: { reason: 'session-expired' },
-        });
+        authService.expireSession();
       }
 
       return throwError(() => error);

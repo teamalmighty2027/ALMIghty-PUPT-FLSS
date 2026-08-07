@@ -105,6 +105,45 @@
           </div>
         </div>
 
+        <!-- NEW ACADEMIC RANK ROW -->
+        <div class="compact-row" *ngIf="!isAdmin">
+          <div class="field-group academic-rank" style="flex: 1;">
+            <label>Academic Rank <span class="required-asterisk" style="color: #d32f2f;">*</span></label>
+            <div class="select-wrapper">
+              <!-- Desktop Native Select -->
+              <select formControlName="academic_rank" class="pill-input native-select" [class.mobile-hidden]="isMobileView">
+                <option [value]="''" disabled selected>Select Academic Rank...</option>
+                <option *ngFor="let rank of academicRanks" [value]="rank">
+                  {{ rank }}
+                </option>
+              </select>
+
+              <!-- Mobile Trigger -->
+              <div *ngIf="isMobileView" class="pill-input mobile-select-trigger" (click)="toggleMobileDropdown($event, 'academic_rank', false)">
+                <span class="trigger-text">{{ profileForm.get('academic_rank')?.value || 'Select Academic Rank...' }}</span>
+                <span mat-symbol class="trigger-chevron">keyboard_arrow_down</span>
+              </div>
+              
+              <!-- Inline Mobile Dropdown Card -->
+              <div *ngIf="isMobileView && activeMobileDropdown === 'academic_rank'" class="mobile-dropdown-card" (click)="$event.stopPropagation()">
+                <div class="mobile-dropdown-list">
+                  <div *ngFor="let opt of getDropdownOptions('academic_rank')" 
+                       class="mobile-dropdown-option" 
+                       [class.selected]="opt.value === profileForm.get('academic_rank')?.value"
+                       (click)="selectDropdownOption('academic_rank', opt.value)">
+                    <span class="option-label">{{ opt.label }}</span>
+                    <span *ngIf="opt.value === profileForm.get('academic_rank')?.value" mat-symbol class="option-check">check</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <span class="error-text" *ngIf="profileForm.get('academic_rank')?.invalid && profileForm.get('academic_rank')?.touched">
+              Academic rank is required.
+            </span>
+          </div>
+        </div>
+        <!-- END OF ACADEMIC RANK ROW -->
+
         <div class="compact-row">
           <div class="field-group birthdate">
             <label>Birthdate</label>

@@ -46,7 +46,11 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
@@ -98,8 +102,12 @@ Route::get('/addresses/fallback/{file}', function ($file) {
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
-    ->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'super_admin',
+    'throttle:api',
+])->group(function () {
     Route::get('/showAccounts', [AccountController::class, 'index']);
     Route::post('/addAccount', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
@@ -144,7 +152,11 @@ Route::middleware(['auth:sanctum', 'super_admin', 'throttle:api'])
 | General Protected Routes
 |--------------------------
  */
-Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
 
     /**
      * Academic Year

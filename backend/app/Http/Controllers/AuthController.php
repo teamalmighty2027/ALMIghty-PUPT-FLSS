@@ -59,7 +59,7 @@ class AuthController extends Controller
 
         $tokenResult = $user->createToken('user-token');
         $token       = $tokenResult->plainTextToken;
-        $expiration  = Carbon::now()->addHours(24);
+        $expiration  = Carbon::now()->addHour();
 
         $tokenResult->accessToken->expires_at = $expiration;
         $tokenResult->accessToken->save();
@@ -91,9 +91,11 @@ class AuthController extends Controller
             ] : null,
         ]);
 
-        // Store the token and user info in cookies
-        Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
-        Cookie::queue(Cookie::make('user_info', $userData, 1440));
+        // Store the token and user info in cookies (60 minutes lifetime)
+        Cookie::queue(
+            Cookie::make('user_token', $token, 60, null, null, true, true)
+        );
+        Cookie::queue(Cookie::make('user_info', $userData, 60));
 
         // AuditLogger automatically grabs their Name, Role, and ID
         Auth::login($user);
@@ -162,7 +164,7 @@ class AuthController extends Controller
 
         $tokenResult = $user->createToken('user-token');
         $token = $tokenResult->plainTextToken;
-        $expiration = Carbon::now()->addHours(24);
+        $expiration = Carbon::now()->addHour();
 
         $tokenResult->accessToken->expires_at = $expiration;
         $tokenResult->accessToken->save();
@@ -172,7 +174,7 @@ class AuthController extends Controller
             'expires_at' => $expiration,
             'token' => $token,
         ])
-        ->cookie('token', $token, 1440, null, null, true, true);
+        ->cookie('token', $token, 60, null, null, true, true);
     }
 
     /**
