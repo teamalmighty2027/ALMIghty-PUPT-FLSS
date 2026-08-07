@@ -86,14 +86,31 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 throw new \Exception('Faculty email address is missing');
             }
 
+            $pilotTesting = storage_path('app/public/PilotTestingLetter.pdf');
+            $emailUsage = storage_path('app/public/EmailUsage.pdf');
+
             Mail::send(
                 $template,
                 $previousPreferencesData,
-                function ($message) use ($previousPreferencesData) {
+                function ($message) use ($previousPreferencesData, $pilotTesting, $emailUsage) {
                     $message->to($previousPreferencesData['email'])
                         ->subject(
                             'Faculty Load & Schedule Preferences ' .
                             'Submission is now open'
+                        )
+                        ->attach(
+                            $pilotTesting,
+                            [
+                                'as' => 'Pilot_Testing_Letter.pdf',
+                                'mime' => 'application/pdf',
+                            ]
+                        )
+                        ->attach(
+                            $emailUsage,
+                            [
+                                'as' => 'Email_Usage.pdf',
+                                'mime' => 'application/pdf',
+                            ]
                         );
                 }
             );

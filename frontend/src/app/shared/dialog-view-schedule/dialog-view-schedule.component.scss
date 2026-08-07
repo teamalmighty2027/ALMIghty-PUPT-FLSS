@@ -331,6 +331,19 @@
     padding-top: 6px;
     padding-bottom: 6px;
   }
+
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-regular { background-color: var(--primary-text); }
+  .legend-part-time { background-color: var(--blue-primary); }
+  .legend-temporary { background-color: var(--aqua-primary); }
+  .legend-tutorial { background-color: var(--purple-primary); }
 }
 
 .schedule-legend {
