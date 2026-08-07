@@ -64,7 +64,27 @@
     
     @if (data.entity === 'faculty' && selectedView === 'table-view') {
       <div class="summary-table-container" [@fadeAnimation]>
-        <h3 class="summary-title">FACULTY LOAD ASSIGNMENT</h3>
+        <div class="summary-header-row">
+          <h3 class="summary-title">FACULTY LOAD ASSIGNMENT</h3>
+          <mat-button-toggle-group
+            name="summarySortOption"
+            [(ngModel)]="summarySort"
+            (ngModelChange)="applySummarySort()"
+            class="summary-sort-group">
+            <mat-button-toggle value="day">
+              <mat-icon>today</mat-icon>
+              <span>By Day</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="course">
+              <mat-icon>sort_by_alpha</mat-icon>
+              <span>By Course</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="assignment">
+              <mat-icon>work_outline</mat-icon>
+              <span>By Load Type</span>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
 
         <div class="mobile-table-scroll">
           <table mat-table [dataSource]="summaryDataSource" class="custom-table summary-table">
