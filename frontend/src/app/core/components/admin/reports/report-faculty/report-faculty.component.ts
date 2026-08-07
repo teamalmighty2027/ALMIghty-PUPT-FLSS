@@ -17,6 +17,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSymbolDirective } from '../../../../imports/mat-symbol.directive';
 
+
 import { InputField } from '../../../../../shared/table-header/table-header.component';
 import { ReportsHeaderComponent } from "../../../../../shared/reports-header/reports-header.component";
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
@@ -710,7 +711,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           currentY,
           margin,
           pageWidth,
-          faculty.timePlots || []
+          [] // Omit faculty time plot assignments by default
         );
       }
     });
@@ -745,7 +746,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         currentY,
         margin,
         pageWidth,
-        faculty.timePlots || []
+        [] // Omit faculty time plot assignments by default
       );
     }
 
