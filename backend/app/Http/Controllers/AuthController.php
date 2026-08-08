@@ -50,9 +50,19 @@ class AuthController extends Controller
             return $this->invalidLoginResponse();
         }
 
-        // Check if admin/superadmin is active
-        if (($user->role === 'admin' || $user->role === 'superadmin') && $user->status === 'Inactive') {
-            return $this->invalidLoginResponse();
+        // Block logins for inactive or retired accounts
+        if ($user->status === 'Inactive' || $user->status === 'Retired') {
+            AuditLogger::logFailedLogin(
+                $loginUserData['email'],
+                "Standard credentials login attempted for {$user->status} account",
+                $user
+            );
+
+            return response()->json([
+                'message' => 'Your account is currently ' . strtolower($user->status) . '. Please contact the system administrator.',
+                'status'  => $user->status,
+                'email'   => $user->email,
+            ], 403);
         }
 
         $tokenResult = $user->createToken('user-token');
