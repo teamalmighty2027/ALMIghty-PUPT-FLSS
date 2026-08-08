@@ -188,6 +188,13 @@ Route::middleware([
     'token.expiration',
     'throttle:api',
 ])->group(function () {
+    /**
+     * Report a system notice from the frontend
+     */
+    Route::post(
+      '/system-notices/report', [
+        SystemNoticeController::class, 'storeFromFrontend'
+    ]);
 
     /**
      * Academic Year

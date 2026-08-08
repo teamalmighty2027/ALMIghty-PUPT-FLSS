@@ -128,4 +128,35 @@ class SystemNoticeController extends Controller
         $count = SystemNotice::unresolved()->actionable()->count();
         return response()->json(['count' => $count]);
     }
+
+    /**
+     * Receive an error report from the frontend client.
+     */
+    public function storeFromFrontend(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'type'              => 'nullable|string|max:64',
+            'severity'          => 'required|in:info,warning,error,critical',
+            'title'             => 'required|string|max:255',
+            'message'           => 'required|string|max:5000',
+            'context'           => 'nullable|array',
+            'context.stack'     => 'nullable|string|max:10000',
+            'context.route'     => 'nullable|string|max:500',
+            'context.timestamp' => 'nullable|string',
+        ]);
+
+        $type = $validated['type'] ?? 'frontend_error';
+
+        SystemNoticeService::create(
+            $type,
+            $validated['severity'],
+            'frontend',
+            $validated['title'],
+            $validated['message'],
+            $validated['context'] ?? [],
+            Auth::id()
+        );
+
+        return response()->json(['message' => 'Report received.'], 202);
+    }
 }

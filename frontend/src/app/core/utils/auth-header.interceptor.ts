@@ -9,6 +9,7 @@ import { catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { AuthService } from '../services/auth/auth.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { SystemNoticeService } from '../services/superadmin/system-notice/system-notice.service';
 
 const REFRESH_PATH = '/auth/refresh';
 
@@ -135,9 +136,26 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
             duration: 4000 
           });
         } 
-        // 4. USE SNACKBAR FOR SERVER ERRORS (500)
-        else if (error.status === 500) {
-          console.error('Server Error:', error.error.message);
+        // 4. USE SNACKBAR AND REPORT FOR SERVER ERRORS (5xx)
+        else if (error.status >= 500) {
+          console.error('Server Error:', error.error?.message);
+
+          if (!req.url.includes('/system-notices/report')) {
+            try {
+              inject(SystemNoticeService).error(
+                `HTTP ${error.status} — Server Error`,
+                error,
+                {
+                  url: error.url,
+                  status: error.status,
+                  body: error.error,
+                }
+              );
+            } catch (e) {
+              console.error('Error reporting 5xx to SystemNoticeService:', e);
+            }
+          }
+
           snackBar.open('A server error occurred. Our team has been notified.', 'Close', { 
             duration: 4000 
           });
