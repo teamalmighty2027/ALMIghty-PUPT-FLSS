@@ -8,7 +8,8 @@ import {
   SimpleChanges, 
   ViewChild, 
   ElementRef, 
-  AfterViewInit, 
+  AfterViewInit,
+  OnDestroy,
   inject 
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -23,6 +24,9 @@ import { ReschedulingService } from '../../core/services/faculty/rescheduling/re
 
 import { fadeAnimation, fabAnimation } from '../../core/animations/animations';
 import { DialogExportComponent } from '../dialog-export/dialog-export.component';
+import {
+  FacultyScheduleMobileComponent
+} from '../faculty-schedule-mobile/faculty-schedule-mobile.component';
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -62,15 +66,18 @@ type Day = 'Monday' |
     MatIconModule,
     MatDialogModule,
     MatTooltipModule,
+    FacultyScheduleMobileComponent,
   ],
   templateUrl: './faculty-schedule-timetable.component.html',
   styleUrls: ['./faculty-schedule-timetable.component.scss'],
   animations: [fadeAnimation, fabAnimation],
 })
-export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, AfterViewInit {
+export class FacultyScheduleTimetableComponent implements 
+  OnInit, OnChanges, AfterViewInit, OnDestroy {
   @ViewChild('tableWrapper') tableWrapper!: ElementRef;
 
   isLabelVisible = true;
+  isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
   private lastScrollTop = 0;
   private readonly SCROLL_THRESHOLD = 25;
 
@@ -108,12 +115,31 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * Called once when the component is instantiated.
    */
   ngOnInit() {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleViewportResize);
+    }
+
     this.generateTimeSlots();
     this.processScheduleData();
     if (this.showAppealButtons) {
       this.loadMyAppeals();
     }
   }
+
+  // Cleanup resize listener on component destruction
+  ngOnDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleViewportResize);
+    }
+  }
+
+  // Listen to window resize events to update mobile view status
+  private handleViewportResize = (): void => {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+  };
 
   /**
    * Detects changes to @Input properties and re-processes data.

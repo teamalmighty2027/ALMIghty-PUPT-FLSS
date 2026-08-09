@@ -1,0 +1,180 @@
+<div class="faculty-schedule-mobile-container">
+  
+  <div class="mobile-view-toggle">
+    <mat-button-toggle-group
+      [ngModel]="viewType"
+      (change)="onViewChange($event.value)"
+      name="mobileViewType"
+      aria-label="Mobile view mode"
+      hideSingleSelectionIndicator>
+      
+      <mat-button-toggle value="accordion">
+        <mat-icon>dns</mat-icon>
+        Accordion
+      </mat-button-toggle>
+      
+      <mat-button-toggle value="table">
+        <mat-icon>table_rows</mat-icon>
+        Table
+      </mat-button-toggle>
+      
+    </mat-button-toggle-group>
+  </div>
+
+  @if (scheduleBlocks.length === 0) {
+    <div class="empty-mobile-schedule">
+      <mat-icon class="empty-icon">calendar_today</mat-icon>
+      <h4 class="empty-title">No schedule assigned</h4>
+      <p class="empty-sub">
+        You have no active classes scheduled for this period.
+      </p>
+    </div>
+  } @else {
+
+    @if (viewType === 'accordion') {
+      <div class="accordion-wrapper">
+        @for (day of days; track day) {
+          @if (groupedSchedules[day] && groupedSchedules[day].length > 0) {
+            <div class="accordion-item" [class.expanded]="expandedDays[day]">
+              
+              <button class="accordion-header" (click)="toggleDay(day)">
+                <span class="day-title">{{ day }}</span>
+                <div class="header-right">
+                  <span class="count-badge">
+                    {{ groupedSchedules[day].length }}
+                  </span>
+                  <mat-icon class="arrow-icon">expand_more</mat-icon>
+                </div>
+              </button>
+
+              <div class="accordion-content">
+                @for (block of groupedSchedules[day]; track block.scheduleId) {
+                  <div class="schedule-card" [class]="getDayClass(day)">
+                    <div class="card-left-bar"></div>
+                    <div class="card-body">
+                      
+                      <div class="card-header">
+                        <span class="course-code">{{ block.courseCode }}</span>
+                        @if (block.isBridging) {
+                          <span class="bridging-badge">Bridging</span>
+                        }
+                      </div>
+                      
+                      <h3 class="course-title">{{ block.courseTitle }}</h3>
+
+                      <div class="card-details">
+                        <div class="detail-item">
+                          <mat-icon class="detail-icon">schedule</mat-icon>
+                          <span class="detail-text">
+                            {{ block.startTime }} - {{ block.endTime }}
+                          </span>
+                        </div>
+                        
+                        <div class="detail-item">
+                          <mat-icon class="detail-icon">room</mat-icon>
+                          <span class="detail-text">{{ block.roomCode }}</span>
+                        </div>
+                        
+                        <div class="detail-item">
+                          <mat-icon class="detail-icon">school</mat-icon>
+                          <span class="detail-text">{{ block.program }}</span>
+                        </div>
+                      </div>
+
+                      @if (showAppealButtons) {
+                        <div class="card-actions">
+                          <button
+                            mat-stroked-button
+                            class="appeal-btn"
+                            (click)="onEditScheduleBlock(block, $event)">
+                            <mat-icon>flag</mat-icon>
+                            File Appeal
+                          </button>
+                          
+                          <button
+                            mat-icon-button
+                            [class]="getAppealStatusClass(block)"
+                            (click)="onViewMyAppeals(block, $event)"
+                            matTooltip="Appeal History">
+                            <mat-icon>history</mat-icon>
+                          </button>
+                        </div>
+                      }
+                      
+                    </div>
+                  </div>
+                }
+              </div>
+
+            </div>
+          }
+        }
+      </div>
+    } @else {
+      
+      <div class="mobile-table-wrapper">
+        <table class="compact-schedule-table">
+          <thead>
+            <tr>
+              <th>Day & Time</th>
+              <th>Course & Room</th>
+              <th>Section</th>
+              @if (showAppealButtons) {
+                <th>Actions</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (block of scheduleBlocks; track block.scheduleId) {
+              <tr>
+                <td class="time-col">
+                  <span class="day-short">{{ block.day.substring(0, 3) }}</span>
+                  <span class="time-range">
+                    {{ block.startTime }}<br>{{ block.endTime }}
+                  </span>
+                </td>
+                
+                <td class="course-col">
+                  <div class="course-info">
+                    <span class="course-code-inline">
+                      {{ block.courseCode }}
+                    </span>
+                    @if (block.isBridging) {
+                      <span class="bridging-dot" matTooltip="Bridging">B</span>
+                    }
+                  </div>
+                  <span class="room-code-inline">{{ block.roomCode }}</span>
+                </td>
+                
+                <td class="sect-col">{{ block.program }}</td>
+                
+                @if (showAppealButtons) {
+                  <td class="act-col">
+                    <button
+                      mat-icon-button
+                      class="table-appeal-btn"
+                      (click)="onEditScheduleBlock(block, $event)"
+                      matTooltip="File Appeal">
+                      <mat-icon>flag</mat-icon>
+                    </button>
+                    
+                    <button
+                      mat-icon-button
+                      [class]="getAppealStatusClass(block)"
+                      (click)="onViewMyAppeals(block, $event)"
+                      matTooltip="Appeal History">
+                      <mat-icon>history</mat-icon>
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+    }
+
+  }
+
+</div>
