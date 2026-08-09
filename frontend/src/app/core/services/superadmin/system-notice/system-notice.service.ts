@@ -1,6 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, EMPTY } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { Router } from '@angular/router';
 import { environment } from '../../../../../environments/environment.dev';
 
 export interface SystemNotice {
@@ -30,8 +32,70 @@ export interface PaginatedSystemNoticeResponse {
 })
 export class SystemNoticeService {
   private baseUrl = environment.apiUrl;
+  private router = inject(Router);
 
   constructor(private http: HttpClient) {}
+
+  /**
+   * Report a caught error (severity = 'error').
+   */
+  error(title: string, error: any, extra?: Record<string, any>): void {
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : JSON.stringify(error);
+
+    const stack = error instanceof Error ? error.stack : undefined;
+
+    this.report('error', title, message, {
+      ...extra,
+      stack,
+    });
+  }
+
+  /**
+   * Report a warning (severity = 'warning').
+   */
+  warn(title: string, message: string, extra?: Record<string, any>): void {
+    this.report('warning', title, message, extra);
+  }
+
+  /**
+   * Report an informational event (severity = 'info').
+   */
+  info(title: string, message: string, extra?: Record<string, any>): void {
+    this.report('info', title, message, extra);
+  }
+
+  /**
+   * Submit a notice report to the backend API.
+   */
+  report(
+    severity: 'info' | 'warning' | 'error' | 'critical',
+    title: string,
+    message: string,
+    context: Record<string, any> = {}
+  ): void {
+    const payload = {
+      type: 'frontend_error',
+      severity,
+      title,
+      message,
+      context: {
+        ...context,
+        route: this.router?.url || 'unknown',
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    // Fire-and-forget: ignore success and swallow failures silently
+    this.http.post(`${this.baseUrl}/system-notices/report`, payload)
+      .pipe(
+        catchError(() => EMPTY)
+      )
+      .subscribe();
+  }
 
   /**
    * Fetches paginated system notices with optional filters.

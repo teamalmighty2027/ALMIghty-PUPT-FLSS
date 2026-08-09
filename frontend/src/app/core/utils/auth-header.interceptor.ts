@@ -9,6 +9,7 @@ import { catchError, switchMap } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { AuthService } from '../services/auth/auth.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { SystemNoticeService } from '../services/superadmin/system-notice/system-notice.service';
 
 const REFRESH_PATH = '/auth/refresh';
 
@@ -117,30 +118,74 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
       }
 
       if (error instanceof HttpErrorResponse) {
-        // Handle 401 Unauthorized
+        // --- 1. Global Snackbar & Session Expiry Alerts ---
         if (error.status === 401) {
           authService.expireSession();
         } 
-        // 2. USE SNACKBAR FOR VALIDATION ERRORS (422)
         else if (error.status === 422) {
-          console.warn('Validation Error:', error.error.errors);
+          console.warn('Validation Error:', error.error?.errors);
           snackBar.open('Please check your inputs. Some data was invalid.', 'Close', { 
             duration: 4000 
           });
-        } 
-        // 3. USE SNACKBAR FOR BAD REQUESTS (400)
-        else if (error.status === 400) {
-          console.error('Bad Request:', error.error.message);
-          snackBar.open(error.error.message || 'Invalid request format. Please try again.', 'Close', { 
-            duration: 4000 
+        }
+        else if (error.status === 409) {
+          console.error('Conflict:', error.error?.message);
+          snackBar.open(error.error?.message || 'A conflict occurred. Please try again.', 'Close', {
+            duration: 4000
           });
         } 
-        // 4. USE SNACKBAR FOR SERVER ERRORS (500)
-        else if (error.status === 500) {
-          console.error('Server Error:', error.error.message);
+        else if (error.status === 429) {
+          console.error('Too Many Requests:', error.error?.message);
+          snackBar.open('Too many requests. Please wait a moment before trying again.', 'Close', {
+            duration: 4000
+          });
+        }
+        else if (error.status >= 500) {
+          console.error('Server Error:', error.error?.message);
           snackBar.open('A server error occurred. Our team has been notified.', 'Close', { 
             duration: 4000 
           });
+        }
+
+        // --- 2. System Notice Reporting for Crucial Errors ---
+        const reportableStatuses = [400, 403, 409, 429];
+        const isReportable = reportableStatuses.includes(error.status) || error.status >= 500;
+
+        if (isReportable && !req.url.includes('/system-notices/report')) {
+          let title = `HTTP ${error.status} — Error`;
+          let severity: 'info' | 'warning' | 'error' | 'critical' = 'error';
+
+          if (error.status === 403) {
+            title = 'HTTP 403 — Access Denied';
+            severity = 'warning';
+          } else if (error.status === 409) {
+            title = 'HTTP 409 — State Conflict';
+            severity = 'warning';
+          } else if (error.status === 429) {
+            title = 'HTTP 429 — Rate Limit Exceeded';
+            severity = 'warning';
+          } else if (error.status === 400) {
+            title = 'HTTP 400 — Bad Request';
+            severity = 'error';
+          } else if (error.status >= 500) {
+            title = `HTTP ${error.status} — Server Error`;
+            severity = 'error';
+          }
+
+          try {
+            inject(SystemNoticeService).report(
+              severity,
+              title,
+              error.error?.message || error.message || 'HTTP Request Failure',
+              {
+                url: error.url,
+                status: error.status,
+                body: error.error,
+              }
+            );
+          } catch (e) {
+            console.error('Error reporting HTTP error to SystemNoticeService:', e);
+          }
         }
       }
 
