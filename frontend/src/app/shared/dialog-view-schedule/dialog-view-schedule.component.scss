@@ -189,15 +189,39 @@
   margin-bottom: var(--spacing-sm);
   flex-shrink: 0;
 
-  .summary-title {
-    margin: 2px 0 10px;
-    color: var(--primary-text);
-    font-weight: 700;
-    font-size: 0.95rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    text-align: center;
-    line-height: 1.2;
+  .summary-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    .summary-title {
+      margin: 0;
+      color: var(--primary-text);
+      font-weight: 700;
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+  }
+
+  .summary-sort-group {
+    height: 36px;
+    align-items: center;
+
+    mat-button-toggle {
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        vertical-align: middle;
+      }
+      span {
+        font-size: 13px;
+        margin-left: 4px;
+      }
+    }
   }
 
   .summary-table {

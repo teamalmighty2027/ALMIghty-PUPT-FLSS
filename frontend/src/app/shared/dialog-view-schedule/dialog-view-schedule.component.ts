@@ -90,6 +90,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
   summaryColumns: string[] = ['subjectCode', 'description', 'hrs', 'yearSection', 'day', 'time', 'assignmentType'];
   summaryDataSource = new MatTableDataSource<any>([]);
   dynamicLoadTypes: { id: number, name: string }[] = [];
+  summarySort: 'day' | 'course' | 'assignment' = 'day';
 
   // State trackers for Save workflow
   isSaving = false;
@@ -196,6 +197,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     this.schedulingService.getAssignmentTypes().subscribe({
       next: (types) => {
         this.dynamicLoadTypes = types;
+        this.applySummarySort();
       },
       error: (err) => console.error('Failed to load assignment types', err)
     });
@@ -212,9 +214,49 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       });
 
       this.summaryDataSource.data = clonedSchedules;
+      this.applySummarySort();
     }
 
     this.initializeScheduleData();
+  }
+
+  // Sorts and refreshes the summaryDataSource by the active sort mode.
+  applySummarySort(): void {
+    const dayOrder: Record<string, number> = {
+      'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+      'Thursday': 4, 'Friday': 5, 'Saturday': 6, 'Sunday': 7
+    };
+    const typePriority = (typeId: any) => {
+      const typeObj = this.dynamicLoadTypes.find(t => t.id === Number(typeId));
+      const s = (typeObj?.name || '').toLowerCase();
+      if (s.includes('regular')) return 1;
+      if (s.includes('part')) return 2;
+      if (s.includes('temporary')) return 3;
+      return 99;
+    };
+    const toMin = (t: string) => {
+      if (!t) return 0;
+      const parts = t.split(':');
+      if (parts.length < 2) return 0;
+      return Number(parts[0]) * 60 + Number(parts[1]);
+    };
+
+    const sorted = [...(this.summaryDataSource.data || [])].sort((a, b) => {
+      if (this.summarySort === 'course') {
+        return (a.course_details?.course_code || '')
+          .localeCompare(b.course_details?.course_code || '');
+      }
+      if (this.summarySort === 'assignment') {
+        const diff = typePriority(a.assignment_type_id)
+                   - typePriority(b.assignment_type_id);
+        return diff !== 0 ? diff : toMin(a.start_time) - toMin(b.start_time);
+      }
+      // Default: day order, then time
+      const dayDiff = (dayOrder[a.day] || 99) - (dayOrder[b.day] || 99);
+      return dayDiff !== 0 ? dayDiff : toMin(a.start_time) - toMin(b.start_time);
+    });
+
+    this.summaryDataSource.data = sorted;
   }
 
   ngOnDestroy(): void {

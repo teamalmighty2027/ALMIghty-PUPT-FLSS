@@ -343,7 +343,13 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     schedules.forEach(sched => {
       const courseCode = sched.course_details?.course_code || 'UNKNOWN';
       const cleanProgram = (sched.program_code || '').replace('-TG', '');
-      const sectionKey = `${courseCode}_${cleanProgram}_${sched.year_level}_${sched.section_name}`;
+
+      // Include assignment_type so different load types on the same course
+      // are never collapsed into a single section entry.
+      const assignType = sched.assignment_type || 'Regular';
+      const sectionKey =
+        `${courseCode}_${cleanProgram}_${sched.year_level}` +
+        `_${sched.section_name}_${assignType}`;
 
       if (!sectionMap.has(sectionKey)) {
         sectionMap.set(sectionKey, { ...sched, _rawSchedules: [sched] });
@@ -357,15 +363,24 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
     sectionMap.forEach((sectionData, sectionKey) => {
       
-      // Create a unique, order-independent signature of all physical schedule blocks for this section
+      // Create a unique, order-independent signature of all physical schedule
+      // blocks for this section. Include assignment_type so two blocks that
+      // share the same time but have different load types stay separate.
       const physicalBlocks = sectionData._rawSchedules.map((raw: any) => {
-          return `${this.mapDayCode(raw.day) || 'TBA'}_${raw.start_time || 'TBA'}_${raw.end_time || 'TBA'}`;
+        const at = raw.assignment_type || 'Regular';
+        return (
+          `${at}_${this.mapDayCode(raw.day) || 'TBA'}` +
+          `_${raw.start_time || 'TBA'}_${raw.end_time || 'TBA'}`
+        );
       });
       physicalBlocks.sort(); // Ensure order doesn't prevent matching
       const scheduleSignature = physicalBlocks.join('|');
 
-      // The definitive grouping key: Same Course + Exact same times/days.
-      const combinedKey = `${sectionData.course_details?.course_code}_${scheduleSignature}`;
+      // Definitive grouping key: Course + assignment_type + exact schedule.
+      const sectionAssignType = sectionData.assignment_type || 'Regular';
+      const combinedKey =
+        `${sectionData.course_details?.course_code}` +
+        `_${sectionAssignType}_${scheduleSignature}`;
 
       const cleanProgram = (sectionData.program_code || '').replace('-TG', '');
       const isExplicitlyCombined = sectionData.combined_with_program_id != null || sectionData.is_combined || cleanProgram.includes('/');
@@ -430,7 +445,10 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
 
       timeBlocks.forEach(block => {
         displayTimes.push(block.time);
-        displayDays.push(block.days.join('')); // Combines MTW without slashes
+
+        // Use '/' as separator for multi-day blocks that share the same
+        // time+room (e.g. W/TH) when they share the same assignment type.
+        displayDays.push(block.days.join('/'));
         displayRooms.push(block.room);
       });
 
@@ -525,17 +543,23 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       .toLowerCase().includes('part-time') || isSummerSemester;
 
     schedules.forEach((sched: any) => {
-      // Look at the assignmentType changed from the UI
+      // Use the UI-assigned type; fall back to 'Regular' if unset.
       const type = sched.assignment_type || sched.assignmentType || 'Regular';
       const hours = this.getRowHours(sched);
 
-      if (type === 'Part-Time') {
+      // Part-Time faculty bypass the unit cap; all their schedules go
+      // directly to the part-time bucket.
+      if (isPartTimeFaculty) {
+        partTime.push(sched);
+        return;
+      }
 
+      if (type === 'Part-Time') {
         partTime.push(sched);
       } else if (type === 'Temporary Substitution') {
         tempSub.push(sched);
       } else {
-        regular.push(sched);
+        // Regular-type schedules: push once; overflow goes to part-time.
         if (currentHours + hours <= regularUnitsAllowed) {
           regular.push(sched);
           currentHours += hours;
@@ -584,7 +608,9 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     const minutes = Number(parts[1]);
     const period = hours >= 12 ? 'PM' : 'AM';
     const formattedHours = hours % 12 || 12;
-    return `${formattedHours}:${minutes.toString().padStart(2, '0')}${period}`;
+
+    // Space before AM/PM matches formatting in faculty/programs/rooms reports.
+    return `${formattedHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   }
 
   private getHoursDiff(startTime: string, endTime: string): number {
@@ -971,24 +997,41 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
       doc.text(labels[i], colCenters[i], signatureY + 4, { align: 'center' });
     }
 
-    // --- NEW: Add "Report on Official Time" Page if eligible ---
+    // Add "Report on Official Time" Page if eligible ---
     const fType = (faculty.faculty_type || '').toLowerCase();
-    const isEligibleForOfficialTimeReport = 
-      fType.includes('designee') || 
-      fType.includes('temporary') || 
-      fType.includes('full-time') || 
+    const isEligibleForOfficialTimeReport =
+      fType.includes('designee') ||
+      fType.includes('temporary') ||
+      fType.includes('full-time') ||
       fType.includes('full time');
 
     if (isEligibleForOfficialTimeReport) {
-      this.drawReportOnOfficialTime(doc, faculty, dynamicDailyHours);
+      // Track current page count so drawReportOnOfficialTime can avoid
+      // adding a redundant blank page if autoTable already advanced.
+      const pagesBefore = (doc as any).internal.pages.length - 1;
+      this.drawReportOnOfficialTime(doc, faculty, dynamicDailyHours, pagesBefore);
     }
   }
 
-  // --- NEW: REPORT ON OFFICIAL TIME (Second Page - Landscape) ---
-  private drawReportOnOfficialTime(doc: jsPDF, faculty: any, dynamicDailyHours: Record<string, any>) {
-    // Force this specific page to be Landscape
-    doc.addPage('letter', 'l');
-    
+  // Draws "Report on Official Time" as a landscape second page.
+  // pagesBefore: page count of the doc before this call, used to
+  // detect if autoTable already added a new page and avoid duplicates.
+  private drawReportOnOfficialTime(
+    doc: jsPDF,
+    faculty: any,
+    dynamicDailyHours: Record<string, any>,
+    pagesBefore: number = 0
+  ) {
+    const currentPages = (doc as any).internal.pages.length - 1;
+
+    // Only add a new page when autoTable hasn't already created one;
+    // otherwise just navigate to the last page to avoid a blank separator.
+    if (currentPages <= pagesBefore) {
+      doc.addPage('letter', 'l');
+    } else {
+      doc.setPage(currentPages);
+    }
+
     const pageWidth = doc.internal.pageSize.getWidth();
     let currentY = 15;
 
