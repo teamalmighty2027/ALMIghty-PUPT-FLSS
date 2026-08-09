@@ -7,8 +7,7 @@ import {
   OnChanges, 
   SimpleChanges, 
   ViewChild, 
-  ElementRef, 
-  AfterViewInit,
+  ElementRef,
   OnDestroy,
   inject 
 } from '@angular/core';
@@ -73,8 +72,17 @@ type Day = 'Monday' |
   animations: [fadeAnimation, fabAnimation],
 })
 export class FacultyScheduleTimetableComponent implements 
-  OnInit, OnChanges, AfterViewInit, OnDestroy {
-  @ViewChild('tableWrapper') tableWrapper!: ElementRef;
+  OnInit, OnChanges, OnDestroy {
+  private _tableWrapper?: ElementRef;
+
+  @ViewChild('tableWrapper') set tableWrapper(
+    content: ElementRef | undefined
+  ) {
+    if (content) {
+      this._tableWrapper = content;
+      this.attachScrollListener();
+    }
+  }
 
   isLabelVisible = true;
   isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -159,11 +167,17 @@ export class FacultyScheduleTimetableComponent implements
    * After view init: attach scroll listener 
    * to the table wrapper to toggle label visibility.
    */
-  ngAfterViewInit() {
-    const tableWrapperElement = this.tableWrapper.nativeElement;
+  // Attach scroll listener to table wrapper
+  private attachScrollListener() {
+    if (!this._tableWrapper) {
+      return;
+    }
+
+    const tableWrapperElement = this._tableWrapper.nativeElement;
     tableWrapperElement.addEventListener('scroll', () => {
       const currentScrollTop = tableWrapperElement.scrollTop;
-      if (Math.abs(currentScrollTop - this.lastScrollTop) > this.SCROLL_THRESHOLD) {
+      const diff = Math.abs(currentScrollTop - this.lastScrollTop);
+      if (diff > this.SCROLL_THRESHOLD) {
         this.isLabelVisible = currentScrollTop <= this.lastScrollTop;
         this.lastScrollTop = currentScrollTop;
       }
