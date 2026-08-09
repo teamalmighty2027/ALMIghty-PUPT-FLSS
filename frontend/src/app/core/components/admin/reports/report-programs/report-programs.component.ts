@@ -1016,7 +1016,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     const rowHeight = 8.5; 
 
     const chunks = [
-      { name: 'Morning (7:30 AM - 2:00 PM)', start: 450, end: 840 },
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
       { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 }
     ];
 
@@ -1108,37 +1108,22 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         const isTopRow = index === 0;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
-      });
-
-      // Draw the last time label at finalY (WITH THE OUT-OF-BOUNDS FIX!)
-      const finalY = currentY + chunkSlots.length * rowHeight;
-      const lastSlot = chunkSlots[chunkSlots.length - 1];
-      if (lastSlot) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
-        doc.text(lastSlot.time, margin + timeColWidth / 2, finalY - rowHeight + 5, { align: 'center' });
-      } else {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-      }
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
 
       // Vertical grid lines
       doc.line(margin, currentY, margin, finalY);
