@@ -1849,8 +1849,15 @@ class PreferenceController extends Controller
     /**
      * Toggles preference settings for a single faculty member.
      */
-    public function toggleSinglePreferences(Request $request)
-    {
+    // Toggles preferences for a specific faculty member using URL parameter
+    public function toggleSinglePreferences(
+        Request $request,
+        $faculty_id = null
+    ) {
+        if ($faculty_id !== null) {
+            $request->merge(['faculty_id' => $faculty_id]);
+        }
+
         // Step 1: Validate the input
         $validated = $request->validate([
             'faculty_id'            => 'required|integer|exists:faculty,id',

@@ -8,14 +8,37 @@
     <p class="title-desc">Enter your email and password to start.</p>
   </div>
 
-  <!--Health Status Message-->
-  <!-- <div class="health-message-container">
-    <span mat-symbol="wifi_tethering_off"></span>
-    <p class="message-text">
-      IDP System is currently unavailable. Please use your FLSS backup credentials
-      to continue.
-    </p>
-  </div> -->
+  <!--Account Inactive Notice-->
+  @if (isAccountInactive) {
+    <div
+      class="health-message-container"
+      style="background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); padding: 12px; border-radius: 8px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-start;"
+    >
+      <span mat-symbol="warning" style="color: #ef4444; font-size: 24px;"></span>
+      <div class="message-text" style="flex: 1;">
+        <p style="margin: 0; font-weight: 600; font-size: 0.95rem;">Account Deactivated</p>
+        <p style="margin: 4px 0 8px 0; font-size: 0.85rem; opacity: 0.9;">
+          Your account is inactive. You can request reactivation from administrators below.
+        </p>
+        @if (!isReactivationSent) {
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="isReactivationLoading"
+            (click)="onRequestReactivation()"
+            style="font-size: 0.85rem;"
+          >
+            @if (!isReactivationLoading) { Request Reactivation }
+            @if (isReactivationLoading) { Submitting... }
+          </button>
+        } @else {
+          <span style="font-size: 0.85rem; color: #10b981; font-weight: 600;">
+            ✓ Request submitted to admins
+          </span>
+        }
+      </div>
+    </div>
+  }
 
   <!--Dialog Form-->
   <form

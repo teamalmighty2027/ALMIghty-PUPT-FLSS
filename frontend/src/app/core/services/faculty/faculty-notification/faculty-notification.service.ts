@@ -38,7 +38,7 @@ export class FacultyNotificationService {
     if (!this.notificationsCache[facultyId]) {
       this.notificationsCache[facultyId] = this.http
         .get<FacultyNotificationResponse>(
-          `${this.baseUrl}/faculty-notifications`,
+          `${this.baseUrl}/faculty/notifications`,
           { params: { faculty_id: facultyId.toString() } },
         )
         .pipe(shareReplay(1), catchError(this.handleError));

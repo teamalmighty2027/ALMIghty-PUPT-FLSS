@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { DesigneeRoleService } from './designee-role.service';
 
@@ -6,7 +7,10 @@ describe('DesigneeRoleService', () => {
   let service: DesigneeRoleService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [DesigneeRoleService]
+    });
     service = TestBed.inject(DesigneeRoleService);
   });
 

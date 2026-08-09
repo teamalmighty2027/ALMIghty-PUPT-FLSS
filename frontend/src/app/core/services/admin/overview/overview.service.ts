@@ -40,12 +40,14 @@ export class OverviewService {
   constructor(private http: HttpClient) {}
 
   getOverviewDetails(): Observable<OverviewDetails> {
-    return this.http.get<OverviewDetails>(`${this.baseUrl}/overview-details`);
+    return this.http.get<OverviewDetails>(
+      `${this.baseUrl}/reports/overview`
+    );
   }
 
   getRequestNotifications(): Observable<RequestNotification[]> {
     return this.http.get<RequestNotification[]>(
-      `${this.baseUrl}/request-notifications`
+      `${this.baseUrl}/notifications/requests`
     );
   }
 }

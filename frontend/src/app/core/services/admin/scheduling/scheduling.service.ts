@@ -133,7 +133,9 @@ export class SchedulingService {
    */
   getActiveYearLevelsCurricula(): Observable<any[]> {
     return this.http
-      .get<any[]>(`${this.baseUrl}/active-year-levels-curricula`)
+      .get<any[]>(
+        `${this.baseUrl}/academic-years/active/year-levels-curricula`
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -148,7 +150,9 @@ export class SchedulingService {
 
     if (!this.schedulesCache$) {
       this.schedulesCache$ = this.http
-        .get<PopulateSchedulesResponse>(`${this.baseUrl}/populate-schedules`)
+        .get<PopulateSchedulesResponse>(
+          `${this.baseUrl}/schedules/populate`
+        )
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.schedulesCache$;
@@ -205,9 +209,10 @@ export class SchedulingService {
    * Retrieves courses for a program across all semesters in the active academic year.
    */
   getProgramCourses(programId: number): Observable<CourseCatalogItem[]> {
-    const params = new HttpParams().set('program_id', programId.toString());
     return this.http
-      .get<CourseCatalogItem[]>(`${this.baseUrl}/program-courses`, { params })
+      .get<CourseCatalogItem[]>(
+        `${this.baseUrl}/programs/${programId}/courses`
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -332,7 +337,7 @@ export class SchedulingService {
   getAllRooms(): Observable<{ rooms: Room[] }> {
     if (!this.roomsCache$) {
       this.roomsCache$ = this.http
-        .get<{ rooms: Room[] }>(`${this.baseUrl}/get-available-rooms`)
+        .get<{ rooms: Room[] }>(`${this.baseUrl}/rooms/available`)
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.roomsCache$;
@@ -345,7 +350,7 @@ export class SchedulingService {
   getFacultyDetails(): Observable<{ faculty: Faculty[] }> {
     if (!this.facultyCache$) {
       this.facultyCache$ = this.http
-        .get<{ faculty: Faculty[] }>(`${this.baseUrl}/get-active-faculty`)
+        .get<{ faculty: Faculty[] }>(`${this.baseUrl}/faculty/active`)
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.facultyCache$;
@@ -362,7 +367,7 @@ export class SchedulingService {
   ): Observable<SubmittedPrefResponse> {
     if (forceRefresh || !this.submittedPreferences$) {
       this.submittedPreferences$ = this.http
-        .get<SubmittedPrefResponse>(`${this.baseUrl}/get-all-preferences`)
+        .get<SubmittedPrefResponse>(`${this.baseUrl}/preferences`)
         .pipe(
           shareReplay(1),
           catchError((error) => {
@@ -400,7 +405,7 @@ export class SchedulingService {
       elective_id,
       assignment_type_id,
     };
-    return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
+    return this.http.post<any>(`${this.baseUrl}/schedules`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
       catchError(this.handleError)
     );
@@ -418,9 +423,10 @@ export class SchedulingService {
    */
   duplicateCourse(element: Schedule): Observable<{ course: Schedule }> {
     return this.http
-      .post<{ course: Schedule }>(`${this.baseUrl}/duplicate-course`, {
-        section_course_id: element.section_course_id,
-      })
+      .post<{ course: Schedule }>(
+        `${this.baseUrl}/schedules/duplicate-course`,
+        { section_course_id: element.section_course_id }
+      )
       .pipe(
         tap(() => this.resetCaches([CacheType.Schedules])),
         catchError(this.handleError)
@@ -432,9 +438,9 @@ export class SchedulingService {
    */
   removeDuplicateCourse(section_course_id: number): Observable<any> {
     return this.http
-      .delete(`${this.baseUrl}/remove-duplicate-course`, {
-        body: { section_course_id },
-      })
+      .delete(
+        `${this.baseUrl}/schedules/duplicate-course/${section_course_id}`
+      )
       .pipe(catchError(this.handleError));
   }
   
@@ -550,7 +556,7 @@ export class SchedulingService {
     course_id: number
   ): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/suggestion-heuristic`, { 
+      .post<any>(`${this.baseUrl}/schedules/suggestions`, { 
         program_id, 
         year_level, 
         section_id,

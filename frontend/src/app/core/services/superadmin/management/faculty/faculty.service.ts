@@ -33,6 +33,7 @@ export interface Faculty {
   email: string;
   status: string;
   role: string;
+  has_reactivation_request?: boolean;
   password?: string;
   faculty?: {
     id: number;
@@ -104,6 +105,7 @@ export class FacultyService {
           status: user.status || 'Active',
           role: user.role,
           faculty: user.faculty,
+          has_reactivation_request: user.faculty?.has_reactivation_request ?? false,
         }));
       }),
       catchError((error) => {
@@ -135,6 +137,16 @@ export class FacultyService {
     faculty: Omit<Faculty, 'code'>
   ): Observable<Faculty> {
     return this.http.put<Faculty>(`${this.baseUrl}/faculty/${id}`, faculty);
+  }
+
+  /**
+   * Approves account reactivation for an inactive faculty member.
+   */
+  approveReactivation(id: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/faculty/${id}/approve-reactivation`,
+      {}
+    );
   }
 
   // ==========================================

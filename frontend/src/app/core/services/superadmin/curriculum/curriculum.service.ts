@@ -131,46 +131,37 @@ export class CurriculumService {
   // Fetch all details based on curriculum year
   getCurriculumByYear(curriculumYear: string): Observable<Curriculum> {
     return this.http.get<Curriculum>(
-      `${this.baseUrl}/curricula-details/${curriculumYear}`
+      `${this.baseUrl}/curricula/${curriculumYear}/details`
     );
   }
 
-  // 
-  // For Programs
-  //
-
-  // Fetch all programs associated to the Curriculum Year
   getProgramsByCurriculumYear(curriculumYear: string): Observable<Program[]> {
     return this.http.get<Program[]>(
-      `${this.baseUrl}/programs-by-curriculum-year/${curriculumYear}`
+      `${this.baseUrl}/curricula/${curriculumYear}/programs`
     );
   }
 
-  // Fetch all programs
   getAllPrograms(): Observable<Program[]> {
     return this.http.get<Program[]>(`${this.baseUrl}/programs`);
   }
 
-  // Add the program to specific Curriculum year
   addProgramToCurriculum(
     curriculumYear: string,
     programId: number
   ): Observable<any> {
-    return this.http.post(`${this.baseUrl}/addProgramToCurriculum`, {
-      curriculum_year: curriculumYear,
-      program_id: programId,
-    });
+    return this.http.post(
+      `${this.baseUrl}/curricula/${curriculumYear}/programs`,
+      { program_id: programId }
+    );
   }
 
-  // Delete a program in specific curriculum year
   removeProgramFromCurriculum(
     curriculumYear: string,
     programId: number
   ): Observable<any> {
-    return this.http.post(`${this.baseUrl}/removeProgramFromCurriculum`, {
-      curriculum_year: curriculumYear,
-      program_id: programId,
-    });
+    return this.http.delete(
+      `${this.baseUrl}/curricula/${curriculumYear}/programs/${programId}`
+    );
   }
 
   // Map semester number to string
@@ -191,39 +182,34 @@ export class CurriculumService {
 
   //Add Curriculum
   addCurriculum(curriculum: Partial<Curriculum>): Observable<any> {
-    return this.http.post(`${this.baseUrl}/addCurriculum`, curriculum);
+    return this.http.post(`${this.baseUrl}/curricula`, curriculum);
   }
 
-  // Update Curriculum
   updateCurriculum(
     id: number,
     curriculum: Partial<Curriculum>
   ): Observable<any> {
-    return this.http.put(`${this.baseUrl}/updateCurriculum/${id}`, curriculum);
+    return this.http.put(`${this.baseUrl}/curricula/${id}`, curriculum);
   }
 
-  // Delete Curriculum
   deleteCurriculum(curriculum_year: string): Observable<any> {
-    return this.http.post(`${this.baseUrl}/deleteCurriculum`, {
-      curriculum_year,
-    });
+    return this.http.delete(
+      `${this.baseUrl}/curricula/${curriculum_year}`
+    );
   }
 
-  // For copying an existing curriculum
   copyCurriculum(
     curriculumId: number,
     newCurriculumYear: string
   ): Observable<any> {
-    return this.http.post(`${this.baseUrl}/copyCurriculum`, {
-      curriculum_id: curriculumId,
-      new_curriculum_year: newCurriculumYear,
-    });
+    return this.http.post(
+      `${this.baseUrl}/curricula/${curriculumId}/copy`,
+      { new_curriculum_year: newCurriculumYear }
+    );
   }
 
-  // For Course (inside the curriculum year)
-  //Add course
   addCourse(courseData: any): Observable<any> {
-    return this.http.post(`${this.baseUrl}/addCourse`, courseData);
+    return this.http.post(`${this.baseUrl}/courses`, courseData);
   }
 
   // Fetch all courses with requirement links

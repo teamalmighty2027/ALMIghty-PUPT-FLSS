@@ -1,0 +1,32 @@
+<div class="management-container">
+  @if (isLoading) {
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
+  } @else {
+    <!-- Table Header -->
+    <div class="header-container" [@fadeAnimation]>
+      <app-table-header
+        [searchLabel]="'Search Ranks'"
+        [addButtonLabel]="'Add Rank'"
+        [showExportButton]="false"
+        [inputFields]="headerInputFields"
+        (inputChange)="onInputChange($event)"
+        (add)="openAddDialog()">
+      </app-table-header>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container" [@fadeAnimation]>
+      <app-table-generic
+        [columns]="columns"
+        [data]="filteredRanks"
+        [displayedColumns]="displayedColumns"
+        [showViewButton]="false"
+        [showDeleteButton]="true"
+        (edit)="openEditDialog($event)"
+        (delete)="deleteRank($event.id)">
+      </app-table-generic>
+    </div>
+  }
+</div>

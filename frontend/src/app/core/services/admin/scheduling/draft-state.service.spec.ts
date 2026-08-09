@@ -29,7 +29,8 @@ describe('DraftStateService', () => {
       curriculum: '2024',
       section: 'A',
       section_course_id: 1,
-      is_copy: 0
+      is_copy: 0,
+      isLastInGroup: false
     }
   ];
 

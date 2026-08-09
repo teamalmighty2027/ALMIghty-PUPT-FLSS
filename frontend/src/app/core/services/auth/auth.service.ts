@@ -79,18 +79,6 @@ export class AuthService {
   // IDP auth methods 
   // ==============================
 
-  // Check the IDP health status via backend proxy.
-  checkIdpHealth(): Observable<boolean> {
-    const url = `${this.baseUrl}/auth/idp-health`;
-    return this.http.get<{ healthy: boolean }>(url).pipe(
-      map((response) => response.healthy),
-      catchError((error) => {
-        console.error('Error checking IDP health:', error);
-        return of(false);
-      }),
-    );
-  }
-
   // Redirect to IDP login using URL retrieved from the backend.
   initiateIdpLogin(intendedRole: string[]): void {
     this.cookieService.set(
@@ -272,6 +260,14 @@ export class AuthService {
       password: newPassword,
       password_confirmation: newPasswordConfirmation,
     });
+  }
+
+  // Submit account reactivation request for inactive faculty.
+  requestReactivation(email: string): Observable<any> {
+    return this.http.post(
+      `${this.baseUrl}/faculty/request-reactivation`,
+      { email }
+    );
   }
 
   // ==============================

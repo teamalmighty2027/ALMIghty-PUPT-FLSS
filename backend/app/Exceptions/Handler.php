@@ -31,22 +31,37 @@ class Handler extends ExceptionHandler
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthorized'], 401);
             }
-
-            // Custom 401 Error view response
             return response()->view('errors.401', [], 401);
         }
 
         if ($request->expectsJson()) {
             $status = 500;
-            $data = ['message' => $exception->getMessage()];
-
+            
+            // Determine the status code
             if (method_exists($exception, 'getStatusCode')) {
                 $status = $exception->getStatusCode();
             } elseif (property_exists($exception, 'status')) {
                 $status = $exception->status;
             }
 
+            // Catch TypeErrors or Database errors (often caused by bypassed validation)
+            // and force them to be 400 Bad Request instead of 500 Server Error
+            if ($exception instanceof \TypeError || $exception instanceof \Illuminate\Database\QueryException) {
+                $status = 400;
+                $message = 'Invalid input data format provided.';
+            } else {
+                // For actual 500 errors, mask the message unless in debug mode
+                $message = ($status == 500 && !config('app.debug')) 
+                    ? 'A server error occurred. Please try again later.' 
+                    : $exception->getMessage();
+            }
+
+            $data = ['message' => $message];
+
+            // 422 Unprocessable Entity for Validation Failures
             if ($exception instanceof \Illuminate\Validation\ValidationException) {
+                $status = 422;
+                $data['message'] = 'The given data was invalid.';
                 $data['errors'] = $exception->errors();
             }
 

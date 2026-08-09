@@ -24,7 +24,12 @@ class TokenExpirationMiddleware
 
         $accessToken = $user->currentAccessToken();
 
-        if (! $accessToken || ! $accessToken->expires_at) {
+        if (! $accessToken ||
+            $accessToken instanceof \Laravel\Sanctum\TransientToken) {
+            return $next($request);
+        }
+
+        if (! $accessToken->expires_at) {
             return $next($request);
         }
 
