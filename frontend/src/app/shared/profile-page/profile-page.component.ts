@@ -336,36 +336,6 @@ export class ProfilePageComponent implements OnInit {
     }
   }
 
-  private updateZipCode(cityName: string): void {
-    const zipCodeMap: { [key: string]: string } = {
-      'City of Taguig': '1630',
-      'City of Manila': '1000',
-      'Quezon City': '1100',
-      'City of Makati': '1200',
-      'City of Pasig': '1600',
-      'City of Mandaluyong': '1550',
-      'City of Marikina': '1800',
-      'City of Muntinlupa': '1770',
-      'City of Parañaque': '1700',
-      'City of Las Piñas': '1740',
-      'City of Valenzuela': '1440',
-      'City of Malabon': '1470',
-      'City of Navotas': '1490',
-      'City of San Juan': '1500',
-      'Pasay City': '1300',
-      'Pateros': '1620',
-      'City of Caloocan': '1400',
-      'Bacoor City': '4102',
-      'Dasmariñas City': '4114',
-      'Imus City': '4103',
-    };
-
-    const foundZip = zipCodeMap[cityName];
-    if (foundZip) {
-      this.profileForm.get('zipcode')?.setValue(foundZip, { emitEvent: false });
-    }
-  }
-
   /**
    * Load provinces from PSGC and include Metro Manila as an option.
    */
