@@ -186,8 +186,22 @@ export class FacultyScheduleMobileComponent implements OnInit, OnChanges {
       };
     }).filter((block): block is MobileSchedule => block !== null);
 
+    const dayOrder: { [key: string]: number } = {
+      'Monday': 0,
+      'Tuesday': 1,
+      'Wednesday': 2,
+      'Thursday': 3,
+      'Friday': 4,
+      'Saturday': 5,
+      'Sunday': 6
+    };
+
     // Sort blocks by day and start time
     this.scheduleBlocks.sort((a, b) => {
+      const dayDiff = (dayOrder[a.day] ?? 0) - (dayOrder[b.day] ?? 0);
+      if (dayDiff !== 0) {
+        return dayDiff;
+      }
       const aMin = this.convertTimeToMinutes(a.startTimeRaw);
       const bMin = this.convertTimeToMinutes(b.startTimeRaw);
       return aMin - bMin;

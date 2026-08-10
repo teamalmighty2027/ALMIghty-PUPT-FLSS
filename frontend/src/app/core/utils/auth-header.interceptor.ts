@@ -150,7 +150,11 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
         const reportableStatuses = [400, 403, 409, 429];
         const isReportable = reportableStatuses.includes(error.status) || error.status >= 500;
 
-        if (isReportable && !req.url.includes('/system-notices/report')) {
+        if (
+          isReportable &&
+          token &&
+          !req.url.includes('/system-notices/report')
+        ) {
           let title = `HTTP ${error.status} — Error`;
           let severity: 'info' | 'warning' | 'error' | 'critical' = 'error';
 
