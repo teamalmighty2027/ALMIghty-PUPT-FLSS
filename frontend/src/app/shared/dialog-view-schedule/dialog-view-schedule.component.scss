@@ -331,6 +331,47 @@
     padding-top: 6px;
     padding-bottom: 6px;
   }
+
+  .legend-regular { background-color: var(--primary-text); }
+  .legend-part-time { background-color: var(--blue-primary); }
+  .legend-temporary { background-color: var(--aqua-primary); }
+  .legend-tutorial { background-color: var(--purple-primary); }
+}
+
+.schedule-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: center;
+  align-items: center;
+  column-gap: 22px;
+  row-gap: 8px;
+  margin-top: 14px;
+  padding: 10px 8px 4px;
+  color: #555;
+  font-size: 0.78rem;
+  width: 100%;
+  flex-shrink: 0;
+  overflow: visible;
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-regular { background-color: var(--primary-text); }
+  .legend-part-time { background-color: var(--blue-primary); }
+  .legend-temporary { background-color: var(--aqua-primary); }
+  .legend-tutorial { background-color: var(--purple-primary); }
 }
 
 .schedule-legend {

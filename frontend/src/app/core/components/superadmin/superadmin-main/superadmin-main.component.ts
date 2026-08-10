@@ -130,6 +130,20 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
         }).unsubscribe();
       });
 
+    // Close sidebar on mobile after navigation
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.isHandset$.pipe(takeUntil(this.destroy$)).subscribe(isHandset => {
+          if (isHandset && this.drawer?.opened) {
+            this.drawer.close();
+          }
+        }).unsubscribe();
+      });
+
     this.setPageTitle();
   }
 
