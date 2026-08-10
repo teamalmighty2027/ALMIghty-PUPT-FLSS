@@ -7,8 +7,8 @@ import {
   OnChanges, 
   SimpleChanges, 
   ViewChild, 
-  ElementRef, 
-  AfterViewInit, 
+  ElementRef,
+  OnDestroy,
   inject 
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -23,6 +23,9 @@ import { ReschedulingService } from '../../core/services/faculty/rescheduling/re
 
 import { fadeAnimation, fabAnimation } from '../../core/animations/animations';
 import { DialogExportComponent } from '../dialog-export/dialog-export.component';
+import {
+  FacultyScheduleMobileComponent
+} from '../faculty-schedule-mobile/faculty-schedule-mobile.component';
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -62,15 +65,27 @@ type Day = 'Monday' |
     MatIconModule,
     MatDialogModule,
     MatTooltipModule,
+    FacultyScheduleMobileComponent,
   ],
   templateUrl: './faculty-schedule-timetable.component.html',
   styleUrls: ['./faculty-schedule-timetable.component.scss'],
   animations: [fadeAnimation, fabAnimation],
 })
-export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, AfterViewInit {
-  @ViewChild('tableWrapper') tableWrapper!: ElementRef;
+export class FacultyScheduleTimetableComponent implements 
+  OnInit, OnChanges, OnDestroy {
+  private _tableWrapper?: ElementRef;
+
+  @ViewChild('tableWrapper') set tableWrapper(
+    content: ElementRef | undefined
+  ) {
+    if (content) {
+      this._tableWrapper = content;
+      this.attachScrollListener();
+    }
+  }
 
   isLabelVisible = true;
+  isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
   private lastScrollTop = 0;
   private readonly SCROLL_THRESHOLD = 25;
 
@@ -107,13 +122,36 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * Initialize component: generate time slots and process schedules.
    * Called once when the component is instantiated.
    */
+  /**
+   * Initialize component: generate time slots and process schedules.
+   * Called once when the component is instantiated.
+   */
   ngOnInit() {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleViewportResize);
+    }
+
     this.generateTimeSlots();
     this.processScheduleData();
     if (this.showAppealButtons) {
       this.loadMyAppeals();
     }
   }
+
+  // Cleanup resize listener on component destruction
+  ngOnDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleViewportResize);
+    }
+  }
+
+  // Listen to window resize events to update mobile view status
+  private handleViewportResize = (): void => {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+  };
 
   /**
    * Detects changes to @Input properties and re-processes data.
@@ -133,11 +171,17 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * After view init: attach scroll listener 
    * to the table wrapper to toggle label visibility.
    */
-  ngAfterViewInit() {
-    const tableWrapperElement = this.tableWrapper.nativeElement;
+  // Attach scroll listener to table wrapper
+  private attachScrollListener() {
+    if (!this._tableWrapper) {
+      return;
+    }
+
+    const tableWrapperElement = this._tableWrapper.nativeElement;
     tableWrapperElement.addEventListener('scroll', () => {
       const currentScrollTop = tableWrapperElement.scrollTop;
-      if (Math.abs(currentScrollTop - this.lastScrollTop) > this.SCROLL_THRESHOLD) {
+      const diff = Math.abs(currentScrollTop - this.lastScrollTop);
+      if (diff > this.SCROLL_THRESHOLD) {
         this.isLabelVisible = currentScrollTop <= this.lastScrollTop;
         this.lastScrollTop = currentScrollTop;
       }

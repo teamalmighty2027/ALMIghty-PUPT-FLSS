@@ -55,9 +55,20 @@ class FacultyNotificationController extends Controller
             )
             ->first();
 
-        $preferencesStatus = $preferencesSettings->is_enabled ?? false;
-        $preferencesDeadline = $preferencesSettings->individual_deadline ?? $preferencesSettings->global_deadline;
-        $preferencesStart = $preferencesSettings->individual_start_date ?? $preferencesSettings->global_start_date;
+        $preferencesStatus = false;
+        $preferencesDeadline = null;
+        $preferencesStart = null;
+
+        // Check if preferences settings exist for the faculty
+        if ($preferencesSettings) {
+            $preferencesStatus = $preferencesSettings->is_enabled;
+            $preferencesDeadline =
+                $preferencesSettings->individual_deadline ??
+                $preferencesSettings->global_deadline;
+            $preferencesStart =
+                $preferencesSettings->individual_start_date ??
+                $preferencesSettings->global_start_date;
+        }
 
         // Get faculty schedule publication status
         $isSchedulePublished = DB::table('faculty_schedule_publication')
