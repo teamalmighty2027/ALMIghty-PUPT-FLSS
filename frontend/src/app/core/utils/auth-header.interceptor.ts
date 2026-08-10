@@ -1,4 +1,4 @@
-import { inject } from '@angular/core';
+import { inject, Injector } from '@angular/core';
 import {
   HttpErrorResponse,
   HttpInterceptorFn,
@@ -38,7 +38,7 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const router = inject(Router);
   const snackBar = inject(MatSnackBar);
-  const systemNoticeService = inject(SystemNoticeService);
+  const injector = inject(Injector);
 
   const token = authService.getToken();
   const isRefreshRequest = req.url.includes(REFRESH_PATH);
@@ -176,6 +176,7 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
           }
 
           try {
+            const systemNoticeService = injector.get(SystemNoticeService);
             systemNoticeService.report(
               severity,
               title,
