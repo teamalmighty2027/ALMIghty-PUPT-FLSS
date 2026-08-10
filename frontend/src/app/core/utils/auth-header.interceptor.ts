@@ -37,9 +37,8 @@ const buildAuthRequest = (
 export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const router = inject(Router);
-  
-  // 1. INJECT THE SNACKBAR HERE
   const snackBar = inject(MatSnackBar);
+  const systemNoticeService = inject(SystemNoticeService);
 
   const token = authService.getToken();
   const isRefreshRequest = req.url.includes(REFRESH_PATH);
@@ -173,7 +172,7 @@ export const AuthHeaderInterceptor: HttpInterceptorFn = (req, next) => {
           }
 
           try {
-            inject(SystemNoticeService).report(
+            systemNoticeService.report(
               severity,
               title,
               error.error?.message || error.message || 'HTTP Request Failure',

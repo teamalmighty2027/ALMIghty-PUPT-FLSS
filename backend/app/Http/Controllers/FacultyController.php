@@ -14,6 +14,8 @@ use App\Services\IdpSyncService;
 use App\Notifications\FacultyStatusChangedNotification;
 use App\Notifications\FacultyReactivationRequestNotification;
 use Illuminate\Support\Facades\Notification;
+use App\Jobs\RegisterUserToIdpJob;
+use App\Jobs\SendFacultyFirstLoginPasswordJob;
 
 class FacultyController extends Controller
 {
@@ -451,7 +453,7 @@ class FacultyController extends Controller
             ->get();
 
         foreach ($pendingNotices as $notice) {
-            \App\Services\SystemNoticeService::resolve($notice->id, Auth::id());
+            \App\Services\SystemNoticeService::resolve($notice->id, auth()->id());
         }
 
         AuditLogger::logStatusChange($user, 'Inactive', 'Active');
