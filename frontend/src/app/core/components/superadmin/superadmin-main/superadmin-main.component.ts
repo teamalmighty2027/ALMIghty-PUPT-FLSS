@@ -22,6 +22,9 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-password/dialog-change-password.component';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { MatBadgeModule } from '@angular/material/badge';
+import { SystemNoticeService } from '../../../services/superadmin/system-notice/system-notice.service';
+
 
 @Component({
   selector: 'app-superadmin-main',
@@ -37,6 +40,7 @@ import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-
     MatIconModule,
     MatSymbolDirective,
     MatTooltipModule,
+    MatBadgeModule,
   ],
   animations: [fadeAnimation, slideInAnimation],
 })
@@ -51,6 +55,10 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   public pageTitle = 'Dashboard';
   public accountName!: string;
   public accountRole!: string;
+  public unresolvedNoticesCount = 0;
+
+  private noticeService = inject(SystemNoticeService);
+
 
   private routeTitleMap: Record<string, string> = {
     dashboard: 'Dashboard',
@@ -60,7 +68,10 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
     rooms: 'Rooms',
     'manage-admin': 'Manage Admin',
     'manage-faculty': 'Manage Faculty',
+    'system-notices': 'System Notices',
+    'academic-ranks': 'Academic Ranks',
   };
+
 
   isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
@@ -97,7 +108,27 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
           (event): event is NavigationEnd => event instanceof NavigationEnd
         )
       )
-      .subscribe(() => this.setPageTitle());
+      .subscribe(() => {
+        this.setPageTitle();
+        this.fetchUnresolvedNoticesCount();
+      });
+
+    this.fetchUnresolvedNoticesCount();
+    this.setPageTitle();
+
+    // Close sidebar on mobile after navigation
+    this.router.events
+      .pipe(
+        filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.isHandset$.pipe(takeUntil(this.destroy$)).subscribe(isHandset => {
+          if (isHandset && this.drawer?.opened) {
+            this.drawer.close();
+          }
+        }).unsubscribe();
+      });
 
     // Close sidebar on mobile after navigation
     this.router.events
@@ -261,4 +292,19 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
       }
     });
   }
+
+  /**
+   * Fetches the number of unresolved system notices.
+   */
+  public fetchUnresolvedNoticesCount(): void {
+    this.noticeService.getUnresolvedCount().subscribe({
+      next: (res) => {
+        this.unresolvedNoticesCount = res.count;
+      },
+      error: (err) => {
+        console.error('Failed to fetch unresolved notices count:', err);
+      }
+    });
+  }
 }
+

@@ -2,12 +2,12 @@
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
   "appData": {
-    "version": "1.0.0",
-    "changelog": "PUPT-FLSS Beta PWA Feature"
+    "version": "1.0.1",
+    "changelog": "Fix: lazy-load JS chunks to prevent empty chunk prefetch errors"
   },
   "assetGroups": [
     {
-      "name": "app",
+      "name": "app-shell",
       "installMode": "prefetch",
       "updateMode": "prefetch",
       "resources": {
@@ -15,7 +15,16 @@
           "/favicon.ico",
           "/index.html",
           "/manifest.webmanifest",
-          "/*.css",
+          "/*.css"
+        ]
+      }
+    },
+    {
+      "name": "app-chunks",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
           "/*.js"
         ]
       }

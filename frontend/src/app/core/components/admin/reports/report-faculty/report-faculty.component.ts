@@ -711,7 +711,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           currentY,
           margin,
           pageWidth,
-          [] // Omit faculty time plot assignments by default
+          [] // Omit time assignments by default
         );
       }
     });
@@ -746,7 +746,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         currentY,
         margin,
         pageWidth,
-        [] // Omit faculty time plot assignments by default
+        [] // Omit time assignments by default
       );
     }
 

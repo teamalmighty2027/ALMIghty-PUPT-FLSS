@@ -44,7 +44,7 @@ class AcademicYearController extends Controller
         foreach ($academicYears as $year) {
             if (!isset($groupedAcademicYears[$year->academic_year_id])) {
                 $groupedAcademicYears[$year->academic_year_id] = [
-                    'academic_year_id' => $year->academic_year_id,
+                    'academic_year_id' => (int) $year->academic_year_id,
                     'academic_year' => $year->academic_year,
                     'semesters' => [],
                 ];
@@ -60,7 +60,8 @@ class AcademicYearController extends Controller
             }
 
             $groupedAcademicYears[$year->academic_year_id]['semesters'][] = [
-                'semester_id' => $year->semester_id,
+                // Cast to int for the same reason as academic_year_id above.
+                'semester_id' => (int) $year->semester_id,
                 'semester_number' => $semesterLabel,
                 'start_date' => $year->start_date,
                 'end_date' => $year->end_date,
@@ -219,8 +220,11 @@ class AcademicYearController extends Controller
     /**
      * Update an academic year's curriculum to the latest active curriculum
      */
-    public function updateAcademicYear(Request $request)
+    public function updateAcademicYear(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['academic_year_id' => $id]);
+        }
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
@@ -393,8 +397,11 @@ class AcademicYearController extends Controller
     /**
      * Delete an academic year
      */
-    public function deleteAcademicYear(Request $request)
+    public function deleteAcademicYear(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['academic_year_id' => $id]);
+        }
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
@@ -623,8 +630,11 @@ class AcademicYearController extends Controller
     /**
      * Get the program details for an academic year
      */
-    public function getProgramDetailsByAcademicYear(Request $request)
+    public function getProgramDetailsByAcademicYear(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['academic_year_id' => $id]);
+        }
         $request->validate([
             'academic_year_id' => 'required|integer',
         ]);
@@ -985,8 +995,17 @@ class AcademicYearController extends Controller
     /**
      * Remove a program from an academic year
      */
-    public function removeProgramFromAcademicYear(Request $request)
-    {
+    public function removeProgramFromAcademicYear(
+        Request $request,
+        $ayId = null,
+        $progId = null
+    ) {
+        if ($ayId !== null && $progId !== null) {
+            $request->merge([
+                'academic_year_id' => $ayId,
+                'program_id' => $progId,
+            ]);
+        }
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',
@@ -1311,8 +1330,11 @@ class AcademicYearController extends Controller
     /**
      * Get all offered courses for a program across all semesters in the active academic year
      */
-    public function getProgramCourses(Request $request)
+    public function getProgramCourses(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['program_id' => $id]);
+        }
         $validated = $request->validate([
             'program_id' => 'required|integer|exists:programs,program_id',
         ]);

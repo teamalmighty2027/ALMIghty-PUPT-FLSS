@@ -150,6 +150,17 @@ describe('ManagePreferencesComponent', () => {
     component.isToggleAllChecked = true;
     component.isEnabled = true;
     component.isIndividualStartDateSet = true;
+    component.allData = [
+      {
+        faculty_id: 1,
+        facultyName: 'Test Faculty',
+        facultyCode: 'TF-01',
+        facultyType: 'Full-time',
+        facultyUnits: 3,
+        is_enabled: true,
+        has_request: 0,
+      },
+    ];
 
     const toggleState = component.getToggleState({
       faculty_id: 1,

@@ -166,6 +166,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resizeCalendar();
     this.configureCalendarForViewport();
     window.addEventListener('resize', this.handleViewportResize);
+    this.changeDetectorRef.detectChanges();
   }
 
   ngOnDestroy(): void {

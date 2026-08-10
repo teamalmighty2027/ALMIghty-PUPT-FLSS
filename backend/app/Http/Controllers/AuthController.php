@@ -24,34 +24,45 @@ class AuthController extends Controller
         $loginUserData = $request->validate([
             'email'         => 'required|string|email|max:254',
             'password'      => 'required|string|min:8|max:128',
-            'allowed_roles' => 'required|array',
+            'allowed_roles' => 'required|array|min:1|max:3',
+            'allowed_roles.*' => 'required|string|distinct|in:faculty,admin,superadmin',
         ]);
+
+        $allowedRoles = array_values(array_unique($loginUserData['allowed_roles']));
 
         // Check if the user exists and the password is correct
         // Eager load permissions and allowed programs to avoid N+1 queries
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
-            ->whereIn('role', $loginUserData['allowed_roles'])
             ->first();
 
-        if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials. Check your email and password.',
-            ], 401);
+        if (! $user) {
+            // Keep failed-login timing closer to existing-user checks.
+            Hash::check($loginUserData['password'], '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/AT0jNhLx2fX2.');
+            return $this->invalidLoginResponse();
+        }
+
+        if (! Hash::check($loginUserData['password'], $user->password)) {
+            return $this->invalidLoginResponse();
         }
 
         // Check if user has allowed role
-        if (! in_array($user->role, $loginUserData['allowed_roles'])) {
-            return response()->json([
-                'message' => 'Access forbidden. You are not authorized as ' . 
-                implode(' or ', $loginUserData['allowed_roles']) . '.',
-            ], 403);
+        if (! in_array($user->role, $allowedRoles, true)) {
+            return $this->invalidLoginResponse();
         }
 
-        // Check if admin/superadmin is active
-        if (($user->role === 'admin' || $user->role === 'superadmin') && $user->status === 'Inactive') {
+        // Block logins for inactive or retired accounts
+        if ($user->status === 'Inactive' || $user->status === 'Retired') {
+            AuditLogger::logFailedLogin(
+                $loginUserData['email'],
+                "Standard credentials login attempted for {$user->status} account",
+                $user
+            );
+
             return response()->json([
-                'message' => 'Your account is currently inactive. Please contact the system administrator.',
+                'message' => 'Your account is currently ' . strtolower($user->status) . '. Please contact the system administrator.',
+                'status'  => $user->status,
+                'email'   => $user->email,
             ], 403);
         }
         
@@ -112,6 +123,16 @@ class AuthController extends Controller
             'token'      => $token,
             'user'       => json_decode($userData, true),
         ]);
+    }
+
+    /**
+     * Return a generic failed login response.
+     */
+    private function invalidLoginResponse()
+    {
+        return response()->json([
+            'message' => 'Invalid credentials.',
+        ], 401);
     }
 
     /**
@@ -319,6 +340,21 @@ class AuthController extends Controller
                     'message' => 'User not found in system.',
                     'error'   => true
                 ], 401);
+            }
+
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "IDP login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'message' => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the system administrator.',
+                    'error'   => true
+                ], 403);
             }
 
             // Persist the IDP user ID on the faculty record only if it has changed
@@ -563,6 +599,22 @@ class AuthController extends Controller
 
             // --- Single role: issue a Sanctum token and return ---
             $user = $users->first();
+
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "OnePortal login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'session'     => false,
+                    'message'     => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the administrator.',
+                    'redirect_to' => '/login',
+                ], 403);
+            }
 
             // Persist IDP user ID on the faculty record if changed
             if (
