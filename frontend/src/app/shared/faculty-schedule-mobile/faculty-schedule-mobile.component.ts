@@ -12,7 +12,6 @@ import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatButtonToggleModule } from '@angular/forms';
 import { MatButtonToggleModule as MatToggleModule } from '@angular/material/button-toggle';
 import { FormsModule } from '@angular/forms';
 import {
