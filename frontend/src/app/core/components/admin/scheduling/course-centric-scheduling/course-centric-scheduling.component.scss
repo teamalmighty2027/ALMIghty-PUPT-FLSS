@@ -429,7 +429,7 @@ $control-radius: 8px;
       }
 
       .not-assigned-badge {
-        background-color: #f8f9fa;
+        background-color: var(--neutral-space);
         color: var(--secondary-text);
         padding: 4px 10px;
         border-radius: var(--border-radius-base);
@@ -441,13 +441,14 @@ $control-radius: 8px;
 
       // Room badge styling
       .room-badge {
-        background-color: #f1f3f5; // light gray badge
-        color: #343a40;
+        background-color: var(--neutral-space);
+        color: var(--neutral-base);
         padding: 4px 10px;
         border-radius: var(--border-radius-base);
         font-size: 12px;
         font-weight: 600;
         display: inline-block;
+        border: 1px solid var(--neutral-border);
       }
 
       // Professor container styling
@@ -455,7 +456,7 @@ $control-radius: 8px;
         display: inline-flex;
         align-items: center;
         gap: var(--spacing-xs);
-        color: #212529; // slightly darker typography
+        color: var(--neutral-base);
         font-weight: 500;
 
         mat-icon.prof-icon {

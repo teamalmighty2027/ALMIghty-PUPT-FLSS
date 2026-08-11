@@ -9,7 +9,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--neutral-border);
   padding-bottom: 10px;
 }
 
@@ -37,6 +37,6 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--neutral-border);
   padding-top: 15px;
 }

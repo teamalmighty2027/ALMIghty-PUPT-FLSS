@@ -256,6 +256,11 @@ span[mat-symbol] {
   position: relative;
 }
 
+.dark-theme .cdk-overlay-pane .mat-mdc-dialog-surface,
+.dark-theme .cdk-overlay-pane .mdc-dialog__surface {
+  background: var(--neutral-light) !important;
+}
+
 @media (max-width: 640px) {
   /* Constrain the overlay pane so dialogs are never full-screen on mobile */
   .cdk-overlay-pane {
@@ -298,6 +303,11 @@ span[mat-symbol] {
   padding-top: 0.15rem;
 }
 
+.dark-theme .cdk-overlay-pane [mat-dialog-title],
+.dark-theme .cdk-overlay-pane .mat-mdc-dialog-title {
+  color: var(--neutral-base) !important;
+}
+
 .cdk-overlay-pane [mat-dialog-content],
 .cdk-overlay-pane .mat-mdc-dialog-content {
   position: relative;
@@ -305,6 +315,11 @@ span[mat-symbol] {
   color: #5e3c3c;
   line-height: 1.6;
   padding: 0 1.25rem 1rem;
+}
+
+.dark-theme .cdk-overlay-pane [mat-dialog-content],
+.dark-theme .cdk-overlay-pane .mat-mdc-dialog-content {
+  color: var(--neutral-base) !important;
 }
 
 .cdk-overlay-pane [mat-dialog-actions] {
@@ -332,10 +347,20 @@ span[mat-symbol] {
   font-weight: 600;
 }
 
+.dark-theme .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button) {
+  color: var(--primary-text) !important;
+}
+
 .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):hover,
 .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):focus-visible {
   background: rgba(112, 11, 11, 0.08);
   color: #4a0e0e;
+}
+
+.dark-theme .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):hover,
+.dark-theme .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-button:not(.mat-mdc-raised-button):not(.mat-mdc-unelevated-button):focus-visible {
+  background: rgba(225, 93, 93, 0.08) !important;
+  color: var(--primary-text-lighter) !important;
 }
 
 .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button,
@@ -344,6 +369,12 @@ span[mat-symbol] {
   color: #ffffff !important;
   box-shadow: 0 8px 16px rgba(112, 11, 11, 0.2);
   font-weight: 700;
+}
+
+.dark-theme .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button,
+.dark-theme .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-unelevated-button {
+  background: linear-gradient(135deg, var(--gradient-light-start) 0%, var(--gradient-light-end) 100%) !important;
+  box-shadow: 0 8px 16px rgba(225, 93, 93, 0.2) !important;
 }
 
 .cdk-overlay-pane [mat-dialog-actions] .mat-mdc-raised-button:hover,
