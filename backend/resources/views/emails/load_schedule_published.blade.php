@@ -109,6 +109,16 @@
             box-shadow: 0 4px 6px rgba(128, 0, 0, 0.2);
         }
 
+        .action-note {
+            background-color: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14.5px;
+            color: #2a4365;
+        }
+
         .important-note {
             font-size: 14px;
             color: #666666;
@@ -162,6 +172,17 @@
             <p>We are pleased to inform you that <b>your official load and schedule</b> for the upcoming semester are
                 <b>now published.</b> You may now view them in your FLSS account.
             </p>
+
+            <!-- TEMPORARY: Faculty default login credentials notice. -->
+            <!-- Remove when temporary access notice is no longer needed. -->
+            <div class="action-note">
+                <b>Note:</b> If this is your first time logging in,
+                please use the credentials below:<br>
+                <b>Email:</b> {{ $email }}<br>
+                <b>Default Password:</b> puptfaculty123* <br>
+                Or login through your IDP account <br>
+                <b>Default Password:</b> PUPTfaculty123*
+            </div>
 
             <div class="button-container">
                 <a href="{{ url('/faculty/load-and-schedule') }}" class="button">

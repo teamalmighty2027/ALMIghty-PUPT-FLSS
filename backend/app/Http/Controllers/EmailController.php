@@ -172,6 +172,7 @@ class EmailController extends Controller
     {
         return view('emails.load_schedule_published', [
             'faculty_name' => 'Juan Dela Cruz',
+            'email' => 'juandelacruz@pupt.edu.ph',
         ]);
     }
 
