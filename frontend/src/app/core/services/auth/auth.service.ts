@@ -7,6 +7,7 @@ import { map, tap, switchMap, finalize, catchError, shareReplay } from 'rxjs/ope
 import { CookieService } from 'ngx-cookie-service';
 
 import { environment } from '../../../../environments/environment.dev';
+import { SafeStorage } from '../../utils/safe-storage.utils';
 
 
 export interface LoginError {
@@ -142,7 +143,7 @@ export class AuthService {
 
         // Store user data and Sanctum token for Authorization header.
         this.setUserData(response.data, expiresAt, 'idp');
-        localStorage.setItem('token', response.token?.token || '');
+        SafeStorage.setItem('token', response.token?.token || '');
         this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
@@ -287,7 +288,7 @@ export class AuthService {
   // ==============================
   // Read the local Sanctum token.
   getToken(): string {
-    return localStorage.getItem('token') || '';
+    return SafeStorage.getItem('token') || '';
   }
 
   // Store the IDP access and refresh tokens in cookies.
@@ -347,19 +348,19 @@ export class AuthService {
     });
 
     // Clear localStorage
-    localStorage.removeItem('oauth_state');
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('token');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('termsAccepted');
-    localStorage.removeItem('scheduling_selected_program');
-    localStorage.removeItem('scheduling_selected_year');
-    localStorage.removeItem('scheduling_selected_section');
-    localStorage.removeItem('curriculum_selected_category');
-    localStorage.removeItem('curriculum_selected_program');
-    localStorage.removeItem('curriculum_selected_year');
-    localStorage.removeItem('curriculum_selected_semester');
+    SafeStorage.removeItem('oauth_state');
+    SafeStorage.removeItem('user_data');
+    SafeStorage.removeItem('token');
+    SafeStorage.removeItem('access_token');
+    SafeStorage.removeItem('refresh_token');
+    SafeStorage.removeItem('termsAccepted');
+    SafeStorage.removeItem('scheduling_selected_program');
+    SafeStorage.removeItem('scheduling_selected_year');
+    SafeStorage.removeItem('scheduling_selected_section');
+    SafeStorage.removeItem('curriculum_selected_category');
+    SafeStorage.removeItem('curriculum_selected_program');
+    SafeStorage.removeItem('curriculum_selected_year');
+    SafeStorage.removeItem('curriculum_selected_semester');
     this.userDataCache = null;
     this.clearExpiryTimer();
   }
@@ -376,7 +377,7 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user, response.expires_at, 'flss');
-          localStorage.setItem('token', response.token);
+          SafeStorage.setItem('token', response.token);
         }
       }),
       catchError((error) => {
@@ -455,7 +456,7 @@ export class AuthService {
     this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
     this.userNameSubject.next(this.userDataCache.name);
     // Save to localStorage (not cookies) if needed for page reloads
-    localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
+    SafeStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(this.userDataCache.expires_at);
   }
 
@@ -501,7 +502,7 @@ export class AuthService {
     if (middleName) userData.middle_name = middleName;
     if (suffixName) userData.suffix_name = suffixName;
 
-    localStorage.setItem('user_data', JSON.stringify(userData));
+    SafeStorage.setItem('user_data', JSON.stringify(userData));
     this.userNameSubject.next(fullName);
   }
 
@@ -512,7 +513,7 @@ export class AuthService {
     const userData = this.getUserData();
     if (userData) {
       userData.profile_picture_url = url;
-      localStorage.setItem('user_data', JSON.stringify(userData));
+      SafeStorage.setItem('user_data', JSON.stringify(userData));
     }
     this.profilePictureUrlSubject.next(url);
   }
@@ -618,7 +619,7 @@ export class AuthService {
 
   // Load user data from storage with parse guards.
   private loadUserDataFromStorage(): any {
-    const rawUserData = localStorage.getItem('user_data');
+    const rawUserData = SafeStorage.getItem('user_data');
     if (!rawUserData) {
       return {};
     }
@@ -628,7 +629,7 @@ export class AuthService {
       return parsed && typeof parsed === 'object' ? parsed : {};
     } catch (error) {
       console.error('Failed to parse user_data:', error);
-      localStorage.removeItem('user_data');
+      SafeStorage.removeItem('user_data');
       return {};
     }
   }
