@@ -4,12 +4,12 @@
 
 .dialog-confirm-delete {
   position: relative;
-  background: #fdfbfb;
+  background: var(--neutral-light);
   border-radius: 20px;
   padding: 1.4rem 1.35rem 1.2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  color: #222222;
+  color: var(--neutral-base);
   max-width: 440px;
 }
 
@@ -54,19 +54,19 @@
 .dialog-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #222222;
+  color: var(--neutral-base);
   margin: 0;
 }
 
 .dialog-subtitle {
   margin: 0;
   font-size: 0.92rem;
-  color: #6d6161;
+  color: var(--secondary-text);
 }
 
 .confirm-message {
   font-size: 0.95rem;
-  color: #5e3c3c;
+  color: var(--neutral-base);
   line-height: 1.6;
   margin: 0 0 1.2rem;
 }
@@ -83,7 +83,7 @@
 .cancel-btn {
   border: none;
   background: transparent;
-  color: #700b0b;
+  color: var(--primary-text);
   font-weight: 600;
   padding: 0.75rem 0.4rem;
   border-radius: 999px;
@@ -92,8 +92,8 @@
 
   &:hover,
   &:focus-visible {
-    background: rgba(112, 11, 11, 0.08);
-    color: #4a0e0e;
+    background: var(--neutral-fade);
+    color: var(--primary-text-lighter);
     transform: translateY(-1px);
   }
 
@@ -104,7 +104,7 @@
 
 .delete-btn {
   border: none;
-  background: linear-gradient(135deg, #700b0b 0%, #800000 100%);
+  background: linear-gradient(135deg, var(--gradient-light-start) 0%, var(--gradient-light-end) 100%);
   color: #ffffff;
   font-weight: 700;
   padding: 0.8rem 1.1rem;

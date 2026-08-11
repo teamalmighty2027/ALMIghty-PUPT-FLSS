@@ -4,9 +4,10 @@
   position: relative;
   max-width: var(--dialog-base);
   padding: 1.4rem 1.35rem 0.2rem;
-  background: #fdfbfb;
+  background: var(--neutral-light);
   border-radius: 20px;
   overflow: hidden;
+  color: var(--neutral-base);
 }
 
 .accent-bar {
@@ -51,7 +52,7 @@
 .table-dialog-subtitle {
   margin: 0;
   font-size: 0.92rem;
-  color: #6d6161;
+  color: var(--secondary-text);
 }
 
 input[type="password"]::-ms-reveal,
@@ -65,7 +66,7 @@ input[type="password"]::-ms-clear {
 
 .table-dialog-title {
   font-family: "Inter Tight", sans-serif !important;
-  color: #222222 !important;
+  color: var(--neutral-base) !important;
   margin: 0;
 
   span {
@@ -106,10 +107,11 @@ input[type="password"]::-ms-clear {
       padding: var(--spacing-xxs) 0;
 
       .mat-mdc-form-field-flex {
-        border: 1px solid #4a0e0e;
+        border: 1px solid var(--neutral-border);
         border-radius: 12px;
-        background: #fffdfd;
+        background: var(--main-bg);
         padding: 0.15rem 0.7rem;
+        color: var(--neutral-base);
       }
 
       .mat-mdc-form-field-focus-overlay {
@@ -121,8 +123,8 @@ input[type="password"]::-ms-clear {
       }
 
       .mdc-text-field--focused .mat-mdc-form-field-flex {
-        border-color: #a41f1f;
-        box-shadow: 0 0 0 3px rgba(112, 11, 11, 0.12);
+        border-color: var(--primary-one);
+        box-shadow: 0 0 0 3px var(--primary-fade);
       }
     }
 
@@ -171,14 +173,14 @@ input[type="password"]::-ms-clear {
   padding-bottom: var(--spacing-lg);
 
   .cancel-button {
-    color: #700b0b !important;
+    color: var(--primary-text) !important;
     background: transparent !important;
     font-weight: 600;
     border-radius: 999px;
   }
 
   .action-button {
-    background: linear-gradient(135deg, #700b0b 0%, #800000 100%) !important;
+    background: linear-gradient(135deg, var(--gradient-light-start) 0%, var(--gradient-light-end) 100%) !important;
     color: #ffffff !important;
     font-weight: 700;
     border-radius: 999px;
@@ -240,8 +242,8 @@ input[type="password"]::-ms-clear {
   height: 28px;
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.04);
-    color: var(--primary-text);
+    background-color: var(--neutral-fade);
+    color: var(--primary-one);
   }
 
   mat-icon {

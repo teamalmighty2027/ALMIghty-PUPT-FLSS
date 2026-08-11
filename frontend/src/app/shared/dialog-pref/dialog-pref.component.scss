@@ -227,9 +227,9 @@
 }
 
 .elective-badge {
-  background-color: #efebe9;
-  color: #5d4037;
-  border: 1px solid #d7ccc8;
+  background-color: var(--secondary-fade);
+  color: var(--secondary-text);
+  border: 1px solid var(--neutral-border);
   font-size: 10px;
   font-weight: 600;
   padding: 1px 4px;
