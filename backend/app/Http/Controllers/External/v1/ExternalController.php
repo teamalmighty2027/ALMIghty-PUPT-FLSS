@@ -409,11 +409,15 @@ class ExternalController extends Controller
                 'faculty.idp_user_id',
                 'users.code as faculty_code',
                 'current_schedules.schedule_id as course_schedule_id',
-                'courses.course_title as subject',
-                DB::raw("'" . $this->formatSemesterLabel($activeSemester->semester) . 
-                    "' as semester"),
-                DB::raw("'" . $activeSemester->year_start . "-" . 
-                    $activeSemester->year_end . "' as school_year")
+                'courses.course_title as subject'
+            )
+            ->selectRaw(
+                '? as semester',
+                [$this->formatSemesterLabel($activeSemester->semester)]
+            )
+            ->selectRaw(
+                '? as school_year',
+                ["{$activeSemester->year_start}-{$activeSemester->year_end}"]
             )
             ->whereNotNull('current_schedules.schedule_id')
             ->distinct()
@@ -442,9 +446,17 @@ class ExternalController extends Controller
     {
         $clientSystem = $this->logExternalAccess($request, 'Faculty list');
 
+        // Retrieve the active semester to scope assigned units correctly
+        $activeSemester = $this->getActiveSemester();
+
         $faculties = DB::table('faculty')
             ->join('users', 'faculty.user_id', '=', 'users.id')
-            ->join('faculty_type', 'faculty.faculty_type_id', '=', 'faculty_type.faculty_type_id')
+            ->join(
+                'faculty_type',
+                'faculty.faculty_type_id',
+                '=',
+                'faculty_type.faculty_type_id'
+            )
             ->select(
                 'faculty.id as faculty_id',
                 'faculty.idp_user_id',
@@ -463,14 +475,61 @@ class ExternalController extends Controller
             ->orderBy('users.first_name')
             ->get();
 
-        // Get assigned units for each faculty
-        $rows = DB::table('schedules')
-            ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
-            ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
-            ->join('courses', 'course_assignments.course_id', '=', 'courses.course_id')
-            ->select('schedules.faculty_id', 'course_assignments.course_assignment_id', 'courses.units')
-            ->distinct()
-            ->get();
+        // Get assigned units per faculty scoped to the active semester.
+        $unitsQuery = DB::table('schedules')
+            ->join(
+                'section_courses',
+                'schedules.section_course_id',
+                '=',
+                'section_courses.section_course_id'
+            )
+            ->join(
+                'course_assignments',
+                'section_courses.course_assignment_id',
+                '=',
+                'course_assignments.course_assignment_id'
+            )
+            ->join(
+                'semesters as ca_semesters',
+                'ca_semesters.semester_id',
+                '=',
+                'course_assignments.semester_id'
+            )
+            ->join(
+                'sections_per_program_year',
+                'sections_per_program_year.sections_per_program_year_id',
+                '=',
+                'section_courses.sections_per_program_year_id'
+            )
+            ->join(
+                'courses',
+                'course_assignments.course_id',
+                '=',
+                'courses.course_id'
+            )
+            ->select(
+                'schedules.faculty_id',
+                'course_assignments.course_assignment_id',
+                'courses.units'
+            )
+            ->distinct();
+
+        // Apply active-semester filters when an active semester exists
+        if ($activeSemester) {
+            $unitsQuery
+                ->where(
+                    'ca_semesters.semester',
+                    '=',
+                    $activeSemester->semester
+                )
+                ->where(
+                    'sections_per_program_year.academic_year_id',
+                    '=',
+                    $activeSemester->academic_year_id
+                );
+        }
+
+        $rows = $unitsQuery->get();
 
         $assignedUnits = $rows->groupBy('faculty_id')
             ->map(fn($items) => (int) $items->sum('units'))

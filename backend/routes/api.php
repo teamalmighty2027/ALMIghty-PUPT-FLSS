@@ -459,7 +459,7 @@ Route::prefix('v1')->group(function () {
      * Faculty List Endpoint
      * General Faculty Data
      */
-    Route::middleware(['check.hmac:orr,frrs,puptweb'])->group(function () {
+    Route::middleware(['check.hmac:orr,frrs,puptweb,ojtims'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 
