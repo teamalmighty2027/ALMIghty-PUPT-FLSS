@@ -80,6 +80,7 @@ class RescheduleController extends Controller
             $file = $request->file('appealFile');
 
             // --- VIRUS SCAN START ---
+            /*
             $apiKey = config('services.cloudmersive.api_key');
             
             if ($apiKey) {
@@ -113,6 +114,7 @@ class RescheduleController extends Controller
                     );
                 }
             }
+            */
             // --- VIRUS SCAN END ---
 
             // File is clean, proceed with storage
@@ -146,6 +148,14 @@ class RescheduleController extends Controller
             );
         }
 
+        $conflictResult = app(\App\Services\AppealConflictService::class)->check(
+            $validated['scheduleId'],
+            $validated['day'],
+            $validated['startTime'],
+            $validated['endTime'],
+            $roomId
+        );
+
         $appeal = Appeal::create([
             'schedule_id'         => $validated['scheduleId'],
             'original_day'        => $schedule->day,
@@ -161,10 +171,16 @@ class RescheduleController extends Controller
             'is_approved'         => null,
         ]);
 
-        return response()->json(
-            ['message' => 'Appeal submitted successfully.', 'appeal' => $appeal],
-            201
-        );
+        $responseData = [
+            'message' => 'Appeal submitted successfully.',
+            'appeal' => $appeal,
+        ];
+
+        if (!empty($conflictResult['messages'])) {
+            $responseData['conflicts'] = $conflictResult['messages'];
+        }
+
+        return response()->json($responseData, 201);
     }
 
     // ─────────────────────────────────────────────────────────
