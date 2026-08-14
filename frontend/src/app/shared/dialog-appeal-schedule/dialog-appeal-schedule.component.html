@@ -1,7 +1,7 @@
 <div class="dialog-container">
   <div class="dialog-header">
     <h2 mat-dialog-title>{{ isEditMode ? 'Edit Schedule Details' : 'Appeal Schedule' }}</h2>
-    <button mat-icon-button (click)="onCancel()">
+    <button mat-icon-button (click)="onCancel()" [disabled]="isSubmitting">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -159,15 +159,25 @@
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
-    <button mat-button (click)="onClearAll()" *ngIf="isEditMode" class="clear-btn">
+    <button 
+      mat-button 
+      (click)="onClearAll()" 
+      *ngIf="isEditMode" 
+      class="clear-btn" 
+      [disabled]="isSubmitting">
       Clear All
     </button>
-    <button mat-button (click)="onCancel()">Cancel</button>
+    <button 
+      mat-button 
+      (click)="onCancel()" 
+      [disabled]="isSubmitting">
+      Cancel
+    </button>
     <button 
       mat-flat-button 
       color="primary" 
       (click)="onSubmit(hasConflicts)" 
-      [disabled]="appealForm.invalid">
+      [disabled]="appealForm.invalid || isSubmitting">
       {{ hasConflicts ? 'Confirm & Submit Anyway' : 'Submit Appeal' }}
     </button>
   </mat-dialog-actions>

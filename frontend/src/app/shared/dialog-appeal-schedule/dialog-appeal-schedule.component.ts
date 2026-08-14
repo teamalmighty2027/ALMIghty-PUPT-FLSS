@@ -68,6 +68,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   roomOptions: string[] = [];
   conflictMessages: string[] = [];
   hasConflicts: boolean = false;
+  isSubmitting: boolean = false;
   
   // Speech recognition properties
   isListening: boolean = false;
@@ -303,11 +304,17 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Cancel and close the dialog button handler
   onCancel(): void {
+    if (this.isSubmitting) {
+      return;
+    }
     this.dialogRef.close();
   }
 
   // Clear all form fields button handler
   onClearAll(): void {
+    if (this.isSubmitting) {
+      return;
+    }
     if (this.isEditMode) {
       this.appealForm.reset({
         appealDay: '',
@@ -324,7 +331,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Submit the appeal form button handler
   onSubmit(force: boolean = false): void {
-    if (!this.appealForm.valid) {
+    if (!this.appealForm.valid || this.isSubmitting) {
       this.appealForm.markAllAsTouched();
       return;
     }
@@ -347,7 +354,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       'Close', { duration: 5000 }
     );
 
-    // Disable submit button
+    // Disable submit button and actions
+    this.isSubmitting = true;
     this.appealForm.disable();
 
     // Submit in background
@@ -367,6 +375,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     .subscribe({
       next: (response) => {
         // Success handler
+        this.isSubmitting = false;
         this.snackBar.open(
           response.message || 'Appeal submitted successfully.', 
           'Close', { duration: 3000 }
@@ -375,6 +384,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       },
       error: (error) => {
         console.error('Appeal error:', error);
+        this.isSubmitting = false;
         this.appealForm.enable();
 
         // Robust parsing to strip out local PHP notices
