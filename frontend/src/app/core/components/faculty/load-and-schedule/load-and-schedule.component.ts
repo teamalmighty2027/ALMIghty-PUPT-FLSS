@@ -23,13 +23,11 @@ import { DialogVideoTutorialComponent } from '../../../../shared/dialog-video-tu
 import { ReportsService } from '../../../services/admin/reports/reports.service';
 import { AuthService } from '../../../services/auth/auth.service';
 import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service'; 
-import { ReportHeaderService } from '../../../../core/services/report-header/report-header.service'; // Adjust path if needed
 
 import { fadeAnimation } from '../../../animations/animations';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
-import jsPDF from 'jspdf';
 
 type ScheduleView = 'official' | 'internal';
 
@@ -87,7 +85,6 @@ export class LoadAndScheduleComponent implements OnInit, OnDestroy {
     private reschedulingService: ReschedulingService, 
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
-    private reportHeaderService: ReportHeaderService
   ) {}
 
   ngOnInit() {
@@ -201,199 +198,19 @@ export class LoadAndScheduleComponent implements OnInit, OnDestroy {
   }
 
   downloadTemplate(): void {
-    const doc = new jsPDF('portrait', 'mm', 'a4');
-    const title = 'LETTER RESCHEDULE TEMPLATE';
-    const subtitle = 'Class Schedule Revision Consent';
+    const fileUrl = 'assets/docs/LETTER RESCHEDULE TEMPLATE.docx';
+    const fileName = 'LETTER RESCHEDULE TEMPLATE.docx';
 
-    // Custom Footer Function to omit the "system-generated" string
-    const drawCustomFooter = (docToDraw: jsPDF) => {
-      const pageHeight = docToDraw.internal.pageSize.height || (docToDraw.internal.pageSize as any).getHeight();
-      const pageWidth = docToDraw.internal.pageSize.width || (docToDraw.internal.pageSize as any).getWidth();
-      const margin = 10;
-      const footerY = pageHeight - 15; 
-
-      docToDraw.setDrawColor(200, 200, 200);
-      docToDraw.setLineWidth(0.5);
-      docToDraw.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
-
-      docToDraw.setFontSize(8);
-      docToDraw.setTextColor(128, 0, 0);
-      docToDraw.setFont('helvetica', 'normal');
-      docToDraw.text('This document contains personal-identifiable information that is subject to Data Privacy.', margin, footerY);
-      docToDraw.text('Please keep this document protected and in a safe place.', margin, footerY + 3.5);
-      docToDraw.setTextColor(0, 0, 0); 
-    };
-
-    this.reportHeaderService.addHeader(doc, title, 15, subtitle).subscribe((startY) => {
-      const margin = 20;
-      const pageWidth = doc.internal.pageSize.width;
-      const maxTextWidth = pageWidth - margin * 2;
-      let currentY = startY + 10;
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-
-      // --- Highlighted Date ---
-      const today = 'September 25, 2024';
-      doc.setFillColor(255, 255, 0); 
-      doc.rect(margin, currentY - 4.2, doc.getTextWidth(today), 5.5, 'F');
-      doc.text(today, margin, currentY);
-      currentY += 10;
-
-      // --- Salutation ---
-      doc.text('To Whom It May Concern,', margin, currentY);
-      currentY += 10;
-
-      // --- Custom Justified Paragraph Renderer with Highlights ---
-      const renderParagraphJustified = (segments: { text: string, highlight: boolean }[]) => {
-        const lineHeight = 6;
-        let words: {text: string, highlight: boolean, width: number}[] = [];
-
-        // Flatten segments into an array of words
-        segments.forEach(seg => {
-          const splitWords = seg.text.split(/( )/);
-          splitWords.forEach(w => {
-            if (w !== '') {
-              words.push({ text: w, highlight: seg.highlight, width: doc.getTextWidth(w) });
-            }
-          });
-        });
-
-        // Group words into lines
-        let lines: {words: typeof words, width: number}[] = [];
-        let currentLine: typeof words = [];
-        let currentLineWidth = 0;
-
-        words.forEach(w => {
-          if (w.text === ' ' && currentLine.length === 0) return; 
-
-          if (currentLineWidth + w.width > maxTextWidth && w.text !== ' ') {
-            if (currentLine.length > 0 && currentLine[currentLine.length - 1].text === ' ') {
-              currentLineWidth -= currentLine.pop()!.width;
-            }
-            lines.push({ words: currentLine, width: currentLineWidth });
-            currentLine = [w];
-            currentLineWidth = w.width;
-          } else {
-            currentLine.push(w);
-            currentLineWidth += w.width;
-          }
-        });
-        if (currentLine.length > 0) {
-          lines.push({ words: currentLine, width: currentLineWidth });
-        }
-
-        // Render each line with justified spacing
-        lines.forEach((line, lineIndex) => {
-          let isLastLine = lineIndex === lines.length - 1;
-          let spaceCount = line.words.filter(w => w.text === ' ').length;
-          let extraSpacePerGap = 0;
-
-          // Calculate exact spacing distribution
-          if (!isLastLine && spaceCount > 0) {
-            let textWidthWithoutSpaces = line.words.reduce((sum, w) => w.text !== ' ' ? sum + w.width : sum, 0);
-            let totalGapSpace = maxTextWidth - textWidthWithoutSpaces;
-            extraSpacePerGap = totalGapSpace / spaceCount;
-          }
-
-          let currentX = margin;
-          line.words.forEach(w => {
-            if (w.text === ' ') {
-              currentX += (!isLastLine && spaceCount > 0) ? extraSpacePerGap : w.width;
-              return;
-            }
-            if (w.highlight) {
-              doc.setFillColor(255, 255, 0); 
-              doc.rect(currentX, currentY - 4.2, w.width, 5.5, 'F');
-            }
-            doc.text(w.text, currentX, currentY);
-            currentX += w.width;
-          });
-          currentY += lineHeight;
-        });
-        currentY += 4; 
-      };
-
-      // --- Paragraph 1 (Using "We", "our") ---
-      renderParagraphJustified([
-        { text: 'We, the students of ', highlight: false },
-        { text: 'BSIT 2-1', highlight: true },
-        { text: ', respectfully acknowledge and agree to the revised schedule for our classes and meetings in the subject ', highlight: false },
-        { text: 'Tech Documentation', highlight: true },
-        { text: ' with the subject code ', highlight: false },
-        { text: 'ELECT IT-FE1', highlight: true },
-        { text: '. As discussed, we confirm that the schedule change from the old time frame of ', highlight: false },
-        { text: '1:00 PM - 3:00 PM', highlight: true },
-        { text: ' to the new time frame of ', highlight: false },
-        { text: '3:00 PM - 5:00 PM', highlight: true },
-        { text: ' is acceptable and will be adhered to.', highlight: false }
-      ]);
-
-      // --- Paragraph 2 (Using "We", "our", "us") ---
-      renderParagraphJustified([
-        { text: 'We appreciate your understanding of our concerns and kindly ask for your assistance in accommodating this request. Should you require any further information or clarification, please do not hesitate to contact us.', highlight: false }
-      ]);
-
-      // --- Closing ---
-      doc.text('Yours sincerely,', margin, currentY);
-      currentY += 20;
-
-      // --- Signatures Grid (Officers + 24 Extra Students) ---
-      const officers = [
-        'President', 'Vice President', 'Secretary', 
-        'Assistant Secretary', 'Treasurer', 'Auditor', 
-        'P.R.O', 'Muse', 'Escort'
-      ];
-      
-      const totalSignatures = officers.length + 24;
-
-      let sigX = margin;
-      for (let i = 0; i < totalSignatures; i++) {
-        
-        // Draw the signature line
-        doc.setDrawColor(0, 0, 0);
-        doc.setLineWidth(0.3);
-        doc.line(sigX, currentY, sigX + 50, currentY);
-        
-        if (i < officers.length) {
-          // Officer Title
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'bold');
-          doc.text(officers[i], sigX + 25, currentY + 4, { align: 'center', maxWidth: 48 });
-          
-          // "Signature over printed name" below the title
-          doc.setFontSize(7);
-          doc.setFont('helvetica', 'normal');
-          doc.text('Signature over printed name', sigX + 25, currentY + 7.5, { align: 'center', maxWidth: 48 });
-        } else {
-          // Generic Student
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.text('Signature over printed name', sigX + 25, currentY + 4, { align: 'center', maxWidth: 48 });
-        }
-        
-        // Adjust column and row spacing
-        if ((i + 1) % 3 === 0) {
-          sigX = margin;
-          currentY += 18;
-        } else {
-          sigX += 58; 
-        }
-
-        // Pagination check
-        if (currentY > doc.internal.pageSize.height - 35 && i !== totalSignatures - 1) {
-          drawCustomFooter(doc);
-          doc.addPage();
-          currentY = 20; 
-        }
-      }
-
-      drawCustomFooter(doc);
-      doc.save('LETTER_RESCHEDULE_TEMPLATE.pdf');
-      
-      this.snackBar.open('Template generated and downloaded successfully.', 'Close', { duration: 3000 });
-    });
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.snackBar.open('Word template downloaded successfully.', 'Close', { duration: 3000 });
   }
 
   openAppealDialog(block: any): void {
