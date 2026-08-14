@@ -229,3 +229,38 @@ mat-dialog-actions {
     color: var(--secondary-text);
   }
 }
+
+.validation-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xxs);
+  padding: var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
+  margin-top: var(--spacing-sm);
+  width: 100%;
+
+  &.conflict {
+    background-color: var(--primary-fade);
+    color: var(--primary-text);
+  }
+
+  .validation-message-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 600;
+    
+    mat-icon {
+      font-size: var(--font-size-md);
+      height: var(--font-size-md);
+      width: var(--font-size-md);
+    }
+  }
+
+  .validation-message-list {
+    margin: 0;
+    padding-left: 1.125rem;
+    font-size: var(--font-size-sm);
+  }
+}

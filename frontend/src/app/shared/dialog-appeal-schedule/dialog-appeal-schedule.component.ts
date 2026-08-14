@@ -66,6 +66,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   // Time options for dropdowns
   timeOptions: string[] = [];
   roomOptions: string[] = [];
+  conflictMessages: string[] = [];
   
   // Speech recognition properties
   isListening: boolean = false;
@@ -226,12 +227,31 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealRoom: [''],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
+      this.setupFormValueChanges();
     } else {
       // Original appeal mode - rebuild the form
       this.appealForm = this.fb.group({
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
     }
+  }
+
+  // Clear conflict messages on input value changes
+  private setupFormValueChanges(): void {
+    const controls = [
+      'appealDay',
+      'appealStartTime',
+      'appealEndTime',
+      'appealRoom'
+    ];
+    controls.forEach(ctrl => {
+      this.appealForm.get(ctrl)?.valueChanges.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe(() => {
+        this.conflictMessages = [];
+        this.cdr.markForCheck();
+      });
+    });
   }
 
   onFileSelected(event: any): void {
@@ -339,11 +359,21 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     .pipe(takeUntil(this.destroy$))
     .subscribe({
       next: (response) => {
-        this.snackBar.open(
-          response.message || 'Appeal submitted successfully.', 
-          'Close', { duration: 3000 }
-        );
-        this.dialogRef.close(true);
+        if (response.conflicts && response.conflicts.length > 0) {
+          this.conflictMessages = response.conflicts;
+          this.appealForm.enable();
+          this.snackBar.open(
+            'Appeal submitted with conflict warnings.',
+            'Close',
+            { duration: 10000 }
+          );
+        } else {
+          this.snackBar.open(
+            response.message || 'Appeal submitted successfully.', 
+            'Close', { duration: 3000 }
+          );
+          this.dialogRef.close(true);
+        }
       },
       error: (error) => {
         console.error('Appeal error:', error);
