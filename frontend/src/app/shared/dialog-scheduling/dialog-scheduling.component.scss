@@ -67,7 +67,7 @@
 .suggested-faculty {
   flex: 4;
   background-color: var(--neutral-extra);
-  border-right: 1px solid var(--neutral-base);
+  border-right: 1px solid var(--neutral-border);
 
   .content.faculty-list {
     @include mixins.hide-scrollbar;
@@ -220,7 +220,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--neutral-base);
+    background: var(--neutral-border);
     opacity: 0.5;
   }
 
@@ -353,7 +353,7 @@
   .end-marker-line {
     flex: 1;
     height: 1px;
-    background: var(--neutral-base);
+    background: var(--neutral-border);
     opacity: 0.3;
   }
 
@@ -507,7 +507,7 @@
     margin-bottom: var(--spacing-mdx);
     background: var(--neutral-light);
     border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-    border-bottom: 1px solid var(--neutral-base);
+    border-bottom: 1px solid var(--neutral-border);
 
     .day-button {
       display: flex;
@@ -591,7 +591,7 @@
     gap: var(--spacing-xxs);
     padding: var(--spacing-sm);
     background-color: var(--neutral-light);
-    border: 1px solid var(--neutral-base);
+    border: 1px solid var(--neutral-border);
     border-radius: var(--border-radius-sm);
     width: 100%;
 
@@ -743,7 +743,7 @@
   .suggested-faculty {
     flex: none !important;
     border-right: none !important;
-    border-bottom: 1.5px solid var(--neutral-base) !important;
+    border-bottom: 1.5px solid var(--neutral-border) !important;
     padding: 0 var(--spacing-md) var(--spacing-md) !important;
 
     .title {
