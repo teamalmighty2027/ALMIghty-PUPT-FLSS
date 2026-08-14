@@ -189,10 +189,22 @@ class AppealConflictService
                 'ca.course_assignment_id'
             )
             ->leftJoin(
+                'semesters as sem_ca',
+                'ca.semester_id',
+                '=',
+                'sem_ca.semester_id'
+            )
+            ->leftJoin(
                 'temporary_course_offerings as tco',
                 'sc.temporary_course_offering_id',
                 '=',
                 'tco.temporary_course_offering_id'
+            )
+            ->leftJoin(
+                'semesters as sem_tco',
+                'tco.semester_id',
+                '=',
+                'sem_tco.semester_id'
             )
             ->leftJoin(
                 'internal_arrangements as ia',
@@ -214,8 +226,8 @@ class AppealConflictService
             ->join('programs as p', 'spy.program_id', '=', 'p.program_id')
             ->where('spy.academic_year_id', $academicYearId)
             ->where(function ($query) use ($semesterId) {
-                $query->where('ca.semester_id', $semesterId)
-                      ->orWhere('tco.semester_id', $semesterId);
+                $query->where('sem_ca.semester', $semesterId)
+                      ->orWhere('sem_tco.semester', $semesterId);
             })
             ->where('s.schedule_id', '!=', $excludeScheduleId)
             ->select([
