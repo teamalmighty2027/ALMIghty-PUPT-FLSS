@@ -277,10 +277,8 @@ class AppealConflictService
                 $startDisp = $this->formatTime($s->effective_start_time);
                 $endDisp = $this->formatTime($s->effective_end_time);
 
-                $messages[] = "{$context->program_code} " .
-                    "{$context->year_level}-{$context->section_name} " .
-                    "is already scheduled for {$s->course_code} " .
-                    "({$s->course_title}) on {$day} from {$startDisp} " .
+                $messages[] = "This section is already scheduled for " .
+                    "another class on {$day} from {$startDisp} " .
                     "to {$endDisp}.";
             }
         }
@@ -328,11 +326,9 @@ class AppealConflictService
                 $startDisp = $this->formatTime($s->effective_start_time);
                 $endDisp = $this->formatTime($s->effective_end_time);
 
-                $messages[] = "{$s->professor_name} is already assigned " .
-                    "to {$s->course_code} ({$s->course_title}) for " .
-                    "{$s->program_code} {$s->year_level}-" .
-                    "{$s->section_name} on {$day} from {$startDisp} " .
-                    "to {$endDisp}.";
+                $messages[] = "You are already assigned to another class " .
+                    "({$s->course_code} - {$s->course_title}) on {$day} " .
+                    "from {$startDisp} to {$endDisp}.";
             }
         }
 
@@ -348,8 +344,8 @@ class AppealConflictService
 
             if ($this->doTimesOverlap($start, $end, $plotStart, $plotEnd)) {
                 $displayType = ucwords(str_replace('_', ' ', $plot->time_type));
-                $messages[] = "This slot conflicts with the faculty's " .
-                    "plotted {$displayType}.";
+                $messages[] = "This slot conflicts with your plotted " .
+                    "{$displayType}.";
             }
         }
 
@@ -399,9 +395,7 @@ class AppealConflictService
                 $endDisp = $this->formatTime($s->effective_end_time);
 
                 $messages[] = "Room {$roomCode} is already booked for " .
-                    "{$s->course_code} ({$s->course_title}) in " .
-                    "{$s->program_code} {$s->year_level}-" .
-                    "{$s->section_name} on {$day} from {$startDisp} " .
+                    "another course on {$day} from {$startDisp} " .
                     "to {$endDisp}.";
             }
         }
