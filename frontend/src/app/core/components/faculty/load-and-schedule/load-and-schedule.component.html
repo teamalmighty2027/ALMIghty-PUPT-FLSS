@@ -22,35 +22,74 @@
         }
       </div>
 
-      <div class="schedule-overview-group" [@fadeAnimation]>
+      <div
+        class="schedule-overview-group"
+        [class.unpublished]="!isPublished"
+        [@fadeAnimation]>
 
-        @if (!isMobileView) {
-          <div class="schedule-tutorial-card"
-               (click)="openRescheduleTutorial()"
-               matRipple
-               role="button"
-               tabindex="0"
-               aria-label="Open rescheduling tutorial"
-               (keydown.enter)="openRescheduleTutorial()">
-            <span mat-symbol="menu_book" class="schedule-tutorial-icon"></span>
-            <div class="schedule-tutorial-text">
-              <span class="schedule-tutorial-title">Reschedule Tutorial</span>
-              <span class="schedule-tutorial-sub">Guide &amp; Video</span>
+        @if (!isMobileView || !isPublished) {
+          <div class="schedule-cards-wrapper">
+            <!-- Existing Tutorial Card -->
+            <div class="schedule-tutorial-card"
+                 (click)="openRescheduleTutorial()"
+                 matRipple
+                 role="button"
+                 tabindex="0"
+                 aria-label="Open rescheduling tutorial"
+                 (keydown.enter)="openRescheduleTutorial()">
+              <span mat-symbol="menu_book"
+                    class="schedule-tutorial-icon"></span>
+              <div class="schedule-tutorial-text">
+                <span class="schedule-tutorial-title">
+                  Reschedule Tutorial
+                </span>
+                <span class="schedule-tutorial-sub">
+                  Guide &amp; Video
+                </span>
+              </div>
+            </div>
+
+            <!-- New Download Template Card -->
+            <div class="schedule-tutorial-card"
+                 (click)="downloadTemplate()"
+                 matRipple
+                 role="button"
+                 tabindex="0"
+                 aria-label="Download appeal template"
+                 (keydown.enter)="downloadTemplate()">
+              <span mat-symbol="download"
+                    class="schedule-tutorial-icon"></span>
+              <div class="schedule-tutorial-text">
+                <span class="schedule-tutorial-title">
+                  Appeal Template
+                </span>
+                <span class="schedule-tutorial-sub">
+                  Download .docx
+                </span>
+              </div>
             </div>
           </div>
         }
 
         <div class="schedule-overview">
 
-          <div class="schedule-summary">
-            <h4 class="mini-heading">
-              <span mat-symbol="article"></span>Schedule Summary
-            </h4>
-            <div class="summary-numbers">
-              <p>Total Units: @if (isPublished) { {{ facultySchedule.assigned_units }} units } @else { 0 }</p>
-              <p>Total Hours: @if (isPublished) { {{ facultySchedule.total_hours }} hours } @else { 0 }</p>
+          @if (isPublished) {
+            <div class="schedule-summary">
+              <h4 class="mini-heading">
+                <span mat-symbol="article"></span>Schedule Summary
+              </h4>
+              <div class="summary-numbers">
+                <p>
+                  Total Units:
+                  {{ facultySchedule.assigned_units }} units
+                </p>
+                <p>
+                  Total Hours:
+                  {{ facultySchedule.total_hours }} hours
+                </p>
+              </div>
             </div>
-          </div>
+          }
 
           <div class="schedule-history"
             matTooltip="Click to view your past schedules"
@@ -130,10 +169,15 @@
         </div>
 
         <div class="mobile-action-block">
-          <div class="mobile-action-label">Watch Tutorial</div>
+          <div class="mobile-action-label">Help & Templates</div>
           <div class="mobile-action-buttons">
+            <!-- Existing Tutorial Button -->
             <button mat-icon-button class="tutorial-action-btn action-icon-btn" (click)="openRescheduleTutorial()" matTooltip="Watch tutorial" type="button" aria-label="Open rescheduling tutorial">
               <mat-icon class="btn-icon">menu_book</mat-icon>
+            </button>
+            <!-- New Download Button -->
+            <button mat-icon-button class="tutorial-action-btn action-icon-btn" (click)="downloadTemplate()" matTooltip="Download Template" type="button" aria-label="Download appeal template">
+              <mat-icon class="btn-icon">download</mat-icon>
             </button>
           </div>
         </div>
