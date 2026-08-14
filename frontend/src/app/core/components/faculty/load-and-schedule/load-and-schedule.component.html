@@ -22,10 +22,13 @@
         }
       </div>
 
-      <div class="schedule-overview-group" [@fadeAnimation]>
+      <div
+        class="schedule-overview-group"
+        [class.unpublished]="!isPublished"
+        [@fadeAnimation]>
 
-        @if (!isMobileView) {
-          <div style="display: flex; flex-direction: column; gap: 8px;">
+        @if (!isMobileView || !isPublished) {
+          <div class="schedule-cards-wrapper">
             <!-- Existing Tutorial Card -->
             <div class="schedule-tutorial-card"
                  (click)="openRescheduleTutorial()"
@@ -34,10 +37,15 @@
                  tabindex="0"
                  aria-label="Open rescheduling tutorial"
                  (keydown.enter)="openRescheduleTutorial()">
-              <span mat-symbol="menu_book" class="schedule-tutorial-icon"></span>
+              <span mat-symbol="menu_book"
+                    class="schedule-tutorial-icon"></span>
               <div class="schedule-tutorial-text">
-                <span class="schedule-tutorial-title">Reschedule Tutorial</span>
-                <span class="schedule-tutorial-sub">Guide &amp; Video</span>
+                <span class="schedule-tutorial-title">
+                  Reschedule Tutorial
+                </span>
+                <span class="schedule-tutorial-sub">
+                  Guide &amp; Video
+                </span>
               </div>
             </div>
 
@@ -49,10 +57,15 @@
                  tabindex="0"
                  aria-label="Download appeal template"
                  (keydown.enter)="downloadTemplate()">
-              <span mat-symbol="download" class="schedule-tutorial-icon"></span>
+              <span mat-symbol="download"
+                    class="schedule-tutorial-icon"></span>
               <div class="schedule-tutorial-text">
-                <span class="schedule-tutorial-title">Appeal Template</span>
-                <span class="schedule-tutorial-sub">Download .docx</span>
+                <span class="schedule-tutorial-title">
+                  Appeal Template
+                </span>
+                <span class="schedule-tutorial-sub">
+                  Download .docx
+                </span>
               </div>
             </div>
           </div>
@@ -60,15 +73,23 @@
 
         <div class="schedule-overview">
 
-          <div class="schedule-summary">
-            <h4 class="mini-heading">
-              <span mat-symbol="article"></span>Schedule Summary
-            </h4>
-            <div class="summary-numbers">
-              <p>Total Units: @if (isPublished) { {{ facultySchedule.assigned_units }} units } @else { 0 }</p>
-              <p>Total Hours: @if (isPublished) { {{ facultySchedule.total_hours }} hours } @else { 0 }</p>
+          @if (isPublished) {
+            <div class="schedule-summary">
+              <h4 class="mini-heading">
+                <span mat-symbol="article"></span>Schedule Summary
+              </h4>
+              <div class="summary-numbers">
+                <p>
+                  Total Units:
+                  {{ facultySchedule.assigned_units }} units
+                </p>
+                <p>
+                  Total Hours:
+                  {{ facultySchedule.total_hours }} hours
+                </p>
+              </div>
             </div>
-          </div>
+          }
 
           <div class="schedule-history"
             matTooltip="Click to view your past schedules"
