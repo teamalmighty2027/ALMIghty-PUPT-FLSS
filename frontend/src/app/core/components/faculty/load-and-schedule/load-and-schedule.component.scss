@@ -64,6 +64,13 @@
     flex-shrink: 0;
   }
 
+  .schedule-cards-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
   // Tutorial card — same design as preferences tutorial card
   .schedule-tutorial-card {
     @include mixins.flex-layout(
@@ -428,6 +435,37 @@
       flex-direction: column;
       align-items: stretch;
       gap: var(--spacing-sm);
+
+      &.unpublished {
+        .schedule-cards-wrapper {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: var(--spacing-sm);
+          width: 100%;
+        }
+
+        .schedule-tutorial-card {
+          min-height: 56px;
+          padding: var(--spacing-xs) var(--spacing-sm);
+          gap: var(--spacing-xs);
+
+          .schedule-tutorial-icon {
+            font-size: 1.6rem;
+          }
+
+          .schedule-tutorial-text {
+            .schedule-tutorial-title,
+            .schedule-tutorial-sub {
+              white-space: normal;
+              font-size: var(--font-size-sm);
+            }
+          }
+        }
+
+        .schedule-overview {
+          grid-template-columns: 1fr;
+        }
+      }
     }
 
     .schedule-tutorial-card {
@@ -466,6 +504,19 @@
   .view-wrapper {
     overflow: visible;
     height: auto;
+  }
+
+  .unpublished-container {
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg) 0;
+
+    svg {
+      width: 9rem;
+    }
+
+    .unpublished-text {
+      font-size: var(--font-size-smx);
+    }
   }
 
   .row-one {

@@ -197,6 +197,22 @@ export class LoadAndScheduleComponent implements OnInit, OnDestroy {
     });
   }
 
+  downloadTemplate(): void {
+    const fileUrl = 'assets/docs/LETTER RESCHEDULE TEMPLATE.docx';
+    const fileName = 'LETTER RESCHEDULE TEMPLATE.docx';
+
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.snackBar.open('Word template downloaded successfully.', 'Close', { duration: 3000 });
+  }
+
   openAppealDialog(block: any): void {
     if (!this.isPublished) {
       this.snackBar.open('No official schedule published yet.', 'Close', { duration: 3000 });

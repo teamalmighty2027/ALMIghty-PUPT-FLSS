@@ -2,12 +2,12 @@
 
 .permission-dialog {
   position: relative;
-  background: #fdfbfb;
+  background: var(--neutral-light);
   border-radius: 20px;
   padding: 1.4rem 1.35rem 1.2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  color: #222222;
+  color: var(--neutral-base);
   min-width: 360px;
   max-width: 800px;
   max-height: 90vh;
@@ -60,14 +60,14 @@
 .dialog-title {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #222222;
+  color: var(--neutral-base);
   margin: 0;
 }
 
 .dialog-subtitle {
   margin: 0;
   font-size: 0.92rem;
-  color: #6d6161;
+  color: var(--secondary-text);
   font-weight: 500;
 }
 
@@ -91,9 +91,9 @@
     margin: 0 0 var(--spacing-sm) 0;
     font-size: var(--font-size-lg);
     font-weight: 600;
-    color: #222222;
+    color: var(--neutral-base);
     padding-bottom: var(--spacing-sm);
-    border-bottom: 2px solid #700b0b;
+    border-bottom: 2px solid var(--primary-one);
   }
 }
 
@@ -353,7 +353,7 @@
   .cancel-button {
     border: none;
     background: transparent;
-    color: #700b0b;
+    color: var(--primary-text);
     font-weight: 600;
     padding: 0.75rem 0.4rem;
     border-radius: 999px;
@@ -361,8 +361,8 @@
     transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 
     &:hover:not(:disabled) {
-      background: rgba(112, 11, 11, 0.08);
-      color: #4a0e0e;
+      background: var(--neutral-fade);
+      color: var(--primary-text-lighter);
       transform: translateY(-1px);
     }
 
@@ -373,7 +373,7 @@
 
   .action-button {
     border: none;
-    background: linear-gradient(135deg, #700b0b 0%, #800000 100%);
+    background: linear-gradient(135deg, var(--gradient-light-start) 0%, var(--gradient-light-end) 100%);
     color: #ffffff;
     font-weight: 700;
     padding: 0.8rem 1.1rem;

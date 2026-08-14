@@ -40,7 +40,11 @@
 // ─── Tab content wrapper ───────────────────────────────────────
 .tab-content-wrapper {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none, $gap: var(--spacing-md));
+  background-color: var(--neutral-light);
+  border-radius: 8px;
   padding: 20px;
+  box-shadow: var(--shadow-level-1);
+  margin-bottom: 20px;
   height: 100%;
   box-sizing: border-box;
 }
@@ -141,8 +145,8 @@
       }
 
       .status-pending  { background-color: var(--primary-one-fade); color: var(--primary-text-lighter); }
-      .status-approved { background-color: #e6f4ea; color: #2e7d32; }
-      .status-denied   { background-color: #fdecea; color: #c62828; }
+      .status-approved { background-color: var(--green-fade-lighter); color: var(--green-primary); }
+      .status-denied   { background-color: var(--primary-fade); color: var(--primary-warning); }
 
       &.action {
         .action-button-container {
@@ -406,7 +410,7 @@
     border: 1px solid var(--neutral-fade);
     border-radius: var(--border-radius-sm);
     padding: 0.75rem;
-    .doc-icon  { color: #d32f2f; font-size: 20px; width: 20px; height: 20px; }
+    .doc-icon  { color: var(--primary-text); font-size: 20px; width: 20px; height: 20px; }
     .doc-name  { flex: 1; font-size: 0.9rem; color: var(--primary-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .doc-view-btn { color: var(--secondary-text); mat-icon { font-size: 18px; width: 18px; height: 18px; } }
   }

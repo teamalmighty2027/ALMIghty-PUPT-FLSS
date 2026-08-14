@@ -114,13 +114,13 @@ mat-dialog-content {
   }
 
   &.status-approved {
-    background-color: #e6f4ea;
-    color: #2e7d32;
+    background-color: var(--green-fade-lighter);
+    color: var(--green-primary);
   }
 
   &.status-denied {
-    background-color: #fdecea;
-    color: #c62828;
+    background-color: var(--primary-fade);
+    color: var(--primary-warning);
   }
 }
 
