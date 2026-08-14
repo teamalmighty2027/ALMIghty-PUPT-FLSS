@@ -25,17 +25,35 @@
       <div class="schedule-overview-group" [@fadeAnimation]>
 
         @if (!isMobileView) {
-          <div class="schedule-tutorial-card"
-               (click)="openRescheduleTutorial()"
-               matRipple
-               role="button"
-               tabindex="0"
-               aria-label="Open rescheduling tutorial"
-               (keydown.enter)="openRescheduleTutorial()">
-            <span mat-symbol="menu_book" class="schedule-tutorial-icon"></span>
-            <div class="schedule-tutorial-text">
-              <span class="schedule-tutorial-title">Reschedule Tutorial</span>
-              <span class="schedule-tutorial-sub">Guide &amp; Video</span>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Existing Tutorial Card -->
+            <div class="schedule-tutorial-card"
+                 (click)="openRescheduleTutorial()"
+                 matRipple
+                 role="button"
+                 tabindex="0"
+                 aria-label="Open rescheduling tutorial"
+                 (keydown.enter)="openRescheduleTutorial()">
+              <span mat-symbol="menu_book" class="schedule-tutorial-icon"></span>
+              <div class="schedule-tutorial-text">
+                <span class="schedule-tutorial-title">Reschedule Tutorial</span>
+                <span class="schedule-tutorial-sub">Guide &amp; Video</span>
+              </div>
+            </div>
+
+            <!-- New Download Template Card -->
+            <div class="schedule-tutorial-card"
+                 (click)="downloadTemplate()"
+                 matRipple
+                 role="button"
+                 tabindex="0"
+                 aria-label="Download appeal template"
+                 (keydown.enter)="downloadTemplate()">
+              <span mat-symbol="download" class="schedule-tutorial-icon"></span>
+              <div class="schedule-tutorial-text">
+                <span class="schedule-tutorial-title">Appeal Template</span>
+                <span class="schedule-tutorial-sub">Download PDF</span>
+              </div>
             </div>
           </div>
         }
@@ -130,10 +148,15 @@
         </div>
 
         <div class="mobile-action-block">
-          <div class="mobile-action-label">Watch Tutorial</div>
+          <div class="mobile-action-label">Help & Templates</div>
           <div class="mobile-action-buttons">
+            <!-- Existing Tutorial Button -->
             <button mat-icon-button class="tutorial-action-btn action-icon-btn" (click)="openRescheduleTutorial()" matTooltip="Watch tutorial" type="button" aria-label="Open rescheduling tutorial">
               <mat-icon class="btn-icon">menu_book</mat-icon>
+            </button>
+            <!-- New Download Button -->
+            <button mat-icon-button class="tutorial-action-btn action-icon-btn" (click)="downloadTemplate()" matTooltip="Download Template" type="button" aria-label="Download appeal template">
+              <mat-icon class="btn-icon">download</mat-icon>
             </button>
           </div>
         </div>
