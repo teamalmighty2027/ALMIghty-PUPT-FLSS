@@ -232,8 +232,11 @@ export class LoadAndScheduleComponent implements OnInit, OnDestroy {
     );
 
     const dialogRef = this.dialog.open(DialogAppealScheduleComponent, {
-      width: '520px', maxWidth: '95vw', maxHeight: '90vh',
+      width: '520px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
       autoFocus: true,
+      disableClose: true,
       data: {
         isEditMode: true,
         facultyName: this.facultySchedule?.faculty_name ?? '',

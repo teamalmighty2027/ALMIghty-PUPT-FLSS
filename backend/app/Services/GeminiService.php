@@ -13,7 +13,8 @@ class GeminiService
     public static function summarizeAppealDocument($filePath)
     {
         $apiKey = config('services.gemini.api_key');
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={$apiKey}";
+        $url = "https://generativelanguage.googleapis.com/v1/models/" .
+            "gemini-2.5-flash:generateContent?key={$apiKey}";
 
         $fileContents = file_get_contents($filePath);
         $base64Data = base64_encode($fileContents);

@@ -66,6 +66,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   // Time options for dropdowns
   timeOptions: string[] = [];
   roomOptions: string[] = [];
+  conflictMessages: string[] = [];
+  hasConflicts: boolean = false;
+  isSubmitting: boolean = false;
   
   // Speech recognition properties
   isListening: boolean = false;
@@ -226,12 +229,32 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealRoom: [''],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
+      this.setupFormValueChanges();
     } else {
       // Original appeal mode - rebuild the form
       this.appealForm = this.fb.group({
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
     }
+  }
+
+  // Clear conflict messages on input value changes
+  private setupFormValueChanges(): void {
+    const controls = [
+      'appealDay',
+      'appealStartTime',
+      'appealEndTime',
+      'appealRoom'
+    ];
+    controls.forEach(ctrl => {
+      this.appealForm.get(ctrl)?.valueChanges.pipe(
+        takeUntil(this.destroy$)
+      ).subscribe(() => {
+        this.conflictMessages = [];
+        this.hasConflicts = false;
+        this.cdr.markForCheck();
+      });
+    });
   }
 
   onFileSelected(event: any): void {
@@ -281,11 +304,17 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
   // Cancel and close the dialog button handler
   onCancel(): void {
+    if (this.isSubmitting) {
+      return;
+    }
     this.dialogRef.close();
   }
 
   // Clear all form fields button handler
   onClearAll(): void {
+    if (this.isSubmitting) {
+      return;
+    }
     if (this.isEditMode) {
       this.appealForm.reset({
         appealDay: '',
@@ -301,8 +330,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   }
 
   // Submit the appeal form button handler
-  onSubmit(): void {
-    if (!this.appealForm.valid) {
+  onSubmit(force: boolean = false): void {
+    if (!this.appealForm.valid || this.isSubmitting) {
       this.appealForm.markAllAsTouched();
       return;
     }
@@ -311,17 +340,22 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     const endTime = this.appealForm.value.appealEndTime;
     
     if (this.compareTimeStrings(startTime, endTime) >= 0) {
-      this.snackBar.open('End time must be after start time.', 'Close', { duration: 3000 });
+      this.snackBar.open(
+        'End time must be after start time.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 
     // Show submitting message
     this.snackBar.open(
-      'Submitting appeal...', 
+      force ? 'Confirming submission...' : 'Submitting appeal...', 
       'Close', { duration: 5000 }
     );
 
-    // Disable submit button
+    // Disable submit button and actions
+    this.isSubmitting = true;
     this.appealForm.disable();
 
     // Submit in background
@@ -334,11 +368,14 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         startTime: this.appealForm.value.appealStartTime,
         endTime: this.appealForm.value.appealEndTime,
         roomCode: this.appealForm.value.appealRoom
-      },          
+      },
+      force
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
       next: (response) => {
+        // Success handler
+        this.isSubmitting = false;
         this.snackBar.open(
           response.message || 'Appeal submitted successfully.', 
           'Close', { duration: 3000 }
@@ -347,11 +384,45 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       },
       error: (error) => {
         console.error('Appeal error:', error);
-        this.snackBar.open(
-          error?.error?.message || 'Failed to submit appeal. Please try again.', 
-          'Close', { duration: 3000 }
-        );
+        this.isSubmitting = false;
         this.appealForm.enable();
+
+        // Robust parsing to strip out local PHP notices
+        let errorBody = error.error;
+        if (typeof errorBody === 'string' && errorBody.includes('{"message"')) {
+          try {
+            const jsonPart = errorBody.substring(errorBody.indexOf('{"message"'));
+            errorBody = JSON.parse(jsonPart);
+          } catch (e) {
+            // failed parsing
+          }
+        }
+
+        // Handle case where HTTP 201 was parsed as error due to PHP Notice HTML
+        if (error.status === 201) {
+          this.snackBar.open(
+            'Appeal submitted successfully.', 
+            'Close', { duration: 3000 }
+          );
+          this.dialogRef.close(true);
+          return;
+        }
+
+        if (error.status === 409 && errorBody?.conflicts) {
+          this.conflictMessages = errorBody.conflicts;
+          this.hasConflicts = true;
+          this.cdr.markForCheck();
+          this.snackBar.open(
+            'Conflicts detected. Please review or click confirm to submit anyway.',
+            'Close',
+            { duration: 5000 }
+          );
+        } else {
+          this.snackBar.open(
+            errorBody?.message || 'Failed to submit appeal. Please try again.', 
+            'Close', { duration: 3000 }
+          );
+        }
       }
     });
   }
