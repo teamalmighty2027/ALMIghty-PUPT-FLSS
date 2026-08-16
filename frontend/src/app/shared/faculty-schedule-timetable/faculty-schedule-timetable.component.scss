@@ -11,6 +11,14 @@
   color: var(--neutral-base);
 }
 
+// Tooltip whitespace configuration (allows the "\n" in the tooltip to format neatly)
+::ng-deep .schedule-tooltip-multiline {
+  white-space: pre-line !important;
+  line-height: 1.5;
+  font-size: 0.8rem;
+  padding: 8px 12px;
+}
+
 $day-colors: (
   monday: (var(--primary-text), var(--primary-text-two)),
   tuesday: (var(--secondary-text), var(--secondary-text-two)),
@@ -25,12 +33,17 @@ $day-colors: (
   $primary-color: list.nth($colors, 1);
   $text-color: list.nth($colors, 2);
 
-  .schedule-content.schedule-#{$day} .course { color: #{$primary-color}; }
+  .schedule-content.schedule-#{$day} {
+    color: #{$primary-color};
+  }
+
   .schedule-content.schedule-#{$day} .time {
     background-color: #{$primary-color};
-    color: #{$text-color};
-    padding: var(--spacing-xxs) var(--spacing-xs);
-    border-radius: var(--border-radius-xl);
+    color: white; // Forces pill text to be readable
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
   }
 }
 
@@ -46,7 +59,7 @@ $day-colors: (
     @include mixins.hide-scrollbar;
     width: 100%;
     flex: 1;
-    min-height: 0; // 👈 THE MAGIC FIX: Forces Flexbox to allow scrolling!
+    min-height: 0;
     overflow: auto;
     
     border-radius: var(--border-radius-md);
@@ -55,7 +68,7 @@ $day-colors: (
     .faculty-schedule-timetable-table {
       @include mixins.default-transition;
       
-      min-width: 1100px; // Forces table to expand, protecting Sunday
+      min-width: 1100px;
       width: 100%;
       
       border-collapse: separate;
@@ -78,7 +91,7 @@ $day-colors: (
           
           &:first-child {
             left: 0;
-            z-index: 30; // Keeps top-left corner above everything
+            z-index: 30;
           }
         }
       }
@@ -89,7 +102,7 @@ $day-colors: (
           border-bottom: 1px solid var(--neutral-fade);
           border-right: 1px solid var(--neutral-fade);
           min-width: 140px; 
-          height: 2.5rem;
+          height: 3rem; // Equivalent to ~48px per slot
           position: relative;
         }
 
@@ -110,60 +123,202 @@ $day-colors: (
         }
 
         .schedule-cell {
-          position: relative;
-
           &.schedule-block-start {
-            border-bottom: none;
-
-            & + .schedule-cell { border-top: none; }
+            z-index: 5; // Forces stacking context above sibling td borders
 
             .schedule-content {
-              @include mixins.hide-scrollbar;
+              position: absolute;
+              top: 0; 
+              left: 0; 
+              right: 0;
+              z-index: 10;
+              
+              box-sizing: border-box; // Strict height constraint ensures text never physically overlaps rows underneath
+              overflow: hidden;       // Neatly clips text that is too tall for a 30 min block
+              
               @include mixins.flex-layout(
                 $direction: column,
                 $align: center,
-                $justify: flex-start,
-                $gap: var(--spacing-xs)
+                $justify: space-between, // Allows space to naturally push Time/Action to the bottom
+                $gap: 2px
               );
-              position: absolute;
-              top: 0; left: 0; right: 0;
-              z-index: 1;
-              height: 100%;
-              overflow-y: auto;
-              word-break: break-word;
-              font-size: var(--font-size-md);
-              padding: var(--spacing-sm);
-              padding-bottom: var(--spacing-sm);
+              
+              padding: 6px;
 
-              > div { width: 100%; text-align: center; min-height: fit-content; }
-
-              .course-text {
+              // Bridging badge: solid maroon pill, uppercase, sits above
+              // the course code/title to flag bridging offerings at a glance
+              .bridging-badge {
+                display: inline-block;
+                background-color: var(--primary-text, #800000);
+                color: white;
+                font-size: 0.65rem;
                 font-weight: 600;
-                display: -webkit-box;
-                -webkit-line-clamp: 3;
-                line-clamp: 3;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: normal;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                padding: 2px 8px;
+                border-radius: var(--border-radius-xl, 12px);
+                margin-bottom: 2px;
+                flex-shrink: 0; // Never lets the badge get squeezed by flex sizing
+              }
+              
+              .schedule-details {
+                @include mixins.hide-scrollbar;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                overflow-y: auto; // Internal scroll instead of hard clipping — content is
+                overflow-x: hidden; // reachable instead of silently overlapping when tight on space
+                width: 100%;
+                flex: 1 1 auto; // Allows top text to shrink to fit Time/Action if constrained
+                
+                > div { width: 100%; text-align: center; }
+
+                .course-text {
+                  font-weight: 600;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 2;
+                  line-clamp: 2;
+                  -webkit-box-orient: vertical;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: normal;
+                  font-size: 0.8rem;
+                  line-height: 1.2;
+                }
+
+                .detail-text {
+                  font-size: 0.75rem;
+                  line-height: 1.1;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  margin-top: 2px;
+                }
               }
 
               .time-actions {
-                margin-top: auto;
-                width: 100%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 gap: 4px;
-                padding-bottom: var(--spacing-xs);
+                flex: 0 0 auto; // Time and Buttons will not shrink
+                margin-top: auto; // Drops container to bottom naturally
+
+                // Buttons at a comfortable, tappable size for non-compact
+                // (1.5hr+) blocks — .compact below overrides this with
+                // its own smaller sizing for short slots.
+                .block-actions {
+                  gap: 8px;
+
+                  ::ng-deep .edit-button,
+                  ::ng-deep .appeals-status-button {
+                    width: 40px !important;
+                    height: 40px !important;
+                    padding: 0 !important;
+                    flex-shrink: 0;
+                    --mdc-icon-button-state-layer-size: 40px;
+
+                    .mat-mdc-button-touch-target {
+                      width: 40px !important;
+                      height: 40px !important;
+                    }
+
+                    .block-icon {
+                      font-size: 24px !important;
+                      width: 24px !important;
+                      height: 24px !important;
+                      line-height: 24px !important;
+                    }
+
+                    svg {
+                      width: 24px !important;
+                      height: 24px !important;
+                    }
+                  }
+                }
+              }
+
+              // Compact mode: short blocks (or any block with appeal
+              // buttons attached) show ONLY course code/title, the
+              // action buttons, and the time — program/room lines are
+              // dropped, and buttons+time sit in a single horizontal
+              // row instead of stacking, freeing vertical space so
+              // the buttons can render at a real, tappable size.
+              &.compact {
+                padding: 4px;
+                gap: 3px;
+
+                .bridging-badge {
+                  font-size: 0.58rem;
+                  padding: 1px 6px;
+                }
+
+                .schedule-details {
+                  flex: 0 1 auto; // No longer needs to stretch/scroll for extra lines
+
+                  .course-text {
+                    -webkit-line-clamp: 2;
+                    line-clamp: 2;
+                    font-size: 0.78rem;
+                    line-height: 1.15;
+                  }
+
+                  // Program/room lines are hidden in compact mode —
+                  // only course code + title remain visible
+                  .detail-text {
+                    display: none;
+                  }
+                }
+
+                .time-actions {
+                  flex-direction: row; // Buttons + time share one row instead of stacking
+                  justify-content: center;
+                  align-items: center;
+                  gap: 6px;
+
+                  .time {
+                    font-size: 0.72rem;
+                    padding: 3px 9px;
+                  }
+
+                  // Buttons default to a comfortable, tappable size — this
+                  // rule only affects non-compact (1.5hr+) blocks, since
+                  // .compact below overrides it with its own smaller sizing
+                  // for short slots. Targets Material's internal touch-target
+                  // and icon elements directly, since overriding the button's
+                  // own width/height alone doesn't resize the rendered icon.
+                  .block-actions {
+                    gap: 8px;
+
+                    ::ng-deep .edit-button,
+                    ::ng-deep .appeals-status-button {
+                      width: 40px !important;
+                      height: 40px !important;
+                      padding: 0 !important;
+                      flex-shrink: 0;
+                      --mdc-icon-button-state-layer-size: 40px;
+
+                      .mat-mdc-button-touch-target {
+                        width: 40px !important;
+                        height: 40px !important;
+                      }
+
+                      .block-icon {
+                        font-size: 24px !important;
+                        width: 24px !important;
+                        height: 24px !important;
+                        line-height: 24px !important;
+                      }
+
+                      svg {
+                        width: 24px !important;
+                        height: 24px !important;
+                      }
+                    }
+                  }
+                }
               }
             }
-          }
-
-          &[style*='background-color'] {
-            border-bottom: none;
-            border-top: none;
-            & + .schedule-cell[style*='background-color'] { border-left: none; }
           }
         }
       }
@@ -222,24 +377,26 @@ $day-colors: (
     font-size: 0.78rem;
     padding: 0.35rem;
 
-    .course-text {
-      font-size: 0.82rem;
-      line-height: 1.18;
-    }
-
-    .time {
-      font-size: 0.72rem;
-      font-weight: 500;
-      line-height: 1.15;
-      white-space: normal;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-      display: inline-block;
-      max-width: 100%;
+    .schedule-details {
+      .course-text {
+        font-size: 0.82rem;
+        line-height: 1.18;
+      }
     }
 
     .time-actions {
       gap: 0.25rem;
+
+      .time {
+        font-size: 0.72rem;
+        font-weight: 500;
+        line-height: 1.15;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        display: inline-block;
+        max-width: 100%;
+      }
     }
   }
 }
