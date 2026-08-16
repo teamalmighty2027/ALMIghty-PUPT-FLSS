@@ -6,14 +6,18 @@
   <div class="dialog-content privacyNotice">
     <p>
       By clicking <strong>“I Agree”</strong>, you consent to the collection,
-      use, and processing of your personal data for legitimate purposes related
-      to this service.
+      use, and processing of your personal data for legitimate purposes
+      related to this service.
     </p>
     <p>
       Your information will be handled in accordance with our
-      <a href="https://www.pup.edu.ph/privacy/"
-        ><strong>Privacy Policy</strong></a
+      <a
+        href="https://www.pup.edu.ph/privacy/"
+        target="_blank"
+        rel="noopener noreferrer"
       >
+        <strong>Privacy Policy</strong>
+      </a>
       and in compliance with the <strong>Data Privacy Act of 2012</strong>.
     </p>
 
@@ -24,10 +28,16 @@
         [(ngModel)]="isAccepted"
         cdkFocusInitial
       />
-      <label for="agree" class="privacyNotice"
-        >I Agree and acknowledge the
-        <a href="https://www.pup.edu.ph/terms/">Terms and Conditions</a>.</label
-      >
+      <label for="agree" class="privacyNotice">
+        I Agree and acknowledge the
+        <a
+          href="https://www.pup.edu.ph/terms/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Terms and Conditions
+        </a>.
+      </label>
     </div>
   </div>
 

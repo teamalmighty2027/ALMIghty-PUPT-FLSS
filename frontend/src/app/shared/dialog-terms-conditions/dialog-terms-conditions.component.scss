@@ -1,13 +1,15 @@
 @use '../../../styles/mixins.scss';
 
 .dialog-terms-conditions {
-  border-radius: var(--border-radius-md); // matches schedule dialog
-  background: var(--main-bg); // dynamic background
+  border-radius: var(--border-radius-md);
+  background: var(--main-bg);
   overflow: hidden;
+  max-width: 550px;
+  width: 100%;
 
   .dialog-header {
-    padding: var(--spacing-md) var(--spacing-mdx); // matches schedule header
-    background-color: #800000; 
+    padding: var(--spacing-md) var(--spacing-mdx);
+    background-color: #800000;
     color: white;
 
     h2 {
@@ -17,7 +19,7 @@
   }
 
   .dialog-content {
-    padding: var(--spacing-lg); // matches schedule content padding
+    padding: var(--spacing-lg);
     color: var(--terms-text-color);
 
     p {
@@ -27,8 +29,19 @@
 
     .checkbox-container {
       margin-top: var(--spacing-lg);
-      @include mixins.flex-layout($align: center, $gap: var(--spacing-sm)); // uses project mixins
-      
+      @include mixins.flex-layout(
+        $align: center,
+        $gap: var(--spacing-sm)
+      );
+
+      input[type='checkbox'] {
+        accent-color: #800000;
+        width: 1.1rem;
+        height: 1.1rem;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
       label {
         font-size: 0.9rem;
         cursor: pointer;
@@ -50,28 +63,29 @@
 
         &:hover {
           color: var(--primary-two);
-            }
         }
       }
+    }
+
     label {
-        a {
-            color: var(--primary-one);
-            text-decoration: none;
-            transition: color 0.3s ease;
-        
+      a {
+        color: var(--primary-one);
+        text-decoration: none;
+        transition: color 0.3s ease;
+
         &:hover {
           color: var(--primary-two);
-            }
         }
+      }
     }
-
-    }
-
-
+  }
 
   .dialog-actions {
     padding: var(--spacing-md) var(--spacing-lg);
-    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-sm));
+    @include mixins.flex-layout(
+      $justify: flex-end,
+      $gap: var(--spacing-sm)
+    );
     border-top: 1px solid var(--neutral-option, #e0e0e0);
 
     button {

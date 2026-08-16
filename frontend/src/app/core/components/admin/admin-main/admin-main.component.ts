@@ -30,6 +30,7 @@ import { AdminNotificationService, AppNotification } from '../../../services/adm
 
 import { slideInAnimation, fadeAnimation, slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { SafeStorage } from '../../../utils/safe-storage.utils';
 import { HasPermissionDirective } from '../../../directives/has-permission.directive';
 
 @Component({
@@ -117,7 +118,7 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.accountProfilePictureUrl = url);
     
-    if (localStorage.getItem('termsAccepted') !== 'true') {
+    if (SafeStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,

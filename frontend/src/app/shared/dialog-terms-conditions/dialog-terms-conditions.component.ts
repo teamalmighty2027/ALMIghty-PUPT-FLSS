@@ -5,6 +5,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { MatDialogRef } from '@angular/material/dialog';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { SafeStorage } from '../../core/utils/safe-storage.utils';
 import { fadeAnimation } from '../../core/animations/animations';
 
 @Component({
@@ -30,20 +31,21 @@ export class DialogTermsConditionsComponent {
   onCancel(): void {
     this.dialogRef.close(false);
     this.authService.logout().subscribe({
-          next: () => {
-            this.authService.clearCookies();
-            this.router.navigate(['/login']);
-          },
-          error: () => {
-
-          },
-        });
+      next: () => {
+        this.authService.clearCookies();
+        this.router.navigate(['/login']);
+      },
+      error: () => {},
+    });
   }
 
+  /**
+   * Accepts the terms and conditions and saves status to safe storage
+   */
   onContinue(): void {
     if (this.isAccepted) {
       this.dialogRef.close(true);
-      localStorage.setItem('termsAccepted', 'true');
+      SafeStorage.setItem('termsAccepted', 'true');
     }
   }
 }
