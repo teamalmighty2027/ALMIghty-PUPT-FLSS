@@ -19,6 +19,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 
 import { slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { SafeStorage } from '../../../utils/safe-storage.utils';
 import { FacultyService } from '../../../services/superadmin/management/faculty/faculty.service';
 
 @Component({
@@ -95,7 +96,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
 
-    if (localStorage.getItem('termsAccepted') !== 'true') {
+    if (SafeStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,

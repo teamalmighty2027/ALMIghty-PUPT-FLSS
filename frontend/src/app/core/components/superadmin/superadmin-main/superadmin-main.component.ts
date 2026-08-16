@@ -22,6 +22,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 import { ThemeService } from '../../../services/theme/theme.service';
 import { DialogChangePasswordComponent } from '../../../../shared/dialog-change-password/dialog-change-password.component';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { SafeStorage } from '../../../utils/safe-storage.utils';
 import { MatBadgeModule } from '@angular/material/badge';
 import { SystemNoticeService } from '../../../services/superadmin/system-notice/system-notice.service';
 
@@ -95,7 +96,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   ngOnInit(): void {
     this.initializeUserData();
     
-    if (localStorage.getItem('termsAccepted') !== 'true') {
+    if (SafeStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
