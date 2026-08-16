@@ -8,6 +8,7 @@
   max-height: 85vh; 
   overflow: hidden; 
   padding: var(--spacing-lg);
+  color: var(--neutral-base);
 }
 
 .pdf-warning {
@@ -248,7 +249,7 @@
 .section-divider {
   border: 0;
   height: 1px;
-  background: rgba(0,0,0,0.1);
+  background: var(--neutral-fade);
   margin: 24px 0;
 }
 
@@ -436,6 +437,45 @@
       border-color: var(--primary-warning) !important;
       color: var(--primary-warning);
     }
+  }
+}
+
+.time-plots-table-wrapper {
+  border: 1px solid var(--neutral-fade);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.time-plots-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead tr {
+    background-color: var(--neutral-light);
+    border-bottom: 1px solid var(--neutral-fade);
+    text-align: left;
+  }
+
+  th {
+    font-weight: bold;
+    padding: 12px 16px;
+    color: var(--neutral-base);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--neutral-fade);
+  }
+
+  td {
+    color: var(--neutral-base);
+    padding: 12px 16px;
+  }
+
+  .no-data-cell {
+    text-align: center;
+    padding: 24px;
+    color: var(--secondary-text);
   }
 }
 
