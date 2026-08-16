@@ -37,7 +37,9 @@
 
         <!-- File Upload -->
         <div class="file-upload-section">
-          <label class="file-label">Upload Appeal Document (PDF)<span class="required-asterisk">*</span></label>
+          <label class="file-label">
+            Upload Appeal Document (PDF)<span class="required-asterisk">*</span>
+          </label>
           <div class="file-input-wrapper">
             <input 
               type="file" 
@@ -48,14 +50,23 @@
             <button 
               mat-stroked-button 
               type="button"
+              [disabled]="isSubmitting"
               (click)="fileInput.click()">
               <mat-icon>upload_file</mat-icon>
               Choose File
             </button>
-            <span class="file-info" *ngIf="!selectedFileName">No file chosen</span>
-            <span class="file-info selected" *ngIf="selectedFileName">
+            <span class="file-info" *ngIf="!selectedFileName">
+              No file chosen
+            </span>
+            <span 
+              class="file-info selected" 
+              *ngIf="selectedFileName"
+              [class.disabled-info]="isSubmitting">
               {{ selectedFileName }}
-              <mat-icon class="remove-icon" (click)="removeFile()">close</mat-icon>
+              <mat-icon 
+                class="remove-icon" 
+                [class.disabled]="isSubmitting"
+                (click)="removeFile()">close</mat-icon>
             </span>
           </div>
         </div>
@@ -178,7 +189,17 @@
       color="primary" 
       (click)="onSubmit(hasConflicts)" 
       [disabled]="appealForm.invalid || isSubmitting">
-      {{ hasConflicts ? 'Confirm & Submit Anyway' : 'Submit Appeal' }}
+      <ng-container *ngIf="isSubmitting; else submitText">
+        <span class="submitting-spinner-wrapper">
+          <mat-spinner diameter="18" strokeWidth="2.5"></mat-spinner>
+          <span>Submitting...</span>
+        </span>
+      </ng-container>
+      <ng-template #submitText>
+        <span>
+          {{ hasConflicts ? 'Confirm & Submit Anyway' : 'Submit Appeal' }}
+        </span>
+      </ng-template>
     </button>
   </mat-dialog-actions>
 </div>
