@@ -144,6 +144,22 @@ $day-colors: (
               );
               
               padding: 6px;
+
+              // Bridging badge: solid maroon pill, uppercase, sits above
+              // the course code/title to flag bridging offerings at a glance
+              .bridging-badge {
+                display: inline-block;
+                background-color: var(--primary-text, #800000);
+                color: white;
+                font-size: 0.65rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                padding: 2px 8px;
+                border-radius: var(--border-radius-xl, 12px);
+                margin-bottom: 2px;
+                flex-shrink: 0; // Never lets the badge get squeezed by flex sizing
+              }
               
               .schedule-details {
                 @include mixins.hide-scrollbar;
@@ -231,6 +247,11 @@ $day-colors: (
               &.compact {
                 padding: 4px;
                 gap: 3px;
+
+                .bridging-badge {
+                  font-size: 0.58rem;
+                  padding: 1px 6px;
+                }
 
                 .schedule-details {
                   flex: 0 1 auto; // No longer needs to stretch/scroll for extra lines
