@@ -247,6 +247,11 @@ span[mat-symbol] {
   width: var(--dialog-small);
 }
 
+.terms-dialog-panel {
+  width: 36rem;
+  max-width: 90vw;
+}
+
 .cdk-overlay-pane .mat-mdc-dialog-surface,
 .cdk-overlay-pane .mdc-dialog__surface {
   border-radius: 20px !important;

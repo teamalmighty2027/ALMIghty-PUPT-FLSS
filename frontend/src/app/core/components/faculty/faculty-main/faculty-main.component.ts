@@ -100,6 +100,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
+        panelClass: 'terms-dialog-panel',
       });
     }
   }
