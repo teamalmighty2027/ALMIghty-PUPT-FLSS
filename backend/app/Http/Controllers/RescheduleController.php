@@ -579,12 +579,25 @@ class RescheduleController extends Controller
 
         $isEnabled = $validated['is_enabled'];
 
-        DB::table('faculty')->update([
-            'is_appeal_enabled'  => $isEnabled,
-            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request'),
-            'appeal_start_date'  => $isEnabled ? ($validated['start_date'] ?? null) : null,
-            'appeal_end_date'    => $isEnabled ? ($validated['end_date'] ?? null) : null,
-        ]);
+        $activeFacultyIds = \App\Models\User::where('status', 'Active')
+            ->whereHas('faculty')
+            ->with('faculty')
+            ->get()
+            ->pluck('faculty.id')
+            ->filter();
+
+        DB::table('faculty')
+            ->whereIn('id', $activeFacultyIds)
+            ->update([
+                'is_appeal_enabled'  => $isEnabled,
+                'has_appeal_request' => 0,
+                'appeal_start_date'  => $isEnabled 
+                    ? ($validated['start_date'] ?? null) 
+                    : null,
+                'appeal_end_date'    => $isEnabled 
+                    ? ($validated['end_date'] ?? null) 
+                    : null,
+            ]);
 
         // If toggled ON and admin checked the email box, send to everyone
         if ($isEnabled && !empty($validated['send_email'])) {

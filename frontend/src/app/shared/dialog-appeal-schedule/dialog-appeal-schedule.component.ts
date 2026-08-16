@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
@@ -51,7 +52,8 @@ interface DialogData {
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatSelectModule
+    MatSelectModule,
+    MatProgressSpinnerModule
   ],
   templateUrl: './dialog-appeal-schedule.component.html',
   styleUrls: ['./dialog-appeal-schedule.component.scss']
@@ -258,45 +260,60 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   }
 
   onFileSelected(event: any): void {
-  const file = event.target.files[0];
-  if (!file) return;
+    if (this.isSubmitting) return;
 
-  // 1. Basic Type Check
-  if (file.type !== 'application/pdf') {
-    this.snackBar.open('Please upload a PDF file only.', 'Close', { duration: 3000 });
-    return;
-  }
+    const file = event.target.files[0];
+    if (!file) return;
 
-  // 2. Size Check (2MB)
-  if (file.size > 2 * 1024 * 1024) {
-    this.snackBar.open('File size must be less than 2MB.', 'Close', { duration: 3000 });
-    return;
-  }
-
-  // 3. "Magic Number" Header Check (Local Sanity Check)
-  // This reads the first 4 bytes of the file to see if it actually starts with '%PDF'
-  const reader = new FileReader();
-  reader.onloadend = (e: any) => {
-    const arr = (new Uint8Array(e.target.result)).subarray(0, 4);
-    let header = "";
-    for (let i = 0; i < arr.length; i++) {
-       header += String.fromCharCode(arr[i]);
+    // 1. Basic Type Check
+    if (file.type !== 'application/pdf') {
+      this.snackBar.open(
+        'Please upload a PDF file only.', 
+        'Close', 
+        { duration: 3000 }
+      );
+      return;
     }
-    
-    if (header !== "%PDF") {
-      this.snackBar.open('Invalid PDF content detected.', 'Close', { duration: 3000 });
-      this.removeFile();
-    } else {
-      this.selectedFile = file;
-      this.selectedFileName = file.name;
-      this.appealForm.patchValue({ appealFile: file });
+
+    // 2. Size Check (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      this.snackBar.open(
+        'File size must be less than 5MB.', 
+        'Close', 
+        { duration: 3000 }
+      );
+      return;
     }
-  };
-  reader.readAsArrayBuffer(file);
-}
+
+    // 3. "Magic Number" Header Check (Local Sanity Check)
+    const reader = new FileReader();
+    reader.onloadend = (e: any) => {
+      const arr = (new Uint8Array(e.target.result)).subarray(0, 4);
+      let header = "";
+      for (let i = 0; i < arr.length; i++) {
+         header += String.fromCharCode(arr[i]);
+      }
+      
+      if (header !== "%PDF") {
+        this.snackBar.open(
+          'Invalid PDF content detected.', 
+          'Close', 
+          { duration: 3000 }
+        );
+        this.removeFile();
+      } else {
+        this.selectedFile = file;
+        this.selectedFileName = file.name;
+        this.appealForm.patchValue({ appealFile: file });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
 
   // Remove selected file button handler
   removeFile(): void {
+    if (this.isSubmitting) return;
+
     this.selectedFile = null;
     this.selectedFileName = '';
     this.appealForm.patchValue({ appealFile: null });
@@ -336,10 +353,12 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       return;
     }
 
-    const startTime = this.appealForm.value.appealStartTime;
-    const endTime = this.appealForm.value.appealEndTime;
+    const formValues = this.appealForm.getRawValue();
+    const startTime = formValues.appealStartTime;
+    const endTime = formValues.appealEndTime;
     
-    if (this.compareTimeStrings(startTime, endTime) >= 0) {
+    if (this.isEditMode && startTime && endTime && 
+        this.compareTimeStrings(startTime, endTime) >= 0) {
       this.snackBar.open(
         'End time must be after start time.',
         'Close',
@@ -351,7 +370,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     // Show submitting message
     this.snackBar.open(
       force ? 'Confirming submission...' : 'Submitting appeal...', 
-      'Close', { duration: 5000 }
+      'Close', 
+      { duration: 5000 }
     );
 
     // Disable submit button and actions
@@ -362,23 +382,23 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     this.reschedulingService.submitReschedulingAppeal(
       this.data.original.scheduleId,
       this.selectedFile,
-      this.appealForm.value.reason,
+      formValues.reason,
       {
-        day: this.appealForm.value.appealDay,
-        startTime: this.appealForm.value.appealStartTime,
-        endTime: this.appealForm.value.appealEndTime,
-        roomCode: this.appealForm.value.appealRoom
+        day: formValues.appealDay,
+        startTime: formValues.appealStartTime,
+        endTime: formValues.appealEndTime,
+        roomCode: formValues.appealRoom
       },
       force
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
       next: (response) => {
-        // Success handler
         this.isSubmitting = false;
         this.snackBar.open(
           response.message || 'Appeal submitted successfully.', 
-          'Close', { duration: 3000 }
+          'Close', 
+          { duration: 3000 }
         );
         this.dialogRef.close(true);
       },
@@ -387,22 +407,23 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         this.isSubmitting = false;
         this.appealForm.enable();
 
-        // Robust parsing to strip out local PHP notices
         let errorBody = error.error;
         if (typeof errorBody === 'string' && errorBody.includes('{"message"')) {
           try {
-            const jsonPart = errorBody.substring(errorBody.indexOf('{"message"'));
+            const jsonPart = errorBody.substring(
+              errorBody.indexOf('{"message"')
+            );
             errorBody = JSON.parse(jsonPart);
           } catch (e) {
             // failed parsing
           }
         }
 
-        // Handle case where HTTP 201 was parsed as error due to PHP Notice HTML
         if (error.status === 201) {
           this.snackBar.open(
             'Appeal submitted successfully.', 
-            'Close', { duration: 3000 }
+            'Close', 
+            { duration: 3000 }
           );
           this.dialogRef.close(true);
           return;
@@ -411,7 +432,6 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         if (error.status === 409 && errorBody?.conflicts) {
           this.conflictMessages = errorBody.conflicts;
           this.hasConflicts = true;
-          this.cdr.markForCheck();
           this.snackBar.open(
             'Conflicts detected. Please review or click confirm to submit anyway.',
             'Close',
@@ -420,9 +440,11 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         } else {
           this.snackBar.open(
             errorBody?.message || 'Failed to submit appeal. Please try again.', 
-            'Close', { duration: 3000 }
+            'Close', 
+            { duration: 3000 }
           );
         }
+        this.cdr.markForCheck();
       }
     });
   }

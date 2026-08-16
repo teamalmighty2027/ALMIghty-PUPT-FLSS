@@ -16,6 +16,7 @@ use App\Notifications\FacultyReactivationRequestNotification;
 use Illuminate\Support\Facades\Notification;
 use App\Jobs\RegisterUserToIdpJob;
 use App\Jobs\SendFacultyFirstLoginPasswordJob;
+use Illuminate\Validation\Rules\Password;
 
 class FacultyController extends Controller
 {
@@ -76,7 +77,14 @@ class FacultyController extends Controller
             'role'            => 'required|string',
             'status'          => 'required|string',
             'faculty_type_id' => 'required|exists:faculty_type,faculty_type_id',
-            'password'        => 'required|string',
+            'password'        => [
+                'required',
+                'string',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
         ]);
 
         DB::beginTransaction();
@@ -180,7 +188,15 @@ class FacultyController extends Controller
                 'email'           => 'required|email',
                 'status'          => 'required|string',
                 'faculty_type_id' => 'required|exists:faculty_type,faculty_type_id',
-                'password'        => 'nullable|string',
+                'password'        => [
+                    'sometimes',
+                    'nullable',
+                    'string',
+                    Password::min(12)
+                        ->mixedCase()
+                        ->numbers()
+                        ->symbols(),
+                ],
             ]);
 
             $user->update([

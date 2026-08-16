@@ -11,6 +11,10 @@ import {
 } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 
+import {
+  passwordStrengthValidator,
+} from '../validators/password-strength.validator';
+
 export interface AddAdminDialogData {
   code: string;
 }
@@ -53,7 +57,14 @@ export class DialogAddAdminComponent implements OnInit {
         suffix_name: [''],
         email: ['', [Validators.required, Validators.email]],
         status: ['Active', [Validators.required]],
-        password: ['', [Validators.required, Validators.minLength(12)]],
+        password: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(12),
+            passwordStrengthValidator,
+          ],
+        ],
         confirmPassword: ['', [Validators.required]],
       },
       { validators: passwordMatchValidator() }

@@ -11,6 +11,9 @@ import {
 } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { Subject, takeUntil } from 'rxjs';
+import {
+  passwordStrengthValidator,
+} from '../validators/password-strength.validator';
 import { FacultyType } from '../../core/services/superadmin/management/faculty/faculty-type.service';
 
 export interface AddFacultyDialogData {
@@ -61,7 +64,14 @@ export class DialogAddFacultyComponent implements OnInit, OnDestroy {
         email: ['', [Validators.required, Validators.email]],
         faculty_type_id: [null, [Validators.required]],
         status: ['Active', [Validators.required]],
-        password: ['', [Validators.required, Validators.minLength(12)]],
+        password: [
+          '',
+          [
+            Validators.required,
+            Validators.minLength(12),
+            passwordStrengthValidator,
+          ],
+        ],
         confirmPassword: ['', [Validators.required]],
       },
       { validators: passwordMatchValidator() }

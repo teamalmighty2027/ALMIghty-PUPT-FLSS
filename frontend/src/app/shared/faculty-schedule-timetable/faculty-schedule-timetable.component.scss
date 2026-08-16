@@ -8,6 +8,7 @@
   height: 100%;
   width: 100%;
   min-height: 0;
+  color: var(--neutral-base);
 }
 
 $day-colors: (
@@ -184,7 +185,7 @@ $day-colors: (
 
     mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
 
-    &:hover { background-color: rgba(0,0,0,0.06); }
+    &:hover { background-color: var(--neutral-hover); }
   }
 }
 
