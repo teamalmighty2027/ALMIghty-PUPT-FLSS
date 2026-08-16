@@ -133,8 +133,8 @@ $day-colors: (
               right: 0;
               z-index: 10;
               
-              box-sizing: border-box; // FIX: Strict height constraint ensures text never physically overlaps rows underneath
-              overflow: hidden;       // FIX: Neatly clips text that is too tall for a 30 min block
+              box-sizing: border-box; // Strict height constraint ensures text never physically overlaps rows underneath
+              overflow: hidden;       // Neatly clips text that is too tall for a 30 min block
               
               @include mixins.flex-layout(
                 $direction: column,
@@ -166,7 +166,7 @@ $day-colors: (
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                overflow-y: auto; // FIX: internal scroll instead of hard clipping — content is
+                overflow-y: auto; // Internal scroll instead of hard clipping — content is
                 overflow-x: hidden; // reachable instead of silently overlapping when tight on space
                 width: 100%;
                 flex: 1 1 auto; // Allows top text to shrink to fit Time/Action if constrained
