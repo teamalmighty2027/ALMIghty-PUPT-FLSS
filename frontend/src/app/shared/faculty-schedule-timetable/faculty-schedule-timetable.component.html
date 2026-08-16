@@ -22,42 +22,46 @@
           <tr>
             <td class="time-slot">{{ slot.time }}</td>
             @for (day of days; track day) {
+            <!-- Background & borders are safely drawn directly on the td cell via ngStyle -->
             <td
               class="schedule-cell"
               [ngClass]="{
                 'schedule-block-start': isScheduleBlockStart(day, i)
               }"
               [ngStyle]="getScheduleBlockStyle(day, i)">
+              
               @if (isScheduleBlockStart(day, i)) {
               <div
                 class="schedule-content"
                 [style.height.px]="getScheduleBlockHeight(day, i)"
-                [ngClass]="getDayClass(day)">
+                [ngClass]="getDayClass(day)"
+                [class.compact]="isCompactBlock(day, i)"
+                [matTooltip]="getScheduleTooltip(day, i)"
+                matTooltipClass="schedule-tooltip-multiline">
 
-                <!-- Bridging badge -->
-                @if (getBlockProperty(day, i, 'isBridging')) {
-                  <span class="bridging-badge">Bridging</span>
-                }
+                <div class="schedule-details">
+                  <!-- Bridging badge -->
+                  @if (getBlockProperty(day, i, 'isBridging')) {
+                    <span class="bridging-badge">Bridging</span>
+                  }
 
-                <div class="course">
-                  <span class="course-text">
-                    {{ getBlockProperty(day, i, 'courseCode') }}<br />
-                    {{ getBlockProperty(day, i, 'courseTitle') }}
-                  </span>
-                </div>
+                  <div class="course">
+                    <span class="course-text">
+                      {{ getBlockProperty(day, i, 'courseCode') }}<br />
+                      {{ getBlockProperty(day, i, 'courseTitle') }}
+                    </span>
+                  </div>
 
-                <!-- program now contains the full merged string -->
-                <div>
-                  ({{ getBlockProperty(day, i, 'program') }})
-                </div>
+                  <div class="detail-text">
+                    ({{ getBlockProperty(day, i, 'program') }})
+                  </div>
 
-                <div>
-                  {{ getBlockProperty(day, i, 'roomCode') }}
+                  <div class="detail-text">
+                    {{ getBlockProperty(day, i, 'roomCode') || 'TBA' }}
+                  </div>
                 </div>
 
                 <div class="time-actions">
-                  <div class="time">{{ getFormattedTime(day, i) }}</div>
-
                   <div class="block-actions" *ngIf="showAppealButtons">
                     <button
                       mat-icon-button
@@ -77,6 +81,8 @@
                       <mat-icon class="block-icon">history</mat-icon>
                     </button>
                   </div>
+
+                  <div class="time">{{ getFormattedTime(day, i) }}</div>
                 </div>
 
               </div>
