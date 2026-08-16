@@ -86,13 +86,13 @@ $day-colors: (
     .schedule-timeline-table-body {
       tr:nth-child(even) {
         td {
-          background-color: #f7f7f7;
+          background-color: var(--neutral-space);
         }
       }
 
       tr:nth-child(odd) {
         td {
-          background-color: #ffffff;
+          background-color: var(--neutral-light);
         }
       }
 

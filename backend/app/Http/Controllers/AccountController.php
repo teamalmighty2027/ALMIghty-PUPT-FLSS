@@ -9,6 +9,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
 {
@@ -42,7 +43,14 @@ class AccountController extends Controller
               'required', 'email', 
               Rule::unique('users')->where('role', 'admin')
             ],
-            'password' => 'required|string|min:8',
+            'password' => [
+                'required',
+                'string',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
             'role' => 'required|in:admin',
             'status' => 'required|in:Active,Inactive,Retired',
         ]);
@@ -128,7 +136,14 @@ class AccountController extends Controller
               'email',
               Rule::unique('users')->where('role', 'admin')
               ->ignore($admin->id)],
-            'password' => 'sometimes|string|min:8',
+            'password' => [
+                'sometimes',
+                'string',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
             'role' => 'sometimes|required|in:admin',
             'status' => 'sometimes|required|in:Active,Inactive,Retired',
         ]);

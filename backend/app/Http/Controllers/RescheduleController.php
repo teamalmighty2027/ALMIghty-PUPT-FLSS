@@ -80,6 +80,7 @@ class RescheduleController extends Controller
             $file = $request->file('appealFile');
 
             // --- VIRUS SCAN START ---
+            /*
             $apiKey = config('services.cloudmersive.api_key');
             
             if ($apiKey) {
@@ -113,6 +114,7 @@ class RescheduleController extends Controller
                     );
                 }
             }
+            */
             // --- VIRUS SCAN END ---
 
             // File is clean, proceed with storage
@@ -146,6 +148,30 @@ class RescheduleController extends Controller
             );
         }
 
+        $forceSubmit = filter_var(
+            $request->input('forceSubmit'),
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        if (!$forceSubmit) {
+            $conflictResult = app(
+                \App\Services\AppealConflictService::class
+            )->check(
+                $validated['scheduleId'],
+                $validated['day'],
+                $validated['startTime'],
+                $validated['endTime'],
+                $roomId
+            );
+
+            if ($conflictResult['hasConflicts']) {
+                return response()->json([
+                    'message' => 'Proposed schedule has conflicts.',
+                    'conflicts' => $conflictResult['messages'],
+                ], 409);
+            }
+        }
+
         $appeal = Appeal::create([
             'schedule_id'         => $validated['scheduleId'],
             'original_day'        => $schedule->day,
@@ -161,10 +187,10 @@ class RescheduleController extends Controller
             'is_approved'         => null,
         ]);
 
-        return response()->json(
-            ['message' => 'Appeal submitted successfully.', 'appeal' => $appeal],
-            201
-        );
+        return response()->json([
+            'message' => 'Appeal submitted successfully.',
+            'appeal' => $appeal,
+        ], 201);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -553,12 +579,25 @@ class RescheduleController extends Controller
 
         $isEnabled = $validated['is_enabled'];
 
-        DB::table('faculty')->update([
-            'is_appeal_enabled'  => $isEnabled,
-            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request'),
-            'appeal_start_date'  => $isEnabled ? ($validated['start_date'] ?? null) : null,
-            'appeal_end_date'    => $isEnabled ? ($validated['end_date'] ?? null) : null,
-        ]);
+        $activeFacultyIds = \App\Models\User::where('status', 'Active')
+            ->whereHas('faculty')
+            ->with('faculty')
+            ->get()
+            ->pluck('faculty.id')
+            ->filter();
+
+        DB::table('faculty')
+            ->whereIn('id', $activeFacultyIds)
+            ->update([
+                'is_appeal_enabled'  => $isEnabled,
+                'has_appeal_request' => 0,
+                'appeal_start_date'  => $isEnabled 
+                    ? ($validated['start_date'] ?? null) 
+                    : null,
+                'appeal_end_date'    => $isEnabled 
+                    ? ($validated['end_date'] ?? null) 
+                    : null,
+            ]);
 
         // If toggled ON and admin checked the email box, send to everyone
         if ($isEnabled && !empty($validated['send_email'])) {

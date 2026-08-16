@@ -285,8 +285,6 @@ export class FacultyScheduleTimetableComponent implements
         const endTime   = this.convertTimeToMinutes(schedule.end_time);
         const startSlot = this.findTimeSlotIndex(startTime);
         const duration  = Math.ceil((endTime - startTime) / 30);
-        const adjustedDuration = (endTime - startTime) % 30 === 0 ? 
-          duration + 1 : duration;
 
         // Build program display
         let programDisplay: string;
@@ -301,17 +299,17 @@ export class FacultyScheduleTimetableComponent implements
         }
 
         return {
-          scheduleId:     schedule.schedule_id,
-          day:            schedule.day,
+          scheduleId:      schedule.schedule_id,
+          day:             schedule.day,
           startSlot,
-          duration:       adjustedDuration,
-          courseCode:     schedule.course_details.course_code,
-          courseTitle:    schedule.course_details.course_title,
-          roomCode:       schedule.room_code,
-          program:        programDisplay,
-          yearLevel:      schedule.year_level,
-          section:        schedule.section_name,
-          isBridging:     schedule.course_details?.offering_type === 
+          duration:        duration,
+          courseCode:      schedule.course_details.course_code,
+          courseTitle:     schedule.course_details.course_title,
+          roomCode:        schedule.room_code,
+          program:         programDisplay,
+          yearLevel:       schedule.year_level,
+          section:         schedule.section_name,
+          isBridging:      schedule.course_details?.offering_type === 
             'bridging',
         };
       }).filter((block): block is ScheduleBlock => block !== null);
@@ -359,30 +357,51 @@ export class FacultyScheduleTimetableComponent implements
    */
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
-    return block ? block.duration * 40 - 2 : 0;
+    return block ? block.duration * 48 : 0;
   }
 
   /**
-   * Build inline style object for a schedule block.
+   * Determine whether a block is short enough (1 hour or less, or 1.5
+   * hours when appeal buttons are shown) to require compact rendering.
    * @param day - Day of week.
    * @param slotIndex - Slot index.
-   * @returns Style object for the block element.
+   * @returns True if the block's duration falls within the compact threshold.
+   */
+  isCompactBlock(day: string, slotIndex: number): boolean {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return false;
+    // Appeal buttons need guaranteed room, so 1.5hr blocks (3 slots)
+    // go compact too on the Internal Arrangement tab. Without appeal
+    // buttons, only 1hr blocks (2 slots) need compact treatment.
+    const threshold = this.showAppealButtons ? 3 : 2;
+    return block.duration <= threshold;
+  }
+
+  /**
+   * Applies background and side borders directly to the TD cell.
+   * Strips internal bottom borders so consecutive slots merge visually.
    */
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
       const { backgroundColor, borderColor } = this.getBlockColors(day as Day);
-      const baseStyle = {
+      
+      const style: any = {
         'background-color': backgroundColor,
-        'border-left':  `1px solid ${borderColor}`,
+        'border-left': `1px solid ${borderColor}`,
         'border-right': `1px solid ${borderColor}`,
+        'border-bottom': 'none', // Strips horizontal lines inside the block
       };
+
       if (slotIndex === block.startSlot) {
-        return { ...baseStyle, 'border-top': `1px solid ${borderColor}` };
-      } else if (slotIndex === block.startSlot + block.duration - 1) {
-        return { ...baseStyle, 'border-bottom': `1px solid ${borderColor}` };
+        style['border-top'] = `1px solid ${borderColor}`;
       }
-      return baseStyle;
+      
+      if (slotIndex === block.startSlot + block.duration - 1) {
+        style['border-bottom'] = `1px solid ${borderColor}`;
+      }
+
+      return style;
     }
     return {};
   }
@@ -424,6 +443,18 @@ export class FacultyScheduleTimetableComponent implements
       }
     }
     return '';
+  }
+
+  /**
+   * Generates the multi-line tooltip content shown on hover.
+   */
+  getScheduleTooltip(day: string, slotIndex: number): string {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return '';
+    
+    const timeRange = this.getFormattedTime(day, slotIndex);
+    const room = (block.roomCode && block.roomCode !== 'null') ? block.roomCode : 'TBA';
+    return `Course: ${block.courseCode}\nTitle: ${block.courseTitle}\nProgram: ${block.program}\nRoom: ${room}\nTime: ${timeRange}`;
   }
 
   /**

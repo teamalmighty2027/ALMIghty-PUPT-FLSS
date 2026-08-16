@@ -597,7 +597,31 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   toggleAllAppeals(event: any): void {
     const isEnabled = event.checked;
 
-    // Grab existing dates from an enabled faculty member to show in the dialog if disabling
+    // Snapshot current states to safely revert if cancelled or failed
+    const previousStates = this.allFaculties.map(f => ({
+      facultyId: f.facultyId,
+      isAppealEnabled: f.isAppealEnabled,
+      hasAppealRequest: f.hasAppealRequest,
+      appealStartDate: f.appealStartDate,
+      appealEndDate: f.appealEndDate,
+    }));
+
+    const restorePreviousStates = () => {
+      this.allFaculties.forEach(f => {
+        const prev = previousStates.find(p => p.facultyId === f.facultyId);
+        if (prev) {
+          f.isAppealEnabled = prev.isAppealEnabled;
+          f.hasAppealRequest = prev.hasAppealRequest;
+          f.appealStartDate = prev.appealStartDate;
+          f.appealEndDate = prev.appealEndDate;
+        }
+      });
+      this.arrangementsDataSource.data = [...this.allFaculties];
+      this.updateMasterToggleState();
+      this.cdr.detectChanges();
+    };
+
+    // Grab existing dates from an enabled faculty member to show in dialog
     const activeFaculty = this.allFaculties.find(f => f.isAppealEnabled);
 
     const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
@@ -607,8 +631,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         academicYear: this.academicYear, 
         semester: this.semester,
         currentState: !isEnabled,
-        startDate: activeFaculty?.appealStartDate ? new Date(activeFaculty.appealStartDate) : null,
-        endDate: activeFaculty?.appealEndDate ? new Date(activeFaculty.appealEndDate) : null
+        startDate: activeFaculty?.appealStartDate 
+          ? new Date(activeFaculty.appealStartDate) 
+          : null,
+        endDate: activeFaculty?.appealEndDate 
+          ? new Date(activeFaculty.appealEndDate) 
+          : null
       },
       disableClose: true,
       autoFocus: false
@@ -617,8 +645,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
-        const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
-        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+        const formattedStart = result.startDate 
+          ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') 
+          : undefined;
+        const formattedEnd = result.endDate 
+          ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') 
+          : undefined;
 
         // Optimistic update
         this.isAllAppealsEnabled = isEnabled;
@@ -626,11 +658,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           f.isAppealEnabled = isEnabled;
           if (isEnabled) {
             f.hasAppealRequest = false;
-            // UPDATE LOCAL MEMORY WITH NEW DATES
             f.appealStartDate = formattedStart;
             f.appealEndDate = formattedEnd;
           } else {
-            // WIPE LOCAL MEMORY IF DISABLED
             f.appealStartDate = null;
             f.appealEndDate = null;
           }
@@ -640,34 +670,42 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         this.updateMasterToggleState();
         this.cdr.detectChanges();
 
-        this.reschedulingService.toggleAllFacultyAppealAccess(isEnabled, this.selectedTermId!, formattedStart, formattedEnd, result.sendEmail)
+        this.reschedulingService
+          .toggleAllFacultyAppealAccess(
+            isEnabled, 
+            this.selectedTermId!, 
+            formattedStart, 
+            formattedEnd, 
+            result.sendEmail
+          )
           .subscribe({
             next: () => {
               const status = isEnabled ? 'scheduled' : 'disabled';
-              this.snackBar.open(`Appeals ${status} for ALL faculty`, 'Close', { duration: 3000 });
+              this.snackBar.open(
+                `Appeals ${status} for ALL faculty`, 
+                'Close', 
+                { duration: 3000 }
+              );
               
-              // Refresh to sync dates from server
               if (this.selectedTermId) {
-                this.loadArrangementsForTerm(this.selectedTermId, this.dataSource.data);
+                this.loadArrangementsForTerm(
+                  this.selectedTermId, 
+                  this.dataSource.data
+                );
               }
             },
             error: () => {
-              // Revert on failure
-              this.isAllAppealsEnabled = !isEnabled;
-              this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
-              this.arrangementsDataSource.data = [...this.allFaculties];
-              this.updateMasterToggleState();
-              this.cdr.detectChanges();
-              this.snackBar.open('Failed to update appeal access.', 'Close', { duration: 3000 });
+              restorePreviousStates();
+              this.snackBar.open(
+                'Failed to update appeal access.', 
+                'Close', 
+                { duration: 3000 }
+              );
             }
           });
       } else {
-        // User cancelled the dialog — revert the toggle visual state immediately
-        this.isAllAppealsEnabled = !isEnabled;
-        this.allFaculties.forEach(f => f.isAppealEnabled = !isEnabled);
-        this.arrangementsDataSource.data = [...this.allFaculties];
-        this.updateMasterToggleState();
-        this.cdr.detectChanges();
+        // User cancelled dialog — revert toggle and individual states
+        restorePreviousStates();
       }
     });
   }

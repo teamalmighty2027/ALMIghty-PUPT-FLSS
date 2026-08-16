@@ -1,7 +1,7 @@
 <div class="dialog-container">
   <div class="dialog-header">
     <h2 mat-dialog-title>{{ isEditMode ? 'Edit Schedule Details' : 'Appeal Schedule' }}</h2>
-    <button mat-icon-button (click)="onCancel()">
+    <button mat-icon-button (click)="onCancel()" [disabled]="isSubmitting">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -37,7 +37,9 @@
 
         <!-- File Upload -->
         <div class="file-upload-section">
-          <label class="file-label">Upload Appeal Document (PDF)<span class="required-asterisk">*</span></label>
+          <label class="file-label">
+            Upload Appeal Document (PDF)<span class="required-asterisk">*</span>
+          </label>
           <div class="file-input-wrapper">
             <input 
               type="file" 
@@ -48,14 +50,23 @@
             <button 
               mat-stroked-button 
               type="button"
+              [disabled]="isSubmitting"
               (click)="fileInput.click()">
               <mat-icon>upload_file</mat-icon>
               Choose File
             </button>
-            <span class="file-info" *ngIf="!selectedFileName">No file chosen</span>
-            <span class="file-info selected" *ngIf="selectedFileName">
+            <span class="file-info" *ngIf="!selectedFileName">
+              No file chosen
+            </span>
+            <span 
+              class="file-info selected" 
+              *ngIf="selectedFileName"
+              [class.disabled-info]="isSubmitting">
               {{ selectedFileName }}
-              <mat-icon class="remove-icon" (click)="removeFile()">close</mat-icon>
+              <mat-icon 
+                class="remove-icon" 
+                [class.disabled]="isSubmitting"
+                (click)="removeFile()">close</mat-icon>
             </span>
           </div>
         </div>
@@ -146,19 +157,49 @@
         </mat-form-field>
       </div>
     </form>
+
+    <div class="validation-message conflict" *ngIf="conflictMessages.length > 0">
+      <div class="validation-message-header">
+        <mat-icon>report_problem</mat-icon>
+        <span>Schedule conflicts detected — please confirm to submit.</span>
+      </div>
+      <ul class="validation-message-list">
+        <li *ngFor="let message of conflictMessages">{{ message }}</li>
+      </ul>
+    </div>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
-    <button mat-button (click)="onClearAll()" *ngIf="isEditMode" class="clear-btn">
+    <button 
+      mat-button 
+      (click)="onClearAll()" 
+      *ngIf="isEditMode" 
+      class="clear-btn" 
+      [disabled]="isSubmitting">
       Clear All
     </button>
-    <button mat-button (click)="onCancel()">Cancel</button>
+    <button 
+      mat-button 
+      (click)="onCancel()" 
+      [disabled]="isSubmitting">
+      Cancel
+    </button>
     <button 
       mat-flat-button 
       color="primary" 
-      (click)="onSubmit()" 
-      [disabled]="appealForm.invalid">
-      {{ isEditMode ? 'Submit Appeal' : 'Submit Appeal' }}
+      (click)="onSubmit(hasConflicts)" 
+      [disabled]="appealForm.invalid || isSubmitting">
+      <ng-container *ngIf="isSubmitting; else submitText">
+        <span class="submitting-spinner-wrapper">
+          <mat-spinner diameter="18" strokeWidth="2.5"></mat-spinner>
+          <span>Submitting...</span>
+        </span>
+      </ng-container>
+      <ng-template #submitText>
+        <span>
+          {{ hasConflicts ? 'Confirm & Submit Anyway' : 'Submit Appeal' }}
+        </span>
+      </ng-template>
     </button>
   </mat-dialog-actions>
 </div>
