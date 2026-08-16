@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Hash;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -200,8 +201,17 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password' => 'required|string|min:8|max:128',
-            'password'         => 'required|string|min:8|max:128|confirmed|different:current_password',
+            'current_password' => 'required|string|min:12|max:128',
+            'password'         => [
+                'required',
+                'string',
+                'confirmed',
+                'different:current_password',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
         ]);
 
         $user = $request->user();

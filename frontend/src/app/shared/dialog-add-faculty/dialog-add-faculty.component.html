@@ -95,6 +95,23 @@
             </svg>
           </button>
         </div>
+        @if (form.get('password')?.errors?.['required'] &&
+        form.get('password')?.touched) {
+          <span class="field-error">Password is required.</span>
+        }
+        @if (form.get('password')?.errors?.['minlength'] &&
+        form.get('password')?.touched) {
+          <span class="field-error">
+            Password must be at least 12 characters.
+          </span>
+        }
+        @if (form.get('password')?.errors?.['passwordStrength'] &&
+        form.get('password')?.touched) {
+          <span class="field-error">
+            Password must include uppercase, lowercase, a number, and a special
+            character.
+          </span>
+        }
       </div>
 
       <div class="form-field">
