@@ -201,7 +201,7 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password' => 'required|string|min:12|max:128',
+            'current_password' => 'required|string|max:128',
             'password'         => [
                 'required',
                 'string',

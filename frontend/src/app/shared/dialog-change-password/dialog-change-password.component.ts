@@ -74,7 +74,6 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
         '',
         [
           Validators.required,
-          Validators.minLength(12),
           Validators.maxLength(128),
         ],
       ],
