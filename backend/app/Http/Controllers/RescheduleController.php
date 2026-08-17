@@ -73,70 +73,6 @@ class RescheduleController extends Controller
             );
         }
 
-        $filePath = null;
-        $aiSummary = null;
-
-        if ($request->hasFile('appealFile')) {
-            $file = $request->file('appealFile');
-
-            // --- VIRUS SCAN START ---
-            /*
-            $apiKey = config('services.cloudmersive.api_key');
-            
-            if ($apiKey) {
-                $scanResponse = Http::withHeaders(
-                    ['Apikey' => $apiKey]
-                )
-                    ->attach(
-                        'inputFile',
-                        file_get_contents($file->getRealPath()),
-                        $file->getClientOriginalName()
-                    )
-                    ->post('https://api.cloudmersive.com/virus/scan/file');
-
-                Log::info('Virus scan response: ' . $scanResponse->body());
-
-                if ($scanResponse->successful()) {
-                    $scanResult = $scanResponse->json();
-                    
-                    if (isset($scanResult['CleanResult'])
-                        && $scanResult['CleanResult'] === false) {
-                        throw ValidationException::withMessages([
-                            'appealFile' => 'Security alert: Malicious '
-                                          . 'content detected. Upload blocked.',
-                        ]);
-                    }
-                } else {
-                    return response()->json(
-                        ['message' => 'Security scan service unavailable. '
-                                    . 'Try again later.'],
-                        503
-                    );
-                }
-            }
-            */
-            // --- VIRUS SCAN END ---
-
-            // File is clean, proceed with storage
-            $filePath = $file->store('appeals', 'public');
-            $absolutePath = storage_path('app/public/' . $filePath);
-            $aiSummary = GeminiService::summarizeAppealDocument(
-                $absolutePath
-            );
-        }
-        
-        $roomId = null;
-        if (!empty($validated['roomCode'])) {
-            $room   = Room::where('room_code', $validated['roomCode'])->first();
-            $roomId = $room?->room_id;
-        }
-
-        $finalReasoning = $validated['reason'];
-        if ($aiSummary) {
-            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . 
-              trim($aiSummary);
-        }
-
         $existing = Appeal::where('schedule_id', $validated['scheduleId'])
             ->whereNull('is_approved')
             ->first();
@@ -148,28 +84,48 @@ class RescheduleController extends Controller
             );
         }
 
-        $forceSubmit = filter_var(
-            $request->input('forceSubmit'),
-            FILTER_VALIDATE_BOOLEAN
+        $roomId = null;
+        if (!empty($validated['roomCode'])) {
+            $room   = Room::where('room_code', $validated['roomCode'])->first();
+            $roomId = $room?->room_id;
+        }
+
+        // Validate conflicts before processing file uploads or AI summaries
+        $conflictResult = app(
+            \App\Services\AppealConflictService::class
+        )->check(
+            $validated['scheduleId'],
+            $validated['day'],
+            $validated['startTime'],
+            $validated['endTime'],
+            $roomId
         );
 
-        if (!$forceSubmit) {
-            $conflictResult = app(
-                \App\Services\AppealConflictService::class
-            )->check(
-                $validated['scheduleId'],
-                $validated['day'],
-                $validated['startTime'],
-                $validated['endTime'],
-                $roomId
-            );
+        if ($conflictResult['hasConflicts']) {
+            return response()->json([
+                'message' => 'Proposed schedule has conflicts.',
+                'conflicts' => $conflictResult['messages'],
+            ], 409);
+        }
 
-            if ($conflictResult['hasConflicts']) {
-                return response()->json([
-                    'message' => 'Proposed schedule has conflicts.',
-                    'conflicts' => $conflictResult['messages'],
-                ], 409);
-            }
+        $filePath = null;
+        $aiSummary = null;
+
+        if ($request->hasFile('appealFile')) {
+            $file = $request->file('appealFile');
+
+            // Proceed with file storage only after schedule conflicts pass
+            $filePath = $file->store('appeals', 'public');
+            $absolutePath = storage_path('app/public/' . $filePath);
+            $aiSummary = GeminiService::summarizeAppealDocument(
+                $absolutePath
+            );
+        }
+
+        $finalReasoning = $validated['reason'];
+        if ($aiSummary) {
+            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" .
+              trim($aiSummary);
         }
 
         $appeal = Appeal::create([
@@ -183,7 +139,7 @@ class RescheduleController extends Controller
             'end_time'            => $validated['endTime'],
             'room_id'             => $roomId,
             'file_path'           => $filePath,
-            'reasoning'           => $finalReasoning, 
+            'reasoning'           => $finalReasoning,
             'is_approved'         => null,
         ]);
 
