@@ -14,6 +14,8 @@ export interface FacultyNotificationResponse {
     schedule_published: boolean;
     preferences_deadline: string | null;
     preferences_start: string | null;
+    appeal_enabled: boolean;
+    appeal_end_date: string | null;
   };
 }
 
