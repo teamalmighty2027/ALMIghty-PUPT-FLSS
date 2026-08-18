@@ -451,7 +451,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             this.normalizeString(a.facultyName) === this.normalizeString(fac.faculty_name));
 
           const mergedSchedules = (fac.schedules || []).map((sched: any) => {
-            const matchingAppeal = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
+            const matchingAppeal = facultyAppeals.find(a => Number(a.scheduleId) === Number(sched.schedule_id));
             if (matchingAppeal) {
               return {
                 ...sched,
@@ -585,8 +585,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.isAllAppealsEnabled = false;
       return;
     }
-    // Only turn master toggle ON if EVERY faculty is enabled
-    this.isAllAppealsEnabled = this.allFaculties.every(f => f.isAppealEnabled);
+    // Master toggle is ON only if EVERY faculty is enabled and a deadline is set
+    const allEnabled = this.allFaculties.every(f => !!f.isAppealEnabled);
+    const hasDeadlineSet = this.allFaculties.some(f => !!f.appealEndDate);
+    this.isAllAppealsEnabled = allEnabled && hasDeadlineSet;
   }
 
   /**
@@ -595,7 +597,13 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param event The toggle event from the master switch.
    */
   toggleAllAppeals(event: any): void {
-    const isEnabled = event.checked;
+    // Keep switch in current state until user confirms in the dialog
+    if (event?.source) {
+      event.source.checked = this.isAllAppealsEnabled;
+    }
+
+    // Target state will be opposite of current master toggle state
+    const isEnabled = !this.isAllAppealsEnabled;
 
     // Snapshot current states to safely revert if cancelled or failed
     const previousStates = this.allFaculties.map(f => ({
@@ -630,7 +638,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         type: 'all_appeals', 
         academicYear: this.academicYear, 
         semester: this.semester,
-        currentState: !isEnabled,
+        currentState: this.isAllAppealsEnabled,
         startDate: activeFaculty?.appealStartDate 
           ? new Date(activeFaculty.appealStartDate) 
           : null,
@@ -653,7 +661,6 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           : undefined;
 
         // Optimistic update
-        this.isAllAppealsEnabled = isEnabled;
         this.allFaculties.forEach(f => {
           f.isAppealEnabled = isEnabled;
           if (isEnabled) {
@@ -686,6 +693,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
                 'Close', 
                 { duration: 3000 }
               );
+              this.updateMasterToggleState();
+              this.cdr.detectChanges();
               
               if (this.selectedTermId) {
                 this.loadArrangementsForTerm(
@@ -718,6 +727,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
      */
   toggleAppealAccess(faculty: FacultyArrangement, event: any): void {
     const isEnabled = event.checked;
+
+    // Keep switch in current state until user confirms in the dialog
+    if (event?.source) {
+      event.source.checked = faculty.isAppealEnabled;
+    }
 
     // Helper function to safely parse SQL dates across all browsers
     const parseSqlDate = (dateStr: string | null | undefined) => 
@@ -757,6 +771,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           faculty.appealEndDate = null;
         }
 
+        if (event?.source) {
+          event.source.checked = isEnabled;
+        }
+
         // Immediately reflect the change in the table without waiting for the API
         this.arrangementsDataSource.data = [...this.allFaculties];
         this.updateMasterToggleState();
@@ -767,13 +785,22 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
             next: () => {
               const status = isEnabled ? 'scheduled' : 'disabled';
               this.snackBar.open(`Appeals ${status} for ${faculty.facultyName}`, 'Close', { duration: 3000 });
+              faculty.isAppealEnabled = isEnabled;
+              if (event?.source) {
+                event.source.checked = isEnabled;
+              }
+              this.arrangementsDataSource.data = [...this.allFaculties];
               this.updateMasterToggleState();
+              this.cdr.detectChanges();
             },
             error: () => {
               // Revert on API failure
               faculty.isAppealEnabled = !isEnabled;
               faculty.appealStartDate = null;
               faculty.appealEndDate = null;
+              if (event?.source) {
+                event.source.checked = faculty.isAppealEnabled;
+              }
               this.arrangementsDataSource.data = [...this.allFaculties];
               this.updateMasterToggleState();
               this.cdr.detectChanges();
@@ -782,7 +809,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           });
       } else {
         // User cancelled the dialog — revert the toggle visual state immediately
-        faculty.isAppealEnabled = !isEnabled;
+        if (event?.source) {
+          event.source.checked = faculty.isAppealEnabled;
+        }
         this.arrangementsDataSource.data = [...this.allFaculties];
         this.updateMasterToggleState();
         this.cdr.detectChanges();
@@ -824,7 +853,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           const mergedFaculties: FacultyArrangement[] = rawFaculties.map((fac: any) => {
             const facultyAppeals = approvedAppeals.filter(a => a.facultyName === fac.faculty_name);
             const mergedSchedules = (fac.schedules || []).map((sched: any) => {
-              const matchingAppeal = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
+              const matchingAppeal = facultyAppeals.find(a => Number(a.scheduleId) === Number(sched.schedule_id));
               if (matchingAppeal) {
                 return {
                   ...sched,
@@ -1801,7 +1830,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
               if (facultyAppeals.length === 0) return;
 
               liveFac.schedules.forEach((sched, index) => {
-                const match = facultyAppeals.find(a => a.scheduleId === sched.schedule_id);
+                const match = facultyAppeals.find(a => Number(a.scheduleId) === Number(sched.schedule_id));
                 if (!match) return;
 
                 // Mutate the index in-place — do NOT replace the array itself

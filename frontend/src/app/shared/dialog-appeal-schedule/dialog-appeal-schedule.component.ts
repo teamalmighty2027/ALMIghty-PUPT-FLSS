@@ -240,7 +240,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     }
   }
 
-  // Clear conflict messages on input value changes
+  // Reset hasConflicts state on value changes while preserving conflictMessages for reference
   private setupFormValueChanges(): void {
     const controls = [
       'appealDay',
@@ -252,7 +252,6 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       this.appealForm.get(ctrl)?.valueChanges.pipe(
         takeUntil(this.destroy$)
       ).subscribe(() => {
-        this.conflictMessages = [];
         this.hasConflicts = false;
         this.cdr.markForCheck();
       });
@@ -347,7 +346,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   }
 
   // Submit the appeal form button handler
-  onSubmit(force: boolean = false): void {
+  onSubmit(): void {
     if (!this.appealForm.valid || this.isSubmitting) {
       this.appealForm.markAllAsTouched();
       return;
@@ -369,7 +368,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
     // Show submitting message
     this.snackBar.open(
-      force ? 'Confirming submission...' : 'Submitting appeal...', 
+      'Submitting appeal...', 
       'Close', 
       { duration: 5000 }
     );
@@ -388,8 +387,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         startTime: formValues.appealStartTime,
         endTime: formValues.appealEndTime,
         roomCode: formValues.appealRoom
-      },
-      force
+      }
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
@@ -433,9 +431,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
           this.conflictMessages = errorBody.conflicts;
           this.hasConflicts = true;
           this.snackBar.open(
-            'Conflicts detected. Please review or click confirm to submit anyway.',
+            'Your proposed schedule has conflicts. Please choose a different time or room.',
             'Close',
-            { duration: 5000 }
+            { duration: 6000 }
           );
         } else {
           this.snackBar.open(

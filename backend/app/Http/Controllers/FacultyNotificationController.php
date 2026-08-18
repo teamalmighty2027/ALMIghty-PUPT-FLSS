@@ -73,19 +73,36 @@ class FacultyNotificationController extends Controller
         // Get faculty schedule publication status
         $isSchedulePublished = DB::table('faculty_schedule_publication')
             ->where('faculty_schedule_publication.faculty_id', $facultyId)
-            ->where('faculty_schedule_publication.academic_year_id', $activeSemester->academic_year_id)
-            ->where('faculty_schedule_publication.semester_id', $activeSemester->semester_id)
+            ->where(
+                'faculty_schedule_publication.academic_year_id',
+                $activeSemester->academic_year_id
+            )
+            ->where(
+                'faculty_schedule_publication.semester_id',
+                $activeSemester->semester_id
+            )
             ->where('faculty_schedule_publication.is_published', 1)
             ->exists();
+
+        // Get faculty rescheduling appeal status and deadline
+        $facultyRecord = DB::table('faculty')
+            ->where('id', $facultyId)
+            ->select('is_appeal_enabled', 'appeal_end_date')
+            ->first();
+
+        $appealEnabled = (bool) ($facultyRecord->is_appeal_enabled ?? false);
+        $appealEndDate = $facultyRecord->appeal_end_date ?? null;
 
         return response()->json([
             'academic_year' => "{$activeSemester->year_start}-{$activeSemester->year_end}",
             'semester' => $this->getSemesterLabel($activeSemester->semester),
             'faculty_status' => [
-                'preferences_enabled' => (bool) $preferencesStatus,
-                'schedule_published' => (bool) $isSchedulePublished,
+                'preferences_enabled'  => (bool) $preferencesStatus,
+                'schedule_published'   => (bool) $isSchedulePublished,
                 'preferences_deadline' => $preferencesDeadline,
-                'preferences_start' => $preferencesStart,
+                'preferences_start'    => $preferencesStart,
+                'appeal_enabled'       => $appealEnabled,
+                'appeal_end_date'      => $appealEndDate,
             ],
         ]);
     }
