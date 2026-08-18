@@ -132,6 +132,33 @@
             </div>
           </div>
           }
+
+          @if (facultyStatus.schedule_published && facultyStatus.appeal_enabled) {
+          <div class="announcement-card rescheduling">
+            <div class="header">
+              <div class="icon-wrapper">
+                <span mat-symbol="event_repeat"></span>
+              </div>
+              <h3>Schedule Rescheduling Appeals</h3>
+            </div>
+            <div class="content">
+              <p>
+                Rescheduling appeal submission is
+                <span class="highlight open">now open</span>. Go to
+                <em>Load &amp; Schedule</em> page to submit.
+              </p>
+              @if (facultyStatus.appeal_end_date) {
+              <p class="secondary-text">
+                Make sure to submit your rescheduling appeals on or before the
+                deadline on
+                <strong>
+                  {{ facultyStatus.appeal_end_date | date : 'MMMM d, y' }}.
+                </strong>
+              </p>
+              }
+            </div>
+          </div>
+          }
         </div>
       </div>
     </div>
@@ -239,6 +266,33 @@
                 You may now view them in the
                 <em>Load & Schedule</em> page.
               </p>
+            </div>
+          </div>
+          }
+
+          @if (facultyStatus.schedule_published && facultyStatus.appeal_enabled) {
+          <div class="announcement-card rescheduling">
+            <div class="header">
+              <div class="icon-wrapper">
+                <span mat-symbol="event_repeat"></span>
+              </div>
+              <h3>Schedule Rescheduling Appeals</h3>
+            </div>
+            <div class="content">
+              <p>
+                Rescheduling appeal submission is
+                <span class="highlight open">now open</span>. Go to
+                <em>Load &amp; Schedule</em> page to submit.
+              </p>
+              @if (facultyStatus.appeal_end_date) {
+              <p class="secondary-text">
+                Make sure to submit your rescheduling appeals on or before the
+                deadline on
+                <strong>
+                  {{ facultyStatus.appeal_end_date | date : 'MMMM d, y' }}.
+                </strong>
+              </p>
+              }
             </div>
           </div>
           }

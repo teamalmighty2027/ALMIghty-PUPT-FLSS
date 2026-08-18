@@ -84,6 +84,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     schedule_published: false,
     preferences_deadline: null as string | null,
     preferences_start: null as string | null,
+    appeal_enabled: false,
+    appeal_end_date: null as string | null,
   };
 
   private readonly scheduleColors: ScheduleColor[] = [
