@@ -535,12 +535,10 @@ class RescheduleController extends Controller
 
         $isEnabled = $validated['is_enabled'];
 
-        $activeFacultyIds = \App\Models\User::where('status', 'Active')
-            ->whereHas('faculty')
-            ->with('faculty')
-            ->get()
-            ->pluck('faculty.id')
-            ->filter();
+        $activeFacultyIds = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('users.status', 'Active')
+            ->pluck('faculty.id');
 
         DB::table('faculty')
             ->whereIn('id', $activeFacultyIds)
