@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogArrangementCheckerComponent, DialogArrangementCheckerData } from './dialog-arrangement-checker.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -75,13 +75,11 @@ describe('DialogArrangementCheckerComponent', () => {
         {
           room_id: 5,
           room_code: 'LAB 1',
-          building_id: 1,
+          location: 'Main Building',
           floor_level: '2',
-          room_type_id: 1,
+          room_type: 'Laboratory',
           capacity: 40,
           status: 'Active',
-          created_at: '',
-          updated_at: '',
         },
       ],
     },
@@ -93,13 +91,11 @@ describe('DialogArrangementCheckerComponent', () => {
       {
         room_id: 5,
         room_code: 'LAB 1',
-        building_id: 1,
+        location: 'Main Building',
         floor_level: '2',
-        room_type_id: 1,
+        room_type: 'Laboratory',
         capacity: 40,
         status: 'Active',
-        created_at: '',
-        updated_at: '',
       },
     ],
   };

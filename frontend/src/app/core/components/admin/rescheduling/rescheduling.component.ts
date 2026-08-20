@@ -23,6 +23,7 @@ import { ReportsHeaderComponent } from '../../../../shared/reports-header/report
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
 import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+import { DialogArrangementCheckerComponent } from '../../../../shared/dialog-arrangement-checker/dialog-arrangement-checker.component';
 
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
@@ -716,6 +717,35 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         // User cancelled dialog — revert toggle and individual states
         restorePreviousStates();
       }
+    });
+  }
+
+  /**
+   * Opens the Internal Arrangement Checker playground dialog.
+   */
+  openArrangementChecker(): void {
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      this.snackBar.open('Schedule and room data loading... Please try again.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const facultiesList = this.allFaculties.map(f => ({
+      facultyId: f.facultyId,
+      facultyName: f.facultyName
+    }));
+
+    const roomsList = this.cachedRooms.rooms || [];
+
+    this.dialog.open(DialogArrangementCheckerComponent, {
+      width: '680px',
+      data: {
+        cachedSchedules: this.cachedSchedules,
+        cachedRooms: this.cachedRooms,
+        cachedArrangements: this.cachedArrangements,
+        faculties: facultiesList,
+        rooms: roomsList,
+      },
+      autoFocus: false,
     });
   }
 

@@ -72,12 +72,12 @@
           display: flex;
           align-items: center;
           gap: 6px;
-          background-color: #7209b7;
-          color: #fff;
+          // background-color: var(--gradient-primary);
+          color: white !important;
           font-weight: 500;
 
           &:hover {
-            background-color: #5c0796;
+            background-color: var(--primary-color-hover);
           }
         }
       }
