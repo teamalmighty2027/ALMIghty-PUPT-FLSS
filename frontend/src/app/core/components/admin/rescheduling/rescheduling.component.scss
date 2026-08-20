@@ -226,10 +226,10 @@
 .modal-scrollable-content {
   flex: 1 1 auto;
   overflow-y: auto;
+  min-height: 0;
   @include mixins.hide-scrollbar;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 200px);
 }
 
 .modal-header {

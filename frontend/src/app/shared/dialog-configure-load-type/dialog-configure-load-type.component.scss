@@ -2,7 +2,7 @@
   padding-top: 8px;
   padding-bottom: 8px;
   max-height: min(70vh, 560px);
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 ::ng-deep .mat-mdc-dialog-surface {
