@@ -11,10 +11,10 @@
 
   <div class="dialog-content">
     <p class="subtitle">
-      Test hypothetical schedule slots for conflicts across Faculty, Room, and Section schedules.
+      Test hypothetical schedule slots for conflicts across Faculty, Room, and Section schedules in real time.
     </p>
 
-    <form [formGroup]="checkerForm" (ngSubmit)="runCheck()" class="checker-form">
+    <form [formGroup]="checkerForm" class="checker-form">
       <!-- Row 1: Program, Year Level, Section -->
       <div class="form-row flex-row">
         <!-- Program Selector -->
@@ -35,7 +35,7 @@
           <mat-label>Year Level</mat-label>
           <mat-select formControlName="year_level" placeholder="Year" [disabled]="!availableYearLevels.length">
             <mat-option *ngFor="let yl of availableYearLevels" [value]="yl">
-              Year {{ yl }}
+              {{ yl }}
             </mat-option>
           </mat-select>
           <mat-error *ngIf="checkerForm.get('year_level')?.hasError('required')">
@@ -130,15 +130,18 @@
           </mat-select>
         </mat-form-field>
       </div>
-
-      <div class="action-bar">
-        <button mat-flat-button color="primary" type="submit" class="mdc-button btn-check">
-          <mat-icon>search</mat-icon> Check Slot Availability
-        </button>
-      </div>
     </form>
 
-    <!-- Results Section -->
+    <!-- Initial Helper Hint when required inputs are not yet selected -->
+    <div *ngIf="!hasRunCheck" class="helper-info-card">
+      <mat-icon class="icon-info">info</mat-icon>
+      <div>
+        <h4>Real-Time Conflict Detection</h4>
+        <p>Select a Program, Year Level, Section, Course, Day, and Times to check slot availability automatically.</p>
+      </div>
+    </div>
+
+    <!-- Live Results Section -->
     <div *ngIf="hasRunCheck" class="results-container">
       <!-- No Conflicts Green Card -->
       <div *ngIf="!hasConflicts" class="result-card success-card">

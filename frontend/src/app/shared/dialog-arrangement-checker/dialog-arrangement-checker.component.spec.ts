@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core';
 import { DialogArrangementCheckerComponent, DialogArrangementCheckerData } from './dialog-arrangement-checker.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -160,7 +160,7 @@ describe('DialogArrangementCheckerComponent', () => {
     expect(component.checkerForm.get('room_id')?.value).toBe(5);
   });
 
-  it('should run conflict check and display success card when no conflicts exist', () => {
+  it('should automatically run conflict check and display success card when all inputs are valid', () => {
     mockValidationService.validateScheduleConflictsWithArrangements.and.returnValue({
       hasConflicts: false,
       messages: [],
@@ -179,14 +179,12 @@ describe('DialogArrangementCheckerComponent', () => {
       end_time: '10:00 AM',
     });
 
-    component.runCheck();
-
     expect(component.hasRunCheck).toBeTrue();
     expect(component.hasConflicts).toBeFalse();
     expect(component.conflictMessages.length).toBe(0);
   });
 
-  it('should run conflict check and display conflict card when conflicts exist', () => {
+  it('should automatically run conflict check and display conflict card when conflicts exist', () => {
     mockValidationService.validateScheduleConflictsWithArrangements.and.returnValue({
       hasConflicts: true,
       messages: ['Prof. Dela Cruz is already assigned to another course on Tuesday from 7:00 AM to 10:00 AM.'],
@@ -205,11 +203,36 @@ describe('DialogArrangementCheckerComponent', () => {
       end_time: '10:00 AM',
     });
 
-    component.runCheck();
-
     expect(component.hasRunCheck).toBeTrue();
     expect(component.hasConflicts).toBeTrue();
     expect(component.conflictMessages[0]).toContain('already assigned');
+  });
+
+  it('should reset results when required inputs become invalid', () => {
+    mockValidationService.validateScheduleConflictsWithArrangements.and.returnValue({
+      hasConflicts: false,
+      messages: [],
+      warnings: [],
+    });
+
+    component.checkerForm.patchValue({
+      program_id: 10,
+      year_level: 1,
+      section_id: 100,
+      course_id: 50,
+      faculty_id: 23,
+      room_id: 5,
+      day: 'Tuesday',
+      start_time: '7:00 AM',
+      end_time: '10:00 AM',
+    });
+
+    expect(component.hasRunCheck).toBeTrue();
+
+    // Reset required course_id
+    component.checkerForm.patchValue({ course_id: null });
+
+    expect(component.hasRunCheck).toBeFalse();
   });
 
   it('should close dialog when close() is called', () => {

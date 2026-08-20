@@ -10,7 +10,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import {
   PopulateSchedulesResponse,
-  ProgramResponse,
   Room,
   ScheduleArrangementOverride,
 } from '../../core/models/scheduling.model';
@@ -159,7 +158,7 @@ export class DialogArrangementCheckerComponent implements OnInit {
         course_id: null,
       }, { emitEvent: false });
 
-      this.resetResults();
+      this.evaluateAutoCheck();
       this.cdr.markForCheck();
     });
 
@@ -208,7 +207,7 @@ export class DialogArrangementCheckerComponent implements OnInit {
         course_id: null,
       }, { emitEvent: false });
 
-      this.resetResults();
+      this.evaluateAutoCheck();
       this.cdr.markForCheck();
     });
 
@@ -222,7 +221,7 @@ export class DialogArrangementCheckerComponent implements OnInit {
       }
 
       this.checkerForm.patchValue({ course_id: null }, { emitEvent: false });
-      this.resetResults();
+      this.evaluateAutoCheck();
       this.cdr.markForCheck();
     });
 
@@ -238,24 +237,29 @@ export class DialogArrangementCheckerComponent implements OnInit {
       } else {
         this.selectedScheduleId = null;
       }
-      this.resetResults();
+      this.evaluateAutoCheck();
       this.cdr.markForCheck();
     });
 
     // 5. Start Time selected -> filter End Time
     this.checkerForm.get('start_time')?.valueChanges.subscribe((startTime: string) => {
       this.updateEndTimeOptions(startTime);
-      this.resetResults();
+      this.evaluateAutoCheck();
       this.cdr.markForCheck();
     });
 
-    // Reset results on any form edit
+    // Automatically check conflicts whenever all required fields are valid & changed
     this.checkerForm.valueChanges.subscribe(() => {
-      if (this.hasRunCheck) {
-        this.resetResults();
-        this.cdr.markForCheck();
-      }
+      this.evaluateAutoCheck();
     });
+  }
+
+  private evaluateAutoCheck(): void {
+    if (this.checkerForm.valid) {
+      this.runCheck();
+    } else {
+      this.resetResults();
+    }
   }
 
   private updateEndTimeOptions(startTime: string): void {
@@ -290,7 +294,7 @@ export class DialogArrangementCheckerComponent implements OnInit {
 
   runCheck(): void {
     if (this.checkerForm.invalid) {
-      this.checkerForm.markAllAsTouched();
+      this.resetResults();
       return;
     }
 
