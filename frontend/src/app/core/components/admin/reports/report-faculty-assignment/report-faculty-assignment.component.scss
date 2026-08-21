@@ -2,12 +2,12 @@
    height: calc(100vh - 200px); /* Or height: 100%; depending on your layout */
 }
 
-/* ensure the main dialog container stretches */
+/* Ensure the main dialog content container stretches within flex bounds */
 .mat-mdc-dialog-content {
-  max-height: none !important; /* Override material default if necessary */
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .pdf-viewer-container {

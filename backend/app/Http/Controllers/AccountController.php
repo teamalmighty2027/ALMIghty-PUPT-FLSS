@@ -40,8 +40,8 @@ class AccountController extends Controller
             'suffix_name' => 'nullable|string|max:255',
             'code' => 'required|string|max:255|unique:users',
             'email' => [
-              'required', 'email', 
-              Rule::unique('users')->where('role', 'admin')
+              'required', 'email',
+              Rule::unique('users')->where('role', 'admin'),
             ],
             'password' => [
                 'required',
@@ -130,12 +130,12 @@ class AccountController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'suffix_name' => 'nullable|string|max:255',
             'code' => 'sometimes|required|string|max:255|unique:users,code,' . $admin->id,
+            // Email must be unique within the same role only.
             'email' => [
-              'sometimes',
-              'required',
-              'email',
+              'sometimes', 'required', 'email',
               Rule::unique('users')->where('role', 'admin')
-              ->ignore($admin->id)],
+                ->ignore($admin->id),
+            ],
             'password' => [
                 'sometimes',
                 'string',

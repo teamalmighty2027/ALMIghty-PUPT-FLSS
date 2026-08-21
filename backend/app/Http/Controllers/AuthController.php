@@ -30,10 +30,9 @@ class AuthController extends Controller
 
         $allowedRoles = array_values(array_unique($loginUserData['allowed_roles']));
 
-        // Check if the user exists and the password is correct
-        // Eager load permissions and allowed programs to avoid N+1 queries
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
+            ->whereIn('role', $allowedRoles)
             ->first();
 
         if (! $user) {

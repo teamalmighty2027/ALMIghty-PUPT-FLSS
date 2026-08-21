@@ -91,7 +91,9 @@ class FacultyNotificationController extends Controller
             ->first();
 
         $appealEnabled = (bool) ($facultyRecord->is_appeal_enabled ?? false);
-        $appealEndDate = $facultyRecord->appeal_end_date ?? null;
+        $appealEndDate = $facultyRecord && $facultyRecord->appeal_end_date
+            ? str_replace(' ', 'T', $facultyRecord->appeal_end_date)
+            : null;
 
         return response()->json([
             'academic_year' => "{$activeSemester->year_start}-{$activeSemester->year_end}",

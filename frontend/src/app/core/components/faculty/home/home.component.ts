@@ -252,6 +252,11 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.semester = response.notifications.semester;
         this.facultyStatus = response.notifications.faculty_status;
 
+        if (this.facultyStatus?.appeal_end_date) {
+          this.facultyStatus.appeal_end_date =
+            this.facultyStatus.appeal_end_date.replace(' ', 'T');
+        }
+
         // Update loading state and trigger change detection
         this.isLoading = false;
         this.changeDetectorRef.detectChanges();
