@@ -66,6 +66,8 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Input() facultyViewYear = '';
   @Input() facultyViewSemester = '';
   @Input() facultyViewTooltip = '';
+  @Input() showRefreshButton = false;
+  @Input() isRefreshing = false;
 
   @Output() add = new EventEmitter<void>();
   @Output() inputChange = new EventEmitter<{ [key: string]: any }>();
@@ -74,6 +76,7 @@ export class TableHeaderComponent implements OnInit, OnChanges {
   @Output() activeYearSemClick = new EventEmitter<void>();
   @Output() facultyViewClick = new EventEmitter<void>();
   @Output() addAcademicYear = new EventEmitter<void>();
+  @Output() refresh = new EventEmitter<void>();
 
   form: FormGroup;
 
@@ -142,6 +145,13 @@ export class TableHeaderComponent implements OnInit, OnChanges {
 
   onFacultyViewClick(): void {
     this.facultyViewClick.emit();
+  }
+
+  /**
+   * Emits manual refresh event when sync button is clicked.
+   */
+  onRefreshClick(): void {
+    this.refresh.emit();
   }
 
   onAddAcademicYearClick(): void {
