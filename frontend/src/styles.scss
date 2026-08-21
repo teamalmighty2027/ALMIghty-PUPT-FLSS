@@ -137,8 +137,11 @@ body {
 
 .edit-admin-dialog-panel .mat-mdc-dialog-surface {
   border-radius: 20px !important;
-  overflow: hidden;
+  overflow: hidden !important;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16) !important;
+  max-height: 85dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 * {
@@ -259,6 +262,9 @@ span[mat-symbol] {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16) !important;
   background: #fdfbfb !important;
   position: relative;
+  max-height: 85dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .dark-theme .cdk-overlay-pane .mat-mdc-dialog-surface,
@@ -313,13 +319,19 @@ span[mat-symbol] {
   color: var(--neutral-base) !important;
 }
 
+/* Allow dialog content body to scroll vertically when content is too long */
 .cdk-overlay-pane [mat-dialog-content],
-.cdk-overlay-pane .mat-mdc-dialog-content {
+.cdk-overlay-pane .mat-mdc-dialog-content,
+.cdk-overlay-pane .modal-scrollable-content,
+.cdk-overlay-pane .scrollable-modal-body,
+.cdk-overlay-pane .dialog-content {
   position: relative;
   z-index: 1;
   color: #5e3c3c;
   line-height: 1.6;
   padding: 0 1.25rem 1rem;
+  max-height: calc(82dvh - 100px) !important;
+  overflow-y: auto !important;
 }
 
 .dark-theme .cdk-overlay-pane [mat-dialog-content],

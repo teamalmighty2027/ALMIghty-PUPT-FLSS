@@ -77,6 +77,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   facultyType: string | null = '';
   facultyEmail: string | null = '';
 
+  appealDeadlineDisplay: string | null = null;
+
   academicYear = '';
   semester = '';
   facultyStatus = {
@@ -251,6 +253,30 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
         this.academicYear = response.notifications.academic_year;
         this.semester = response.notifications.semester;
         this.facultyStatus = response.notifications.faculty_status;
+
+        console.log('Faculty Notification Response:', response.notifications);
+        console.log('Raw appeal_end_date from API:', this.facultyStatus?.appeal_end_date);
+
+        if (this.facultyStatus?.appeal_end_date) {
+          const dateStr = String(this.facultyStatus.appeal_end_date).replace(' ', 'T');
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            const months = [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const monthName = months[parsedDate.getMonth()];
+            const day = parsedDate.getDate();
+            const year = parsedDate.getFullYear();
+            this.appealDeadlineDisplay = `${monthName} ${day}, ${year}`;
+          } else {
+            this.appealDeadlineDisplay = null;
+          }
+        } else {
+          this.appealDeadlineDisplay = null;
+        }
+
+        console.log('Parsed Appeal Deadline:', this.appealDeadlineDisplay);
 
         // Update loading state and trigger change detection
         this.isLoading = false;

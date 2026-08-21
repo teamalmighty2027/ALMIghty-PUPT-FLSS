@@ -657,7 +657,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') 
           : undefined;
         const formattedEnd = result.endDate 
-          ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') 
+          ? formatDate(result.endDate, 'yyyy-MM-dd', 'en-US') + ' 23:59:59' 
           : undefined;
 
         // Optimistic update
@@ -757,7 +757,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       if (result) {
         // Format dates for MySQL (YYYY-MM-DD HH:mm:ss)
         const formattedStart = result.startDate ? formatDate(result.startDate, 'yyyy-MM-dd HH:mm:ss', 'en-US') : undefined;
-        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') : undefined;
+        const formattedEnd = result.endDate ? formatDate(result.endDate, 'yyyy-MM-dd', 'en-US') + ' 23:59:59' : undefined;
 
         faculty.isAppealEnabled = isEnabled;
         
