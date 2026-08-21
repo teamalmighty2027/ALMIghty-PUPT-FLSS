@@ -19,6 +19,7 @@ import { DialogExportComponent } from '../../../../../shared/dialog-export/dialo
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { fadeAnimation } from '../../../../animations/animations';
 import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
@@ -73,6 +74,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   semesterLabel = '';
   effectivityDate = ''; 
   activeTermStartDate = '';
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -82,11 +84,19 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   constructor(
     private reportsService: ReportsService,
     private academicYearService: AcademicYearService,
+    private syncService: ScheduleSyncService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
 
   ngOnInit(): void {
+    this.syncService.startAutoRefresh(15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshFacultyAssignmentDataSilently();
+      });
+
     this.academicYearService.getActiveYearAndSemester().subscribe({
       next: (res: any) => {
         this.activeTermStartDate = res.startDate;
@@ -110,8 +120,26 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh();
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches faculty assignment report data.
+   */
+  public refreshFacultyAssignmentDataSilently(): void {
+    this.isRefreshing = true;
+    this.reportsService.clearAllCaches();
+    this.fetchFacultyData(this.selectedTermId);
+    this.isRefreshing = false;
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   ngAfterViewInit() { this.dataSource.paginator = this.paginator; }

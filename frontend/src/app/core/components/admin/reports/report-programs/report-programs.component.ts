@@ -24,6 +24,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -131,6 +132,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
   timeSlots: TimeSlot[] = [];
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
 
@@ -140,6 +142,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
   constructor(
     private reportsService: ReportsService,
+    private syncService: ScheduleSyncService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private reportHeaderService: ReportHeaderService,
@@ -147,6 +150,13 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.generateTimeSlots();
+
+    this.syncService.startAutoRefresh(15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshProgramsDataSilently();
+      });
 
     this.reportsService.selectedTerm$
       .pipe(
@@ -167,8 +177,26 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh();
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches program schedule report data.
+   */
+  public refreshProgramsDataSilently(): void {
+    this.isRefreshing = true;
+    this.reportsService.clearAllCaches();
+    this.fetchProgramsData(this.selectedTermId);
+    this.isRefreshing = false;
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   private generateTimeSlots() {

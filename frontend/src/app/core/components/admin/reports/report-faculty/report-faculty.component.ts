@@ -25,6 +25,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 import { DialogExportComponent } from '../../../../../shared/dialog-export/dialog-export.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -109,6 +110,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
   timeSlots: TimeSlot[] = [];
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
 
@@ -118,6 +120,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   constructor(
     private reportsService: ReportsService,
+    private syncService: ScheduleSyncService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
     private reportHeaderService: ReportHeaderService,
@@ -125,6 +128,13 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   ngOnInit(): void {
     this.generateTimeSlots();
+
+    this.syncService.startAutoRefresh(15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshFacultyDataSilently();
+      });
 
     this.reportsService.selectedTerm$
       .pipe(
@@ -145,8 +155,26 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh();
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches faculty schedule report data.
+   */
+  public refreshFacultyDataSilently(): void {
+    this.isRefreshing = true;
+    this.reportsService.clearAllCaches();
+    this.fetchFacultyData(this.selectedTermId);
+    this.isRefreshing = false;
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   private generateTimeSlots() {
