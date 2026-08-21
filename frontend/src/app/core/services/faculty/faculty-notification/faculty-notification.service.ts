@@ -37,15 +37,13 @@ export class FacultyNotificationService {
   getFacultyNotifications(
     facultyId: number,
   ): Observable<FacultyNotificationResponse> {
-    if (!this.notificationsCache[facultyId]) {
-      this.notificationsCache[facultyId] = this.http
-        .get<FacultyNotificationResponse>(
-          `${this.baseUrl}/faculty/notifications`,
-          { params: { faculty_id: facultyId.toString() } },
-        )
-        .pipe(shareReplay(1), catchError(this.handleError));
-    }
-    return this.notificationsCache[facultyId];
+    // Fetch notifications fresh from the database without local caching
+    return this.http
+      .get<FacultyNotificationResponse>(
+        `${this.baseUrl}/faculty/notifications`,
+        { params: { faculty_id: facultyId.toString() } },
+      )
+      .pipe(catchError(this.handleError));
   }
 
   /**
