@@ -78,6 +78,8 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
   public isReportsView: boolean = false;
   public isProfileRoute: boolean = false;
   public accountProfilePictureUrl: string | null = null;
+  public isSidebarPinned: boolean =
+    SafeStorage.getItem('admin_sidebar_pinned') !== 'false';
 
   // --- Notification Variables ---
   public notifications: AppNotification[] = [];
@@ -193,6 +195,16 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
 
   public toggleTheme() {
     this.themeService.toggleTheme();
+  }
+
+  // Toggles sidebar visibility and saves setting to SafeStorage
+  public toggleSidebar(): void {
+    this.isSidebarPinned = !this.isSidebarPinned;
+    SafeStorage.setItem('admin_sidebar_pinned', String(this.isSidebarPinned));
+
+    if (this.drawer) {
+      this.drawer.toggle();
+    }
   }
 
   private toTitleCase(str: string): string {
