@@ -720,6 +720,14 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           if (!existing._mergedFaculty.includes(item.faculty_name)) {
             existing._mergedFaculty.push(item.faculty_name);
           }
+          if (!existing._mergedSections) {
+            const sec0 = `${existing.program_code || ''} ${existing.year_level || ''}-${existing.section_name || ''}`.trim();
+            existing._mergedSections = [sec0];
+          }
+          const secCurr = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          if (!existing._mergedSections.includes(secCurr)) {
+            existing._mergedSections.push(secCurr);
+          }
         } else {
           mergedMap.set(key, { ...item });
         }
@@ -780,7 +788,24 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
         let facultyName = item.faculty_name || '';
-        if (facultyName.trim().toUpperCase() === 'N/A') facultyName = 'Faculty TBA';
+        if (item._mergedFaculty && item._mergedFaculty.length > 1) {
+          facultyName = item._mergedFaculty
+            .map((f: string) => (!f || f.trim().toUpperCase() === 'N/A') ? 'Faculty TBA' : f)
+            .join(' / ');
+        } else if (facultyName.trim().toUpperCase() === 'N/A') {
+          facultyName = 'Faculty TBA';
+        }
+
+        let sectionDisplay: string;
+        if (item._mergedSections && item._mergedSections.length > 0) {
+          sectionDisplay = item._mergedSections
+            .filter((s: string) => s !== '' && s !== '-')
+            .join(' / ');
+          if (!sectionDisplay) sectionDisplay = 'Section TBA';
+        } else {
+          const sec = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          sectionDisplay = (sec === '-' || !sec) ? 'Section TBA' : sec;
+        }
 
         const isBridging = item.course_details?.offering_type === 'bridging';
 
@@ -788,7 +813,7 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
           facultyName,
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
+          sectionDisplay
         ].filter(line => line !== '');
 
         let textY = yPos + startPadding;
