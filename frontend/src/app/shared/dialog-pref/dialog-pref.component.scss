@@ -13,7 +13,7 @@
   width: 100%;
   min-width: 85vw; /* Forces dialog to open wide for dual-panel */
   box-sizing: border-box; /* Fixes background scrolling */
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
@@ -196,6 +196,23 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+
+  .pdf-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .pdf-iframe {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: none;
+    min-height: 0;
+  }
 }
 
 .dialog-actions {
