@@ -9,7 +9,7 @@
     [@slideInAnimation]
     [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
     [mode]="(isHandset$ | async) ? 'push' : 'side'"
-    [opened]="(isHandset$ | async) === false">
+    [opened]="(isHandset$ | async) ? false : isSidebarPinned">
     <div class="side-toolbar">
       <img
         src="../../../../../assets/images/pup_taguig_logo.svg"
@@ -24,8 +24,10 @@
       <div class="navbar-group-one">
         <div class="group">
           <h4 class="list-subheader">
-            <span mat-symbol="manage_accounts"></span>
-            Management
+            <div class="subheader-title">
+              <span mat-symbol="manage_accounts"></span>
+              <span>Management</span>
+            </div>
           </h4>
           <a
             mat-list-item
@@ -46,79 +48,112 @@
         </div>
 
         <div class="group">
-          <h4 class="list-subheader">
-            <span mat-symbol="settings"></span>
-            Maintenance
-          </h4>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/curriculum"
-            routerLinkActive="active-link">
-            <span mat-symbol="list_alt" matListItemIcon></span>
-            <span matListItemTitle>Curriculum</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/programs"
-            routerLinkActive="active-link">
-            <span mat-symbol="school" matListItemIcon></span>
-            <span matListItemTitle>Programs</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/academic-ranks"
-            routerLinkActive="active-link">
-            <span mat-symbol="military_tech" matListItemIcon></span>
-            <span matListItemTitle>Academic Ranks</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/buildings"
-            routerLinkActive="active-link">
-            <span mat-symbol="apartment" matListItemIcon></span>
-            <span matListItemTitle>Buildings</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/rooms"
-            routerLinkActive="active-link">
-            <span mat-symbol="meeting_room" matListItemIcon></span>
-            <span matListItemTitle>Rooms</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/logos"
-            routerLinkActive="active-link">
-            <span mat-symbol="image" matListItemIcon></span>
-            <span matListItemTitle>Logos</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/audit-log"
-            routerLinkActive="active-link">
-            <span mat-symbol="history" matListItemIcon></span>
-            <span matListItemTitle>Audit Log</span>
-          </a>
-          <a
-            mat-list-item
-            class="list-item"
-            routerLink="/superadmin/system-notices"
-            routerLinkActive="active-link">
+          <h4
+            class="list-subheader collapsible"
+            (click)="toggleMaintenanceGroup()">
+            <div class="subheader-title">
+              <span mat-symbol="settings"></span>
+              <span>Maintenance</span>
+            </div>
             <span
-              mat-symbol="warning"
-              matListItemIcon
-              [matBadge]="unresolvedNoticesCount"
-              [matBadgeHidden]="unresolvedNoticesCount === 0"
-              matBadgeColor="warn"></span>
-            <span matListItemTitle>System Notices</span>
-          </a>
+              [mat-symbol]="
+                isMaintenanceExpanded ? 'expand_less' : 'expand_more'
+              "
+              class="expand-icon"></span>
+          </h4>
+          @if (isMaintenanceExpanded) {
+          <div class="collapsible-content">
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/curriculum"
+              routerLinkActive="active-link">
+              <span mat-symbol="list_alt" matListItemIcon></span>
+              <span matListItemTitle>Curriculum</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/programs"
+              routerLinkActive="active-link">
+              <span mat-symbol="school" matListItemIcon></span>
+              <span matListItemTitle>Programs</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/academic-ranks"
+              routerLinkActive="active-link">
+              <span mat-symbol="military_tech" matListItemIcon></span>
+              <span matListItemTitle>Academic Ranks</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/buildings"
+              routerLinkActive="active-link">
+              <span mat-symbol="apartment" matListItemIcon></span>
+              <span matListItemTitle>Buildings</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/rooms"
+              routerLinkActive="active-link">
+              <span mat-symbol="meeting_room" matListItemIcon></span>
+              <span matListItemTitle>Rooms</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/logos"
+              routerLinkActive="active-link">
+              <span mat-symbol="image" matListItemIcon></span>
+              <span matListItemTitle>Logos</span>
+            </a>
+          </div>
+          }
+        </div>
+
+        <div class="group">
+          <h4
+            class="list-subheader collapsible"
+            (click)="toggleLogsGroup()">
+            <div class="subheader-title">
+              <span mat-symbol="article"></span>
+              <span>Logs</span>
+            </div>
+            <span
+              [mat-symbol]="
+                isLogsExpanded ? 'expand_less' : 'expand_more'
+              "
+              class="expand-icon"></span>
+          </h4>
+          @if (isLogsExpanded) {
+          <div class="collapsible-content">
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/audit-log"
+              routerLinkActive="active-link">
+              <span mat-symbol="history" matListItemIcon></span>
+              <span matListItemTitle>Audit Log</span>
+            </a>
+            <a
+              mat-list-item
+              class="list-item"
+              routerLink="/superadmin/system-notices"
+              routerLinkActive="active-link">
+              <span
+                mat-symbol="warning"
+                matListItemIcon
+                [matBadge]="unresolvedNoticesCount"
+                [matBadgeHidden]="unresolvedNoticesCount === 0"
+                matBadgeColor="warn"></span>
+              <span matListItemTitle>System Notices</span>
+            </a>
+          </div>
+          }
         </div>
       </div>
 
@@ -183,18 +218,17 @@
     <!--Main Toolbar-->
     <mat-toolbar class="main-toolbar">
       <!--Displays toggle sidenav button-->
-      @if (isHandset$ | async) {
       <div class="toggle-button-container">
         <button
           type="button"
           aria-label="Toggle sidenav"
           mat-icon-button
-          (click)="drawer.toggle()"
-          class="toggle-button">
+          (click)="toggleSidebar()"
+          class="toggle-button"
+          [matTooltip]="drawer.opened ? 'Collapse sidebar' : 'Expand sidebar'">
           <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
         </button>
       </div>
-      }
 
       <!--Actual sidenav content-->
       <header class="sidenav-header">
