@@ -294,9 +294,13 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     });
   }
 
+  // Handles export all room schedules excluding TBA rooms
   onExportAll() {
-    const academicYear = this.filteredData[0]?.academicYear;
-    const semester = this.filteredData[0]?.semester;
+    const exportableRooms = this.filteredData.filter(
+      (r) => r.roomCode !== 'TBA'
+    );
+    const academicYear = exportableRooms[0]?.academicYear;
+    const semester = exportableRooms[0]?.semester;
     const baseFileName = `All_Room_Schedules_${academicYear}_${semester?.replace(/\s+/g, '_')}`;
 
     this.dialog.open(DialogViewScheduleComponent, {
@@ -306,7 +310,10 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
       data: {
         exportType: 'all',
         entity: 'room',
-        entityData: this.filteredData.filter(r => r.schedules && r.schedules.length > 0).map(r => r.schedules).flat(),
+        entityData: exportableRooms
+          .filter((r) => r.schedules && r.schedules.length > 0)
+          .map((r) => r.schedules)
+          .flat(),
         customTitle: 'All Room Schedules',
         fileName: baseFileName,
         academicYear: academicYear,
@@ -343,20 +350,28 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
 
   // --- EXCEL GENERATION METHODS ---
 
+  // Generates Excel blob for all rooms excluding TBA
   private async generateExcelBlobAll(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
+    const exportableRooms = this.filteredData.filter(
+      (r) => r.roomCode !== 'TBA'
+    );
 
-    for (const room of this.filteredData) {
+    for (const room of exportableRooms) {
       if (room.schedules && room.schedules.length > 0) {
         // Create a safe name for the tab
-        const tabName = `Room ${room.roomCode}`.substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const tabName = `Room ${room.roomCode}`
+          .substring(0, 31)
+          .replace(/[^\w\s-]/gi, '');
         const worksheet = workbook.addWorksheet(tabName);
         this.applyRoomExcelLayout(worksheet, room);
       }
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
-    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    return new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
   }
 
   private async generateExcelBlob(room: Room): Promise<Blob> {
@@ -508,6 +523,7 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
 
   updateDisplayedData() { console.log('Paginator updated'); }
 
+  // Generates PDF blob for all rooms excluding TBA
   generateAllRoomsPdfBlob(): Blob {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.width;
@@ -516,8 +532,11 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     const logoSize = 22;
 
     let hasPages = false;
+    const exportableRooms = this.filteredData.filter(
+      (r) => r.roomCode !== 'TBA'
+    );
 
-    this.filteredData.forEach((room) => {
+    exportableRooms.forEach((room) => {
       if (room.schedules && room.schedules.length > 0) {
         if (hasPages) {
           this.reportHeaderService.addStandardFooter(doc);
@@ -527,9 +546,25 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
 
         const title = `Room ${room.roomCode} Schedule`;
         const subtitle = this.getAcademicYearSubtitle(room);
-        let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
-        
-        this.drawScheduleTable(doc, room.schedules, title, subtitle, currentY, margin, pageWidth);
+        let currentY = this.drawHeader(
+          doc,
+          topMargin,
+          pageWidth,
+          margin,
+          logoSize,
+          title,
+          subtitle
+        );
+
+        this.drawScheduleTable(
+          doc,
+          room.schedules,
+          title,
+          subtitle,
+          currentY,
+          margin,
+          pageWidth
+        );
       }
     });
 
@@ -685,6 +720,14 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           if (!existing._mergedFaculty.includes(item.faculty_name)) {
             existing._mergedFaculty.push(item.faculty_name);
           }
+          if (!existing._mergedSections) {
+            const sec0 = `${existing.program_code || ''} ${existing.year_level || ''}-${existing.section_name || ''}`.trim();
+            existing._mergedSections = [sec0];
+          }
+          const secCurr = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          if (!existing._mergedSections.includes(secCurr)) {
+            existing._mergedSections.push(secCurr);
+          }
         } else {
           mergedMap.set(key, { ...item });
         }
@@ -745,7 +788,24 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
         let facultyName = item.faculty_name || '';
-        if (facultyName.trim().toUpperCase() === 'N/A') facultyName = 'Faculty TBA';
+        if (item._mergedFaculty && item._mergedFaculty.length > 1) {
+          facultyName = item._mergedFaculty
+            .map((f: string) => (!f || f.trim().toUpperCase() === 'N/A') ? 'Faculty TBA' : f)
+            .join(' / ');
+        } else if (facultyName.trim().toUpperCase() === 'N/A') {
+          facultyName = 'Faculty TBA';
+        }
+
+        let sectionDisplay: string;
+        if (item._mergedSections && item._mergedSections.length > 0) {
+          sectionDisplay = item._mergedSections
+            .filter((s: string) => s !== '' && s !== '-')
+            .join(' / ');
+          if (!sectionDisplay) sectionDisplay = 'Section TBA';
+        } else {
+          const sec = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          sectionDisplay = (sec === '-' || !sec) ? 'Section TBA' : sec;
+        }
 
         const isBridging = item.course_details?.offering_type === 'bridging';
 
@@ -753,7 +813,7 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
           facultyName,
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
+          sectionDisplay
         ].filter(line => line !== '');
 
         let textY = yPos + startPadding;

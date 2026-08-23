@@ -10,9 +10,8 @@
 .scheduling-dialog-container {
   display: flex;
   align-items: stretch;
-  min-height: 560px;
   max-height: 88vh;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 // ─── Shared section base ────────────────────────────────────────────────────
@@ -77,8 +76,7 @@
     overflow-y: auto;
     flex: 1;
     padding-bottom: var(--spacing-xl);
-    // Subtract title height so the list fills the remaining space
-    max-height: calc(88vh - 80px);
+    min-height: 0;
   }
 }
 
@@ -650,7 +648,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-lg) 0;
+  padding: var(--spacing-sm) 0;
   flex-shrink: 0;
   user-select: none;
 
