@@ -28,6 +28,7 @@ import { ReschedulingService, AppealResponse } from '../../../services/faculty/r
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
 import { SpeechRecognitionService } from '../../../services/speech/speech-recognition.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../services/admin/sync/schedule-sync.service';
 import { getFacultyTypeClass } from '../../../../shared/utils/faculty-type.utils';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
 
@@ -172,6 +173,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   isListening = false;
   speechSupported = false;
+  isRefreshing = false;
   private destroy$ = new Subject<void>();
   private speechSession$ = new Subject<void>();
   private validationTimeout: any;
@@ -184,6 +186,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     private reportsService: ReportsService,
     private reportHeaderService: ReportHeaderService,
     private schedulingService: SchedulingService,
+    private syncService: ScheduleSyncService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private speechRecognitionService: SpeechRecognitionService,
@@ -201,6 +204,14 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isLoading = true;
     this.generateTimeSlots();
     this.generateTimeOptions();
+
+    // Start auto refresh polling (15s)
+    this.syncService.startAutoRefresh('rescheduling', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshDataSilently();
+      });
 
     // Load terms FIRST so dropdown appears immediately
     this.reportsService.getAllTermsForDropdown().pipe(
@@ -262,6 +273,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * Cleans up pending timers, subscriptions, and speech-recognition state.
    */
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('rescheduling');
+
     if (this.validationTimeout) {
       clearTimeout(this.validationTimeout);
     }
@@ -275,6 +288,44 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       this.speechRecognitionService.abort();
       this.isListening = false;
     }
+  }
+
+  /**
+   * Silently re-fetches appeals and arrangements without full loading state.
+   */
+  public refreshDataSilently(): void {
+    this.isRefreshing = true;
+    this.reportsService.clearAllCaches();
+
+    forkJoin({
+      appeals: this.reschedulingService.getAllAppeals(),
+      arrangements: this.selectedTermId
+        ? this.reportsService.getFacultySchedulesReport(this.selectedTermId)
+        : null as any
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ appeals, arrangements }) => {
+        this.appeals = appeals;
+        const mappedAppeals = appeals.map(a => this.mapAppeal(a));
+        this.dataSource.data = mappedAppeals;
+
+        if (arrangements && this.selectedTermId) {
+          this.loadArrangementsForTerm(this.selectedTermId, mappedAppeals);
+        }
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Silent refresh failed:', err);
+        this.isRefreshing = false;
+      }
+    });
+  }
+
+  /**
+   * Triggers an immediate manual refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   /**
@@ -444,7 +495,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (facultiesReq) => {
         const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
-        const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
+        const rawFaculties = facultiesReq?.faculty_schedule_reports?.faculties || [];
 
         rawFaculties.forEach((fac: any) => {
           const facultyAppeals = approvedAppeals.filter(a => 

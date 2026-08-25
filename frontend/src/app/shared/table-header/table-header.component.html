@@ -64,6 +64,17 @@
     <!--Buttons-->
     @if (showButtons) {
       <div class="button-container">
+        @if (showRefreshButton) {
+          <button
+            mat-icon-button
+            type="button"
+            class="refresh-icon-button"
+            [matTooltip]="'Refresh data'"
+            [disabled]="isRefreshing"
+            (click)="onRefreshClick()">
+            <mat-icon [class.spinning]="isRefreshing">sync</mat-icon>
+          </button>
+        }
         <!-- Export to PDF Button -->
         @if (showExportButton) {
           <span

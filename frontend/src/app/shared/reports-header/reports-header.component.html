@@ -87,6 +87,17 @@
 
   @if (showButtons) {
   <div class="button-container">
+    @if (showRefreshButton) {
+      <button
+        mat-icon-button
+        type="button"
+        class="refresh-icon-button"
+        [matTooltip]="'Refresh schedule data'"
+        [disabled]="isRefreshing"
+        (click)="onRefreshClick()">
+        <mat-icon [class.spinning]="isRefreshing">sync</mat-icon>
+      </button>
+    }
     
     @if (showExportByProgramButton) {
       <span class="tooltip-container" [matTooltip]="tooltipMessage" [matTooltipDisabled]="!buttonDisabled">

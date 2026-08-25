@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -22,6 +22,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 import { DialogExportComponent } from '../../../../../shared/dialog-export/dialog-export.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -94,6 +95,7 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
   timeSlots: TimeSlot[] = [];
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
 
@@ -103,12 +105,21 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
 
   constructor(
     private reportsService: ReportsService,
+    private syncService: ScheduleSyncService,
     public dialog: MatDialog,
     private reportHeaderService: ReportHeaderService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generateTimeSlots();
+
+    this.syncService.startAutoRefresh('report-rooms', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshRoomDataSilently();
+      });
 
     this.reportsService.selectedTerm$
       .pipe(
@@ -129,8 +140,24 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('report-rooms');
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches room schedule report data.
+   */
+  public refreshRoomDataSilently(): void {
+    this.reportsService.clearAllCaches();
+    this.fetchRoomData(this.selectedTermId, true);
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   private generateTimeSlots() {
@@ -201,8 +228,13 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     }
   }
 
-  fetchRoomData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchRoomData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getRoomSchedulesReport(termId).subscribe({
       next: (response) => {
         const rooms = response.room_schedule_reports.rooms.map((room: any) => ({
@@ -220,20 +252,28 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         const tbaRoom = rooms.find((r: Room) => r.roomCode === 'TBA');
 
         const sortedRooms = regularRooms.sort((a: Room, b: Room) =>
-          a.roomCode.localeCompare(b.roomCode)
+          a.roomCode.localeCompare(b.roomCode, undefined, { numeric: true, sensitivity: 'base' })
         );
 
-        const finalRooms = tbaRoom ? [...sortedRooms, tbaRoom] : sortedRooms;
+        if (tbaRoom) {
+          sortedRooms.push(tbaRoom);
+        }
 
         this.isLoading = false;
-        this.dataSource.data = finalRooms;
-        this.filteredData = [...finalRooms];
+        this.isRefreshing = false;
+        this.dataSource.data = sortedRooms;
+        this.filteredData = [...sortedRooms];
         this.dataSource.paginator = this.paginator;
 
-        this.hasAnySchedules = this.filteredData.some((room) => this.hasSchedules(room));
+        this.hasAnySchedules = sortedRooms.some(
+          (room: Room) => room.schedules && room.schedules.length > 0
+        );
+
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.isLoading = false;
+        this.isRefreshing = false;
         console.error('Error fetching room data:', error);
       },
     });
