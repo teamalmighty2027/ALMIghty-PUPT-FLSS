@@ -34,7 +34,6 @@ class RescheduleController extends Controller
      */
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
-
         $validated = $request->validate([
             'scheduleId' => 'required|integer|exists:schedules,schedule_id',
             'reason'     => 'required|string',
@@ -54,7 +53,19 @@ class RescheduleController extends Controller
         }
 
         $user = $request->user();
-        $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
+        $schedule = Schedule::findOrFail($validated['scheduleId']);
+
+        $faculty = DB::table('faculty')
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$faculty || $user->role === 'admin') {
+            if ($schedule->faculty_id) {
+                $faculty = DB::table('faculty')
+                    ->where('id', $schedule->faculty_id)
+                    ->first();
+            }
+        }
 
         if (!$faculty) {
             return response()->json(
@@ -63,12 +74,9 @@ class RescheduleController extends Controller
             );
         }
 
-        $schedule = Schedule::findOrFail($validated['scheduleId']);
-        
-        if ($schedule->faculty_id !== $faculty->id) {
+        if ($schedule->faculty_id !== $faculty->id && $user->role !== 'admin') {
             return response()->json(
-                ['message' => 'Forbidden. You are not authorized to '
-                              . 'appeal this schedule.'],
+                ['message' => 'Forbidden. You are not authorized to appeal this schedule.'],
                 403
             );
         }
@@ -78,6 +86,28 @@ class RescheduleController extends Controller
             ->first();
 
         if ($existing) {
+            if ($user->role === 'admin') {
+                $filePath = null;
+                if ($request->hasFile('appealFile')) {
+                    $file = $request->file('appealFile');
+                    $filePath = $file->store('appeals', 'public');
+                }
+
+                $existing->update([
+                    'appeal_day'        => $validated['day'],
+                    'appeal_start_time' => $validated['startTime'],
+                    'appeal_end_time'   => $validated['endTime'],
+                    'appeal_room'       => $validated['roomCode'] ?? null,
+                    'reasoning'         => $validated['reason'],
+                    'file_path'         => $filePath ?? $existing->file_path,
+                ]);
+
+                return response()->json([
+                    'message'   => 'Appeal submitted successfully.',
+                    'appeal_id' => $existing->appeal_id,
+                ], 200);
+            }
+
             return response()->json(
                 ['message' => 'You already have a pending appeal for this schedule.'],
                 422
