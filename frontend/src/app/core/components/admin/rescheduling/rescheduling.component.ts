@@ -495,7 +495,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (facultiesReq) => {
         const approvedAppeals = mappedAppeals.filter(a => a.appealVerification === 'Approved');
-        const rawFaculties = facultiesReq.faculty_schedule_reports.faculties;
+        const rawFaculties = facultiesReq?.faculty_schedule_reports?.faculties || [];
 
         rawFaculties.forEach((fac: any) => {
           const facultyAppeals = approvedAppeals.filter(a => 
