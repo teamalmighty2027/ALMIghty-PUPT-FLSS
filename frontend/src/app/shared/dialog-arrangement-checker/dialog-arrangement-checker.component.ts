@@ -139,13 +139,13 @@ export class DialogArrangementCheckerComponent implements OnInit {
   }
 
   private setupFormListeners(): void {
-    // 1. Program selected -> populate Year Levels
+    // 1. Program selected -> populate Year Levels (deduplicated)
     this.checkerForm.get('program_id')?.valueChanges.subscribe((progId: number) => {
       const prog = this.data.cachedSchedules?.programs.find(p => p.program_id === progId);
       if (prog) {
-        this.availableYearLevels = prog.year_levels
-          .map(yl => yl.year_level)
-          .sort((a, b) => a - b);
+        const yearLevelSet = new Set<number>();
+        prog.year_levels.forEach(yl => yearLevelSet.add(yl.year_level));
+        this.availableYearLevels = Array.from(yearLevelSet).sort((a, b) => a - b);
       } else {
         this.availableYearLevels = [];
       }
@@ -162,41 +162,63 @@ export class DialogArrangementCheckerComponent implements OnInit {
       this.cdr.markForCheck();
     });
 
-    // 2. Year Level selected -> populate Sections
+    // 2. Year Level selected -> populate Sections across ALL matching year_level records
     this.checkerForm.get('year_level')?.valueChanges.subscribe((yearLevel: number) => {
       const progId = this.checkerForm.get('program_id')?.value;
       const prog = this.data.cachedSchedules?.programs.find(p => p.program_id === progId);
-      const ylObj = prog?.year_levels.find(yl => yl.year_level === yearLevel);
+      const matchingYLs = prog?.year_levels.filter(yl => yl.year_level === yearLevel) || [];
 
-      if (ylObj && prog) {
-        const sectionsList: SectionItem[] = [];
+      if (matchingYLs.length && prog) {
+        const sectionsMap = new Map<number, SectionItem>();
 
-        ylObj.semesters.forEach(sem => {
-          sem.sections.forEach(sec => {
-            const courseItems: CourseOption[] = sec.courses.map(c => ({
-              course_id: c.course_id,
-              course_code: c.course_code,
-              course_title: c.course_title,
-              schedule_id: c.schedule?.schedule_id,
-              faculty_id: c.faculty_id || null,
-              faculty_name: c.professor || null,
-              room_id: c.room?.room_id || c.schedule?.room_id || null,
-              room_code: c.room?.room_code || null,
-              day: c.schedule?.day || null,
-              start_time: c.schedule?.start_time || null,
-              end_time: c.schedule?.end_time || null,
-            }));
+        matchingYLs.forEach(ylObj => {
+          ylObj.semesters.forEach(sem => {
+            sem.sections.forEach(sec => {
+              const courseItems: CourseOption[] = sec.courses.map(c => ({
+                course_id: c.course_id,
+                course_code: c.course_code,
+                course_title: c.course_title,
+                schedule_id: c.schedule?.schedule_id,
+                faculty_id: c.faculty_id || null,
+                faculty_name: c.professor || null,
+                room_id: c.room?.room_id || c.schedule?.room_id || null,
+                room_code: c.room?.room_code || null,
+                day: c.schedule?.day || null,
+                start_time: c.schedule?.start_time || null,
+                end_time: c.schedule?.end_time || null,
+              }));
 
-            sectionsList.push({
-              section_id: sec.section_per_program_year_id,
-              section_name: sec.section_name,
-              display_name: `${prog.program_code} ${yearLevel}-${sec.section_name}`,
-              courses: courseItems,
+              const existingSec = sectionsMap.get(sec.section_per_program_year_id);
+              if (existingSec) {
+                existingSec.courses.push(...courseItems);
+              } else {
+                sectionsMap.set(sec.section_per_program_year_id, {
+                  section_id: sec.section_per_program_year_id,
+                  section_name: sec.section_name,
+                  display_name: `${prog.program_code} ${yearLevel}-${sec.section_name}`,
+                  courses: courseItems,
+                });
+              }
             });
           });
         });
 
-        this.availableSections = sectionsList.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        // Deduplicate courses within each section by course_id
+        sectionsMap.forEach(secItem => {
+          const uniqueCoursesMap = new Map<number, CourseOption>();
+          secItem.courses.forEach(c => {
+            if (!uniqueCoursesMap.has(c.course_id)) {
+              uniqueCoursesMap.set(c.course_id, c);
+            }
+          });
+          secItem.courses = Array.from(uniqueCoursesMap.values()).sort((a, b) =>
+            a.course_code.localeCompare(b.course_code)
+          );
+        });
+
+        this.availableSections = Array.from(sectionsMap.values()).sort((a, b) =>
+          a.display_name.localeCompare(b.display_name)
+        );
       } else {
         this.availableSections = [];
       }
