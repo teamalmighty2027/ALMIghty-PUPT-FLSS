@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -108,12 +108,13 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     private syncService: ScheduleSyncService,
     public dialog: MatDialog,
     private reportHeaderService: ReportHeaderService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generateTimeSlots();
 
-    this.syncService.startAutoRefresh(15000);
+    this.syncService.startAutoRefresh('report-rooms', 15000);
     this.syncService.refreshTrigger$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -139,7 +140,7 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
   }
 
   ngOnDestroy(): void {
-    this.syncService.stopAutoRefresh();
+    this.syncService.stopAutoRefresh('report-rooms');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -148,10 +149,8 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
    * Silently re-fetches room schedule report data.
    */
   public refreshRoomDataSilently(): void {
-    this.isRefreshing = true;
     this.reportsService.clearAllCaches();
-    this.fetchRoomData(this.selectedTermId);
-    this.isRefreshing = false;
+    this.fetchRoomData(this.selectedTermId, true);
   }
 
   /**
@@ -229,8 +228,13 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
     }
   }
 
-  fetchRoomData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchRoomData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getRoomSchedulesReport(termId).subscribe({
       next: (response) => {
         const rooms = response.room_schedule_reports.rooms.map((room: any) => ({
@@ -248,20 +252,28 @@ export class ReportRoomsComponent implements OnInit, AfterViewInit, AfterViewChe
         const tbaRoom = rooms.find((r: Room) => r.roomCode === 'TBA');
 
         const sortedRooms = regularRooms.sort((a: Room, b: Room) =>
-          a.roomCode.localeCompare(b.roomCode)
+          a.roomCode.localeCompare(b.roomCode, undefined, { numeric: true, sensitivity: 'base' })
         );
 
-        const finalRooms = tbaRoom ? [...sortedRooms, tbaRoom] : sortedRooms;
+        if (tbaRoom) {
+          sortedRooms.push(tbaRoom);
+        }
 
         this.isLoading = false;
-        this.dataSource.data = finalRooms;
-        this.filteredData = [...finalRooms];
+        this.isRefreshing = false;
+        this.dataSource.data = sortedRooms;
+        this.filteredData = [...sortedRooms];
         this.dataSource.paginator = this.paginator;
 
-        this.hasAnySchedules = this.filteredData.some((room) => this.hasSchedules(room));
+        this.hasAnySchedules = sortedRooms.some(
+          (room: Room) => room.schedules && room.schedules.length > 0
+        );
+
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.isLoading = false;
+        this.isRefreshing = false;
         console.error('Error fetching room data:', error);
       },
     });

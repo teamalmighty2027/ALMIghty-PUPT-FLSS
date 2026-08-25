@@ -206,7 +206,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.generateTimeOptions();
 
     // Start auto refresh polling (15s)
-    this.syncService.startAutoRefresh(15000);
+    this.syncService.startAutoRefresh('rescheduling', 15000);
     this.syncService.refreshTrigger$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -273,7 +273,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * Cleans up pending timers, subscriptions, and speech-recognition state.
    */
   ngOnDestroy(): void {
-    this.syncService.stopAutoRefresh();
+    this.syncService.stopAutoRefresh('rescheduling');
 
     if (this.validationTimeout) {
       clearTimeout(this.validationTimeout);

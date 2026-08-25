@@ -12,6 +12,7 @@ export class ScheduleSyncService {
 
   private isPaused = false;
   private timerSubscription?: Subscription;
+  private activeConsumers = new Set<string>();
 
   /**
    * Initializes visibility and dialog listeners for auto sync.
@@ -23,24 +24,46 @@ export class ScheduleSyncService {
   }
 
   /**
-   * Starts the 15-second background timer.
-   * @param intervalMs - Polling interval in milliseconds (default 15000ms).
+   * Registers a consumer and starts the background timer.
+   * @param consumerIdOrInterval - Consumer ID (string) or interval (number).
+   * @param intervalMs - Polling interval in ms (default 15000ms).
    */
-  public startAutoRefresh(intervalMs = 15000): void {
-    this.stopAutoRefresh();
+  public startAutoRefresh(
+    consumerIdOrInterval?: string | number,
+    intervalMs = 15000
+  ): void {
+    let consumerId = 'default';
+    let timeout = intervalMs;
 
-    this.timerSubscription = timer(intervalMs, intervalMs).subscribe(() => {
-      if (!this.isPaused && !this.isDialogOpen()) {
-        this.refreshTriggerSubject.next(true);
-      }
-    });
+    if (typeof consumerIdOrInterval === 'string') {
+      consumerId = consumerIdOrInterval;
+    } else if (typeof consumerIdOrInterval === 'number') {
+      timeout = consumerIdOrInterval;
+    }
+
+    this.activeConsumers.add(consumerId);
+
+    if (!this.timerSubscription) {
+      this.timerSubscription = timer(timeout, timeout).subscribe(() => {
+        if (!this.isPaused && !this.isDialogOpen()) {
+          this.refreshTriggerSubject.next(true);
+        }
+      });
+    }
   }
 
   /**
-   * Stops the background polling timer.
+   * Unregisters a consumer and stops timer if no consumers remain.
+   * @param consumerId - Optional consumer identifier.
    */
-  public stopAutoRefresh(): void {
-    if (this.timerSubscription) {
+  public stopAutoRefresh(consumerId?: string): void {
+    if (consumerId) {
+      this.activeConsumers.delete(consumerId);
+    } else {
+      this.activeConsumers.clear();
+    }
+
+    if (this.activeConsumers.size === 0 && this.timerSubscription) {
       this.timerSubscription.unsubscribe();
       this.timerSubscription = undefined;
     }

@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, filter } from 'rxjs/operators';
@@ -86,11 +86,12 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     private academicYearService: AcademicYearService,
     private syncService: ScheduleSyncService,
     public dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
-    this.syncService.startAutoRefresh(15000);
+    this.syncService.startAutoRefresh('report-faculty-assignment', 15000);
     this.syncService.refreshTrigger$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -120,7 +121,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   }
 
   ngOnDestroy(): void {
-    this.syncService.stopAutoRefresh();
+    this.syncService.stopAutoRefresh('report-faculty-assignment');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -129,10 +130,8 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
    * Silently re-fetches faculty assignment report data.
    */
   public refreshFacultyAssignmentDataSilently(): void {
-    this.isRefreshing = true;
     this.reportsService.clearAllCaches();
-    this.fetchFacultyData(this.selectedTermId);
-    this.isRefreshing = false;
+    this.fetchFacultyData(this.selectedTermId, true);
   }
 
   /**
@@ -190,8 +189,13 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     }
   }
 
-  fetchFacultyData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchFacultyData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (res) => {
         const report = res.faculty_schedule_reports;
@@ -209,16 +213,18 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
           return f;
         });
 
-
         this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error fetching faculty data:', err);
         this.isLoading = false;
+        this.isRefreshing = false;
       }
     });
   }

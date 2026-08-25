@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -124,12 +124,13 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
     private reportHeaderService: ReportHeaderService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generateTimeSlots();
 
-    this.syncService.startAutoRefresh(15000);
+    this.syncService.startAutoRefresh('report-faculty', 15000);
     this.syncService.refreshTrigger$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -155,7 +156,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   ngOnDestroy(): void {
-    this.syncService.stopAutoRefresh();
+    this.syncService.stopAutoRefresh('report-faculty');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -164,10 +165,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
    * Silently re-fetches faculty schedule report data.
    */
   public refreshFacultyDataSilently(): void {
-    this.isRefreshing = true;
     this.reportsService.clearAllCaches();
-    this.fetchFacultyData(this.selectedTermId);
-    this.isRefreshing = false;
+    this.fetchFacultyData(this.selectedTermId, true);
   }
 
   /**
@@ -247,8 +246,13 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   isMismatchedSemester = false;
 
-  fetchFacultyData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchFacultyData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
         this.isMismatchedSemester = response.faculty_schedule_reports.isMismatchedSemester ?? false;
@@ -270,8 +274,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           }),
         );
 
-
         this.isLoading = false;
+        this.isRefreshing = false;
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
@@ -287,12 +291,14 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         ) => (faculty.schedules && faculty.schedules.length > 0) ||
              (faculty.timePlots && faculty.timePlots.length > 0));
 
-
         this.isToggleAllChecked = this.dataSource.data.length > 0 && 
           this.dataSource.data.every((faculty) => faculty.isEnabled);
+
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.isLoading = false;
+        this.isRefreshing = false;
         console.error('Error fetching faculty data:', error);
       },
     });
