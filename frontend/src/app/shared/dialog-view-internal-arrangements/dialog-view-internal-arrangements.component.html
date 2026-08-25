@@ -1,0 +1,97 @@
+<div class="dialog-view-schedule-container">
+  <div class="entity-info" [@fadeAnimation]>
+    <div class="schedule-title-wrapper">
+      <div class="schedule-title">
+        <h2 class="dialog-title">{{ title }}</h2>
+        <span class="dialog-subtitle">{{ subtitle }}</span>
+      </div>
+    </div>
+
+    <div class="view-option">
+      <mat-button-toggle-group
+        name="viewOption"
+        [(ngModel)]="selectedView"
+        (ngModelChange)="onViewChange($event)">
+        <mat-button-toggle value="table-view">
+          <mat-icon class="icon-spacing">table_chart</mat-icon>
+          <span>Table view</span>
+        </mat-button-toggle>
+        <mat-button-toggle value="pdf-view">
+          <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
+          <span>PDF view</span>
+        </mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+  </div>
+
+  <div class="scrollable-modal-body">
+    @if (selectedView === 'table-view') {
+      <div class="single-schedule-container">
+        <div class="mobile-table-scroll schedule-scroll-wrapper">
+          <app-faculty-schedule-timetable
+            [facultySchedule]="formattedFacultySchedule"
+            [showPreview]="true"
+            [isReadOnly]="true"
+            [showAppealButtons]="true"
+            [showAppealHistory]="false"
+            (appealClicked)="onAppealClicked($event)"
+            [@fadeAnimation]>
+          </app-faculty-schedule-timetable>
+        </div>
+      </div>
+    }
+
+    @if (selectedView === 'pdf-view') {
+      <div class="dialog-pref-pdf-container">
+        @if (isLoadingPdf) {
+          <div class="loading-wrapper">
+            <app-loading></app-loading>
+          </div>
+        } @else if (pdfBlobUrl) {
+          <div class="pdf-container">
+            <iframe
+              [src]="pdfBlobUrl"
+              class="pdf-iframe"
+              style="background-color: #525659;">
+            </iframe>
+          </div>
+        } @else {
+          <div class="pdf-container">
+            <span>No PDF available.</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="dialog-actions" [@fadeAnimation]>
+    <div class="pdf-warning" style="display: flex; align-items: center; gap: 8px; flex-grow: 1;">
+      @if (selectedView === 'pdf-view') {
+        <span class="warning-text" style="color: #666; font-size: 0.9rem;">
+          PDF preview may not work on some devices.
+        </span>
+      }
+    </div>
+
+    <div class="action-buttons-wrapper" style="display: flex; gap: 8px; align-items: center;">
+      <button mat-button class="close-button" (click)="closeDialog()">
+        Close
+      </button>
+
+      @if (selectedView === 'pdf-view') {
+        @if (data.generateExcelFunction) {
+          <button
+            mat-flat-button
+            class="excel-button"
+            style="background-color: #1d6f42; color: white;"
+            (click)="downloadExcel()">
+            <mat-icon>table_chart</mat-icon> Download Excel
+          </button>
+        }
+        <button mat-flat-button color="primary" (click)="downloadPdf()">
+          <mat-icon>print</mat-icon> Download PDF
+        </button>
+      }
+    </div>
+  </div>
+</div>
