@@ -17,6 +17,7 @@ import { MatRippleModule } from '@angular/material/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { DialogFacultyLoginComponent } from
@@ -40,6 +41,7 @@ import { environmentOAuth } from '../../../environments/env.auth';
     MatSymbolDirective,
     MatIconModule,
     MatButtonModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     MatRippleModule,
     MatTooltipModule,
