@@ -26,6 +26,9 @@ import { DialogAdminLoginComponent } from
 import { SlideshowComponent } from '../../shared/slideshow/slideshow.component';
 
 import { ThemeService } from '../../core/services/theme/theme.service';
+import { AuthService } from '../../core/services/auth/auth.service';
+import { environment } from '../../../environments/environment.dev';
+import { environmentOAuth } from '../../../environments/env.auth';
 
 @Component({
   selector: 'app-login',
@@ -48,6 +51,9 @@ export class LoginComponent implements OnInit, OnDestroy {
   private isAdminDialogOpen = false;
   private isFacultyDialogOpen = false;
 
+  isFacultyLoading = false;
+  isAdminLoading = false;
+
   readonly slideshowImages = [
     'assets/images/pupt_img_1.webp',
     'assets/images/pupt_img_2.webp',
@@ -64,6 +70,7 @@ export class LoginComponent implements OnInit, OnDestroy {
    */
   constructor(
     private themeService: ThemeService,
+    private authService: AuthService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private route: ActivatedRoute,
@@ -93,6 +100,84 @@ export class LoginComponent implements OnInit, OnDestroy {
    */
   onSlideChange(index: number) {
     this.currentBackgroundImage = `url(${this.slideshowImages[index]})`;
+  }
+
+  /**
+   * Check if local login should be forced directly.
+   */
+  private isLocalLoginForced(): boolean {
+    const useLocal = (environment as any).useLocalLogin ||
+      (environmentOAuth as any).useLocalLogin;
+
+    return !!useLocal;
+  }
+
+  /**
+   * Handle faculty login attempt via IDP with fallback to local dialog.
+   */
+  onFacultyLogin(): void {
+    if (this.isLocalLoginForced()) {
+      this.openFacultyLoginDialog();
+      return;
+    }
+
+    if (this.isFacultyLoading || this.isFacultyDialogOpen) return;
+
+    this.isFacultyLoading = true;
+    this.authService.getIdpLoginUrl(['faculty']).subscribe({
+      next: (response) => {
+        this.isFacultyLoading = false;
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('IDP login error:', error);
+        this.isFacultyLoading = false;
+        this.snackBar.open(
+          'IDP login service unavailable. Opening local login.',
+          'Close',
+          {
+            duration: 5000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+          },
+        );
+        this.openFacultyLoginDialog();
+      },
+    });
+  }
+
+  /**
+   * Handle admin login attempt via IDP with fallback to local dialog.
+   */
+  onAdminLogin(): void {
+    if (this.isLocalLoginForced()) {
+      this.openAdminLoginDialog();
+      return;
+    }
+
+    if (this.isAdminLoading || this.isAdminDialogOpen) return;
+
+    this.isAdminLoading = true;
+    this.authService.getIdpLoginUrl(['admin', 'superadmin']).subscribe({
+      next: (response) => {
+        this.isAdminLoading = false;
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('IDP login error:', error);
+        this.isAdminLoading = false;
+        this.snackBar.open(
+          'IDP login service unavailable. Opening local login.',
+          'Close',
+          {
+            duration: 5000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+          },
+        );
+        this.openAdminLoginDialog();
+      },
+    });
   }
 
   /**

@@ -80,8 +80,8 @@ export class AuthService {
   // IDP auth methods 
   // ==============================
 
-  // Redirect to IDP login using URL retrieved from the backend.
-  initiateIdpLogin(intendedRole: string[]): void {
+  // Fetch IDP authorization URL for the specified intended roles.
+  getIdpLoginUrl(intendedRole: string[]): Observable<{ url: string }> {
     this.cookieService.set(
       'intended_role',
       JSON.stringify(intendedRole),
@@ -90,7 +90,12 @@ export class AuthService {
     );
 
     const url = `${this.baseUrl}/auth/idp-login`;
-    this.http.get<{ url: string }>(url).subscribe({
+    return this.http.get<{ url: string }>(url);
+  }
+
+  // Redirect to IDP login using URL retrieved from the backend.
+  initiateIdpLogin(intendedRole: string[]): void {
+    this.getIdpLoginUrl(intendedRole).subscribe({
       next: (response) => {
         window.location.href = response.url;
       },

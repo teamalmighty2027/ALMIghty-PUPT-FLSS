@@ -96,9 +96,15 @@
       <button
         mat-flat-button
         class="login-button faculty"
-        (click)="openFacultyLoginDialog()">
+        [disabled]="isFacultyLoading"
+        (click)="onFacultyLogin()">
         <span class="button-text">
-          <span mat-symbol="group"></span>
+          <mat-spinner
+            *ngIf="isFacultyLoading"
+            diameter="20"
+            color="primary">
+          </mat-spinner>
+          <span *ngIf="!isFacultyLoading" mat-symbol="group"></span>
           Faculty Login
         </span>
       </button>
@@ -107,9 +113,18 @@
       <button
         mat-flat-button
         class="login-button ter-ripple admin"
-        (click)="openAdminLoginDialog()">
+        [disabled]="isAdminLoading"
+        (click)="onAdminLogin()">
         <span class="button-text">
-          <span mat-symbol="admin_panel_settings"></span>
+          <mat-spinner
+            *ngIf="isAdminLoading"
+            diameter="20"
+            color="primary">
+          </mat-spinner>
+          <span
+            *ngIf="!isAdminLoading"
+            mat-symbol="admin_panel_settings">
+          </span>
           Admin Login
         </span>
       </button>
