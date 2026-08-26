@@ -199,6 +199,11 @@
       &.admin {
         @include mixins.gradient-secondary(315deg);
       }
+
+      &.local {
+        @include mixins.gradient-secondary(315deg);
+        color: var(--primary-text);
+      }
     }
 
     .button-text {

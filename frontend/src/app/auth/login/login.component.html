@@ -105,7 +105,7 @@
             color="primary">
           </mat-spinner>
           <span *ngIf="!isFacultyLoading" mat-symbol="group"></span>
-          Faculty Login
+          <span>Faculty Login</span>
         </span>
       </button>
 
@@ -125,9 +125,31 @@
             *ngIf="!isAdminLoading"
             mat-symbol="admin_panel_settings">
           </span>
-          Admin Login
+          <span>Admin Login</span>
         </span>
       </button>
+
+      <!--Local Login-->
+      <button
+        mat-flat-button
+        class="login-button local"
+        [matMenuTriggerFor]="localLoginMenu">
+        <span class="button-text">
+          <span mat-symbol="lock"></span>
+          <span>Local Login</span>
+        </span>
+      </button>
+
+      <mat-menu #localLoginMenu="matMenu">
+        <button mat-menu-item (click)="openFacultyLoginDialog()">
+          <span mat-symbol="group"></span>
+          <span>Faculty Local Login</span>
+        </button>
+        <button mat-menu-item (click)="openAdminLoginDialog()">
+          <span mat-symbol="admin_panel_settings"></span>
+          <span>Admin Local Login</span>
+        </button>
+      </mat-menu>
     </div>
 
     <div id="privacyNotice">

@@ -58,6 +58,11 @@
             color: #1a1a1a;
             font-weight: 500;
         }
+        
+        .button-container {
+            text-align: center;
+            margin: 35px 0;
+        }
 
         p {
             text-align: justify;
@@ -112,6 +117,12 @@
             <p><strong>{{ $firstName }} {{ $lastName }}</strong> has requested access to submit a schedule appeal for the upcoming academic semester.</p>
 
             <p>You can review this request and enable their submission access directly from <strong>Overview Dashboard</strong> or the <strong>Internal Arrangements</strong> tab in the <strong>Rescheduling</strong> module of the PUPT-FLSS Admin portal.</p>
+
+            <div class="button-container">
+                <a href="{{ url('/faculty/load-and-schedule') }}" class="button">
+                    View Official Load and Schedule
+                </a>
+            </div>
 
             <p class="important-note">Need help? Contact system support at <a
                     href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>

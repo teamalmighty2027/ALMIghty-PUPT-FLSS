@@ -213,7 +213,7 @@ export class AuthService {
   logout(): Observable<any> {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
       catchError(() => of(null)),
-      switchMap(() => this.logoutFromIdp()),
+      // switchMap(() => this.logoutFromIdp()),
       finalize(() => {
         this.clearCookies();
         this.router.navigate(['/login']);
