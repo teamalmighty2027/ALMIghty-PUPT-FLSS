@@ -20,6 +20,9 @@
   background-color: transparent;
   padding: var(--spacing-md);
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 
   // Mobile override — fixed width, full-height flex column
   &.sidenav-mobile {
@@ -62,9 +65,12 @@
 
   // ── Nav List ──────────────────────────────────────────
   .navbar-list {
-    display: grid;
-    grid-template-rows: 1fr auto;
-    min-height: calc(100vh - 18rem);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    overflow-y: auto;
+    @include mixins.hide-scrollbar;
 
     .navbar-group-one {
       @include mixins.flex-layout(

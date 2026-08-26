@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -24,6 +24,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 import { LoadingComponent } from '../../../../../shared/loading/loading.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -131,6 +132,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
   timeSlots: TimeSlot[] = [];
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
 
@@ -140,13 +142,22 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
 
   constructor(
     private reportsService: ReportsService,
+    private syncService: ScheduleSyncService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private reportHeaderService: ReportHeaderService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generateTimeSlots();
+
+    this.syncService.startAutoRefresh('report-programs', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshProgramsDataSilently();
+      });
 
     this.reportsService.selectedTerm$
       .pipe(
@@ -167,8 +178,24 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('report-programs');
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches program schedule report data.
+   */
+  public refreshProgramsDataSilently(): void {
+    this.reportsService.clearAllCaches();
+    this.fetchProgramsData(this.selectedTermId, true);
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   private generateTimeSlots() {
@@ -237,8 +264,13 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
     this.dataSource.paginator = this.paginator;
   }
 
-  fetchProgramsData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchProgramsData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getProgramSchedulesReport(termId).subscribe({
       next: (response) => {
         const programData: Program[] =
@@ -267,6 +299,7 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
         );
 
         this.isLoading = false;
+        this.isRefreshing = false;
         this.dataSource.data = programData;
         this.filteredData = [...programData];
         this.dataSource.paginator = this.paginator;
@@ -276,9 +309,12 @@ export class ReportProgramsComponent implements OnInit, OnDestroy {
             yearLevel.sections.some((section) => section.schedules.length > 0),
           ),
         );
+
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.isLoading = false;
+        this.isRefreshing = false;
         console.error('Error fetching programs data:', error);
         this.snackBar.open(
           'Failed to load programs data. Please try again later.',

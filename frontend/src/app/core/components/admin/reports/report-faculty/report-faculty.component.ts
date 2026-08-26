@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -26,6 +26,7 @@ import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-s
 import { DialogExportComponent } from '../../../../../shared/dialog-export/dialog-export.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { ReportHeaderService } from '../../../../services/report-header/report-header.service';
 
 import { fadeAnimation } from '../../../../animations/animations';
@@ -110,6 +111,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   availableTerms: any[] = [];
   selectedTermId: number | null = null;
   timeSlots: TimeSlot[] = [];
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
 
@@ -119,13 +121,22 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   constructor(
     private reportsService: ReportsService,
+    private syncService: ScheduleSyncService,
     public dialog: MatDialog,
     private snackBar: MatSnackBar,
     private reportHeaderService: ReportHeaderService,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
     this.generateTimeSlots();
+
+    this.syncService.startAutoRefresh('report-faculty', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshFacultyDataSilently();
+      });
 
     this.reportsService.selectedTerm$
       .pipe(
@@ -146,8 +157,24 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('report-faculty');
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches faculty schedule report data.
+   */
+  public refreshFacultyDataSilently(): void {
+    this.reportsService.clearAllCaches();
+    this.fetchFacultyData(this.selectedTermId, true);
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   private generateTimeSlots() {
@@ -220,8 +247,13 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   isMismatchedSemester = false;
 
-  fetchFacultyData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchFacultyData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
         this.isMismatchedSemester = response.faculty_schedule_reports.isMismatchedSemester ?? false;
@@ -243,8 +275,8 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
           }),
         );
 
-
         this.isLoading = false;
+        this.isRefreshing = false;
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
@@ -260,12 +292,14 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         ) => (faculty.schedules && faculty.schedules.length > 0) ||
              (faculty.timePlots && faculty.timePlots.length > 0));
 
-
         this.isToggleAllChecked = this.dataSource.data.length > 0 && 
           this.dataSource.data.every((faculty) => faculty.isEnabled);
+
+        this.cdr.detectChanges();
       },
       error: (error) => {
         this.isLoading = false;
+        this.isRefreshing = false;
         console.error('Error fetching faculty data:', error);
       },
     });

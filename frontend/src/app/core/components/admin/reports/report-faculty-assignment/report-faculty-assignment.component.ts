@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, OnInit, ViewChild, AfterViewInit, AfterViewChecked, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, takeUntil, filter } from 'rxjs/operators';
@@ -19,6 +19,7 @@ import { DialogExportComponent } from '../../../../../shared/dialog-export/dialo
 import { DialogViewScheduleComponent } from '../../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 
 import { ReportsService } from '../../../../services/admin/reports/reports.service';
+import { ScheduleSyncService } from '../../../../services/admin/sync/schedule-sync.service';
 import { fadeAnimation } from '../../../../animations/animations';
 import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
@@ -73,6 +74,7 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   semesterLabel = '';
   effectivityDate = ''; 
   activeTermStartDate = '';
+  isRefreshing = false;
 
   private searchInput$ = new Subject<string>();
   private destroy$ = new Subject<void>();
@@ -82,11 +84,20 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   constructor(
     private reportsService: ReportsService,
     private academicYearService: AcademicYearService,
+    private syncService: ScheduleSyncService,
     public dialog: MatDialog,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
+    this.syncService.startAutoRefresh('report-faculty-assignment', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshFacultyAssignmentDataSilently();
+      });
+
     this.academicYearService.getActiveYearAndSemester().subscribe({
       next: (res: any) => {
         this.activeTermStartDate = res.startDate;
@@ -110,8 +121,24 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
   }
 
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('report-faculty-assignment');
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Silently re-fetches faculty assignment report data.
+   */
+  public refreshFacultyAssignmentDataSilently(): void {
+    this.reportsService.clearAllCaches();
+    this.fetchFacultyData(this.selectedTermId, true);
+  }
+
+  /**
+   * Forces manual data refresh.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   ngAfterViewInit() { this.dataSource.paginator = this.paginator; }
@@ -162,8 +189,13 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
     }
   }
 
-  fetchFacultyData(termId: number | null = null): void {
-    this.isLoading = true;
+  fetchFacultyData(termId: number | null = null, isSilent = false): void {
+    if (!isSilent) {
+      this.isLoading = true;
+    } else {
+      this.isRefreshing = true;
+    }
+
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (res) => {
         const report = res.faculty_schedule_reports;
@@ -181,16 +213,18 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
           return f;
         });
 
-
         this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
         this.isLoading = false;
+        this.isRefreshing = false;
+        this.cdr.detectChanges();
       },
       error: (err) => {
         console.error('Error fetching faculty data:', err);
         this.isLoading = false;
+        this.isRefreshing = false;
       }
     });
   }

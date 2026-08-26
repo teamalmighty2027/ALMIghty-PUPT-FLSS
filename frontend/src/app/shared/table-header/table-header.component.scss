@@ -343,3 +343,22 @@
     }
   }
 }
+
+.refresh-icon-button {
+  color: var(--text-color, #333);
+  margin-right: 4px;
+
+  .spinning {
+    animation: spin-refresh 1s linear infinite;
+  }
+}
+
+@keyframes spin-refresh {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+

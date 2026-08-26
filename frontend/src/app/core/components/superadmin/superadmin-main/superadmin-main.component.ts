@@ -57,6 +57,10 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   public accountName!: string;
   public accountRole!: string;
   public unresolvedNoticesCount = 0;
+  public isSidebarPinned: boolean =
+    SafeStorage.getItem('superadmin_sidebar_pinned') !== 'false';
+  public isMaintenanceExpanded: boolean = false;
+  public isLogsExpanded: boolean = false;
 
   private noticeService = inject(SystemNoticeService);
 
@@ -113,10 +117,14 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
       .subscribe(() => {
         this.setPageTitle();
         this.fetchUnresolvedNoticesCount();
+        this.checkMaintenanceActive();
+        this.checkLogsActive();
       });
 
     this.fetchUnresolvedNoticesCount();
     this.setPageTitle();
+    this.checkMaintenanceActive();
+    this.checkLogsActive();
 
     // Close sidebar on mobile after navigation
     this.router.events
@@ -166,6 +174,60 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
 
   public toggleTheme() {
     this.themeService.toggleTheme();
+  }
+
+  // Toggles sidebar visibility and stores preference in local storage
+  public toggleSidebar(): void {
+    this.isSidebarPinned = !this.isSidebarPinned;
+    SafeStorage.setItem(
+      'superadmin_sidebar_pinned',
+      String(this.isSidebarPinned)
+    );
+
+    if (this.drawer) {
+      this.drawer.toggle();
+    }
+  }
+
+  // Toggles the expansion state of the maintenance navigation section
+  public toggleMaintenanceGroup(): void {
+    this.isMaintenanceExpanded = !this.isMaintenanceExpanded;
+  }
+
+  // Toggles the expansion state of the logs navigation section
+  public toggleLogsGroup(): void {
+    this.isLogsExpanded = !this.isLogsExpanded;
+  }
+
+  // Checks if current route is part of maintenance section and auto expands it
+  private checkMaintenanceActive(): void {
+    const currentUrl = this.router.url;
+    const maintenanceRoutes = [
+      '/superadmin/curriculum',
+      '/superadmin/programs',
+      '/superadmin/academic-ranks',
+      '/superadmin/buildings',
+      '/superadmin/rooms',
+      '/superadmin/logos',
+      '/superadmin/courses',
+    ];
+
+    if (maintenanceRoutes.some((path) => currentUrl.includes(path))) {
+      this.isMaintenanceExpanded = true;
+    }
+  }
+
+  // Checks if current route is part of logs section and auto expands it
+  private checkLogsActive(): void {
+    const currentUrl = this.router.url;
+    const logsRoutes = [
+      '/superadmin/audit-log',
+      '/superadmin/system-notices',
+    ];
+
+    if (logsRoutes.some((path) => currentUrl.includes(path))) {
+      this.isLogsExpanded = true;
+    }
   }
 
   public toggleDropdown(event: Event) {

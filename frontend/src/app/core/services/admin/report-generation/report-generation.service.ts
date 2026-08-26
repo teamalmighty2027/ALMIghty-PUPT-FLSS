@@ -303,6 +303,13 @@ export class ReportGenerationService {
           ),
         }));
 
+        const regularRooms = roomData.filter(
+          (r: Room) => r.roomCode !== 'TBA'
+        );
+        const sortedRooms = regularRooms.sort((a: Room, b: Room) =>
+          a.roomCode.localeCompare(b.roomCode)
+        );
+
         const doc = new jsPDF('landscape', 'mm', 'a4');
         const pageWidth = doc.internal.pageSize.width;
         const margin = 10;
@@ -310,7 +317,7 @@ export class ReportGenerationService {
         const logoSize = 22;
         let hasPages = false;
 
-        roomData.forEach((room) => {
+        sortedRooms.forEach((room) => {
           if (room.schedules && room.schedules.length > 0) {
             if (hasPages) {
               this.reportHeaderService.addStandardFooter(doc);
@@ -418,7 +425,7 @@ export class ReportGenerationService {
     const rowHeight = 8.5;
 
     const chunks = [
-      { name: 'Morning (7:30 AM - 2:00 PM)', start: 450, end: 840 },
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
       { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 },
     ];
 
@@ -556,49 +563,28 @@ export class ReportGenerationService {
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         const isTopRow = index === 0;
-        const isThreeHourGap =
-          slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(
-            slot.time,
-            margin + timeColWidth / 2,
-            yPos + 5,
-            { align: 'center' }
-          );
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
-      });
 
-      // Draw the last time label at finalY
-      const finalY = currentY + chunkSlots.length * rowHeight;
-      const lastSlot = chunkSlots[chunkSlots.length - 1];
-
-      if (lastSlot) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text(
-          lastSlot.time,
+          slot.time,
           margin + timeColWidth / 2,
-          finalY - rowHeight + 5,
+          yPos + 5,
           { align: 'center' }
         );
-      } else {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-      }
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
 
       // Vertical grid lines
       doc.line(margin, currentY, margin, finalY);
@@ -891,7 +877,7 @@ export class ReportGenerationService {
     const rowHeight = 8.5;
 
     const chunks = [
-      { name: 'Morning (7:30 AM - 2:00 PM)', start: 450, end: 840 },
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
       { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 },
     ];
 
@@ -1029,49 +1015,28 @@ export class ReportGenerationService {
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         const isTopRow = index === 0;
-        const isThreeHourGap =
-          slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(
-            slot.time,
-            margin + timeColWidth / 2,
-            yPos + 5,
-            { align: 'center' }
-          );
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
-      });
 
-      // Draw the last time label at finalY
-      const finalY = currentY + chunkSlots.length * rowHeight;
-      const lastSlot = chunkSlots[chunkSlots.length - 1];
-
-      if (lastSlot) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        doc.setFontSize(9);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text(
-          lastSlot.time,
+          slot.time,
           margin + timeColWidth / 2,
-          finalY - rowHeight + 5,
+          yPos + 5,
           { align: 'center' }
         );
-      } else {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-      }
+      });
+
+      const finalY = currentY + chunkSlots.length * rowHeight;
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
 
       // Vertical grid lines
       doc.line(margin, currentY, margin, finalY);
@@ -1450,29 +1415,22 @@ export class ReportGenerationService {
 
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
-
-        // Flag the top row, bottom row, and standard 3-hour gaps
         const isTopRow = index === 0;
-        const isBottomRow = index === chunkSlots.length - 1;
-        const isThreeHourGap =
-          slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isBottomRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(
-            slot.time,
-            margin + timeColWidth / 2,
-            yPos + 5,
-            { align: 'center' }
-          );
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text(
+          slot.time,
+          margin + timeColWidth / 2,
+          yPos + 5,
+          { align: 'center' }
+        );
       });
 
       const finalY = currentY + chunkSlots.length * rowHeight;
@@ -1500,6 +1458,14 @@ export class ReportGenerationService {
           }
           if (!existing._mergedFaculty.includes(item.faculty_name)) {
             existing._mergedFaculty.push(item.faculty_name);
+          }
+          if (!existing._mergedSections) {
+            const sec0 = `${existing.program_code || ''} ${existing.year_level || ''}-${existing.section_name || ''}`.trim();
+            existing._mergedSections = [sec0];
+          }
+          const secCurr = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          if (!existing._mergedSections.includes(secCurr)) {
+            existing._mergedSections.push(secCurr);
           }
         } else {
           mergedMap.set(key, { ...item });
@@ -1592,8 +1558,23 @@ export class ReportGenerationService {
         );
 
         let facultyName = item.faculty_name || '';
-        if (facultyName.trim().toUpperCase() === 'N/A') {
+        if (item._mergedFaculty && item._mergedFaculty.length > 1) {
+          facultyName = item._mergedFaculty
+            .map((f: string) => (!f || f.trim().toUpperCase() === 'N/A') ? 'Faculty TBA' : f)
+            .join(' / ');
+        } else if (facultyName.trim().toUpperCase() === 'N/A') {
           facultyName = 'Faculty TBA';
+        }
+
+        let sectionDisplay: string;
+        if (item._mergedSections && item._mergedSections.length > 0) {
+          sectionDisplay = item._mergedSections
+            .filter((s: string) => s !== '' && s !== '-')
+            .join(' / ');
+          if (!sectionDisplay) sectionDisplay = 'Section TBA';
+        } else {
+          const sec = `${item.program_code || ''} ${item.year_level || ''}-${item.section_name || ''}`.trim();
+          sectionDisplay = (sec === '-' || !sec) ? 'Section TBA' : sec;
         }
 
         const isBridging = item.course_details?.offering_type === 'bridging';
@@ -1602,9 +1583,7 @@ export class ReportGenerationService {
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
           facultyName,
-          item.room_code && item.room_code.trim() !== ''
-            ? item.room_code
-            : 'Room TBA',
+          sectionDisplay,
         ].filter((line) => line !== '');
 
         let textY = yPos + startPadding;

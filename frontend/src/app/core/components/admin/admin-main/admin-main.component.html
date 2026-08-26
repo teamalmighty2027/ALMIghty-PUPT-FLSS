@@ -7,7 +7,7 @@
     [@slideInAnimation]
     [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
     [mode]="(isHandset$ | async) ? 'push' : 'side'"
-    [opened]="(isHandset$ | async) === false">
+    [opened]="(isHandset$ | async) ? false : isSidebarPinned">
     <div class="side-toolbar">
       <img
         src="../../../../../assets/images/pup_taguig_logo.svg"
@@ -124,13 +124,16 @@
 
   <mat-sidenav-content class="sidenav-content">
     <mat-toolbar class="main-toolbar">
-      @if (isHandset$ | async) {
       <div class="toggle-button-container">
-        <button type="button" mat-icon-button (click)="drawer.toggle()" class="toggle-button">
+        <button
+          type="button"
+          mat-icon-button
+          (click)="toggleSidebar()"
+          class="toggle-button"
+          [matTooltip]="drawer.opened ? 'Collapse sidebar' : 'Expand sidebar'">
           <mat-icon>menu</mat-icon>
         </button>
       </div>
-      }
       <header class="sidenav-header">
         <div class="title-container">
           <h1 class="page-title">
