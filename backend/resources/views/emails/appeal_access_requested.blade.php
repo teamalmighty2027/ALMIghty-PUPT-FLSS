@@ -58,10 +58,31 @@
             color: #1a1a1a;
             font-weight: 500;
         }
-        
+
         .button-container {
             text-align: center;
             margin: 35px 0;
+        }
+
+        .button {
+            background-color: #800000;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 9999px;
+            font-size: 16px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(128, 0, 0, 0.1);
+        }
+
+        .button:hover {
+            background-color: #660000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(128, 0, 0, 0.2);
         }
 
         p {
@@ -106,7 +127,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://images.pupt-flss.com/pup_logo_white_bg.png" alt="PUP Logo" class="logo">
+            <img src="https://images.pupt-flss.com/pup_logo_white_bg.png"
+                alt="PUP Logo" class="logo">
             <h1>PUP Taguig</h1>
             <h1>Faculty Loading and Scheduling System</h1>
         </div>
@@ -114,23 +136,37 @@
         <div class="content">
             <p class="greeting"><b>Hello Admin,</b></p>
 
-            <p><strong>{{ $firstName }} {{ $lastName }}</strong> has requested access to submit a schedule appeal for the upcoming academic semester.</p>
+            <p>
+                <strong>{{ $firstName }} {{ $lastName }}</strong> has requested
+                access to submit a schedule appeal for the upcoming academic
+                semester.
+            </p>
 
-            <p>You can review this request and enable their submission access directly from <strong>Overview Dashboard</strong> or the <strong>Internal Arrangements</strong> tab in the <strong>Rescheduling</strong> module of the PUPT-FLSS Admin portal.</p>
+            <p>
+                You can review this request and enable their submission
+                access directly from <strong>Overview Dashboard</strong>
+                or the <strong>Internal Arrangements</strong> tab in the
+                <strong>Rescheduling</strong> module of the PUPT-FLSS
+                Admin portal.
+            </p>
 
             <div class="button-container">
-                <a href="{{ url('/faculty/load-and-schedule') }}" class="button">
-                    View Official Load and Schedule
+                <a href="{{ url('/admin/rescheduling') }}" class="button">
+                    View Rescheduling Requests
                 </a>
             </div>
 
-            <p class="important-note">Need help? Contact system support at <a
-                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
+            <p class="important-note">
+                Need help? Contact system support at
+                <a href="mailto:pupt.flss2027@gmail.com">
+                    pupt.flss2027@gmail.com
+                </a>
+            </p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>
