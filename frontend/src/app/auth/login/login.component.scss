@@ -199,15 +199,41 @@
       &.admin {
         @include mixins.gradient-secondary(315deg);
       }
-
-      &.local {
-        @include mixins.gradient-secondary(315deg);
-        color: var(--primary-text);
-      }
     }
 
     .button-text {
       @include mixins.flex-layout($gap: var(--spacing-xs));
+    }
+  }
+
+  /* Local Login Link Section */
+  .local-login-section {
+    width: 100%;
+    @include mixins.flex-layout($justify: center);
+
+    .local-login-link {
+      @include mixins.flex-layout(
+        $direction: row,
+        $align: center,
+        $gap: var(--spacing-xs)
+      );
+      color: var(--primary-one);
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      transition: color 0.3s ease, background-color 0.3s ease;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-mdx);
+      }
+
+      &:hover {
+        color: var(--primary-one-hover);
+        text-decoration: underline;
+      }
     }
   }
 

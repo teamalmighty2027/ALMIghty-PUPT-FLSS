@@ -55,6 +55,7 @@ export class LoginComponent implements OnInit, OnDestroy {
 
   isFacultyLoading = false;
   isAdminLoading = false;
+  isIdpAvailable = true;
 
   readonly slideshowImages = [
     'assets/images/pupt_img_1.webp',
@@ -82,11 +83,32 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Return true if the Local Login button should be displayed.
+   */
+  get showLocalLoginButton(): boolean {
+    return this.isLocalLoginForced() || !this.isIdpAvailable;
+  }
+
+  /**
    * Initialize the login view state.
    */
   ngOnInit() {
     this.currentBackgroundImage = `url(${this.slideshowImages[0]})`;
     this.showSessionExpiredNotice();
+    this.checkIdpAvailability();
+  }
+
+  /**
+   * Probe IDP service status on page load.
+   */
+  private checkIdpAvailability(): void {
+    if (this.isLocalLoginForced()) {
+      return;
+    }
+
+    this.authService.checkIdpReachable().subscribe((isReachable) => {
+      this.isIdpAvailable = isReachable;
+    });
   }
 
   /**
@@ -134,8 +156,11 @@ export class LoginComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('IDP login error:', error);
         this.isFacultyLoading = false;
+        this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
         this.snackBar.open(
-          'IDP login service unavailable. Opening local login.',
+          msg,
           'Close',
           {
             duration: 5000,
@@ -168,8 +193,11 @@ export class LoginComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('IDP login error:', error);
         this.isAdminLoading = false;
+        this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
         this.snackBar.open(
-          'IDP login service unavailable. Opening local login.',
+          msg,
           'Close',
           {
             duration: 5000,

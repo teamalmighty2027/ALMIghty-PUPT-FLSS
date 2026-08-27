@@ -80,6 +80,15 @@ export class AuthService {
   // IDP auth methods 
   // ==============================
 
+  // Check whether the IDP backend service is reachable.
+  checkIdpReachable(): Observable<boolean> {
+    const url = `${this.baseUrl}/auth/idp-login`;
+    return this.http.get<{ url: string }>(url).pipe(
+      map(() => true),
+      catchError(() => of(false)),
+    );
+  }
+
   // Fetch IDP authorization URL for the specified intended roles.
   getIdpLoginUrl(intendedRole: string[]): Observable<{ url: string }> {
     this.cookieService.set(

@@ -717,7 +717,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Generates and returns the IDP authorization redirect URL.
+     * Generates and returns the IDP authorization redirect URL after health verification.
      */
     public function getIdpLoginUrl()
     {
@@ -732,6 +732,32 @@ class AuthController extends Controller
         }
 
         $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id=' . $clientId;
+
+        try {
+            $probeResponse = Http::timeout(2)->withoutVerifying()->get($url);
+
+            if ($probeResponse->status() === 429) {
+                Log::warning("IDP rate limit exceeded for client {$clientId}");
+                return response()->json([
+                    'message' => 'Identity Provider rate limit exceeded. Please try local login.',
+                    'error'   => 'rate_limit_exceeded',
+                ], 429);
+            }
+
+            if ($probeResponse->serverError()) {
+                Log::warning("IDP server error ({$probeResponse->status()}) for client {$clientId}");
+                return response()->json([
+                    'message' => 'Identity Provider service unavailable.',
+                    'error'   => 'idp_server_error',
+                ], 503);
+            }
+        } catch (Exception $e) {
+            Log::warning("IDP health check failed for client {$clientId}: " . $e->getMessage());
+            return response()->json([
+                'message' => 'Identity Provider is currently unreachable.',
+                'error'   => 'idp_unreachable',
+            ], 503);
+        }
 
         return response()->json([
             'url' => $url,
