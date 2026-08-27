@@ -131,6 +131,7 @@
 
       <!--Local Login-->
       <button
+        *ngIf="showLocalLoginButton"
         mat-flat-button
         class="login-button local"
         [matMenuTriggerFor]="localLoginMenu">
