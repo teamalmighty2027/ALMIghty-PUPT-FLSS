@@ -128,18 +128,18 @@
           <span>Admin Login</span>
         </span>
       </button>
+    </div>
 
-      <!--Local Login-->
-      <button
-        *ngIf="showLocalLoginButton"
-        mat-flat-button
-        class="login-button local"
-        [matMenuTriggerFor]="localLoginMenu">
-        <span class="button-text">
-          <span mat-symbol="lock"></span>
-          <span>Local Login</span>
-        </span>
-      </button>
+    <!-- Local Login Link Section -->
+    <div class="local-login-section">
+      <a
+        class="local-login-link"
+        [matMenuTriggerFor]="localLoginMenu"
+        role="button"
+        tabindex="0">
+        <span mat-symbol="lock"></span>
+        <span>Can't access your account?</span>
+      </a>
 
       <mat-menu #localLoginMenu="matMenu">
         <button mat-menu-item (click)="openFacultyLoginDialog()">
