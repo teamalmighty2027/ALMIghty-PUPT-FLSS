@@ -157,8 +157,10 @@ export class LoginComponent implements OnInit, OnDestroy {
         console.error('IDP login error:', error);
         this.isFacultyLoading = false;
         this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
         this.snackBar.open(
-          'IDP login service unavailable. Opening local login.',
+          msg,
           'Close',
           {
             duration: 5000,
@@ -192,8 +194,10 @@ export class LoginComponent implements OnInit, OnDestroy {
         console.error('IDP login error:', error);
         this.isAdminLoading = false;
         this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
         this.snackBar.open(
-          'IDP login service unavailable. Opening local login.',
+          msg,
           'Close',
           {
             duration: 5000,
