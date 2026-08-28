@@ -59,9 +59,7 @@
                   <div class="detail-text">
                     {{ getBlockProperty(day, i, 'roomCode') || 'TBA' }}
                   </div>
-                </div>
 
-                <div class="time-actions">
                   <div class="block-actions" *ngIf="showAppealButtons">
                     <button
                       mat-icon-button
@@ -81,7 +79,9 @@
                       <mat-icon class="block-icon">history</mat-icon>
                     </button>
                   </div>
+                </div>
 
+                <div class="time-actions">
                   <div class="time">{{ getFormattedTime(day, i) }}</div>
                 </div>
 

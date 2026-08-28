@@ -194,6 +194,38 @@ $day-colors: (
                   text-overflow: ellipsis;
                   margin-top: 2px;
                 }
+
+                .block-actions {
+                  margin-top: 4px;
+                  gap: 6px;
+                  flex-shrink: 0;
+
+                  ::ng-deep .edit-button,
+                  ::ng-deep .appeals-status-button {
+                    width: 32px !important;
+                    height: 32px !important;
+                    padding: 0 !important;
+                    flex-shrink: 0;
+                    --mdc-icon-button-state-layer-size: 32px;
+
+                    .mat-mdc-button-touch-target {
+                      width: 32px !important;
+                      height: 32px !important;
+                    }
+
+                    .block-icon {
+                      font-size: 20px !important;
+                      width: 20px !important;
+                      height: 20px !important;
+                      line-height: 20px !important;
+                    }
+
+                    svg {
+                      width: 20px !important;
+                      height: 20px !important;
+                    }
+                  }
+                }
               }
 
               .time-actions {
@@ -201,49 +233,12 @@ $day-colors: (
                 flex-direction: column;
                 align-items: center;
                 gap: 4px;
-                flex: 0 0 auto; // Time and Buttons will not shrink
+                flex: 0 0 auto; // Time will not shrink
                 margin-top: auto; // Drops container to bottom naturally
-
-                // Buttons at a comfortable, tappable size for non-compact
-                // (1.5hr+) blocks — .compact below overrides this with
-                // its own smaller sizing for short slots.
-                .block-actions {
-                  gap: 8px;
-
-                  ::ng-deep .edit-button,
-                  ::ng-deep .appeals-status-button {
-                    width: 40px !important;
-                    height: 40px !important;
-                    padding: 0 !important;
-                    flex-shrink: 0;
-                    --mdc-icon-button-state-layer-size: 40px;
-
-                    .mat-mdc-button-touch-target {
-                      width: 40px !important;
-                      height: 40px !important;
-                    }
-
-                    .block-icon {
-                      font-size: 24px !important;
-                      width: 24px !important;
-                      height: 24px !important;
-                      line-height: 24px !important;
-                    }
-
-                    svg {
-                      width: 24px !important;
-                      height: 24px !important;
-                    }
-                  }
-                }
               }
 
-              // Compact mode: short blocks (or any block with appeal
-              // buttons attached) show ONLY course code/title, the
-              // action buttons, and the time — program/room lines are
-              // dropped, and buttons+time sit in a single horizontal
-              // row instead of stacking, freeing vertical space so
-              // the buttons can render at a real, tappable size.
+              // Compact mode: short blocks show course code/title,
+              // action buttons directly below, and time at bottom
               &.compact {
                 padding: 4px;
                 gap: 3px;
@@ -254,7 +249,7 @@ $day-colors: (
                 }
 
                 .schedule-details {
-                  flex: 0 1 auto; // No longer needs to stretch/scroll for extra lines
+                  flex: 0 1 auto;
 
                   .course-text {
                     -webkit-line-clamp: 2;
@@ -263,15 +258,42 @@ $day-colors: (
                     line-height: 1.15;
                   }
 
-                  // Program/room lines are hidden in compact mode —
-                  // only course code + title remain visible
+                  // Program/room lines are hidden in compact mode
                   .detail-text {
                     display: none;
+                  }
+
+                  .block-actions {
+                    margin-top: 2px;
+
+                    ::ng-deep .edit-button,
+                    ::ng-deep .appeals-status-button {
+                      width: 28px !important;
+                      height: 28px !important;
+                      --mdc-icon-button-state-layer-size: 28px;
+
+                      .mat-mdc-button-touch-target {
+                        width: 28px !important;
+                        height: 28px !important;
+                      }
+
+                      .block-icon {
+                        font-size: 18px !important;
+                        width: 18px !important;
+                        height: 18px !important;
+                        line-height: 18px !important;
+                      }
+
+                      svg {
+                        width: 18px !important;
+                        height: 18px !important;
+                      }
+                    }
                   }
                 }
 
                 .time-actions {
-                  flex-direction: row; // Buttons + time share one row instead of stacking
+                  flex-direction: row;
                   justify-content: center;
                   align-items: center;
                   gap: 6px;
@@ -279,42 +301,6 @@ $day-colors: (
                   .time {
                     font-size: 0.72rem;
                     padding: 3px 9px;
-                  }
-
-                  // Buttons default to a comfortable, tappable size — this
-                  // rule only affects non-compact (1.5hr+) blocks, since
-                  // .compact below overrides it with its own smaller sizing
-                  // for short slots. Targets Material's internal touch-target
-                  // and icon elements directly, since overriding the button's
-                  // own width/height alone doesn't resize the rendered icon.
-                  .block-actions {
-                    gap: 8px;
-
-                    ::ng-deep .edit-button,
-                    ::ng-deep .appeals-status-button {
-                      width: 40px !important;
-                      height: 40px !important;
-                      padding: 0 !important;
-                      flex-shrink: 0;
-                      --mdc-icon-button-state-layer-size: 40px;
-
-                      .mat-mdc-button-touch-target {
-                        width: 40px !important;
-                        height: 40px !important;
-                      }
-
-                      .block-icon {
-                        font-size: 24px !important;
-                        width: 24px !important;
-                        height: 24px !important;
-                        line-height: 24px !important;
-                      }
-
-                      svg {
-                        width: 24px !important;
-                        height: 24px !important;
-                      }
-                    }
                   }
                 }
               }
