@@ -69,7 +69,6 @@ class AppealConflictService
         $facultyConflicts = $this->checkFacultyAvailability(
             $effectiveSchedules,
             $context,
-            $activeSemester->active_semester_id,
             $day,
             $startTime,
             $endTime
@@ -299,11 +298,10 @@ class AppealConflictService
     }
 
     /**
-     * Validates faculty availability against schedule & plots.
+     * Validates faculty availability against schedule.
      *
      * @param \Illuminate\Support\Collection $effective
      * @param object $context
-     * @param int $activeSemesterId
      * @param string $day
      * @param string $start
      * @param string $end
@@ -312,7 +310,6 @@ class AppealConflictService
     private function checkFacultyAvailability(
         \Illuminate\Support\Collection $effective,
         object $context,
-        int $activeSemesterId,
         string $day,
         string $start,
         string $end
@@ -341,23 +338,6 @@ class AppealConflictService
                 $messages[] = "You are already assigned to another class " .
                     "({$s->course_code} - {$s->course_title}) on {$day} " .
                     "from {$startDisp} to {$endDisp}.";
-            }
-        }
-
-        $plots = DB::table('faculty_time_plots')
-            ->where('faculty_id', $context->faculty_id)
-            ->where('active_semester_id', $activeSemesterId)
-            ->where('day', $day)
-            ->get();
-
-        foreach ($plots as $plot) {
-            $plotStart = substr($plot->start_time, 0, 5);
-            $plotEnd = substr($plot->end_time, 0, 5);
-
-            if ($this->doTimesOverlap($start, $end, $plotStart, $plotEnd)) {
-                $displayType = ucwords(str_replace('_', ' ', $plot->time_type));
-                $messages[] = "This slot conflicts with your plotted " .
-                    "{$displayType}.";
             }
         }
 
