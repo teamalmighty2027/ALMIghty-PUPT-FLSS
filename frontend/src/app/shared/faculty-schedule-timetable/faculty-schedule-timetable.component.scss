@@ -317,16 +317,49 @@ $day-colors: (
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
 
-  .edit-button, .appeals-status-button {
-    color: var(--secondary-text);
-    width: 36px;
-    height: 36px;
+  .edit-button,
+  .appeals-status-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
 
-    mat-icon.block-icon { font-size: 24px; width: 24px; height: 24px; }
+    mat-icon.block-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
 
-    &:hover { background-color: var(--neutral-hover); }
+    &:hover {
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transform: scale(1.08);
+    }
+  }
+
+  .appeal-pending,
+  .appeal-pending mat-icon {
+    color: #d97706 !important;
+    border-color: rgba(217, 119, 6, 0.4) !important;
+  }
+
+  .appeal-approved,
+  .appeal-approved mat-icon {
+    color: #15803d !important;
+    border-color: rgba(21, 128, 61, 0.4) !important;
+  }
+
+  .appeal-denied,
+  .appeal-denied mat-icon {
+    color: #dc2626 !important;
+    border-color: rgba(220, 38, 38, 0.4) !important;
+  }
+
+  .no-appeal,
+  .no-appeal mat-icon {
+    color: #4b5563 !important;
+    opacity: 0.85;
   }
 }
 
@@ -336,8 +369,7 @@ $day-colors: (
   }
 
   .table-wrapper {
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow: auto;
     border-radius: var(--border-radius-md);
     border: 1px solid var(--neutral-fade);
     background-color: var(--main-bg);
