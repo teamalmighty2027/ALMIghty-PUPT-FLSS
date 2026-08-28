@@ -67,9 +67,22 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
 
   private _data: T[] = [];
   public dataSource = new MatTableDataSource<T>([]);
-  public showFirstLastButtons = true;
+  public showFirstLastButtons: boolean = true;
 
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+  @ViewChild(MatPaginator) set paginator(
+    paginator: MatPaginator | undefined
+  ) {
+    if (paginator) {
+      this._paginator = paginator;
+      if (!this.isServerSidePagination) {
+        this.dataSource.paginator = this._paginator;
+      }
+    }
+  }
+  get paginator(): MatPaginator | undefined {
+    return this._paginator;
+  }
+  private _paginator?: MatPaginator;
 
   constructor(private dialog: MatDialog) {}
 
@@ -81,18 +94,12 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-  setTimeout(() => {
-    if (this.paginator) {
-      // ONLY attach the paginator to the data source if we are doing client-side pagination.
-      // If it's server-side, we leave them detached so our custom [length] binding isn't overwritten.
-      if (!this.isServerSidePagination) {
+    setTimeout(() => {
+      if (this.paginator && !this.isServerSidePagination) {
         this.dataSource.paginator = this.paginator;
       }
-    } else {
-      console.error('Paginator is not defined');
-    }
-  });
-}
+    });
+  }
 
   getIndex(index: number): number {
     if (this.paginator) {

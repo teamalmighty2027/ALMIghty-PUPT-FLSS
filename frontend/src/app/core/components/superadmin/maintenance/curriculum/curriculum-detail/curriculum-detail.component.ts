@@ -1967,7 +1967,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   // --- PDF LOGIC ---
   async generatePDF(
     showPreview: boolean = false, exportAll: boolean = false
-  ): Promise<void | Blob> {
+  ): Promise<Blob> {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
@@ -1978,16 +1978,28 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         ? this.curriculum.programs 
         : (this.selectedProgram === 'All'
             ? this.curriculum.programs
-            : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram)));
+            : this.curriculum.programs.filter(
+                p => p.curricula_program_id === Number(this.selectedProgram)
+              ));
 
       // Fetch bridging data if needed
       let bridgingData: Map<number, BridgingCourse[]> = new Map();
       if (this.selectedCategory === 'Bridging') {
         const observables = programsToExport.map(p => 
-          this.curriculumService.getBridgingCourses(this.curriculum!.curriculum_id, p.program_id, 
-            yearFilter !== 'All' ? p.year_levels.find(yl => yl.year === Number(yearFilter))?.year_level_id : undefined,
+          this.curriculumService.getBridgingCourses(
+            this.curriculum!.curriculum_id,
+            p.program_id, 
+            yearFilter !== 'All'
+              ? p.year_levels.find(
+                  yl => yl.year === Number(yearFilter)
+                )?.year_level_id
+              : undefined,
             undefined
-          ).pipe(switchMap(courses => of({ programId: p.program_id, courses })))
+          ).pipe(
+            switchMap(
+              courses => of({ programId: p.program_id, courses })
+            )
+          )
         );
         const results = await firstValueFrom(forkJoin(observables));
         results.forEach(r => bridgingData.set(r.programId, r.courses));
@@ -2018,17 +2030,22 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       }
 
       this.reportHeaderService.addStandardFooter(doc); 
-
-      const pdfBlob = doc.output('blob');
-      
-      if (showPreview) {
-        return pdfBlob;
-      } else {
-        doc.save('curriculum_report.pdf');
-      }
+      return doc.output('blob');
     }
+
+    return new Blob();
   }
 
+  /**
+   * Adds a program's curriculum courses and headers to the PDF document.
+   * @param doc - jsPDF instance.
+   * @param program - Program object.
+   * @param isFirstProgram - True if first program on document.
+   * @param filterYear - Filter year string/number.
+   * @param filterSemester - Filter semester string/number.
+   * @param exportAll - True if exporting all programs.
+   * @param bridgingCourses - Optional bridging courses.
+   */
   private async addProgramToPDF(
     doc: any,
     program: Program,
@@ -2050,137 +2067,177 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     let currentY = topMargin;
 
-    return new Promise((resolve) => {
+    currentY = await firstValueFrom(
       this.reportHeaderService.addHeader(
         doc, 
-        `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY
+        `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+        currentY
       )
-        .subscribe((newY) => {
-          currentY = newY;
+    );
 
-          let sortedYearLevels = program.year_levels.sort((a, b) => a.year - b.year);
-          
-          if (filterYear !== 'All') {
-            sortedYearLevels = sortedYearLevels.filter(yl => yl.year === Number(filterYear));
-          }
+    let sortedYearLevels = program.year_levels.sort(
+      (a, b) => a.year - b.year
+    );
+    
+    if (filterYear !== 'All') {
+      sortedYearLevels = sortedYearLevels.filter(
+        yl => yl.year === Number(filterYear)
+      );
+    }
 
-          for (const yearLevel of sortedYearLevels) {
-            
-            let sortedSemesters = yearLevel.semesters.sort((a, b) => a.semester - b.semester);
-            
-            if (filterSemester !== 'All') {
-              sortedSemesters = sortedSemesters.filter(sem => sem.semester === Number(filterSemester));
-            }
+    for (const yearLevel of sortedYearLevels) {
+      let sortedSemesters = yearLevel.semesters.sort(
+        (a, b) => a.semester - b.semester
+      );
+      
+      if (filterSemester !== 'All') {
+        sortedSemesters = sortedSemesters.filter(
+          sem => sem.semester === Number(filterSemester)
+        );
+      }
 
-              for (const semester of sortedSemesters) {
-                let coursesToExport: any[] = [];
-                if (this.selectedCategory === 'Bridging' && bridgingCourses) {
-                  coursesToExport = bridgingCourses.filter(bc => bc.year_level_id === yearLevel.year_level_id && bc.semester_id === semester.semester_id);
-                } else {
-                  coursesToExport = semester.courses || [];
-                }
+      for (const semester of sortedSemesters) {
+        let coursesToExport: any[] = [];
+        if (this.selectedCategory === 'Bridging' && bridgingCourses) {
+          coursesToExport = bridgingCourses.filter(
+            bc => bc.year_level_id === yearLevel.year_level_id &&
+                  bc.semester_id === semester.semester_id
+          );
+        } else {
+          coursesToExport = semester.courses || [];
+        }
 
-                // Apply Search Filter for "Current View" export
-                if (!exportAll && this.searchQuery) {
-                  const searchLower = this.searchQuery.toLowerCase().trim();
-                  coursesToExport = coursesToExport.filter(c => 
-                    c.course_code.toLowerCase().includes(searchLower) || 
-                    c.course_title.toLowerCase().includes(searchLower)
-                  );
-                }
+        // Apply Search Filter for "Current View" export
+        if (!exportAll && this.searchQuery) {
+          const searchLower = this.searchQuery.toLowerCase().trim();
+          coursesToExport = coursesToExport.filter(
+            c => c.course_code.toLowerCase().includes(searchLower) || 
+                 c.course_title.toLowerCase().includes(searchLower)
+          );
+        }
 
-                if (coursesToExport.length === 0) continue;
+        if (coursesToExport.length === 0) continue;
 
-              if (currentY + 20 > pageHeight - bottomMargin) {
-                this.reportHeaderService.addStandardFooter(doc); 
-                doc.addPage();
-                this.reportHeaderService.addHeader(
-                  doc, 
-                  `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
-                )
-                  .subscribe((newPageY) => currentY = newPageY);
+        if (currentY + 20 > pageHeight - bottomMargin) {
+          this.reportHeaderService.addStandardFooter(doc); 
+          doc.addPage();
+          currentY = await firstValueFrom(
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+              topMargin
+            )
+          );
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        const mainTitle = this.selectedCategory === 'Bridging'
+          ? `${program.name} - Bridging Courses`
+          : `${program.name} - Year ${yearLevel.year}`;
+        doc.text(mainTitle, margin, currentY);
+        currentY += 10;
+
+        if (currentY + 40 > pageHeight - bottomMargin) {
+          this.reportHeaderService.addStandardFooter(doc); 
+          doc.addPage();
+          currentY = await firstValueFrom(
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+              topMargin
+            )
+          );
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(15);
+          doc.text(`${mainTitle} (continued)`, margin, currentY);
+          currentY += 10;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        const semDisp = this.getSemesterDisplay(semester.semester);
+        doc.text(
+          `Year ${yearLevel.year} - ${semDisp}`,
+          margin,
+          currentY
+        );
+        currentY += 6;
+
+        const tableData: (string | TableCell)[][] = coursesToExport.map((course) => {
+          const processedCourse = this.selectedCategory === 'Bridging'
+            ? {
+                ...course,
+                pre_req: course.prerequisites?.map((p: any) => p.course_code) || [],
+                co_req: course.corequisites?.map((c: any) => c.course_code) || [],
               }
+            : this.populateCourseRequisites(course);
 
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(15);
-              const mainTitle = this.selectedCategory === 'Bridging' ? `${program.name} - Bridging Courses` : `${program.name} - Year ${yearLevel.year}`;
-              doc.text(mainTitle, margin, currentY);
-              currentY += 10;
-
-              if (currentY + 40 > pageHeight - bottomMargin) {
-                this.reportHeaderService.addStandardFooter(doc); 
-                doc.addPage();
-                this.reportHeaderService.addHeader(
-                  doc, 
-                  `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
-                )
-                  .subscribe((newPageY) => currentY = newPageY);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(15);
-                doc.text(`${mainTitle} (continued)`, margin, currentY);
-                currentY += 10;
-              }
-
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(13);
-              doc.text(`Year ${yearLevel.year} - ${this.getSemesterDisplay(semester.semester)}`, margin, currentY);
-              currentY += 6;
-
-              const tableData: (string | TableCell)[][] = coursesToExport.map((course) => {
-                const processedCourse = this.selectedCategory === 'Bridging'
-                  ? {
-                      ...course,
-                      pre_req: course.prerequisites?.map((p: any) => p.course_code) || [],
-                      co_req: course.corequisites?.map((c: any) => c.course_code) || [],
-                    }
-                  : this.populateCourseRequisites(course);
-
-                return [
-                  processedCourse.course_code || 'N/A',
-                  Array.isArray(processedCourse.pre_req) ? processedCourse.pre_req.join(', ') : 'None',
-                  Array.isArray(processedCourse.co_req) ? processedCourse.co_req.join(', ') : 'None',
-                  processedCourse.course_title || 'N/A',
-                  processedCourse.lec_hours?.toString() || '0',
-                  processedCourse.lab_hours?.toString() || '0',
-                  processedCourse.units?.toString() || '0',
-                  processedCourse.tuition_hours?.toString() || '0',
-                ];
-              });
-
-              const totalUnits = coursesToExport.reduce((sum, course) => sum + (course.units || 0), 0);
-              const totalTuition = coursesToExport.reduce((sum, course) => sum + (course.tuition_hours || 0), 0);
-
-              tableData.push([
-                { content: 'TOTAL: ', colSpan: 6, styles: { halign: 'left' } } as TableCell,
-                { content: totalUnits.toString(), styles: { halign: 'center' } } as TableCell,
-                { content: totalTuition.toString(), styles: { halign: 'center' } } as TableCell,
-              ]);
-
-              doc.autoTable({
-                startY: currentY,
-                head: [['Code', 'Pre-req', 'Co-req', 'Title', 'Lec', 'Lab', 'Units', 'Tuition']],
-                body: tableData as Array<(string | TableCell)[]>,
-                theme: 'grid',
-                headStyles: { fillColor: [128, 0, 0], textColor: [255, 255, 255], fontSize: 10, halign: 'center', cellPadding: 1 },
-                bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
-                styles: { lineWidth: 0.1, overflow: 'linebreak', cellPadding: 0.5 },
-                columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } },
-                
-                didParseCell: function (data: any) {
-                  if (data.row.index === tableData.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.lineWidth = 0.5;
-                  }
-                },
-                margin: { left: 10, right: 10 },
-              });
-              currentY = (doc as any).lastAutoTable.finalY + 8;
-            }
-            currentY += 5;
-          }
-          resolve();
+          return [
+            processedCourse.course_code || 'N/A',
+            Array.isArray(processedCourse.pre_req)
+              ? processedCourse.pre_req.join(', ')
+              : 'None',
+            Array.isArray(processedCourse.co_req)
+              ? processedCourse.co_req.join(', ')
+              : 'None',
+            processedCourse.course_title || 'N/A',
+            processedCourse.lec_hours?.toString() || '0',
+            processedCourse.lab_hours?.toString() || '0',
+            processedCourse.units?.toString() || '0',
+            processedCourse.tuition_hours?.toString() || '0',
+          ];
         });
-    });
+
+        const totalUnits = coursesToExport.reduce(
+          (sum, course) => sum + (course.units || 0), 0
+        );
+        const totalTuition = coursesToExport.reduce(
+          (sum, course) => sum + (course.tuition_hours || 0), 0
+        );
+
+        tableData.push([
+          { content: 'TOTAL: ', colSpan: 6, styles: { halign: 'left' } } as TableCell,
+          { content: totalUnits.toString(), styles: { halign: 'center' } } as TableCell,
+          { content: totalTuition.toString(), styles: { halign: 'center' } } as TableCell,
+        ]);
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['Code', 'Pre-req', 'Co-req', 'Title', 'Lec', 'Lab', 'Units', 'Tuition']],
+          body: tableData as Array<(string | TableCell)[]>,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [128, 0, 0],
+            textColor: [255, 255, 255],
+            fontSize: 10,
+            halign: 'center',
+            cellPadding: 1
+          },
+          bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
+          styles: {
+            lineWidth: 0.1,
+            overflow: 'linebreak',
+            cellPadding: 0.5
+          },
+          columnStyles: {
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+            6: { halign: 'center' },
+            7: { halign: 'center' }
+          },
+          didParseCell: function (data: any) {
+            if (data.row.index === tableData.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.lineWidth = 0.5;
+            }
+          },
+          margin: { left: 10, right: 10 },
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 8;
+      }
+      currentY += 5;
+    }
   }
 
   cancelPreview(): void {
