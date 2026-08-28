@@ -121,12 +121,15 @@ export class DialogAppealScheduleComponent implements OnDestroy {
           const availableRooms = response.rooms.filter(
             (room: any) => room.status === 'Available'
           );
-          this.roomOptions = availableRooms.map((room: any) => room.room_code);
+          this.roomOptions = [
+            'None / Any',
+            ...availableRooms.map((room: any) => room.room_code)
+          ];
         }
       },
       error: (error: any) => {
         console.error('Failed to load rooms:', error);
-        this.roomOptions = ['A401', 'A402']; 
+        this.roomOptions = ['None / Any', 'A401', 'A402']; 
       }
     });
   }
@@ -228,7 +231,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealDay: [this.data.appealDay || '', Validators.required],
         appealStartTime: ['', Validators.required],
         appealEndTime: ['', Validators.required],
-        appealRoom: [''],
+        appealRoom: [this.data.appealRoom || 'None / Any'],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
       this.setupFormValueChanges();
@@ -336,7 +339,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealDay: '',
         appealStartTime: '',
         appealEndTime: '',
-        appealRoom: '',
+        appealRoom: 'None / Any',
         reason: ''
       });
       this.removeFile();
@@ -377,6 +380,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     this.isSubmitting = true;
     this.appealForm.disable();
 
+    const selectedRoom = formValues.appealRoom;
+    const roomCode = (selectedRoom === 'None / Any') ? '' : (selectedRoom || '');
+
     // Submit in background
     this.reschedulingService.submitReschedulingAppeal(
       this.data.original.scheduleId,
@@ -386,7 +392,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         day: formValues.appealDay,
         startTime: formValues.appealStartTime,
         endTime: formValues.appealEndTime,
-        roomCode: formValues.appealRoom
+        roomCode: roomCode
       }
     )
     .pipe(takeUntil(this.destroy$))
