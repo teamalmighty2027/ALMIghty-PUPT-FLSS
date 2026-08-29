@@ -349,7 +349,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   }
 
   // Submit the appeal form button handler
-  onSubmit(): void {
+  onSubmit(force: boolean = false): void {
     if (!this.appealForm.valid || this.isSubmitting) {
       this.appealForm.markAllAsTouched();
       return;
@@ -371,7 +371,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
     // Show submitting message
     this.snackBar.open(
-      'Submitting appeal...', 
+      force ? 'Confirming submission...' : 'Submitting appeal...', 
       'Close', 
       { duration: 5000 }
     );
@@ -392,8 +392,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         day: formValues.appealDay,
         startTime: formValues.appealStartTime,
         endTime: formValues.appealEndTime,
-        roomCode: roomCode
-      }
+        roomCode: formValues.appealRoom
+      },
+      force
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
@@ -436,11 +437,20 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         if (error.status === 409 && errorBody?.conflicts) {
           this.conflictMessages = errorBody.conflicts;
           this.hasConflicts = true;
-          this.snackBar.open(
-            'Your proposed schedule has conflicts. Please choose a different time or room.',
-            'Close',
-            { duration: 6000 }
-          );
+          
+          if (this.conflictMessages.length >= 3) {
+            this.snackBar.open(
+              'Proposed schedule has 3 or more conflicts and cannot be submitted.',
+              'Close',
+              { duration: 6000 }
+            );
+          } else {
+            this.snackBar.open(
+              'Conflicts detected. Please review or click "Submit Anyway" to proceed.',
+              'Close',
+              { duration: 5000 }
+            );
+          }
         } else {
           this.snackBar.open(
             errorBody?.message || 'Failed to submit appeal. Please try again.', 

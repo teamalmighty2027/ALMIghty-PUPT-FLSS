@@ -36,14 +36,15 @@ class RescheduleController extends Controller
     {
 
         $validated = $request->validate([
-            'scheduleId' => 'required|integer|exists:schedules,schedule_id',
-            'reason'     => 'required|string',
-            'day'        => 'required|in:Monday,Tuesday,Wednesday,'
+            'scheduleId'  => 'required|integer|exists:schedules,schedule_id',
+            'reason'      => 'required|string',
+            'day'         => 'required|in:Monday,Tuesday,Wednesday,'
                             . 'Thursday,Friday,Saturday,Sunday',
-            'startTime'  => ['required', 'date_format:H:i'],
-            'endTime'    => ['required', 'date_format:H:i'],
-            'roomCode'   => 'nullable|string',
-            'appealFile' => 'nullable|file|mimes:pdf|max:5120',
+            'startTime'   => ['required', 'date_format:H:i'],
+            'endTime'     => ['required', 'date_format:H:i'],
+            'roomCode'    => 'nullable|string',
+            'appealFile'  => 'nullable|file|mimes:pdf|max:5120',
+            'forceSubmit' => 'nullable|string',
         ]);
 
         if (strtotime($validated['endTime']) <= strtotime($validated['startTime'])) {
@@ -102,10 +103,19 @@ class RescheduleController extends Controller
         );
 
         if ($conflictResult['hasConflicts']) {
-            return response()->json([
-                'message' => 'Proposed schedule has conflicts.',
-                'conflicts' => $conflictResult['messages'],
-            ], 409);
+            $conflictCount = count($conflictResult['messages']);
+            $forceSubmit = filter_var($request->input('forceSubmit'), FILTER_VALIDATE_BOOLEAN);
+
+            // Hard block if 3 or more conflicts exist, or if forceSubmit is not true
+            if ($conflictCount >= 3 || !$forceSubmit) {
+                return response()->json([
+                    'message' => $conflictCount >= 3 
+                        ? 'Proposed schedule has 3 or more conflicts and cannot be submitted.' 
+                        : 'Proposed schedule has conflicts.',
+                    'conflicts' => $conflictResult['messages'],
+                    'can_force' => $conflictCount < 3,
+                ], 409);
+            }
         }
 
         $filePath = null;
