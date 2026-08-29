@@ -74,7 +74,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public selectedProgram: string | number = 'All';
   public selectedYear: string | number = 'All';
   public selectedSemester: string | number = 'All';
-  public selectedCategory: 'Regular' | 'Bridging' = 'Regular';
+  public selectedCategory: 'Regular' | 'Bridging' | 'Electives' = 'Regular';
   public searchQuery: string = '';
   
   public renderGroups: any[] = []; 
@@ -233,7 +233,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   private loadSelectionCaches(): void {
     const cachedCategory =
       localStorage.getItem('curriculum_selected_category');
-    if (cachedCategory === 'Regular' || cachedCategory === 'Bridging') {
+    if (
+      cachedCategory === 'Regular' ||
+      cachedCategory === 'Bridging' ||
+      cachedCategory === 'Electives'
+    ) {
       this.selectedCategory = cachedCategory;
     }
 
@@ -336,7 +340,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       { type: 'text', label: 'Search Course', key: 'courseSearch', placeholder: 'Search by code or title' },
       { type: 'select', label: 'Category', key: 'category', options: [
         { key: 'Regular', label: 'Regular Courses' },
-        { key: 'Bridging', label: 'Bridging Courses' }
+        { key: 'Bridging', label: 'Bridging Courses' },
+        { key: 'Electives', label: 'Elective Courses' },
       ]},
       { type: 'select', label: 'Program', key: 'program', options: programOptions },
       { type: 'select', label: 'Year Level', key: 'yearLevel', options: yearLevelOptions },
@@ -351,10 +356,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       const selectedProg = this.curriculum?.programs.find(
         (p) => p.curricula_program_id === Number(this.selectedProgram)
       );
-      const catLabel = this.selectedCategory === 'Bridging' ? ' bridging' : '';
+      const catLabel =
+        this.selectedCategory === 'Bridging' ? ' bridging'
+        : this.selectedCategory === 'Electives' ? ' electives'
+        : '';
       currentLabel = `Export ${selectedProg?.name || 'Program'}${catLabel} curriculum`;
     } else if (this.selectedCategory === 'Bridging') {
       currentLabel = 'Export bridging courses (All Programs)';
+    } else if (this.selectedCategory === 'Electives') {
+      currentLabel = 'Export elective courses (All Programs)';
     }
 
     this.customExportOptions = {
@@ -369,6 +379,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     if (this.selectedCategory === 'Bridging') {
       this.updateBridgingRenderGroups();
+      return;
+    }
+
+    if (this.selectedCategory === 'Electives') {
+      this.updateElectivesRenderGroups();
       return;
     }
 
@@ -554,6 +569,87 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       
       this.cdr.detectChanges();
     });
+  }
+
+  /**
+   * Updates the render groups for elective courses (ELEC codes).
+   */
+  updateElectivesRenderGroups() {
+    if (!this.curriculum) return;
+
+    const searchLower = this.searchQuery.toLowerCase().trim();
+    const programsToProcess = this.selectedProgram === 'All'
+      ? this.curriculum.programs
+      : this.curriculum.programs.filter(
+          (p) => p.curricula_program_id === Number(this.selectedProgram)
+        );
+
+    const groups: any[] = [];
+
+    for (const prog of programsToProcess) {
+      const yearsToProcess = this.selectedYear === 'All'
+        ? prog.year_levels
+        : prog.year_levels.filter(
+            (y) => y.year === Number(this.selectedYear)
+          );
+
+      for (const yl of yearsToProcess) {
+        const semsToProcess = this.selectedSemester === 'All'
+          ? yl.semesters
+          : yl.semesters.filter(
+              (s) => s.semester === Number(this.selectedSemester)
+            );
+
+        for (const sem of semsToProcess) {
+          const electiveCourses = sem.courses
+            .filter((c) => {
+              const isCodeElec = c.course_code.toUpperCase().includes('ELEC');
+              const isTitleElec =
+                c.course_title.toLowerCase().includes('elective');
+              return isCodeElec || isTitleElec;
+            })
+            .filter((c) => {
+              if (!searchLower) return true;
+              return (
+                c.course_code.toLowerCase().includes(searchLower) ||
+                c.course_title.toLowerCase().includes(searchLower)
+              );
+            })
+            .map((c) => ({
+              ...c,
+              pre_req:
+                c.prerequisites?.map((p) => p.course_code).join(', ') ||
+                'None',
+              co_req:
+                c.corequisites?.map((r) => r.course_code).join(', ') ||
+                'None',
+            }));
+
+          if (electiveCourses.length === 0) continue;
+
+          let heading = this.getSemesterDisplay(sem.semester);
+          if (
+            this.selectedProgram === 'All' ||
+            this.selectedYear === 'All'
+          ) {
+            heading = `${prog.name} - Year ${yl.year} - ${heading}`;
+          }
+
+          groups.push({
+            id: `elec-${prog.curricula_program_id}-${yl.year}-${sem.semester}`,
+            heading,
+            courses: electiveCourses,
+            originalSemester: sem,
+            program: prog,
+            yearLevel: yl,
+          });
+        }
+      }
+    }
+
+    this.renderGroups = groups;
+    this.updateElectiveSlots();
+    this.cdr.detectChanges();
   }
 
   // ===========================
@@ -810,34 +906,66 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Update the elective slots based on the current filters.
+   * Update the elective slots based on current filters and category.
    */
   private updateElectiveSlots(): void {
-    if (!this.curriculum || !this.canManageElectives) {
+    if (!this.curriculum) {
       this.electiveSlots = [];
       return;
     }
 
-    const program = this.getSelectedProgramData();
-    const yearLevel = Number(this.selectedYear);
-    const semesterValue = Number(this.selectedSemester);
-
-    if (!program) {
+    if (this.selectedCategory === 'Regular' && !this.canManageElectives) {
       this.electiveSlots = [];
       return;
     }
 
-    const yearLevelData = this.getSelectedYearLevelData(program, yearLevel);
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
-      : undefined;
+    let coursesToScan: Course[] = [];
 
-    if (!yearLevelData || !semesterData) {
+    if (this.canManageElectives) {
+      const program = this.getSelectedProgramData();
+      const yearLevelData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : undefined;
+      const semesterData = yearLevelData
+        ? this.getSelectedSemesterData(
+            yearLevelData,
+            Number(this.selectedSemester)
+          )
+        : undefined;
+
+      coursesToScan = semesterData ? semesterData.courses : [];
+    } else if (this.selectedCategory === 'Electives') {
+      const programsToProcess = this.selectedProgram === 'All'
+        ? this.curriculum.programs
+        : this.curriculum.programs.filter(
+            (p) => p.curricula_program_id === Number(this.selectedProgram)
+          );
+
+      for (const prog of programsToProcess) {
+        const yearsToProcess = this.selectedYear === 'All'
+          ? prog.year_levels
+          : prog.year_levels.filter(
+              (y) => y.year === Number(this.selectedYear)
+            );
+
+        for (const yl of yearsToProcess) {
+          const semsToProcess = this.selectedSemester === 'All'
+            ? yl.semesters
+            : yl.semesters.filter(
+                (s) => s.semester === Number(this.selectedSemester)
+              );
+
+          for (const sem of semsToProcess) {
+            coursesToScan.push(...(sem.courses || []));
+          }
+        }
+      }
+    } else {
       this.electiveSlots = [];
       return;
     }
 
-    const slotNames = this.getElectiveSlotsFromCourses(semesterData.courses);
+    const slotNames = this.getElectiveSlotsFromCourses(coursesToScan);
     const activeAY = this.academicYearsForCurriculum.find(
       (ay) => ay.is_active
     );
@@ -863,8 +991,12 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const slotNames = new Set<string>();
 
     courses.forEach((course) => {
-      if (course.course_title.toLowerCase().includes('elective') || course.course_code.toLowerCase().includes('elective')) {
-        slotNames.add(course.course_title.trim()); 
+      const isCodeElec = course.course_code.toUpperCase().includes('ELEC');
+      const isTitleElec =
+        course.course_title.toLowerCase().includes('elective');
+
+      if (isCodeElec || isTitleElec) {
+        slotNames.add(course.course_title.trim());
       }
     });
 
@@ -1034,6 +1166,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       if (this.selectedCategory === 'Bridging') {
         refreshBridging = true;
         this.electiveSlots = [];
+      } else if (this.selectedCategory === 'Electives') {
+        this.updateElectiveSlots();
       }
     }
 

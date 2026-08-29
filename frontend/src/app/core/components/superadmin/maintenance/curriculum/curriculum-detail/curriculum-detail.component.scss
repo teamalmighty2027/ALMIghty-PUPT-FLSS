@@ -67,6 +67,7 @@
     border-radius: var(--border-radius-md);
     padding: var(--spacing-md);
     background-color: var(--neutral-space);
+    color: var(--neutral-base);
     @include mixins.flex-layout(
       $direction: column,
       $align: stretch,
@@ -75,9 +76,133 @@
     );
   }
 
+  .elective-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
   .elective-title {
     font-weight: 600;
     color: var(--primary-text);
+  }
+
+  .add-elective-btn {
+    background: transparent;
+    border: 1px solid var(--primary-one);
+    color: var(--primary-text);
+    border-radius: var(--border-radius-sm);
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--primary-fade);
+    }
+  }
+
+  .active-elective-row {
+    margin-bottom: 12px;
+    padding: 10px;
+    background-color: var(--primary-fade);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--neutral-fade);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .select-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--neutral-base);
+    opacity: 0.8;
+
+    &.active-label {
+      color: var(--primary-text);
+      opacity: 1;
+    }
+  }
+
+  .active-elective-row mat-select {
+    font-size: 13px;
+    width: 100%;
+    color: var(--neutral-base);
+  }
+
+  .elective-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .no-options-note {
+    font-size: 12px;
+    color: var(--neutral-base);
+    opacity: 0.6;
+    font-style: italic;
+  }
+
+  .elective-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--main-bg);
+    padding: 8px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--neutral-fade);
+    font-size: 13px;
+    color: var(--neutral-base);
+  }
+
+  .elective-item-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .edit-elective-btn {
+    background: none;
+    border: none;
+    color: #1976d2;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    padding: 0;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  :host-context(.dark-theme) .edit-elective-btn {
+    color: #64b5f6;
+  }
+
+  .delete-elective-btn {
+    background: none;
+    border: none;
+    color: var(--primary-warning, #d32f2f);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+
+    &:hover {
+      opacity: 0.8;
+    }
   }
 
   .elective-select select {
@@ -91,7 +216,11 @@
   }
 
   .bridging-section {
-    @include mixins.flex-layout($direction: column, $align: stretch, $justify: none);
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: stretch,
+      $justify: none
+    );
     border-radius: var(--border-radius-md);
   }
 
@@ -105,7 +234,11 @@
   }
 
   .semester-container {
-    @include mixins.flex-layout($direction: column, $align: none, $justify: none);
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: none,
+      $justify: none
+    );
     @include mixins.hide-scrollbar;
     flex: 1;
     position: relative;
