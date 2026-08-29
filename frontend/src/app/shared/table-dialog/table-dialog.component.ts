@@ -179,6 +179,12 @@ export class TableDialogComponent {
     this.initializeComponent();
   }
 
+  // Returns the lowercase title string safely for icon matching
+
+  get dialogTitleLower(): string {
+    return this.data?.title?.toLowerCase() || '';
+  }
+
   private initializeComponent(): void {
     this.form = this.fb.group({});
     this.isExportDialog = this.data.isExportDialog || false;

@@ -121,12 +121,15 @@ export class DialogAppealScheduleComponent implements OnDestroy {
           const availableRooms = response.rooms.filter(
             (room: any) => room.status === 'Available'
           );
-          this.roomOptions = availableRooms.map((room: any) => room.room_code);
+          this.roomOptions = [
+            'None / Any',
+            ...availableRooms.map((room: any) => room.room_code)
+          ];
         }
       },
       error: (error: any) => {
         console.error('Failed to load rooms:', error);
-        this.roomOptions = ['A401', 'A402']; 
+        this.roomOptions = ['None / Any', 'A401', 'A402']; 
       }
     });
   }
@@ -228,7 +231,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealDay: [this.data.appealDay || '', Validators.required],
         appealStartTime: ['', Validators.required],
         appealEndTime: ['', Validators.required],
-        appealRoom: [''],
+        appealRoom: [this.data.appealRoom || 'None / Any'],
         reason: ['', [Validators.required, Validators.minLength(10)]]
       });
       this.setupFormValueChanges();
@@ -336,7 +339,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         appealDay: '',
         appealStartTime: '',
         appealEndTime: '',
-        appealRoom: '',
+        appealRoom: 'None / Any',
         reason: ''
       });
       this.removeFile();
@@ -346,7 +349,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   }
 
   // Submit the appeal form button handler
-  onSubmit(): void {
+  onSubmit(force: boolean = false): void {
     if (!this.appealForm.valid || this.isSubmitting) {
       this.appealForm.markAllAsTouched();
       return;
@@ -368,7 +371,7 @@ export class DialogAppealScheduleComponent implements OnDestroy {
 
     // Show submitting message
     this.snackBar.open(
-      'Submitting appeal...', 
+      force ? 'Confirming submission...' : 'Submitting appeal...', 
       'Close', 
       { duration: 5000 }
     );
@@ -376,6 +379,9 @@ export class DialogAppealScheduleComponent implements OnDestroy {
     // Disable submit button and actions
     this.isSubmitting = true;
     this.appealForm.disable();
+
+    const selectedRoom = formValues.appealRoom;
+    const roomCode = (selectedRoom === 'None / Any') ? '' : (selectedRoom || '');
 
     // Submit in background
     this.reschedulingService.submitReschedulingAppeal(
@@ -387,7 +393,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         startTime: formValues.appealStartTime,
         endTime: formValues.appealEndTime,
         roomCode: formValues.appealRoom
-      }
+      },
+      force
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
@@ -430,11 +437,20 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         if (error.status === 409 && errorBody?.conflicts) {
           this.conflictMessages = errorBody.conflicts;
           this.hasConflicts = true;
-          this.snackBar.open(
-            'Your proposed schedule has conflicts. Please choose a different time or room.',
-            'Close',
-            { duration: 6000 }
-          );
+          
+          if (this.conflictMessages.length >= 3) {
+            this.snackBar.open(
+              'Proposed schedule has 3 or more conflicts and cannot be submitted.',
+              'Close',
+              { duration: 6000 }
+            );
+          } else {
+            this.snackBar.open(
+              'Conflicts detected. Please review or click "Submit Anyway" to proceed.',
+              'Close',
+              { duration: 5000 }
+            );
+          }
         } else {
           this.snackBar.open(
             errorBody?.message || 'Failed to submit appeal. Please try again.', 

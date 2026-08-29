@@ -63,7 +63,8 @@ export class ReschedulingService {
     scheduleId: number,
     appealFile: File | null,
     reason: string,
-    appealDetails: { day: string; startTime: string; endTime: string; roomCode: string; }
+    appealDetails: { day: string; startTime: string; endTime: string; roomCode: string; },
+    forceSubmit: boolean = false
   ): Observable<any> {
     const url = `${this.baseUrl}/rescheduling-appeals`;
 
@@ -81,6 +82,7 @@ export class ReschedulingService {
     form.append('startTime', this.to24Hour(appealDetails.startTime));
     form.append('endTime',   this.to24Hour(appealDetails.endTime));
     form.append('roomCode',  String(appealDetails.roomCode ?? ''));
+    form.append('forceSubmit', forceSubmit ? 'true' : 'false');
 
     return this.http.post(url, form).pipe(
       catchError((error: any) => throwError(() => error))

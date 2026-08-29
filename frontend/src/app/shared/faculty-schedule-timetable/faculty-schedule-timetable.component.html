@@ -59,9 +59,7 @@
                   <div class="detail-text">
                     {{ getBlockProperty(day, i, 'roomCode') || 'TBA' }}
                   </div>
-                </div>
 
-                <div class="time-actions">
                   <div class="block-actions" *ngIf="showAppealButtons">
                     <button
                       mat-icon-button
@@ -74,14 +72,16 @@
 
                     <button
                       mat-icon-button
-                      class="appeals-status-button"
+                      [class]="'appeals-status-button ' + getAppealStatusClass(day, i)"
                       (click)="onViewMyAppeals(day, i, $event)"
                       [matTooltip]="getAppealStatusTooltip(day, i)"
                       aria-label="View My Appeals">
                       <mat-icon class="block-icon">history</mat-icon>
                     </button>
                   </div>
+                </div>
 
+                <div class="time-actions">
                   <div class="time">{{ getFormattedTime(day, i) }}</div>
                 </div>
 

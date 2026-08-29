@@ -236,6 +236,11 @@ mat-dialog-content {
 
   mat-form-field {
     margin-bottom: 0;
+
+    textarea::placeholder {
+      color: var(--secondary-text, #757575) !important;
+      opacity: 0.55 !important;
+    }
   }
 }
 
