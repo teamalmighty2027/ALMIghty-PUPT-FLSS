@@ -41,13 +41,13 @@
             </mat-select>
           </mat-form-field>
           <div class="time-row">
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" class="full-width">
               <mat-label>Start</mat-label>
               <mat-select [(ngModel)]="data.appeal.preferredStartTime">
                 <mat-option *ngFor="let t of data.timeOptions" [value]="t">{{t}}</mat-option>
               </mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline">
+            <mat-form-field appearance="outline" class="full-width">
               <mat-label>End</mat-label>
               <mat-select [(ngModel)]="data.appeal.preferredEndTime">
                 <mat-option *ngFor="let t of data.timeOptions" [value]="t">{{t}}</mat-option>

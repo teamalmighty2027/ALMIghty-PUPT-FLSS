@@ -129,14 +129,24 @@
       <div class="validation-message conflict" *ngIf="conflictMessages.length > 0">
         <div class="validation-message-header">
           <mat-icon>report_problem</mat-icon>
-          <span>This schedule slot has conflicts and cannot be submitted.</span>
+          <span *ngIf="conflictMessages.length >= 3; else warningTitle">
+            This schedule slot has 3 or more conflicts and cannot be submitted.
+          </span>
+          <ng-template #warningTitle>
+            <span>This schedule slot has conflicts. Review them below before submitting anyway.</span>
+          </ng-template>
         </div>
         <ul class="validation-message-list">
           <li *ngFor="let message of conflictMessages">{{ message }}</li>
         </ul>
-        <p class="conflict-retry-note">
+        <p class="conflict-retry-note" *ngIf="conflictMessages.length >= 3; else warningNote">
           Please select a different day, time, or room. You may retry your appeal once a valid slot is available.
         </p>
+        <ng-template #warningNote>
+          <p class="conflict-retry-note warning-note">
+            You can still submit this appeal by clicking "Submit Anyway" below, but it will require manual admin resolution.
+          </p>
+        </ng-template>
       </div>
 
       <!-- Reason Section with Title -->
@@ -191,8 +201,8 @@
     <button 
       mat-flat-button 
       color="primary" 
-      (click)="onSubmit()" 
-      [disabled]="appealForm.invalid || isSubmitting || hasConflicts">
+      (click)="hasConflicts && conflictMessages.length < 3 ? onSubmit(true) : onSubmit(false)" 
+      [disabled]="appealForm.invalid || isSubmitting || (hasConflicts && conflictMessages.length >= 3)">
       <ng-container *ngIf="isSubmitting; else submitText">
         <span class="submitting-spinner-wrapper">
           <mat-spinner diameter="18" strokeWidth="2.5"></mat-spinner>
@@ -200,7 +210,7 @@
         </span>
       </ng-container>
       <ng-template #submitText>
-        <span>Submit Appeal</span>
+        <span>{{ hasConflicts && conflictMessages.length < 3 ? 'Submit Anyway' : 'Submit Appeal' }}</span>
       </ng-template>
     </button>
   </mat-dialog-actions>

@@ -38,10 +38,10 @@ export class AcademicRanksComponent implements OnInit, OnDestroy {
   columns = [
     { key: 'index', label: '#' },
     { key: 'name', label: 'Rank Name' },
-    { key: 'statusDisplay', label: 'Status' },
+    { key: 'status', label: 'Status' },
   ];
 
-  displayedColumns: string[] = ['index', 'name', 'statusDisplay', 'action'];
+  displayedColumns: string[] = ['index', 'name', 'status', 'action'];
 
   headerInputFields: InputField[] = [
     { type: 'text', label: 'Search Ranks', key: 'search' },
@@ -85,7 +85,7 @@ export class AcademicRanksComponent implements OnInit, OnDestroy {
   mapForTable() {
     this.filteredRanks = this.ranks.map(r => ({
       ...r,
-      statusDisplay: r.is_active ? 'Active' : 'Inactive'
+      status: r.is_active ? 'Active' : 'Inactive'
     }));
   }
 

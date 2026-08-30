@@ -490,10 +490,11 @@
   }
 }
 
-@media screen and (max-width: bp.$breakpoint-sm) {
+@media screen and (max-width: 1024px) {
   .faculty-load-schedule-container {
     overflow-x: hidden;
-    overflow-y: visible;
+    overflow-y: auto;
+    padding-bottom: var(--spacing-4xl);
   }
 
   .row-two {

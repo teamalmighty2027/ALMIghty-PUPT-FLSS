@@ -19,6 +19,7 @@
     <!-- Data Table -->
     <div class="table-container" [@fadeAnimation]>
       <app-table-generic
+        [tableName]="'academic rank/s'"
         [columns]="columns"
         [data]="filteredRanks"
         [displayedColumns]="displayedColumns"

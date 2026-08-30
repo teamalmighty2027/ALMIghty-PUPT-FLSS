@@ -209,7 +209,7 @@ $day-colors: (
         font-size: 16px;
         width: 16px;
         height: 16px;
-        color: var(--neutral-button-lighter);
+        color: var(--primary-one);
       }
 
       .detail-text {
@@ -345,8 +345,9 @@ $day-colors: (
       height: 36px;
     }
 
-    .table-appeal-btn {
-      color: var(--primary-one);
+    .table-appeal-btn,
+    .table-appeal-btn mat-icon {
+      color: var(--primary-one) !important;
     }
   }
 }
@@ -356,7 +357,9 @@ $day-colors: (
   color: var(--secondary-text) !important;
 }
 
-.appeal-approved {
+.appeal-approved,
+.appeal-approved mat-icon,
+.appeal-approved .mat-icon {
   color: #2e7d32 !important;
 }
 
@@ -364,9 +367,11 @@ $day-colors: (
   color: #c62828 !important;
 }
 
-.no-appeal {
-  color: var(--neutral-button-lighter) !important;
-  opacity: 0.4;
+.no-appeal,
+.no-appeal mat-icon,
+.no-appeal .mat-icon {
+  color: var(--neutral-button-lighter, #9e9e9e) !important;
+  opacity: 0.6;
 }
 
 // ─── Empty Schedule State ───
