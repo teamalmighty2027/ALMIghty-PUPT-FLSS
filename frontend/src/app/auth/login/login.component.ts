@@ -57,6 +57,9 @@ export class LoginComponent implements OnInit, OnDestroy {
   isAdminLoading = false;
   isIdpAvailable = true;
 
+  readonly onePortalUrl = environmentOAuth.onePortalUrl || 
+    "https://one-portal.isaxbsit2027.com/portal";
+
   readonly slideshowImages = [
     'assets/images/pupt_img_1.webp',
     'assets/images/pupt_img_2.webp',

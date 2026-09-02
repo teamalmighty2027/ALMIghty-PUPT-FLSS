@@ -206,11 +206,18 @@
     }
   }
 
-  /* Local Login Link Section */
-  .local-login-section {
+  /* Portal & Local Links Section */
+  .portal-links-section {
     width: 100%;
-    @include mixins.flex-layout($justify: center);
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
+    flex-wrap: wrap;
 
+    .portal-link,
     .local-login-link {
       @include mixins.flex-layout(
         $direction: row,
@@ -230,10 +237,20 @@
         font-size: var(--font-size-mdx);
       }
 
+      .external-icon {
+        font-size: var(--font-size-sm);
+      }
+
       &:hover {
         color: var(--primary-one-hover);
         text-decoration: underline;
       }
+    }
+
+    .link-divider {
+      color: var(--neutral-button);
+      font-size: var(--font-size-md);
+      user-select: none;
     }
   }
 

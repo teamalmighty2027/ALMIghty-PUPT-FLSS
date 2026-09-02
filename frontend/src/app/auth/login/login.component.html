@@ -130,8 +130,20 @@
       </button>
     </div>
 
-    <!-- Local Login Link Section -->
-    <div class="local-login-section">
+    <!-- Portal & Local Links Section -->
+    <div class="portal-links-section">
+      <a
+        [href]="onePortalUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="portal-link">
+        <span mat-symbol="apps"></span>
+        <span>PUP OnePortal</span>
+        <span mat-symbol="open_in_new" class="external-icon"></span>
+      </a>
+
+      <span class="link-divider">•</span>
+
       <a
         class="local-login-link"
         [matMenuTriggerFor]="localLoginMenu"
