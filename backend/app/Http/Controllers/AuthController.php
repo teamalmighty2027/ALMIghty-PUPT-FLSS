@@ -335,10 +335,22 @@ class AuthController extends Controller
             $middleName = $userData['middle_name'] ?? '';
             $lastName = $userData['last_name'] ?? '';
 
-            // Query user by email
-            $user = User::where('email', $email)
-              ->whereIn('role', $requestedRole)
-              ->first();
+            // Query user by IDP UUID first, then fall back to email
+            $user = null;
+
+            if ($id) {
+                $user = User::whereHas('faculty', function ($query) use ($id) {
+                    $query->where('idp_user_id', $id);
+                })
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
+
+            if (! $user) {
+                $user = User::where('email', $email)
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
 
             if (!$user) {
                 return response()->json([
@@ -569,15 +581,32 @@ class AuthController extends Controller
             $email     = $idpData['email'];
             $idpUserId = $idpData['id'] ?? null;
 
-            // --- Find all FLSS users matching this email across roles ---
-            $users = User::with([
-                'faculty.facultyType',
-                'permissions',
-                'allowedPrograms',
-            ])
-                ->where('email', $email)
-                ->whereIn('role', ['faculty', 'admin', 'superadmin'])
-                ->get();
+            // --- Find all FLSS users matching by IDP UUID first, then email ---
+            $users = collect();
+
+            if ($idpUserId) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->whereHas('faculty', function ($query) use ($idpUserId) {
+                        $query->where('idp_user_id', $idpUserId);
+                    })
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
+
+            if ($users->isEmpty()) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->where('email', $email)
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
 
             if ($users->isEmpty()) {
                 return response()->json([
