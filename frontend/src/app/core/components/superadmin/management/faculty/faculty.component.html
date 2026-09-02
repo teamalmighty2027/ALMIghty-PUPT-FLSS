@@ -93,6 +93,20 @@
       </div>
 
       <div class="filter-toolbar__actions">
+        @if (isSuperAdmin) {
+          <button
+            class="sync-btn"
+            type="button"
+            [disabled]="isSyncing"
+            (click)="syncIdpUuids()"
+            matRipple
+            matTooltip="Sync faculty UUIDs with IDP">
+            <span
+              class="material-symbols-rounded"
+              [class.spin]="isSyncing">sync</span>
+            <span>{{ isSyncing ? 'Syncing...' : 'Sync UUIDs' }}</span>
+          </button>
+        }
         <button
           class="clear-btn"
           type="button"

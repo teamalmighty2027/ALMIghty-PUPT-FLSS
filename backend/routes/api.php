@@ -346,6 +346,7 @@ Route::middleware([
     Route::get('/faculty', [FacultyController::class, 'index']);
     Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
+    Route::post('/faculty/sync-idp-uuids', [FacultyController::class, 'syncIdpUuids']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
