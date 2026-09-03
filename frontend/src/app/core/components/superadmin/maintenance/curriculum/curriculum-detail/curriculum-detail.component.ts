@@ -850,6 +850,38 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Helper to locate the program, year level, and semester IDs for a slot.
+   */
+  private findContextForSlot(slotName: string): {
+    programId: number;
+    yearLevel: number;
+    semesterId: number;
+  } | null {
+    if (!this.curriculum) return null;
+
+    const trimmedSlot = slotName.trim().toLowerCase();
+
+    for (const prog of this.curriculum.programs) {
+      for (const yl of prog.year_levels) {
+        for (const sem of yl.semesters) {
+          const hasCourse = sem.courses.some(
+            c => c.course_title.trim().toLowerCase() === trimmedSlot ||
+                 c.course_code.toUpperCase().includes('ELEC')
+          );
+          if (hasCourse) {
+            return {
+              programId: prog.program_id,
+              yearLevel: yl.year,
+              semesterId: sem.semester_id,
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Returns the active elective_id for a slot in the
    * specified academic year context, or null if none set.
    */
@@ -859,28 +891,54 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   ): number | null {
     if (!academicYearId) return null;
 
-    const program = this.getSelectedProgramData();
-    const yearLevelData = program
-      ? this.getSelectedYearLevelData(
-          program,
-          Number(this.selectedYear)
-        )
-      : null;
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(
-          yearLevelData,
-          Number(this.selectedSemester)
-        )
-      : null;
+    let programId: number | undefined;
+    let yearLevel: number | undefined;
+    let semesterId: number | undefined;
 
-    if (!program || !yearLevelData || !semesterData) {
+    if (
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    ) {
+      const program = this.getSelectedProgramData();
+      const ylData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : null;
+      const semData = ylData
+        ? this.getSelectedSemesterData(ylData, Number(this.selectedSemester))
+        : null;
+
+      if (program && ylData && semData) {
+        programId = program.program_id;
+        yearLevel = ylData.year;
+        semesterId = semData.semester_id;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const ctx = this.findContextForSlot(slotName);
+      if (ctx) {
+        programId = ctx.programId;
+        yearLevel = ctx.yearLevel;
+        semesterId = ctx.semesterId;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const keySuffix = `_${slotName}_${academicYearId}`;
+      const foundKey = Object.keys(this.activeElectiveMap).find(
+        k => k.endsWith(keySuffix)
+      );
+      if (foundKey) {
+        return this.activeElectiveMap[foundKey];
+      }
       return null;
     }
 
     const key = this.buildElectiveKey(
-      program.program_id,
-      yearLevelData.year,
-      semesterData.semester_id,
+      programId,
+      yearLevel,
+      semesterId,
       slotName,
       academicYearId
     );
@@ -899,26 +957,45 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   ): void {
     if (!this.curriculum || !academicYearId) return;
 
-    const program = this.getSelectedProgramData();
-    const yearLevelData = program
-      ? this.getSelectedYearLevelData(
-          program,
-          Number(this.selectedYear)
-        )
-      : null;
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(
-          yearLevelData,
-          Number(this.selectedSemester)
-        )
-      : null;
+    let programId: number | undefined;
+    let yearLevel: number | undefined;
+    let semesterId: number | undefined;
 
-    if (!program || !yearLevelData || !semesterData) return;
+    if (
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    ) {
+      const program = this.getSelectedProgramData();
+      const ylData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : null;
+      const semData = ylData
+        ? this.getSelectedSemesterData(ylData, Number(this.selectedSemester))
+        : null;
+
+      if (program && ylData && semData) {
+        programId = program.program_id;
+        yearLevel = ylData.year;
+        semesterId = semData.semester_id;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const ctx = this.findContextForSlot(slotName);
+      if (ctx) {
+        programId = ctx.programId;
+        yearLevel = ctx.yearLevel;
+        semesterId = ctx.semesterId;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) return;
 
     const key = this.buildElectiveKey(
-      program.program_id,
-      yearLevelData.year,
-      semesterData.semester_id,
+      programId,
+      yearLevel,
+      semesterId,
       slotName,
       academicYearId
     );
@@ -929,9 +1006,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.curriculumService.saveCurriculumElective({
       curriculum_id: this.curriculum.curriculum_id,
-      program_id: program.program_id,
-      year_level: yearLevelData.year,
-      semester_id: semesterData.semester_id,
+      program_id: programId,
+      year_level: yearLevel,
+      semester_id: semesterId,
       elective_slot_name: slotName,
       selected_elective_id: electiveId,
       academic_year_id: academicYearId,
