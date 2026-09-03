@@ -90,10 +90,10 @@ export class FacultyScheduleTimetableComponent implements
   private readonly SCROLL_THRESHOLD = 25;
 
   @Input() facultySchedule: any;
-  @Input() showPreview: boolean = true;
-  
+  @Input() showPreview: boolean = false;
   @Input() isReadOnly: boolean = false;
   @Input() showAppealButtons: boolean = false;
+  @Input() showAppealHistory: boolean = true;
   @Input() exportMode: 'official' | 'internal' = 'official';
   @Output() appealClicked = new EventEmitter<any>();
   @Output() viewAppealsClicked = new EventEmitter<any>();
@@ -209,8 +209,8 @@ export class FacultyScheduleTimetableComponent implements
    * @returns 'Approved' | 'Denied' | 'Pending'
    */
   private mapStatus(is_approved: any): string {
-    if (is_approved === true  || is_approved === 1)  return 'Approved';
-    if (is_approved === false || is_approved === 0)  return 'Denied';
+    if (is_approved === true || is_approved === 1 || is_approved === 'approved' || String(is_approved) === '1') return 'Approved';
+    if (is_approved === false || is_approved === 0 || is_approved === 'denied' || String(is_approved) === '0') return 'Denied';
     return 'Pending';
   }
 

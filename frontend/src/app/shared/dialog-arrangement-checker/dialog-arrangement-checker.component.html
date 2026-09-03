@@ -1,0 +1,189 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <div class="header-title">
+      <mat-icon class="header-icon">search</mat-icon>
+      <h2>Internal Arrangement Checker</h2>
+    </div>
+    <button mat-icon-button (click)="close()" type="button" aria-label="Close dialog">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <div class="dialog-content">
+    <p class="subtitle">
+      Test hypothetical schedule slots for conflicts across Faculty, Room, and Section schedules in real time.
+    </p>
+
+    <form [formGroup]="checkerForm" class="checker-form">
+      <!-- Row 1: Program, Year Level, Section -->
+      <div class="form-row flex-row">
+        <!-- Program Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>Program</mat-label>
+          <mat-select formControlName="program_id" placeholder="Program">
+            <mat-option *ngFor="let p of programsList" [value]="p.program_id">
+              {{ p.program_code }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="checkerForm.get('program_id')?.hasError('required')">
+            Program is required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Year Level Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>Year Level</mat-label>
+          <mat-select formControlName="year_level" placeholder="Year" [disabled]="!availableYearLevels.length">
+            <mat-option *ngFor="let yl of availableYearLevels" [value]="yl">
+              {{ yl }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="checkerForm.get('year_level')?.hasError('required')">
+            Year is required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Section Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>Section</mat-label>
+          <mat-select formControlName="section_id" placeholder="Section" [disabled]="!availableSections.length">
+            <mat-option *ngFor="let sec of availableSections" [value]="sec.section_id">
+              {{ sec.section_name }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="checkerForm.get('section_id')?.hasError('required')">
+            Section is required
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Row 2: Course -->
+      <div class="form-row flex-row">
+        <!-- Course Selector -->
+        <mat-form-field appearance="outline" class="form-field full-width">
+          <mat-label>Course</mat-label>
+          <mat-select formControlName="course_id" placeholder="Select course" [disabled]="!availableCourses.length">
+            <mat-option *ngFor="let c of availableCourses" [value]="c.course_id">
+              {{ c.course_code }} - {{ c.course_title }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="checkerForm.get('course_id')?.hasError('required')">
+            Course is required
+          </mat-error>
+        </mat-form-field>
+      </div>
+
+      <!-- Row 3: Faculty, Room -->
+      <div class="form-row flex-row">
+        <!-- Faculty Selector -->
+        <mat-form-field appearance="outline" class="form-field half-width">
+          <mat-label>Faculty (Optional)</mat-label>
+          <mat-select formControlName="faculty_id" placeholder="Select faculty">
+            <mat-option [value]="null">-- None / Any --</mat-option>
+            <mat-option *ngFor="let f of data.faculties" [value]="f.facultyId">
+              {{ f.facultyName }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Room Selector -->
+        <mat-form-field appearance="outline" class="form-field half-width">
+          <mat-label>Room (Optional)</mat-label>
+          <mat-select formControlName="room_id" placeholder="Select room">
+            <mat-option [value]="null">-- None / Any --</mat-option>
+            <mat-option *ngFor="let r of data.rooms" [value]="r.room_id">
+              {{ r.room_code }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+
+      <!-- Row 4: Day, Start Time, End Time -->
+      <div class="form-row flex-row time-row">
+        <!-- Day Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>Day</mat-label>
+          <mat-select formControlName="day">
+            <mat-option *ngFor="let d of days" [value]="d">
+              {{ d }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Start Time Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>Start Time</mat-label>
+          <mat-select formControlName="start_time" placeholder="Start time">
+            <mat-option *ngFor="let t of timeOptions" [value]="t">
+              {{ t }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- End Time Selector -->
+        <mat-form-field appearance="outline" class="form-field third-width">
+          <mat-label>End Time</mat-label>
+          <mat-select formControlName="end_time" placeholder="End time">
+            <mat-option *ngFor="let t of endTimeOptions" [value]="t">
+              {{ t }}
+            </mat-option>
+          </mat-select>
+        </mat-form-field>
+      </div>
+    </form>
+
+    <!-- Initial Helper Hint when required inputs are not yet selected -->
+    <div *ngIf="!hasRunCheck" class="helper-info-card">
+      <mat-icon class="icon-info">info</mat-icon>
+      <div>
+        <h4>Real-Time Conflict Detection</h4>
+        <p>Select a Program, Year Level, Section, Course, Day, and Times to check slot availability automatically.</p>
+      </div>
+    </div>
+
+    <!-- Live Results Section -->
+    <div *ngIf="hasRunCheck" class="results-container">
+      <!-- No Conflicts Green Card -->
+      <div *ngIf="!hasConflicts" class="result-card success-card">
+        <div class="card-header">
+          <mat-icon class="icon-success">check_circle</mat-icon>
+          <div>
+            <h3>Slot Available</h3>
+            <p>No scheduling conflicts found for this proposed slot.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conflicts Red Card -->
+      <div *ngIf="hasConflicts" class="result-card conflict-card">
+        <div class="card-header">
+          <mat-icon class="icon-error">error</mat-icon>
+          <div>
+            <h3>Scheduling Conflicts Detected</h3>
+            <p>The proposed slot overlaps with existing schedules:</p>
+          </div>
+        </div>
+        <ul class="conflict-list">
+          <li *ngFor="let msg of conflictMessages">{{ msg }}</li>
+        </ul>
+      </div>
+
+      <!-- Warnings Yellow Card (Optional) -->
+      <div *ngIf="warningMessages.length" class="result-card warning-card">
+        <div class="card-header">
+          <mat-icon class="icon-warning">warning</mat-icon>
+          <div>
+            <h3>Schedule Warnings</h3>
+          </div>
+        </div>
+        <ul class="warning-list">
+          <li *ngFor="let warn of warningMessages">{{ warn }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="dialog-actions">
+    <button mat-stroked-button (click)="close()" type="button">Close</button>
+  </div>
+</div>

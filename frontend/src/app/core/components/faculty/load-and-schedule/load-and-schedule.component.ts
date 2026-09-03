@@ -318,7 +318,9 @@ export class LoadAndScheduleComponent implements OnInit, OnDestroy {
     if (!this.facultySchedule) return null;
     
     const clone = JSON.parse(JSON.stringify(this.facultySchedule));
-    const approvedAppeals = this.myAppeals?.filter(a => a.is_approved === 1 || a.is_approved === true) || [];
+    const approvedAppeals = this.myAppeals?.filter(
+      a => a.is_approved === 1 || a.is_approved === true || a.is_approved === 'approved' || String(a.is_approved) === '1'
+    ) || [];
 
     if (Array.isArray(clone.schedules)) {
       clone.schedules = clone.schedules.map((sched: any) => {

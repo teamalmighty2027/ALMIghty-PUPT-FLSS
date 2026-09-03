@@ -3,6 +3,7 @@
     <app-faculty-schedule-mobile
       [facultySchedule]="facultySchedule"
       [showAppealButtons]="showAppealButtons"
+      [showAppealHistory]="showAppealHistory"
       (appealClicked)="appealClicked.emit($event)"
       (viewAppealsClicked)="viewAppealsClicked.emit($event)">
     </app-faculty-schedule-mobile>
@@ -71,6 +72,7 @@
                     </button>
 
                     <button
+                      *ngIf="showAppealHistory"
                       mat-icon-button
                       [class]="'appeals-status-button ' + getAppealStatusClass(day, i)"
                       (click)="onViewMyAppeals(day, i, $event)"

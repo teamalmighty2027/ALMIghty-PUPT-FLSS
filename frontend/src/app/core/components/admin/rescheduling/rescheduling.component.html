@@ -246,8 +246,9 @@
         <div
           class="tab-content-wrapper"
         >
-          <div class="rescheduling-header-container">
+          <div class="rescheduling-header-container" style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
             <app-table-header
+              style="flex: 1;"
               [inputFields]="headerInputFields"
               [showExportButton]="false"
               [showAddButton]="false"
@@ -261,6 +262,15 @@
                 dataSource.data.length === 0 ? 'No appeals available' : ''
               "
             ></app-table-header>
+            <button
+              mat-stroked-button
+              color="primary"
+              (click)="openArrangementChecker()"
+              class="check-slot-btn"
+            >
+              <mat-icon>search</mat-icon>
+              <span>Check Slot</span>
+            </button>
           </div>
 
           <div class="rescheduling-table-container">
