@@ -92,6 +92,7 @@
                           </button>
                           
                           <button
+                            *ngIf="showAppealHistory"
                             mat-icon-button
                             [class]="getAppealStatusClass(block)"
                             (click)="onViewMyAppeals(block, $event)"
@@ -159,6 +160,7 @@
                     </button>
                     
                     <button
+                      *ngIf="showAppealHistory"
                       mat-icon-button
                       [class]="getAppealStatusClass(block)"
                       (click)="onViewMyAppeals(block, $event)"

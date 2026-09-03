@@ -50,7 +50,22 @@
 }
 
 // ─── Header containers ─────────────────────────────────────────
-.rescheduling-header-container,
+.rescheduling-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  .check-slot-btn {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    margin-bottom: 8px;
+  }
+}
+
 .report-header-container {
   flex-shrink: 0;
 }
