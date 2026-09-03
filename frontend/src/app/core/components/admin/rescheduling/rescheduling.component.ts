@@ -951,6 +951,115 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────
+
+  // ── Export By Programs Trigger ──
+  onExportByPrograms(): void {
+    if (this.allFaculties.length === 0) {
+      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const groupedByProgram = this.groupSchedulesByProgram();
+    const baseFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+
+    this.dialog.open(DialogViewScheduleComponent, {
+      maxWidth: '90vw',
+      width: '100%',
+      data: {
+        exportType: 'all',
+        entity: 'faculty', 
+        entityData: groupedByProgram.map(p => p.schedules).flat(),
+        customTitle: 'Internal Arrangements By Program',
+        fileName: baseFileName,
+        academicYear: this.academicYear,
+        semester: this.semester,
+        generatePdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
+          saveAs(excelBlob, `${baseFileName}.xlsx`);
+        },
+        showViewToggle: false,
+      },
+      disableClose: true,
+      autoFocus: true,
+    });
+  }
+
+  private groupSchedulesByProgram(): { program: string, schedules: any[] }[] {
+    const programMap = new Map<string, any[]>();
+
+    this.allFaculties.forEach(faculty => {
+      faculty.schedules.forEach((sched: any) => {
+        // Use a fallback so schedules without a program code aren't silently dropped
+        const pCode = sched.program_code || 'Unassigned / Other';
+        const schedWithFaculty = { ...sched, faculty_name: faculty.facultyName };
+        
+        if (!programMap.has(pCode)) {
+          programMap.set(pCode, []);
+        }
+        programMap.get(pCode)!.push(schedWithFaculty);
+      });
+    });
+
+    return Array.from(programMap.entries()).map(([program, schedules]) => ({
+      program,
+      schedules
+    })).sort((a, b) => a.program.localeCompare(b.program));
+  }
+
+  // ── Export By Rooms Trigger ──
+  onExportByRooms(): void {
+    if (this.allFaculties.length === 0) {
+      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const groupedByRoom = this.groupSchedulesByRoom();
+    const baseFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+
+    this.dialog.open(DialogViewScheduleComponent, {
+      maxWidth: '90vw',
+      width: '100%',
+      data: {
+        exportType: 'all',
+        entity: 'faculty', // Spoofed to bypass modal validation
+        entityData: groupedByRoom.map(r => r.schedules).flat(),
+        customTitle: 'Internal Arrangements By Room',
+        fileName: baseFileName,
+        academicYear: this.academicYear,
+        semester: this.semester,
+        generatePdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
+        generateExcelFunction: async () => {
+          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
+          saveAs(excelBlob, `${baseFileName}.xlsx`);
+        },
+        showViewToggle: false,
+      },
+      disableClose: true,
+      autoFocus: true,
+    });
+  }
+
+  private groupSchedulesByRoom(): { room: string, schedules: any[] }[] {
+    const roomMap = new Map<string, any[]>();
+
+    this.allFaculties.forEach(faculty => {
+      faculty.schedules.forEach((sched: any) => {
+        const rCode = (sched.room_code && sched.room_code.trim() !== '') ? sched.room_code : 'TBA / Unassigned';
+        const schedWithFaculty = { ...sched, faculty_name: faculty.facultyName };
+        
+        if (!roomMap.has(rCode)) {
+          roomMap.set(rCode, []);
+        }
+        roomMap.get(rCode)!.push(schedWithFaculty);
+      });
+    });
+
+    return Array.from(roomMap.entries()).map(([room, schedules]) => ({
+      room,
+      schedules
+    })).sort((a, b) => a.room.localeCompare(b.room));
+  }
   
   onExportArrangements(): void {
     if (this.allFaculties.length === 0) {
@@ -1182,6 +1291,213 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     return doc.output('blob');
   }
 
+  // ── jsPDF Rendering Logic (Programs) ──
+  private generateProgramsPdfBlobAll(groupedByProgram: any[]): Blob {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const topMargin = 15;
+    const logoSize = 22;
+
+    const activePrograms = groupedByProgram.filter(p => p.schedules && p.schedules.length > 0);
+
+    activePrograms.forEach((programData, index) => {
+      if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+      }
+      
+      const title = `${programData.program} Schedule (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle({ academicYear: this.academicYear, semester: this.semester });
+      
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      // Pass 'program' as the entityType to swap Section for Faculty Name
+      this.drawScheduleTable(doc, programData.schedules, title, subtitle, currentY, margin, pageWidth, 'program');
+    });
+
+    this.reportHeaderService.addStandardFooter(doc);
+    return doc.output('blob');
+  }
+
+  // ── ExcelJS Rendering Logic (Programs) ──
+  private async generateProgramsExcelBlobAll(groupedByProgram: any[]): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    for (const prog of groupedByProgram) {
+      if (prog.schedules && prog.schedules.length > 0) {
+        // Strip invalid characters for excel tab names and limit to 31 chars
+        const tabName = prog.program.substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const worksheet = workbook.addWorksheet(tabName);
+        this.applyProgramArrangementExcelLayout(worksheet, prog);
+      }
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyProgramArrangementExcelLayout(worksheet: ExcelJS.Worksheet, prog: any) {
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 30 }, { width: 15 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:H1');
+    worksheet.mergeCells('A2:H2');
+
+    worksheet.getCell('A1').value = `Program (Internal Arrangement): ${prog.program.toUpperCase()}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear} | Semester: ${this.semester}`;
+
+    ['A1', 'A2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Faculty', 'Room No.', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (prog.schedules && prog.schedules.length > 0) {
+      prog.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTime(schedule.start_time)} - ${this.formatTime(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details?.course_code || '',
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.units || 0,
+          schedule.faculty_name || 'TBA',
+          schedule.room_code || 'TBA',
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
+  }
+
+  // ── jsPDF Rendering Logic (Rooms) ──
+  private generateRoomsPdfBlobAll(groupedByRoom: any[]): Blob {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const topMargin = 15;
+    const logoSize = 22;
+
+    const activeRooms = groupedByRoom.filter(r => r.schedules && r.schedules.length > 0);
+
+    activeRooms.forEach((roomData, index) => {
+      if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+      }
+      
+      const title = `Room ${roomData.room} Schedule (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle({ academicYear: this.academicYear, semester: this.semester });
+      
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      // Pass 'room' to adapt the schedule block content
+      this.drawScheduleTable(doc, roomData.schedules, title, subtitle, currentY, margin, pageWidth, 'room');
+    });
+
+    this.reportHeaderService.addStandardFooter(doc);
+    return doc.output('blob');
+  }
+
+  // ── ExcelJS Rendering Logic (Rooms) ──
+  private async generateRoomsExcelBlobAll(groupedByRoom: any[]): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    for (const roomData of groupedByRoom) {
+      if (roomData.schedules && roomData.schedules.length > 0) {
+        const tabName = roomData.room.substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const worksheet = workbook.addWorksheet(tabName);
+        this.applyRoomArrangementExcelLayout(worksheet, roomData);
+      }
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyRoomArrangementExcelLayout(worksheet: ExcelJS.Worksheet, roomData: any) {
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 15 }, { width: 25 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:H1');
+    worksheet.mergeCells('A2:H2');
+
+    worksheet.getCell('A1').value = `Room (Internal Arrangement): ${roomData.room.toUpperCase()}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear} | Semester: ${this.semester}`;
+
+    ['A1', 'A2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Section', 'Faculty', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (roomData.schedules && roomData.schedules.length > 0) {
+      roomData.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTime(schedule.start_time)} - ${this.formatTime(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details?.course_code || '',
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.units || 0,
+          `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
+          schedule.faculty_name || 'TBA',
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
+  }
+
   /**
    * Builds one PDF document for a single faculty arrangement.
    *
@@ -1236,7 +1552,11 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param margin The left and right page margin.
    * @param pageWidth The printable page width.
    */
-  private drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
+  // Ensure entityType is declared at the end here:
+private drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, 
+  subtitle: string, startY: number, margin: number, pageWidth: number, 
+  entityType: 'faculty' | 'program' | 'room' = 'faculty'): void {
+
     const hasSchedules = scheduleData && scheduleData.length > 0;
 
     if (!hasSchedules) {
@@ -1322,24 +1642,18 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         
-        // Flag the top row, the bottom row, and our standard 3-hour gaps
-        const isTopRow = index === 0;
-        const isBottomRow = index === chunkSlots.length - 1;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
-
-        // Print the Time text if it matches any of those conditions
-        if (isTopRow || isBottomRow || isThreeHourGap) {
-          
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200); 
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        // Draw a horizontal grid line for every 30-minute slot (skipping the top row to preserve the header border)
+        if (index > 0) {
+          doc.setDrawColor(200, 200, 200); 
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
+        
+        // Print the Time text for EVERY slot
+        // Note: Font size reduced to 8 and set to 'normal' to prevent visual clutter now that every slot is rendered
+        doc.setFontSize(8); 
+        doc.setFont('helvetica', 'normal');
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
       });
 
       const finalY = currentY + chunkSlots.length * rowHeight;
@@ -1428,13 +1742,19 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         doc.setFont('helvetica', 'normal');
         doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
 
-        // Block Content (Tailored for Rescheduling - Internal Arrangements)
+        // Block Content (Tailored dynamically based on export type)
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
-        ].filter(line => line !== ''); 
+          // Line 3: If Program, show Faculty. Otherwise, show Section.
+          entityType === 'program' 
+            ? (item.faculty_name || 'Faculty TBA') 
+            : `${item.program_code} ${item.year_level} - ${item.section_name}`,
+          // Line 4: If Room, show Faculty. Otherwise, show Room.
+          entityType === 'room' 
+            ? (item.faculty_name || 'Faculty TBA') 
+            : (item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA')
+        ].filter(line => line !== '');
 
         const isBridging = item.course_details?.offering_type === 'bridging';
 
