@@ -746,7 +746,8 @@ class AuthController extends Controller
     }
 
     /**
-     * Generates and returns the IDP authorization redirect URL after health verification.
+     * Generates and returns the IDP authorization redirect URL after health
+     * verification.
      */
     public function getIdpLoginUrl()
     {
@@ -754,34 +755,61 @@ class AuthController extends Controller
         $clientId = config('services.idp.client_id');
 
         if (!$baseUrl || !$clientId) {
-            Log::error('IDP configuration missing for generating authorization URL');
+            Log::error(
+                'IDP configuration missing for generating authorization URL'
+            );
             return response()->json([
                 'message' => 'Authentication configuration error.',
             ], 500);
         }
 
-        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id=' . $clientId;
+        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id='
+            . $clientId;
+        $healthUrl = rtrim($baseUrl, '/') . '/api/v1/health';
 
         try {
-            $probeResponse = Http::timeout(2)->withoutVerifying()->get($url);
+            $probeResponse = Http::timeout(3)
+                ->withoutVerifying()
+                ->get($healthUrl);
 
             if ($probeResponse->status() === 429) {
                 Log::warning("IDP rate limit exceeded for client {$clientId}");
                 return response()->json([
-                    'message' => 'Identity Provider rate limit exceeded. Please try local login.',
+                    'message' => 'Identity Provider rate limit exceeded.'
+                        . ' Please try local login.',
                     'error'   => 'rate_limit_exceeded',
                 ], 429);
             }
 
-            if ($probeResponse->serverError()) {
-                Log::warning("IDP server error ({$probeResponse->status()}) for client {$clientId}");
+            if (!$probeResponse->successful()) {
+                Log::warning(
+                    "IDP health status code {$probeResponse->status()}"
+                    . " for client {$clientId}"
+                );
                 return response()->json([
                     'message' => 'Identity Provider service unavailable.',
                     'error'   => 'idp_server_error',
                 ], 503);
             }
+
+            $healthData = $probeResponse->json();
+            $status = $healthData['status'] ?? null;
+
+            if ($status !== 'healthy') {
+                Log::warning(
+                    "IDP health status '{$status}' for client {$clientId}"
+                );
+                return response()->json([
+                    'message' => 'Identity Provider system is currently'
+                        . ' degraded.',
+                    'error'   => 'idp_degraded',
+                ], 503);
+            }
         } catch (Exception $e) {
-            Log::warning("IDP health check failed for client {$clientId}: " . $e->getMessage());
+            Log::warning(
+                "IDP health check failed for client {$clientId}: "
+                . $e->getMessage()
+            );
             return response()->json([
                 'message' => 'Identity Provider is currently unreachable.',
                 'error'   => 'idp_unreachable',
