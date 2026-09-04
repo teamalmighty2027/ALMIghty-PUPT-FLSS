@@ -25,20 +25,33 @@
         <div
           class="tab-content-wrapper"
         >
-          <div class="report-header-container" style="margin-bottom: 15px">
-            <app-reports-header
-              [(selectedTermId)]="selectedTermId"
-              [inputFields]="arrangementsInputFields"
-              [showExportButton]="true"
-              [showAddButton]="false"
-              [showRefreshButton]="true"
-              [isRefreshing]="isRefreshing"
-              (refresh)="onManualRefresh()"
-              (export)="onExportArrangements()"
-              (inputChange)="onArrangementsInputChange($event)"
-              (termChange)="onTermChange()"
-              [buttonDisabled]="!hasAnyArrangements"
-            ></app-reports-header>
+          <div class="report-header-container" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+            <!-- We wrap the header so it takes up available space -->
+            <div style="flex: 1; min-width: 300px;">
+              <app-reports-header
+                [(selectedTermId)]="selectedTermId"
+                [inputFields]="arrangementsInputFields"
+                [showExportButton]="true"
+                [showAddButton]="false"
+                [showRefreshButton]="true"
+                [isRefreshing]="isRefreshing"
+                (refresh)="onManualRefresh()"
+                (export)="onExportArrangements()"
+                (inputChange)="onArrangementsInputChange($event)"
+                (termChange)="onTermChange()"
+                [buttonDisabled]="!hasAnyArrangements"
+              ></app-reports-header>
+            </div>
+            
+            <!-- By Programs and Rooms Export Button Container -->
+            <div class="extra-export-actions" style="display: flex; gap: 10px;">
+              <button mat-flat-button class="btn-approve" (click)="onExportByPrograms()" [disabled]="!hasAnyArrangements" [ngClass]="{'disabled-button': !hasAnyArrangements}">
+                <mat-icon>school</mat-icon> Export by Program
+              </button>
+              <button mat-flat-button class="btn-approve" (click)="onExportByRooms()" [disabled]="!hasAnyArrangements" [ngClass]="{'disabled-button': !hasAnyArrangements}">
+                <mat-icon>meeting_room</mat-icon> Export by Room
+              </button>
+            </div>
           </div>
 
           <div class="report-table-container">
