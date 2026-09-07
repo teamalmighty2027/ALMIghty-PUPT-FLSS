@@ -563,7 +563,19 @@
         </div>
 
         <div class="edit-mode-section">
-          <div class="suggested-label"><span>NEW SCHEDULE</span></div>
+          <div class="suggested-label" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>NEW SCHEDULE</span>
+            <button
+              mat-button
+              type="button"
+              class="copy-requested-btn"
+              (click)="copyRequestedScheduleToNewSchedule()"
+              matTooltip="Auto-fill new schedule with requested appeal details"
+            >
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy requested schedule</span>
+            </button>
+          </div>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Day</mat-label>
             <mat-select

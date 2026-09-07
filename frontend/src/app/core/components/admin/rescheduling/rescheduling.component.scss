@@ -624,8 +624,50 @@
 }
 
 ::ng-deep {
-  mat-icon[matPrefix] { margin-right: var(--spacing-xs); color: var(--secondary-text); }
+  .mat-mdc-form-field-icon-prefix {
+    padding-left: 10px !important;
+    padding-right: 6px !important;
+    align-self: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    mat-icon {
+      font-size: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+      line-height: 1 !important;
+      color: var(--secondary-text);
+      margin-right: 4px !important;
+    }
+  }
+  mat-icon[matPrefix] { margin-left: 4px; margin-right: var(--spacing-xs); color: var(--secondary-text); }
   textarea.mat-mdc-input-element { font-size: 0.9rem !important; line-height: 1.4 !important; }
+}
+
+.copy-requested-btn {
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  color: var(--primary-one) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  text-transform: none !important;
+
+  mat-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 1 !important;
+    color: var(--primary-one) !important;
+  }
+
+  &:hover {
+    background-color: var(--primary-one-fade) !important;
+  }
 }
 
 .disabled-button {

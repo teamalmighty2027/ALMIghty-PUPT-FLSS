@@ -796,6 +796,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.dialog.open(DialogArrangementCheckerComponent, {
       width: '680px',
+      maxWidth: '95vw',
+      maxHeight: '85vh',
       data: {
         cachedSchedules: this.cachedSchedules,
         cachedRooms: this.cachedRooms,
@@ -2305,6 +2307,40 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.conflictMessages = validation.hasConflicts ? validation.messages : [];
     if (this.conflictMessages.length > 0) {
       this.buildSwapCandidates();
+    }
+  }
+
+  /**
+   * Auto-populates the new schedule fields using the requested schedule details from the appeal.
+   */
+  copyRequestedScheduleToNewSchedule(): void {
+    if (!this.selectedAppeal || !this.newSchedule) return;
+
+    let hasCopiedAny = false;
+
+    if (this.selectedAppeal.preferredDay) {
+      this.newSchedule.preferredDay = this.selectedAppeal.preferredDay;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredStartTime) {
+      this.newSchedule.preferredStartTime = this.selectedAppeal.preferredStartTime;
+      this.onStartTimeChange();
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredEndTime) {
+      this.newSchedule.preferredEndTime = this.selectedAppeal.preferredEndTime;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.room) {
+      this.newSchedule.room = this.selectedAppeal.room;
+      hasCopiedAny = true;
+    }
+
+    if (hasCopiedAny) {
+      this.onScheduleFieldChange();
+      this.snackBar.open('Copied requested schedule details to New Schedule fields.', 'Close', { duration: 2500 });
+    } else {
+      this.snackBar.open('No requested schedule details available to copy.', 'Close', { duration: 2500 });
     }
   }
 
