@@ -2563,6 +2563,24 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * Converts a 12-hour display string to 24-hour HH:mm format.
+   *
+   * @param time The time string to convert.
+   */
+  private to24Hour(time: string | null | undefined): string {
+    if (!time) return '';
+    if (!time.includes('AM') && !time.includes('PM')) return time;
+
+    const [timePart, period] = time.trim().split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  /**
    * Maps a backend appeal record into the table view model.
    *
    * @param a The raw appeal record from the API.
@@ -2696,19 +2714,23 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param defaultMessage The fallback message to use when the error is unclear.
    */
   private getErrorMessage(error: any, defaultMessage: string): string {
-    // Handle different error response structures
-    if (error?.status && error?.statusText) {
-      // HttpErrorResponse with status
-      if (error?.error?.message) return error.error.message;
-      if (error?.error?.error) return error.error.error;
-      if (typeof error?.error === 'string') return error.error;
-      if (error?.message) return error.message;
+    const rawMsg =
+      error?.error?.message ||
+      error?.error?.error ||
+      (typeof error?.error === 'string' ? error.error : '') ||
+      error?.message ||
+      '';
+
+    if (
+      rawMsg &&
+      !rawMsg.includes('SQLSTATE') &&
+      !rawMsg.includes('Integrity constraint violation') &&
+      !rawMsg.includes('Connection:') &&
+      !rawMsg.includes('SQL:')
+    ) {
+      return rawMsg;
     }
-    
-    // Handle plain error objects
-    if (typeof error === 'string') return error;
-    if (error?.message) return error.message;
-    
+
     return defaultMessage;
   }
 

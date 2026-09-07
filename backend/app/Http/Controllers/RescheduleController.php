@@ -445,10 +445,10 @@ class RescheduleController extends Controller
                 'appeal'  => $appeal,
             ], 201);
         } catch (\Exception $e) {
-            Log::warning('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to approve appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to approve appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
@@ -456,6 +456,10 @@ class RescheduleController extends Controller
     /**
      * ADMIN — Approve an appeal as a mutual schedule swap
      * POST /api/rescheduling-appeals/{id}/approve-swap
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
      */
     public function approveSwap(Request $request, int $id): JsonResponse
     {
@@ -520,7 +524,7 @@ class RescheduleController extends Controller
                 $arrangementB = \App\Models\InternalArrangement::updateOrCreate(
                     ['schedule_id' => $scheduleB->schedule_id],
                     [
-                        'appeal_id'  => null,
+                        'appeal_id'  => $appeal->appeal_id,
                         'day'        => $slotA['day'],
                         'start_time' => $slotA['start_time'],
                         'end_time'   => $slotA['end_time'],
@@ -551,9 +555,9 @@ class RescheduleController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            Log::error('Failed to approve schedule swap: ' . $e->getMessage());
+            Log::error('Failed to approve schedule swap: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to approve schedule swap: ' . $e->getMessage(),
+                'message' => 'Failed to approve schedule swap. Please try again.',
                 'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
@@ -579,10 +583,10 @@ class RescheduleController extends Controller
 
             return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
         } catch (\Exception $e) {
-            Log::warning('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to deny appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to deny appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
