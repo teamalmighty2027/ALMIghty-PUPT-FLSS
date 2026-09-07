@@ -8,24 +8,44 @@
     </div>
 
     <div class="view-option">
-      <mat-button-toggle-group
-        name="viewOption"
-        [(ngModel)]="selectedView"
-        (ngModelChange)="onViewChange($event)">
-        <mat-button-toggle value="table-view">
-          <mat-icon class="icon-spacing">table_chart</mat-icon>
-          <span>Table view</span>
-        </mat-button-toggle>
-        <mat-button-toggle value="pdf-view">
-          <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
-          <span>PDF view</span>
-        </mat-button-toggle>
-      </mat-button-toggle-group>
+      @if (exportType === 'all') {
+        <mat-button-toggle-group
+          name="exportGroupOption"
+          [(ngModel)]="activeExportGroup"
+          (ngModelChange)="onExportGroupChange($event)">
+          <mat-button-toggle value="faculty">
+            <mat-icon class="icon-spacing">person</mat-icon>
+            <span>By Faculty</span>
+          </mat-button-toggle>
+          <mat-button-toggle value="program">
+            <mat-icon class="icon-spacing">school</mat-icon>
+            <span>By Program</span>
+          </mat-button-toggle>
+          <mat-button-toggle value="room">
+            <mat-icon class="icon-spacing">meeting_room</mat-icon>
+            <span>By Room</span>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      } @else {
+        <mat-button-toggle-group
+          name="viewOption"
+          [(ngModel)]="selectedView"
+          (ngModelChange)="onViewChange($event)">
+          <mat-button-toggle value="table-view">
+            <mat-icon class="icon-spacing">table_chart</mat-icon>
+            <span>Table view</span>
+          </mat-button-toggle>
+          <mat-button-toggle value="pdf-view">
+            <mat-icon class="icon-spacing">picture_as_pdf</mat-icon>
+            <span>PDF view</span>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+      }
     </div>
   </div>
 
   <div class="scrollable-modal-body">
-    @if (selectedView === 'table-view') {
+    @if (selectedView === 'table-view' && exportType !== 'all') {
       <div class="single-schedule-container">
         <div class="mobile-table-scroll schedule-scroll-wrapper">
           <app-faculty-schedule-timetable
@@ -41,7 +61,7 @@
       </div>
     }
 
-    @if (selectedView === 'pdf-view') {
+    @if (selectedView === 'pdf-view' || exportType === 'all') {
       <div class="dialog-pref-pdf-container">
         @if (isLoadingPdf) {
           <div class="loading-wrapper">
@@ -66,7 +86,7 @@
 
   <div class="dialog-actions" [@fadeAnimation]>
     <div class="pdf-warning" style="display: flex; align-items: center; gap: 8px; flex-grow: 1;">
-      @if (selectedView === 'pdf-view') {
+      @if (selectedView === 'pdf-view' || exportType === 'all') {
         <span class="warning-text" style="color: #666; font-size: 0.9rem;">
           PDF preview may not work on some devices.
         </span>
@@ -78,16 +98,15 @@
         Close
       </button>
 
-      @if (selectedView === 'pdf-view') {
-        @if (data.generateExcelFunction) {
-          <button
-            mat-flat-button
-            class="excel-button"
-            style="background-color: #1d6f42; color: white;"
-            (click)="downloadExcel()">
-            <mat-icon>table_chart</mat-icon> Download Excel
-          </button>
-        }
+      @if (selectedView === 'pdf-view' || exportType === 'all') {
+        <button
+          mat-flat-button
+          class="excel-button"
+          style="background-color: #1d6f42; color: white;"
+          (click)="downloadExcel()">
+          <mat-icon>table_chart</mat-icon> Download Excel
+        </button>
+
         <button mat-flat-button color="primary" (click)="downloadPdf()">
           <mat-icon>print</mat-icon> Download PDF
         </button>

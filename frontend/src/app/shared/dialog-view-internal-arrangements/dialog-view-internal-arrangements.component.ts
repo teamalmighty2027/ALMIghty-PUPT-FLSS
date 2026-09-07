@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, Inject, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SafeResourceUrl, DomSanitizer } from '@angular/platform-browser';
@@ -14,15 +14,24 @@ import { LoadingComponent } from '../loading/loading.component';
 import { fadeAnimation } from '../../core/animations/animations';
 
 export interface ViewInternalArrangementsDialogData {
-  facultyId: number;
-  facultyName: string;
-  facultyCode: string;
-  facultyType: string;
-  schedules: any[];
+  exportType?: 'all' | 'single';
+  exportGroup?: 'faculty' | 'program' | 'room';
+  facultyId?: number;
+  facultyName?: string;
+  facultyCode?: string;
+  facultyType?: string;
+  schedules?: any[];
   academicYear?: string;
   semester?: string;
+  customTitle?: string;
   generatePdfFunction?: () => Blob | Promise<Blob> | void;
   generateExcelFunction?: () => Promise<void> | void;
+  generateFacultyPdfFunction?: () => Blob | Promise<Blob> | void;
+  generateFacultyExcelFunction?: () => Promise<void> | void;
+  generateProgramsPdfFunction?: () => Blob | Promise<Blob> | void;
+  generateProgramsExcelFunction?: () => Promise<void> | void;
+  generateRoomsPdfFunction?: () => Blob | Promise<Blob> | void;
+  generateRoomsExcelFunction?: () => Promise<void> | void;
   onScheduleUpdated?: () => void;
 }
 
@@ -43,19 +52,17 @@ export interface ViewInternalArrangementsDialogData {
   styleUrls: ['./dialog-view-internal-arrangements.component.scss'],
   animations: [fadeAnimation]
 })
-export class DialogViewInternalArrangementsComponent implements OnInit, OnDestroy {
+export class DialogViewInternalArrangementsComponent implements OnInit, AfterViewInit, OnDestroy {
   title = '';
-
   subtitle = '';
-
   timeOptions: string[] = [];
-
   wasSaved = false;
 
+  exportType: 'all' | 'single' = 'single';
+  activeExportGroup: 'faculty' | 'program' | 'room' = 'faculty';
   selectedView: 'table-view' | 'pdf-view' = 'table-view';
 
   pdfBlobUrl: SafeResourceUrl | null = null;
-
   isLoadingPdf = false;
 
   private currentRawBlobUrl: string | null = null;
@@ -67,17 +74,31 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
     private dialog: MatDialog
   ) {}
 
-  // Initializes title, subtitle, and time dropdown options
+  // Initializes title, subtitle, export modes, and time dropdown options
   ngOnInit(): void {
-    this.title = `${this.data.facultyName} (Internal Arrangement)`;
+    this.exportType = this.data.exportType || (this.data.facultyName ? 'single' : 'all');
+    this.activeExportGroup = this.data.exportGroup || 'faculty';
 
-    if (this.data.academicYear && this.data.semester) {
-      this.subtitle = `For Academic Year ${this.data.academicYear}, ${this.data.semester}`;
+    if (this.exportType === 'all') {
+      this.selectedView = 'pdf-view';
+      this.updateAllExportTitleAndSubtitle();
     } else {
-      this.subtitle = 'Internal Arrangement Timetable';
+      this.selectedView = 'table-view';
+      this.title = `${this.data.facultyName || 'Faculty'} (Internal Arrangement)`;
+      if (this.data.academicYear && this.data.semester) {
+        this.subtitle = `For Academic Year ${this.data.academicYear}, ${this.data.semester}`;
+      } else {
+        this.subtitle = 'Internal Arrangement Timetable';
+      }
     }
 
     this.generateTimeOptions();
+  }
+
+  ngAfterViewInit(): void {
+    if (this.exportType === 'all' || this.selectedView === 'pdf-view') {
+      setTimeout(() => this.generateAndDisplayPdf(), 0);
+    }
   }
 
   // Revokes active blob URL on component destroy
@@ -85,6 +106,31 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
     if (this.currentRawBlobUrl) {
       URL.revokeObjectURL(this.currentRawBlobUrl);
     }
+  }
+
+  private updateAllExportTitleAndSubtitle(): void {
+    const groupLabel =
+      this.activeExportGroup === 'program'
+        ? 'By Program'
+        : this.activeExportGroup === 'room'
+        ? 'By Room'
+        : 'By Faculty';
+
+    this.title = this.data.customTitle
+      ? `${this.data.customTitle} (${groupLabel})`
+      : `Internal Arrangements (${groupLabel})`;
+
+    if (this.data.academicYear && this.data.semester) {
+      this.subtitle = `For Academic Year ${this.data.academicYear}, ${this.data.semester}`;
+    } else {
+      this.subtitle = `Internal Arrangements Export - ${groupLabel}`;
+    }
+  }
+
+  onExportGroupChange(group: 'faculty' | 'program' | 'room'): void {
+    this.activeExportGroup = group;
+    this.updateAllExportTitleAndSubtitle();
+    this.generateAndDisplayPdf();
   }
 
   // Generates 12-hour formatted time options array
@@ -137,9 +183,36 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
     }
   }
 
+  private getActivePdfFunction(): (() => Blob | Promise<Blob> | void) | undefined {
+    if (this.exportType === 'all') {
+      if (this.activeExportGroup === 'program') {
+        return this.data.generateProgramsPdfFunction || this.data.generatePdfFunction;
+      }
+      if (this.activeExportGroup === 'room') {
+        return this.data.generateRoomsPdfFunction || this.data.generatePdfFunction;
+      }
+      return this.data.generateFacultyPdfFunction || this.data.generatePdfFunction;
+    }
+    return this.data.generatePdfFunction;
+  }
+
+  private getActiveExcelFunction(): (() => Promise<void> | void) | undefined {
+    if (this.exportType === 'all') {
+      if (this.activeExportGroup === 'program') {
+        return this.data.generateProgramsExcelFunction || this.data.generateExcelFunction;
+      }
+      if (this.activeExportGroup === 'room') {
+        return this.data.generateRoomsExcelFunction || this.data.generateExcelFunction;
+      }
+      return this.data.generateFacultyExcelFunction || this.data.generateExcelFunction;
+    }
+    return this.data.generateExcelFunction;
+  }
+
   // Generates and sets PDF preview iframe URL
   async generateAndDisplayPdf(): Promise<void> {
-    if (!this.data.generatePdfFunction) {
+    const pdfFn = this.getActivePdfFunction();
+    if (!pdfFn) {
       this.pdfBlobUrl = null;
       return;
     }
@@ -147,7 +220,7 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
     this.isLoadingPdf = true;
 
     try {
-      const result = this.data.generatePdfFunction();
+      const result = pdfFn();
       const pdfBlob = result instanceof Promise ? await result : result;
 
       if (pdfBlob instanceof Blob) {
@@ -171,19 +244,22 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
 
   // Triggers PDF download
   async downloadPdf(): Promise<void> {
-    if (!this.data.generatePdfFunction) return;
+    const pdfFn = this.getActivePdfFunction();
+    if (!pdfFn) return;
 
     try {
-      const result = this.data.generatePdfFunction();
+      const result = pdfFn();
       const pdfResult = result instanceof Promise ? await result : result;
 
       if (pdfResult instanceof Blob) {
         const blobUrl = URL.createObjectURL(pdfResult);
         const a = document.createElement('a');
         a.href = blobUrl;
-        const formattedName =
-          this.data.facultyName.replace(',', '').replace(/\s+/g, '_');
-        a.download = `${formattedName}_Arrangements.pdf`;
+        const namePrefix =
+          this.exportType === 'all'
+            ? `Internal_Arrangements_${this.activeExportGroup}`
+            : (this.data.facultyName || 'Faculty').replace(',', '').replace(/\s+/g, '_');
+        a.download = `${namePrefix}_Arrangements.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -196,9 +272,10 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
 
   // Triggers Excel download
   async downloadExcel(): Promise<void> {
-    if (this.data.generateExcelFunction) {
+    const excelFn = this.getActiveExcelFunction();
+    if (excelFn) {
       try {
-        await this.data.generateExcelFunction();
+        await excelFn();
       } catch (error) {
         console.error('Excel download failed:', error);
       }
@@ -238,7 +315,7 @@ export class DialogViewInternalArrangementsComponent implements OnInit, OnDestro
           this.data.onScheduleUpdated();
         }
 
-        if (this.selectedView === 'pdf-view') {
+        if (this.selectedView === 'pdf-view' || this.exportType === 'all') {
           this.generateAndDisplayPdf();
         }
       }

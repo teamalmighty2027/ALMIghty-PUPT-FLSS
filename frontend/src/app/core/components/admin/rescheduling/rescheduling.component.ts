@@ -147,7 +147,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action', 'allowAppeals'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -990,36 +990,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── PDF and Excel Export Methods ─────────────────────────────────────
 
   // ── Export By Programs Trigger ──
+  // ── Export By Programs Trigger ──
   onExportByPrograms(): void {
-    if (this.allFaculties.length === 0) {
-      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const groupedByProgram = this.groupSchedulesByProgram();
-    const baseFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
-
-    this.dialog.open(DialogViewScheduleComponent, {
-      maxWidth: '90vw',
-      width: '100%',
-      data: {
-        exportType: 'all',
-        entity: 'faculty', 
-        entityData: groupedByProgram.map(p => p.schedules).flat(),
-        customTitle: 'Internal Arrangements By Program',
-        fileName: baseFileName,
-        academicYear: this.academicYear,
-        semester: this.semester,
-        generatePdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
-        generateExcelFunction: async () => {
-          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
-        },
-        showViewToggle: false,
-      },
-      disableClose: true,
-      autoFocus: true,
-    });
+    this.onExportArrangements('program');
   }
 
   private groupSchedulesByProgram(): { program: string, schedules: any[] }[] {
@@ -1046,35 +1019,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Export By Rooms Trigger ──
   onExportByRooms(): void {
-    if (this.allFaculties.length === 0) {
-      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const groupedByRoom = this.groupSchedulesByRoom();
-    const baseFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
-
-    this.dialog.open(DialogViewScheduleComponent, {
-      maxWidth: '90vw',
-      width: '100%',
-      data: {
-        exportType: 'all',
-        entity: 'faculty', // Spoofed to bypass modal validation
-        entityData: groupedByRoom.map(r => r.schedules).flat(),
-        customTitle: 'Internal Arrangements By Room',
-        fileName: baseFileName,
-        academicYear: this.academicYear,
-        semester: this.semester,
-        generatePdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
-        generateExcelFunction: async () => {
-          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
-        },
-        showViewToggle: false,
-      },
-      disableClose: true,
-      autoFocus: true,
-    });
+    this.onExportArrangements('room');
   }
 
   private groupSchedulesByRoom(): { room: string, schedules: any[] }[] {
@@ -1098,35 +1043,43 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     })).sort((a, b) => a.room.localeCompare(b.room));
   }
   
-  onExportArrangements(): void {
+  onExportArrangements(defaultGroup: 'faculty' | 'program' | 'room' = 'faculty'): void {
     if (this.allFaculties.length === 0) {
       this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
       return;
     }
 
-    const generatePdfFunction = (): Blob | void => {
-      return this.generateAllSchedulesPdfBlob();
-    };
+    const groupedByProgram = this.groupSchedulesByProgram();
+    const groupedByRoom = this.groupSchedulesByRoom();
 
-    const baseFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const facultyFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const programFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const roomFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
 
     this.dialog.open(DialogViewInternalArrangementsComponent, {
       maxWidth: '90vw',
       width: '100%',
       data: {
         exportType: 'all',
-        entity: 'faculty',
-        entityData: this.allFaculties.map(f => f.schedules).flat(),
-        customTitle: 'All Internal Arrangements',
-        fileName: baseFileName,
+        exportGroup: defaultGroup,
+        customTitle: 'Internal Arrangements',
         academicYear: this.academicYear,
         semester: this.semester,
-        generatePdfFunction: generatePdfFunction,
-        generateExcelFunction: async () => {
+        generateFacultyPdfFunction: () => this.generateAllSchedulesPdfBlob(),
+        generateFacultyExcelFunction: async () => {
           const excelBlob = await this.generateArrangementsExcelBlobAll();
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
+          saveAs(excelBlob, `${facultyFileName}.xlsx`);
         },
-        showViewToggle: false,
+        generateProgramsPdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
+        generateProgramsExcelFunction: async () => {
+          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
+          saveAs(excelBlob, `${programFileName}.xlsx`);
+        },
+        generateRoomsPdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
+        generateRoomsExcelFunction: async () => {
+          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
+          saveAs(excelBlob, `${roomFileName}.xlsx`);
+        },
       },
       disableClose: false,
       autoFocus: true,
