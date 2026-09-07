@@ -25,20 +25,22 @@
         <div
           class="tab-content-wrapper"
         >
-          <div class="report-header-container" style="margin-bottom: 15px">
-            <app-reports-header
-              [(selectedTermId)]="selectedTermId"
-              [inputFields]="arrangementsInputFields"
-              [showExportButton]="true"
-              [showAddButton]="false"
-              [showRefreshButton]="true"
-              [isRefreshing]="isRefreshing"
-              (refresh)="onManualRefresh()"
-              (export)="onExportArrangements()"
-              (inputChange)="onArrangementsInputChange($event)"
-              (termChange)="onTermChange()"
-              [buttonDisabled]="!hasAnyArrangements"
-            ></app-reports-header>
+          <div class="report-header-container">
+            <div>
+              <app-reports-header
+                [(selectedTermId)]="selectedTermId"
+                [inputFields]="arrangementsInputFields"
+                [showExportButton]="true"
+                [showAddButton]="false"
+                [showRefreshButton]="true"
+                [isRefreshing]="isRefreshing"
+                (refresh)="onManualRefresh()"
+                (export)="onExportArrangements()"
+                (inputChange)="onArrangementsInputChange($event)"
+                (termChange)="onTermChange()"
+                [buttonDisabled]="!hasAnyArrangements"
+              ></app-reports-header>
+            </div>
           </div>
 
           <div class="report-table-container">
@@ -111,6 +113,62 @@
                   </td>
                 </ng-container>
 
+                <ng-container matColumnDef="action">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Action
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element"
+                    class="custom-cell action"
+                  >
+                    <div class="action-button-container">
+                      <span
+                        [matTooltip]="
+                          element.schedules.length === 0
+                            ? element.facultyName + ' has no schedules available'
+                            : ''
+                        "
+                        matTooltipDisabled="false"
+                      >
+                        <button
+                          mat-button
+                          class="sec-ripple view-button"
+                          (click)="viewFacultyArrangements(element)"
+                          [disabled]="element.schedules.length === 0"
+                          [ngClass]="{
+                            'disabled-button': element.schedules.length === 0,
+                          }"
+                        >
+                          <mat-icon>visibility</mat-icon
+                          ><span>View Schedule</span>
+                        </button>
+                      </span>
+
+                      <span
+                        [matTooltip]="
+                          element.schedules.length === 0
+                            ? element.facultyName + ' has no schedules available'
+                            : ''
+                        "
+                        matTooltipDisabled="false"
+                      >
+                        <button
+                          mat-button
+                          class="sec-ripple export-button"
+                          (click)="downloadFacultyArrangements(element)"
+                          [disabled]="element.schedules.length === 0"
+                          [ngClass]="{
+                            'disabled-button': element.schedules.length === 0,
+                          }"
+                        >
+                          <mat-icon>download</mat-icon><span>Download</span>
+                        </button>
+                      </span>
+                    </div>
+                  </td>
+                </ng-container>
+
                 <ng-container matColumnDef="allowAppeals">
                   <th mat-header-cell *matHeaderCellDef class="custom-header" style="text-align: center;">
                     <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -142,60 +200,6 @@
                       </mat-slide-toggle>
                       
                     </div>
-                  </td>
-                </ng-container>
-
-                <ng-container matColumnDef="action">
-                  <th mat-header-cell *matHeaderCellDef class="custom-header">
-                    Action
-                  </th>
-                  <td
-                    mat-cell
-                    *matCellDef="let element"
-                    class="custom-cell action"
-                  >
-                    <span
-                      [matTooltip]="
-                        element.schedules.length === 0
-                          ? element.facultyName + ' has no schedules available'
-                          : ''
-                      "
-                      matTooltipDisabled="false"
-                    >
-                      <button
-                        mat-button
-                        class="sec-ripple view-button"
-                        (click)="viewFacultyArrangements(element)"
-                        [disabled]="element.schedules.length === 0"
-                        [ngClass]="{
-                          'disabled-button': element.schedules.length === 0,
-                        }"
-                      >
-                        <mat-icon>visibility</mat-icon
-                        ><span>View Schedule</span>
-                      </button>
-                    </span>
-
-                    <span
-                      [matTooltip]="
-                        element.schedules.length === 0
-                          ? element.facultyName + ' has no schedules available'
-                          : ''
-                      "
-                      matTooltipDisabled="false"
-                    >
-                      <button
-                        mat-button
-                        class="sec-ripple export-button"
-                        (click)="downloadFacultyArrangements(element)"
-                        [disabled]="element.schedules.length === 0"
-                        [ngClass]="{
-                          'disabled-button': element.schedules.length === 0,
-                        }"
-                      >
-                        <mat-icon>download</mat-icon><span>Download</span>
-                      </button>
-                    </span>
                   </td>
                 </ng-container>
 
@@ -246,8 +250,9 @@
         <div
           class="tab-content-wrapper"
         >
-          <div class="rescheduling-header-container">
+          <div class="rescheduling-header-container" style="display: flex; justify-content: space-between; align-items: center; gap: 16px;">
             <app-table-header
+              style="flex: 1;"
               [inputFields]="headerInputFields"
               [showExportButton]="false"
               [showAddButton]="false"
@@ -261,6 +266,14 @@
                 dataSource.data.length === 0 ? 'No appeals available' : ''
               "
             ></app-table-header>
+            <button
+              mat-flat-button
+              (click)="openArrangementChecker()"
+              class="check-slot-btn"
+            >
+              <mat-icon>search</mat-icon>
+              <span>Check Slot</span>
+            </button>
           </div>
 
           <div class="rescheduling-table-container">
@@ -342,17 +355,15 @@
                     <div class="action-button-container">
                       <button
                         mat-button
-                        class="view-button sec-ripple"
+                        class="sec-ripple view-button"
                         (click)="openViewDialog(element)"
                       >
-                        <div class="button-content">
-                          <mat-icon>visibility</mat-icon><span>View</span>
-                        </div>
+                        <mat-icon>visibility</mat-icon><span>View</span>
                       </button>
 
                       <button
                         mat-button
-                        class="edit-button sec-ripple"
+                        class="sec-ripple edit-button"
                         (click)="openEditDialog(element)"
                         [disabled]="element.appealVerification !== 'Pending'"
                         [ngClass]="{
@@ -360,9 +371,7 @@
                             element.appealVerification !== 'Pending',
                         }"
                       >
-                        <div class="button-content">
-                          <mat-icon>edit</mat-icon><span>Edit</span>
-                        </div>
+                        <mat-icon>edit</mat-icon><span>Edit</span>
                       </button>
                     </div>
                   </td>
@@ -554,7 +563,19 @@
         </div>
 
         <div class="edit-mode-section">
-          <div class="suggested-label"><span>NEW SCHEDULE</span></div>
+          <div class="suggested-label" style="display: flex; align-items: center; justify-content: space-between;">
+            <span>NEW SCHEDULE</span>
+            <button
+              mat-button
+              type="button"
+              class="copy-requested-btn"
+              (click)="copyRequestedScheduleToNewSchedule()"
+              matTooltip="Auto-fill new schedule with requested appeal details"
+            >
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy requested schedule</span>
+            </button>
+          </div>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Day</mat-label>
             <mat-select
@@ -616,6 +637,38 @@
               <ul class="validation-message-list">
                 <li *ngFor="let message of conflictMessages">{{ message }}</li>
               </ul>
+
+              <div class="swap-toggle-box">
+                <mat-slide-toggle
+                  [(ngModel)]="isSwapMode"
+                  (change)="onSwapModeToggle()"
+                  color="primary">
+                  Approve as Schedule Swap
+                </mat-slide-toggle>
+
+                @if (isSwapMode) {
+                  <div class="swap-selector-wrapper" style="margin-top: 12px;">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Select Schedule to Swap With</mat-label>
+                      <mat-select
+                        [(ngModel)]="selectedSwapScheduleId"
+                        (selectionChange)="onSwapPartnerChange()">
+                        <mat-option *ngFor="let candidate of swapCandidates" [value]="candidate.scheduleId">
+                          {{ candidate.label }}
+                        </mat-option>
+                      </mat-select>
+                      <mat-icon matPrefix>swap_horiz</mat-icon>
+                    </mat-form-field>
+
+                    @if (selectedSwapCandidateHasArrangement) {
+                      <div class="arrangement-warning-note" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #d97706; margin-top: 4px;">
+                        <mat-icon style="font-size: 1.1rem; width: 1.1rem; height: 1.1rem;">warning</mat-icon>
+                        <span>Note: The selected schedule already has an internal arrangement override. Proceeding will overwrite its existing arrangement.</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
             </div>
           }
         </div>
@@ -635,21 +688,38 @@
           <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
             Deny
           </button>
-          <button
-            mat-flat-button
-            class="btn-approve"
-            (click)="approveAppeal()"
-             [disabled]="
-              conflictMessages.length > 0 ||
-              !newSchedule?.preferredDay ||
-              !newSchedule?.preferredStartTime ||
-              !newSchedule?.preferredEndTime ||
-              !newSchedule?.room
-            "
-            [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
-          >
-            Approve
-          </button>
+          @if (isSwapMode) {
+            <button
+              mat-flat-button
+              class="btn-approve"
+              (click)="approveSwap()"
+              [disabled]="
+                !selectedSwapScheduleId ||
+                !newSchedule?.preferredDay ||
+                !newSchedule?.preferredStartTime ||
+                !newSchedule?.preferredEndTime ||
+                !newSchedule?.room
+              "
+            >
+              Approve Swap
+            </button>
+          } @else {
+            <button
+              mat-flat-button
+              class="btn-approve"
+              (click)="approveAppeal()"
+              [disabled]="
+                conflictMessages.length > 0 ||
+                !newSchedule?.preferredDay ||
+                !newSchedule?.preferredStartTime ||
+                !newSchedule?.preferredEndTime ||
+                !newSchedule?.room
+              "
+              [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
+            >
+              Approve
+            </button>
+          }
         }
       </div>
     </div>

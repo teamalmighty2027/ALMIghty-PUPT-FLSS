@@ -26,6 +26,7 @@ describe('FacultyMainComponent', () => {
             getUserEmail: () => 'faculty@test.com',
             getUserRole: () => 'Faculty',
             profilePictureUrl$: of(null),
+            userName$: of('Test Faculty'),
             logout: () => of(null),
             hasPermission: () => true
           }

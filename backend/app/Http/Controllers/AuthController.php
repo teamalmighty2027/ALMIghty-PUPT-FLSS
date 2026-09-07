@@ -339,10 +339,22 @@ class AuthController extends Controller
             $middleName = $userData['middle_name'] ?? '';
             $lastName = $userData['last_name'] ?? '';
 
-            // Query user by email
-            $user = User::where('email', $email)
-              ->whereIn('role', $requestedRole)
-              ->first();
+            // Query user by IDP UUID first, then fall back to email
+            $user = null;
+
+            if ($id) {
+                $user = User::whereHas('faculty', function ($query) use ($id) {
+                    $query->where('idp_user_id', $id);
+                })
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
+
+            if (! $user) {
+                $user = User::where('email', $email)
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
 
             if (!$user) {
                 return response()->json([
@@ -572,15 +584,32 @@ class AuthController extends Controller
             $email     = $idpData['email'];
             $idpUserId = $idpData['id'] ?? null;
 
-            // --- Find all FLSS users matching this email across roles ---
-            $users = User::with([
-                'faculty.facultyType',
-                'permissions',
-                'allowedPrograms',
-            ])
-                ->where('email', $email)
-                ->whereIn('role', ['faculty', 'admin', 'superadmin'])
-                ->get();
+            // --- Find all FLSS users matching by IDP UUID first, then email ---
+            $users = collect();
+
+            if ($idpUserId) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->whereHas('faculty', function ($query) use ($idpUserId) {
+                        $query->where('idp_user_id', $idpUserId);
+                    })
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
+
+            if ($users->isEmpty()) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->where('email', $email)
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
 
             if ($users->isEmpty()) {
                 return response()->json([
@@ -720,7 +749,8 @@ class AuthController extends Controller
     }
 
     /**
-     * Generates and returns the IDP authorization redirect URL after health verification.
+     * Generates and returns the IDP authorization redirect URL after health
+     * verification.
      */
     public function getIdpLoginUrl()
     {
@@ -728,34 +758,61 @@ class AuthController extends Controller
         $clientId = config('services.idp.client_id');
 
         if (!$baseUrl || !$clientId) {
-            Log::error('IDP configuration missing for generating authorization URL');
+            Log::error(
+                'IDP configuration missing for generating authorization URL'
+            );
             return response()->json([
                 'message' => 'Authentication configuration error.',
             ], 500);
         }
 
-        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id=' . $clientId;
+        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id='
+            . $clientId;
+        $healthUrl = rtrim($baseUrl, '/') . '/api/v1/health';
 
         try {
-            $probeResponse = Http::timeout(2)->withoutVerifying()->get($url);
+            $probeResponse = Http::timeout(3)
+                ->withoutVerifying()
+                ->get($healthUrl);
 
             if ($probeResponse->status() === 429) {
                 Log::warning("IDP rate limit exceeded for client {$clientId}");
                 return response()->json([
-                    'message' => 'Identity Provider rate limit exceeded. Please try local login.',
+                    'message' => 'Identity Provider rate limit exceeded.'
+                        . ' Please try local login.',
                     'error'   => 'rate_limit_exceeded',
                 ], 429);
             }
 
-            if ($probeResponse->serverError()) {
-                Log::warning("IDP server error ({$probeResponse->status()}) for client {$clientId}");
+            if (!$probeResponse->successful()) {
+                Log::warning(
+                    "IDP health status code {$probeResponse->status()}"
+                    . " for client {$clientId}"
+                );
                 return response()->json([
                     'message' => 'Identity Provider service unavailable.',
                     'error'   => 'idp_server_error',
                 ], 503);
             }
+
+            $healthData = $probeResponse->json();
+            $status = $healthData['status'] ?? null;
+
+            if ($status !== 'healthy') {
+                Log::warning(
+                    "IDP health status '{$status}' for client {$clientId}"
+                );
+                return response()->json([
+                    'message' => 'Identity Provider system is currently'
+                        . ' degraded.',
+                    'error'   => 'idp_degraded',
+                ], 503);
+            }
         } catch (Exception $e) {
-            Log::warning("IDP health check failed for client {$clientId}: " . $e->getMessage());
+            Log::warning(
+                "IDP health check failed for client {$clientId}: "
+                . $e->getMessage()
+            );
             return response()->json([
                 'message' => 'Identity Provider is currently unreachable.',
                 'error'   => 'idp_unreachable',

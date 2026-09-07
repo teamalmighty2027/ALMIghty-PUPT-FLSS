@@ -56,6 +56,7 @@ type Day = 'Monday' |
 export class FacultyScheduleMobileComponent implements OnInit, OnChanges {
   @Input() facultySchedule: any;
   @Input() showAppealButtons: boolean = false;
+  @Input() showAppealHistory: boolean = true;
 
   @Output() appealClicked = new EventEmitter<any>();
   @Output() viewAppealsClicked = new EventEmitter<any>();
@@ -237,8 +238,8 @@ export class FacultyScheduleMobileComponent implements OnInit, OnChanges {
 
   // Map approval value to status text
   private mapStatus(is_approved: any): string {
-    if (is_approved === true || is_approved === 1) return 'Approved';
-    if (is_approved === false || is_approved === 0) return 'Denied';
+    if (is_approved === true || is_approved === 1 || is_approved === 'approved' || String(is_approved) === '1') return 'Approved';
+    if (is_approved === false || is_approved === 0 || is_approved === 'denied' || String(is_approved) === '0') return 'Denied';
     return 'Pending';
   }
 

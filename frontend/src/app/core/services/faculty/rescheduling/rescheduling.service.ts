@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { environment } from '../../../../../environments/environment.dev';
 import { HttpClient } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
-import { throwError, Observable } from 'rxjs';
+import { throwError, Observable, of } from 'rxjs';
 import {
   PopulateSchedulesResponse,
   Room,
@@ -45,7 +45,7 @@ export class ReschedulingService {
   private to24Hour(time: string): string {
     if (!time) return '';
     if (!time.includes('AM') && !time.includes('PM')) return time;
-    
+
     const [timePart, period] = time.trim().split(' ');
     let [hours, minutes] = timePart.split(':').map(Number);
 
@@ -56,6 +56,34 @@ export class ReschedulingService {
     }
 
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
+
+  // Safely parses JSON payloads when local PHP notices prepend HTML to responses
+  private handleResponseWithPhpNotices(obs: Observable<any>): Observable<any> {
+    return obs.pipe(
+      catchError((error: any) => {
+        if (
+          (error?.status === 200 || error?.status === 201) &&
+          error?.error?.text &&
+          typeof error.error.text === 'string'
+        ) {
+          const raw = error.error.text;
+          const jsonStart = raw.indexOf('{');
+          const jsonEnd = raw.lastIndexOf('}');
+
+          if (jsonStart !== -1 && jsonEnd > jsonStart) {
+            try {
+              const parsed = JSON.parse(raw.substring(jsonStart, jsonEnd + 1));
+              return of(parsed);
+            } catch (e) {
+              // ignore parse error
+            }
+          }
+        }
+
+        return throwError(() => error);
+      })
+    );
   }
 
   // ── FACULTY — Submit appeal ───────────────────────────────────
@@ -84,9 +112,7 @@ export class ReschedulingService {
     form.append('roomCode',  String(appealDetails.roomCode ?? ''));
     form.append('forceSubmit', forceSubmit ? 'true' : 'false');
 
-    return this.http.post(url, form).pipe(
-      catchError((error: any) => throwError(() => error))
-    );
+    return this.handleResponseWithPhpNotices(this.http.post(url, form));
   }
 
   // ── FACULTY — My Appeals ──────────────────────────────────────
@@ -114,15 +140,48 @@ export class ReschedulingService {
     newSchedule: { day: string; startTime: string; endTime: string; room: string; },
     adminRemarks: string
   ): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/rescheduling-appeals/${appealId}/approve`, {
+    return this.handleResponseWithPhpNotices(
+      this.http.post(`${this.baseUrl}/rescheduling-appeals/${appealId}/approve`, {
         day:           newSchedule.day,
         start_time:    this.to24Hour(newSchedule.startTime),
         end_time:      this.to24Hour(newSchedule.endTime),
         room:          newSchedule.room,
         admin_remarks: adminRemarks,
       })
-      .pipe(catchError((error: any) => throwError(() => error)));
+    );
+  }
+
+  /**
+   * Approves an appeal as a mutual schedule swap between two schedules.
+   * @param appealId - The ID of the appeal being approved.
+   * @param swapScheduleId - The ID of the counter-schedule to swap with.
+   * @param newSchedule - The target schedule slot details.
+   * @param adminRemarks - Optional administrative remarks.
+   */
+  approveSwap(
+    appealId: number,
+    swapScheduleId: number,
+    newSchedule: {
+      day: string;
+      startTime: string;
+      endTime: string;
+      room: string;
+    },
+    adminRemarks: string,
+  ): Observable<any> {
+    return this.handleResponseWithPhpNotices(
+      this.http.post(
+        `${this.baseUrl}/rescheduling-appeals/${appealId}/approve-swap`,
+        {
+          swap_schedule_id: swapScheduleId,
+          day: newSchedule.day,
+          start_time: this.to24Hour(newSchedule.startTime),
+          end_time: this.to24Hour(newSchedule.endTime),
+          room: newSchedule.room,
+          admin_remarks: adminRemarks,
+        },
+      ),
+    );
   }
 
   denyAppeal(appealId: number, adminRemarks: string): Observable<any> {
@@ -141,44 +200,43 @@ export class ReschedulingService {
   }
 
   toggleFacultyAppealAccess(
-  facultyId: number, 
-  isEnabled: boolean, 
-  activeSemesterId: number,
-  startDate?: string,
-  endDate?: string,
-  sendEmail?: boolean
-): Observable<any> {
-  return this.http
-    .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {
-      faculty_id: facultyId,
-      is_enabled: isEnabled,
-      active_semester_id: activeSemesterId,
-      start_date: startDate,
-      end_date: endDate,
-      send_email: sendEmail
-    })
-    .pipe(catchError((error: any) => throwError(() => error)));
-}
+    facultyId: number,
+    isEnabled: boolean,
+    activeSemesterId: number,
+    startDate?: string,
+    endDate?: string,
+    sendEmail?: boolean
+  ): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/toggle-access`, {
+        faculty_id: facultyId,
+        is_enabled: isEnabled,
+        active_semester_id: activeSemesterId,
+        start_date: startDate,
+        end_date: endDate,
+        send_email: sendEmail
+      })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
 
-toggleAllFacultyAppealAccess(
-  isEnabled: boolean, 
-  activeSemesterId: number,
-  startDate?: string,
-  endDate?: string,
-  sendEmail?: boolean
-): Observable<any> {
-  return this.http
-    .post(`${this.baseUrl}/rescheduling-appeals/toggle-all-access`, {
-      is_enabled: isEnabled,
-      active_semester_id: activeSemesterId,
-      start_date: startDate,
-      end_date: endDate,
-      send_email: sendEmail
-    })
-    .pipe(catchError((error: any) => throwError(() => error)));
-}
+  toggleAllFacultyAppealAccess(
+    isEnabled: boolean,
+    activeSemesterId: number,
+    startDate?: string,
+    endDate?: string,
+    sendEmail?: boolean
+  ): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/toggle-all-access`, {
+        is_enabled: isEnabled,
+        active_semester_id: activeSemesterId,
+        start_date: startDate,
+        end_date: endDate,
+        send_email: sendEmail
+      })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
 
-  // >>> ADDED MISSING METHODS HERE <<<
   requestAppealAccess(facultyId: string): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/rescheduling-appeals/request-access`, { faculty_id: facultyId })
@@ -227,10 +285,10 @@ toggleAllFacultyAppealAccess(
       }
     );
   }
-  
+
   downloadAppealDocument(appealId: number): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/rescheduling-appeals/${appealId}/download`, {
-      responseType: 'blob' // This tells Angular we expect a file, not JSON
+      responseType: 'blob'
     });
   }
 }

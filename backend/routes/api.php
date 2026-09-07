@@ -346,6 +346,7 @@ Route::middleware([
     Route::get('/faculty', [FacultyController::class, 'index']);
     Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
+    Route::post('/faculty/sync-idp-uuids', [FacultyController::class, 'syncIdpUuids']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
@@ -456,6 +457,7 @@ Route::middleware([
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
         Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
+        Route::post('/rescheduling-appeals/{id}/approve-swap', [RescheduleController::class, 'approveSwap']);
         Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);
     });
 

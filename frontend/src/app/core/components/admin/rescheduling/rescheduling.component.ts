@@ -23,6 +23,8 @@ import { ReportsHeaderComponent } from '../../../../shared/reports-header/report
 import { DialogViewScheduleComponent } from '../../../../shared/dialog-view-schedule/dialog-view-schedule.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
 import { DialogToggleAppealsComponent } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+import { DialogArrangementCheckerComponent } from '../../../../shared/dialog-arrangement-checker/dialog-arrangement-checker.component';
+import { DialogViewInternalArrangementsComponent } from '../../../../shared/dialog-view-internal-arrangements/dialog-view-internal-arrangements.component';
 
 import { ReschedulingService, AppealResponse } from '../../../services/faculty/rescheduling/rescheduling.service';
 import { SchedulingService } from '../../../services/admin/scheduling/scheduling.service';
@@ -145,7 +147,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action', 'allowAppeals'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -170,6 +172,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   roomOptions: string[] = [];
   availableEndTimes: string[] = [];
   timeSlots: TimeSlot[] = [];
+
+  // Swap mode state
+  isSwapMode = false;
+  selectedSwapScheduleId: number | null = null;
+  swapCandidates: { scheduleId: number; label: string; hasExistingArrangement: boolean }[] = [];
+  selectedSwapCandidateHasArrangement = false;
 
   isListening = false;
   speechSupported = false;
@@ -697,7 +705,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           ? new Date(activeFaculty.appealEndDate) 
           : null
       },
-      disableClose: true,
+      disableClose: false,
       autoFocus: false
     });
 
@@ -770,6 +778,37 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Opens the Internal Arrangement Checker playground dialog.
+   */
+  openArrangementChecker(): void {
+    if (!this.cachedSchedules || !this.cachedRooms) {
+      this.snackBar.open('Schedule and room data loading... Please try again.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const facultiesList = this.allFaculties.map(f => ({
+      facultyId: f.facultyId,
+      facultyName: f.facultyName
+    }));
+
+    const roomsList = this.cachedRooms.rooms || [];
+
+    this.dialog.open(DialogArrangementCheckerComponent, {
+      width: '680px',
+      maxWidth: '95vw',
+      maxHeight: '85vh',
+      data: {
+        cachedSchedules: this.cachedSchedules,
+        cachedRooms: this.cachedRooms,
+        cachedArrangements: this.cachedArrangements,
+        faculties: facultiesList,
+        rooms: roomsList,
+      },
+      autoFocus: false,
+    });
+  }
+
     /**
      * Opens the confirmation dialog for a single faculty appeal toggle.
      *
@@ -800,7 +839,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         startDate: parseSqlDate(faculty.appealStartDate),
         endDate: parseSqlDate(faculty.appealEndDate)
       },
-      disableClose: true,
+      disableClose: false,
       autoFocus: false
     });
 
@@ -951,73 +990,164 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // ── PDF and Excel Export Methods ─────────────────────────────────────
+
+  // ── Export By Programs Trigger ──
+  // ── Export By Programs Trigger ──
+  onExportByPrograms(): void {
+    this.onExportArrangements('program');
+  }
+
+  private groupSchedulesByProgram(): { program: string, schedules: any[] }[] {
+    const programMap = new Map<string, any[]>();
+
+    this.allFaculties.forEach(faculty => {
+      faculty.schedules.forEach((sched: any) => {
+        // Use a fallback so schedules without a program code aren't silently dropped
+        const pCode = sched.program_code || 'Unassigned / Other';
+        const schedWithFaculty = { ...sched, faculty_name: faculty.facultyName };
+        
+        if (!programMap.has(pCode)) {
+          programMap.set(pCode, []);
+        }
+        programMap.get(pCode)!.push(schedWithFaculty);
+      });
+    });
+
+    return Array.from(programMap.entries()).map(([program, schedules]) => ({
+      program,
+      schedules
+    })).sort((a, b) => a.program.localeCompare(b.program));
+  }
+
+  // ── Export By Rooms Trigger ──
+  onExportByRooms(): void {
+    this.onExportArrangements('room');
+  }
+
+  private groupSchedulesByRoom(): { room: string, schedules: any[] }[] {
+    const roomMap = new Map<string, any[]>();
+
+    this.allFaculties.forEach(faculty => {
+      faculty.schedules.forEach((sched: any) => {
+        const rCode = (sched.room_code && sched.room_code.trim() !== '') ? sched.room_code : 'TBA / Unassigned';
+        const schedWithFaculty = { ...sched, faculty_name: faculty.facultyName };
+        
+        if (!roomMap.has(rCode)) {
+          roomMap.set(rCode, []);
+        }
+        roomMap.get(rCode)!.push(schedWithFaculty);
+      });
+    });
+
+    return Array.from(roomMap.entries()).map(([room, schedules]) => ({
+      room,
+      schedules
+    })).sort((a, b) => a.room.localeCompare(b.room));
+  }
   
-  onExportArrangements(): void {
+  onExportArrangements(defaultGroup: 'faculty' | 'program' | 'room' = 'faculty'): void {
     if (this.allFaculties.length === 0) {
       this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
       return;
     }
 
-    const generatePdfFunction = (): Blob | void => {
-      return this.generateAllSchedulesPdfBlob();
-    };
+    const groupedByProgram = this.groupSchedulesByProgram();
+    const groupedByRoom = this.groupSchedulesByRoom();
 
-    const baseFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const facultyFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const programFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const roomFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
 
-    this.dialog.open(DialogViewScheduleComponent, {
+    this.dialog.open(DialogViewInternalArrangementsComponent, {
       maxWidth: '90vw',
       width: '100%',
       data: {
         exportType: 'all',
-        entity: 'faculty',
-        entityData: this.allFaculties.map(f => f.schedules).flat(),
-        customTitle: 'All Internal Arrangements',
-        fileName: baseFileName,
+        exportGroup: defaultGroup,
+        customTitle: 'Internal Arrangements',
         academicYear: this.academicYear,
         semester: this.semester,
-        generatePdfFunction: generatePdfFunction,
-        generateExcelFunction: async () => {
+        generateFacultyPdfFunction: () => this.generateAllSchedulesPdfBlob(),
+        generateFacultyExcelFunction: async () => {
           const excelBlob = await this.generateArrangementsExcelBlobAll();
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
+          saveAs(excelBlob, `${facultyFileName}.xlsx`);
         },
-        showViewToggle: false,
+        generateProgramsPdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
+        generateProgramsExcelFunction: async () => {
+          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
+          saveAs(excelBlob, `${programFileName}.xlsx`);
+        },
+        generateRoomsPdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
+        generateRoomsExcelFunction: async () => {
+          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
+          saveAs(excelBlob, `${roomFileName}.xlsx`);
+        },
       },
-      disableClose: true,
+      disableClose: false,
       autoFocus: true,
     });
   }
 
-  /**
-   * Opens the schedule preview dialog for one faculty's arrangements.
-   *
-   * @param faculty The faculty row to preview.
-   */
+  // Opens the timetable view dialog for a faculty's internal arrangements
   viewFacultyArrangements(faculty: FacultyArrangement): void {
-    // ── Always grab the live object from allFaculties, never the table row ──
-    const liveFaculty = this.allFaculties.find(f => f.facultyId === faculty.facultyId) ?? faculty;
+    const liveFaculty =
+      this.allFaculties.find((f) => f.facultyId === faculty.facultyId) ??
+      faculty;
 
     const formattedName = liveFaculty.facultyName.replace(',', '').replace(/\s+/g, '_');
     const baseFileName = `${formattedName}_Arrangements_${liveFaculty.academicYear}_${liveFaculty.semester?.replace(/\s+/g, '_')}`;
 
-    this.dialog.open(DialogViewScheduleComponent, {
-      maxWidth: '90vw',
-      width: '100%',
-      data: {
-        exportType: 'single',
-        entity: 'faculty',
-        entityData: liveFaculty.schedules,  // ← live reference, not snapshot
-        customTitle: liveFaculty.facultyName,
-        academicYear: liveFaculty.academicYear,
-        semester: liveFaculty.semester,
-        generatePdfFunction: () => this.createPdfBlob(liveFaculty),
-        generateExcelFunction: async () => {
-          const excelBlob = await this.generateArrangementExcelBlob(liveFaculty);
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
+    const dialogRef = this.dialog.open(
+      DialogViewInternalArrangementsComponent,
+      {
+        maxWidth: '90vw',
+        width: '100%',
+        data: {
+          facultyId: liveFaculty.facultyId,
+          facultyName: liveFaculty.facultyName,
+          facultyCode: liveFaculty.facultyCode,
+          facultyType: liveFaculty.facultyType,
+          schedules: liveFaculty.schedules,
+          academicYear: liveFaculty.academicYear,
+          semester: liveFaculty.semester,
+          generatePdfFunction: () => this.createPdfBlob(liveFaculty),
+          generateExcelFunction: async () => {
+            const excelBlob = await this.generateArrangementExcelBlob(liveFaculty);
+            saveAs(excelBlob, `${baseFileName}.xlsx`);
+          },
+          onScheduleUpdated: () => {
+            if (this.selectedTermId) {
+              this.reschedulingService.getAllAppeals().subscribe({
+                next: (appeals) => {
+                  const mappedAppeals = appeals.map((a) => this.mapAppeal(a));
+
+                  this.loadArrangementsForTerm(
+                    this.selectedTermId!,
+                    mappedAppeals
+                  );
+                }
+              });
+            }
+          }
         },
-        previewMode: true,
-      },
-      disableClose: true,
-      autoFocus: true,
+        disableClose: false,
+        autoFocus: true
+      }
+    );
+
+    dialogRef.afterClosed().subscribe((wasSaved: boolean) => {
+      if (wasSaved && this.selectedTermId) {
+        this.reschedulingService.getAllAppeals().subscribe({
+          next: (appeals) => {
+            const mappedAppeals = appeals.map((a) => this.mapAppeal(a));
+
+            this.loadArrangementsForTerm(
+              this.selectedTermId!,
+              mappedAppeals
+            );
+          }
+        });
+      }
     });
   }
 
@@ -1035,7 +1165,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.dialog.open(DialogExportComponent, {
       width: '90vw',
       maxWidth: '1200px',
-      disableClose: true,
+      disableClose: false,
       data: {
         exportType: 'single',
         customTitle: `${faculty.facultyName} (Internal Arrangement)`,
@@ -1153,6 +1283,16 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── jsPDF Rendering Logic ────────────────────────────────────
 
+  // Formats time plot type key for display
+  getDisplayTypeName(type: string): string {
+    switch (type) {
+      case 'night_service': return 'Night Service';
+      case 'official_time': return 'Official Time';
+      case 'advising_time': return 'Advising Time';
+      default: return type;
+    }
+  }
+
   /**
    * Builds one PDF document containing all internal arrangement pages.
    */
@@ -1163,23 +1303,254 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     const topMargin = 15;
     const logoSize = 22;
 
-    const facultiesWithSchedules = this.allFaculties.filter(f => f.schedules && f.schedules.length > 0);
+    const facultiesWithSchedules = this.allFaculties.filter(
+      f => f.schedules && f.schedules.length > 0
+    );
 
     facultiesWithSchedules.forEach((faculty, index) => {
       if (index > 0) {
         this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
       }
-      
-      const title = `${faculty.facultyName} Schedule (Internal Arrangement)`;
+
+      const title = `${faculty.facultyName}`;
       const subtitle = this.getAcademicYearSubtitle(faculty);
-      
-      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
-      this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
+
+      let currentY = this.drawHeader(
+        doc,
+        topMargin,
+        pageWidth,
+        margin,
+        logoSize,
+        title,
+        subtitle
+      );
+
+      this.drawScheduleTable(
+        doc,
+        faculty.schedules || [],
+        title,
+        subtitle,
+        currentY,
+        margin,
+        pageWidth,
+        []
+      );
     });
 
     this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
+  }
+
+  // ── jsPDF Rendering Logic (Programs) ──
+  private generateProgramsPdfBlobAll(groupedByProgram: any[]): Blob {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const topMargin = 15;
+    const logoSize = 22;
+
+    const activePrograms = groupedByProgram.filter(p => p.schedules && p.schedules.length > 0);
+
+    activePrograms.forEach((programData, index) => {
+      if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+      }
+      
+      const title = `${programData.program} Schedule (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle({ academicYear: this.academicYear, semester: this.semester });
+      
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      // Pass 'program' as the entityType to swap Section for Faculty Name
+      this.drawScheduleTable(doc, programData.schedules, title, subtitle, 
+        currentY, margin, pageWidth, [], 'program'
+      );
+    });
+
+    this.reportHeaderService.addStandardFooter(doc);
+    return doc.output('blob');
+  }
+
+  // ── ExcelJS Rendering Logic (Programs) ──
+  private async generateProgramsExcelBlobAll(groupedByProgram: any[]): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    for (const prog of groupedByProgram) {
+      if (prog.schedules && prog.schedules.length > 0) {
+        // Strip invalid characters for excel tab names and limit to 31 chars
+        const tabName = prog.program.substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const worksheet = workbook.addWorksheet(tabName);
+        this.applyProgramArrangementExcelLayout(worksheet, prog);
+      }
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyProgramArrangementExcelLayout(worksheet: ExcelJS.Worksheet, prog: any) {
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 30 }, { width: 15 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:H1');
+    worksheet.mergeCells('A2:H2');
+
+    worksheet.getCell('A1').value = `Program (Internal Arrangement): ${prog.program.toUpperCase()}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear} | Semester: ${this.semester}`;
+
+    ['A1', 'A2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Faculty', 'Room No.', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (prog.schedules && prog.schedules.length > 0) {
+      prog.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTime(schedule.start_time)} - ${this.formatTime(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details?.course_code || '',
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.units || 0,
+          schedule.faculty_name || 'TBA',
+          schedule.room_code || 'TBA',
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
+  }
+
+  // ── jsPDF Rendering Logic (Rooms) ──
+  private generateRoomsPdfBlobAll(groupedByRoom: any[]): Blob {
+    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const margin = 10;
+    const topMargin = 15;
+    const logoSize = 22;
+
+    const activeRooms = groupedByRoom.filter(r => r.schedules && r.schedules.length > 0);
+
+    activeRooms.forEach((roomData, index) => {
+      if (index > 0) {
+        this.reportHeaderService.addStandardFooter(doc);
+        doc.addPage();
+      }
+      
+      const title = `Room ${roomData.room} Schedule (Internal Arrangement)`;
+      const subtitle = this.getAcademicYearSubtitle({ academicYear: this.academicYear, semester: this.semester });
+      
+      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
+      // Pass 'room' to adapt the schedule block content
+      this.drawScheduleTable(doc, roomData.schedules, title, subtitle, 
+        currentY, margin, pageWidth, [], 'room'
+      );
+    });
+
+    this.reportHeaderService.addStandardFooter(doc);
+    return doc.output('blob');
+  }
+
+  // ── ExcelJS Rendering Logic (Rooms) ──
+  private async generateRoomsExcelBlobAll(groupedByRoom: any[]): Promise<Blob> {
+    const workbook = new ExcelJS.Workbook();
+    for (const roomData of groupedByRoom) {
+      if (roomData.schedules && roomData.schedules.length > 0) {
+        const tabName = roomData.room.substring(0, 31).replace(/[^\w\s-]/gi, '');
+        const worksheet = workbook.addWorksheet(tabName);
+        this.applyRoomArrangementExcelLayout(worksheet, roomData);
+      }
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  private applyRoomArrangementExcelLayout(worksheet: ExcelJS.Worksheet, roomData: any) {
+    worksheet.pageSetup = {
+      orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+    };
+
+    worksheet.columns = [
+      { width: 15 }, { width: 35 }, { width: 8 }, { width: 8 }, 
+      { width: 10 }, { width: 15 }, { width: 25 }, { width: 25 }
+    ];
+
+    worksheet.mergeCells('A1:H1');
+    worksheet.mergeCells('A2:H2');
+
+    worksheet.getCell('A1').value = `Room (Internal Arrangement): ${roomData.room.toUpperCase()}`;
+    worksheet.getCell('A2').value = `School Year: ${this.academicYear} | Semester: ${this.semester}`;
+
+    ['A1', 'A2'].forEach(c => {
+      const cell = worksheet.getCell(c);
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
+
+    worksheet.addRow([]);
+
+    const headerRow = worksheet.addRow([
+      'Subject Code', 'Description', 'Lec', 'Lab', 'Units', 'Section', 'Faculty', 'Schedule'
+    ]);
+    headerRow.height = 25;
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+    });
+
+    if (roomData.schedules && roomData.schedules.length > 0) {
+      roomData.schedules.forEach((schedule: any) => {
+        const dayShort = schedule.day.substring(0, 3).toUpperCase();
+        const timeRange = `${this.formatTime(schedule.start_time)} - ${this.formatTime(schedule.end_time)}`;
+        
+        const row = worksheet.addRow([
+          schedule.course_details?.course_code || '',
+          schedule.course_details?.course_title || '',
+          schedule.course_details?.lec || 0,
+          schedule.course_details?.lab || 0,
+          schedule.course_details?.units || 0,
+          `${schedule.program_code} ${schedule.year_level}-${schedule.section_name}`,
+          schedule.faculty_name || 'TBA',
+          `${dayShort}\n${timeRange}`
+        ]);
+
+        row.eachCell((cell, colNum) => {
+          cell.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center', wrapText: true };
+          cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+      });
+    }
   }
 
   /**
@@ -1195,48 +1566,72 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     const logoSize = 22;
 
     if (faculty.schedules && faculty.schedules.length > 0) {
-      const title = `${faculty.facultyName} (Internal Arrangement)`;
+      const title = `${faculty.facultyName}`;
       const subtitle = this.getAcademicYearSubtitle(faculty);
 
-      let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
-      this.drawScheduleTable(doc, faculty.schedules, title, subtitle, currentY, margin, pageWidth);
+      let currentY = this.drawHeader(
+        doc,
+        topMargin,
+        pageWidth,
+        margin,
+        logoSize,
+        title,
+        subtitle
+      );
+
+      this.drawScheduleTable(
+        doc,
+        faculty.schedules || [],
+        title,
+        subtitle,
+        currentY,
+        margin,
+        pageWidth,
+        [],
+        'faculty'
+      );
     }
-    
+
     this.reportHeaderService.addStandardFooter(doc);
     return doc.output('blob');
   }
 
   /**
    * Renders the shared PDF header and returns the next Y position.
-   *
-   * @param doc The PDF document being generated.
-   * @param startY The top offset where the header should start.
-   * @param pageWidth The printable page width.
-   * @param margin The left and right page margin.
-   * @param logoSize The logo size reserved by the layout.
-   * @param title The title text shown in the header.
-   * @param subtitle The subtitle text shown in the header.
    */
-  private drawHeader(doc: jsPDF, startY: number, pageWidth: number, margin: number, logoSize: number, title: string, subtitle: string): number {
+  private drawHeader(
+    doc: jsPDF,
+    startY: number,
+    pageWidth: number,
+    margin: number,
+    logoSize: number,
+    title: string,
+    subtitle: string
+  ): number {
     let currentY = startY;
-    this.reportHeaderService.addHeader(doc, title, currentY, subtitle).subscribe((newY) => {
+    this.reportHeaderService
+      .addHeader(doc, title, currentY, subtitle)
+      .subscribe((newY) => {
         currentY = newY;
-    });
+      });
     return currentY;
   }
 
   /**
    * Draws the schedule grid and schedule blocks for one PDF section.
-   *
-   * @param doc The PDF document being generated.
-   * @param scheduleData The schedules to render.
-   * @param title The title text used in the section.
-   * @param subtitle The subtitle text used in the section.
-   * @param startY The starting Y position for the table.
-   * @param margin The left and right page margin.
-   * @param pageWidth The printable page width.
    */
-  private drawScheduleTable(doc: jsPDF, scheduleData: any[], title: string, subtitle: string, startY: number, margin: number, pageWidth: number): void {
+  private drawScheduleTable(
+    doc: jsPDF,
+    scheduleData: any[],
+    title: string,
+    subtitle: string,
+    startY: number,
+    margin: number,
+    pageWidth: number,
+    timePlots: any[] = [],
+    entityType: 'faculty' | 'program' | 'room' = 'faculty'
+  ): void {
+
     const hasSchedules = scheduleData && scheduleData.length > 0;
 
     if (!hasSchedules) {
@@ -1247,236 +1642,500 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const timeColWidth = 22; 
-    const dayColumnWidth = (pageWidth - margin * 2 - timeColWidth) / days.length;
-    
-    // MASSIVE row height for large fonts
-    const rowHeight = 8.5; 
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
 
-    // Split the day into Morning and Afternoon chunks
+    const timeColWidth = 22;
+    const dayColumnWidth =
+      (pageWidth - margin * 2 - timeColWidth) / days.length;
+    const rowHeight = 8.5;
+
     const chunks = [
-      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
+      { name: 'Morning (7:30 AM - 2:00 PM)', start: 450, end: 840 },
       { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 }
     ];
 
-    // Only process chunks that actually contain classes
     const activeChunks = chunks.filter(chunk => {
-      return scheduleData.some(s => {
+      const hasSched = scheduleData.some(s => {
+        if (!s.start_time || !s.end_time || !s.day) return false;
         const sStart = this.timeToMinutes(s.start_time);
         const sEnd = this.timeToMinutes(s.end_time);
         return Math.max(sStart, chunk.start) < Math.min(sEnd, chunk.end);
       });
+
+      const hasPlot = timePlots.some(p => {
+        if (!p.start_time || !p.end_time || !p.day) return false;
+        const pStart = this.timeToMinutes(p.start_time);
+        const pEnd = this.timeToMinutes(p.end_time);
+        return Math.max(pStart, chunk.start) < Math.min(pEnd, chunk.end);
+      });
+
+      return hasSched || hasPlot;
     });
 
-    if (activeChunks.length === 0) {
-      doc.setFontSize(20);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(128, 128, 128);
-      doc.text('No Assigned Schedule', pageWidth / 2, startY + 50, { align: 'center' });
-      return;
-    }
+    if (activeChunks.length === 0) return;
 
     let pageUsed = false;
     let currentY = startY;
 
     activeChunks.forEach(chunk => {
-      
       if (pageUsed) {
         this.reportHeaderService.addStandardFooter(doc);
         doc.addPage();
-        currentY = this.drawHeader(doc, 15, pageWidth, margin, 22, title, subtitle);
+        currentY = this.drawHeader(
+          doc,
+          15,
+          pageWidth,
+          margin,
+          22,
+          title,
+          subtitle
+        );
       }
-      
-      pageUsed = true;
-      currentY -= 3; 
 
-      // --- Draw Headers ---
+      pageUsed = true;
+      currentY -= 3;
+
+      // --- 1. DRAW HEADERS ---
+      const headerHeight = 7;
+      const subHeaderHeight = 5;
+      const totalHeaderHeight = headerHeight + subHeaderHeight;
+
+      // Time Header
       doc.setFillColor(128, 0, 0);
+      doc.setDrawColor(255, 255, 255);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, currentY, timeColWidth, totalHeaderHeight, 'FD');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-
-      // Time Header
-      doc.rect(margin, currentY, timeColWidth, 10, 'F');
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.rect(margin, currentY, timeColWidth, 10);
-      doc.text('Time', margin + timeColWidth / 2, currentY + 6.5, { align: 'center' });
+      doc.text(
+        'Time',
+        margin + timeColWidth / 2,
+        currentY + (totalHeaderHeight / 2) + 1.5,
+        { align: 'center' }
+      );
 
       // Day Headers
       days.forEach((day, index) => {
         const xPos = margin + timeColWidth + index * dayColumnWidth;
+        const subjColWidth = dayColumnWidth * 0.7;
+        const roomColWidth = dayColumnWidth * 0.3;
+
+        // Top row: Day name
         doc.setFillColor(128, 0, 0);
-        doc.rect(xPos, currentY, dayColumnWidth, 10, 'F');
-        doc.rect(xPos, currentY, dayColumnWidth, 10);
-        doc.text(day, xPos + dayColumnWidth / 2, currentY + 6.5, { align: 'center' });
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.5);
+        doc.rect(xPos, currentY, dayColumnWidth, headerHeight, 'FD');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(
+          day,
+          xPos + dayColumnWidth / 2,
+          currentY + 4.5,
+          { align: 'center' }
+        );
+
+        // Bottom row: Subject sub-header
+        doc.setFillColor(160, 20, 20);
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.4);
+        doc.rect(
+          xPos,
+          currentY + headerHeight,
+          subjColWidth,
+          subHeaderHeight,
+          'FD'
+        );
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text(
+          'Subject',
+          xPos + subjColWidth / 2,
+          currentY + headerHeight + 3.5,
+          { align: 'center' }
+        );
+
+        // Bottom row: Room sub-header
+        doc.setFillColor(160, 20, 20);
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.4);
+        doc.rect(
+          xPos + subjColWidth,
+          currentY + headerHeight,
+          roomColWidth,
+          subHeaderHeight,
+          'FD'
+        );
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'bold');
+        doc.text(
+          'Room',
+          xPos + subjColWidth + roomColWidth / 2,
+          currentY + headerHeight + 3.5,
+          { align: 'center' }
+        );
       });
 
-      currentY += 10;
+      currentY += totalHeaderHeight;
 
-      // --- Draw Time Grid for this Chunk ---
+      // --- 2. DRAW TIME GRID ---
       doc.setTextColor(0, 0, 0);
-      const chunkSlots = this.timeSlots.filter(s => s.minutes >= chunk.start && s.minutes < chunk.end);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+
+      const chunkSlots = this.timeSlots.filter(
+        s => s.minutes >= chunk.start && s.minutes < chunk.end
+      );
 
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         
-        // Flag the top row, the bottom row, and our standard 3-hour gaps
-        const isTopRow = index === 0;
-        const isBottomRow = index === chunkSlots.length - 1;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
-
-        // Print the Time text if it matches any of those conditions
-        if (isTopRow || isBottomRow || isThreeHourGap) {
-          
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200); 
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        // Draw a horizontal grid line for every 30-minute slot (skipping the top row to preserve the header border)
+        if (index > 0) {
+          doc.setDrawColor(200, 200, 200); 
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
+        
+        doc.setFontSize(8); 
+        doc.setFont('helvetica', 'normal');
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
       });
 
       const finalY = currentY + chunkSlots.length * rowHeight;
       doc.setDrawColor(200, 200, 200);
-      
-      // Bottom border
+      doc.setLineWidth(0.5);
       doc.line(margin, finalY, pageWidth - margin, finalY);
 
-      // Vertical Lines
-      doc.line(margin, currentY, margin, finalY); 
-      doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY); 
+      doc.line(margin, currentY, margin, finalY);
+      doc.line(margin + timeColWidth, currentY, margin + timeColWidth, finalY);
       days.forEach((_, index) => {
-        const xPos = margin + timeColWidth + (index + 1) * dayColumnWidth;
-        doc.line(xPos, currentY, xPos, finalY);
+        const xPos = margin + timeColWidth + index * dayColumnWidth;
+        const subjColWidth = dayColumnWidth * 0.7;
+        doc.line(xPos + subjColWidth, currentY, xPos + subjColWidth, finalY);
+        doc.line(xPos + dayColumnWidth, currentY, xPos + dayColumnWidth, finalY);
       });
 
-      // --- Draw the Blocks ---
-      const sortedScheduleData = [...scheduleData].sort((a, b) => this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time));
+      // --- 3. MERGE BLOCKS ---
+      const mergedMap = new Map<string, any>();
+      for (const item of scheduleData) {
+        if (!item.start_time || !item.end_time || !item.day) continue;
+        const key = `${item.day}|${item.start_time}|${item.end_time}`;
+        if (mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          if (!existing._mergedPrograms) {
+            existing._mergedPrograms = [existing.program_code];
+          }
+          if (!existing._mergedPrograms.includes(item.program_code)) {
+            existing._mergedPrograms.push(item.program_code);
+          }
+        } else {
+          mergedMap.set(key, { ...item });
+        }
+      }
 
+      const sortedScheduleData = [...mergedMap.values()].sort(
+        (a, b) =>
+          this.timeToMinutes(a.start_time) - this.timeToMinutes(b.start_time)
+      );
+
+      // PASS 1: Draw all block backgrounds
+      sortedScheduleData.forEach(item => {
+        const dayIndex = days.indexOf(item.day);
+        if (dayIndex === -1) return;
+
+        const cappedStart = Math.max(
+          this.timeToMinutes(item.start_time),
+          chunk.start
+        );
+        const cappedEnd = Math.min(
+          this.timeToMinutes(item.end_time),
+          chunk.end
+        );
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+        const subjColWidth = dayColumnWidth * 0.7;
+        const roomColWidth = dayColumnWidth * 0.3;
+
+        doc.setFillColor(240, 240, 240);
+        doc.setDrawColor(128, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, subjColWidth, height, 'FD');
+        doc.rect(xPos + subjColWidth, yPos, roomColWidth, height, 'FD');
+      });
+
+      // PASS 1.5: Draw all block backgrounds (Time Plots)
+      timePlots.forEach(plot => {
+        const dayIndex = days.indexOf(plot.day);
+        if (dayIndex === -1) return;
+
+        const cappedStart = Math.max(
+          this.timeToMinutes(plot.start_time),
+          chunk.start
+        );
+        const cappedEnd = Math.min(
+          this.timeToMinutes(plot.end_time),
+          chunk.end
+        );
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        if (plot.time_type === 'night_service') {
+          doc.setFillColor(227, 242, 253);
+          doc.setDrawColor(21, 101, 192);
+        } else if (plot.time_type === 'official_time') {
+          doc.setFillColor(255, 243, 224);
+          doc.setDrawColor(230, 81, 0);
+        } else {
+          doc.setFillColor(243, 245, 253);
+          doc.setDrawColor(74, 20, 140);
+        }
+
+        doc.setLineWidth(0.3);
+        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD');
+      });
+
+      // PASS 2: Draw all text on top
       sortedScheduleData.forEach(item => {
         const dayIndex = days.indexOf(item.day);
         if (dayIndex === -1) return;
 
         const originalStart = this.timeToMinutes(item.start_time);
         const originalEnd = this.timeToMinutes(item.end_time);
-
         const cappedStart = Math.max(originalStart, chunk.start);
         const cappedEnd = Math.min(originalEnd, chunk.end);
-
         if (cappedStart >= cappedEnd) return;
 
-        const startSlot = chunkSlots.findIndex(slot => slot.minutes === cappedStart);
-        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
-
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
         if (startSlot === -1) return;
 
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
         const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
         const yPos = currentY + startSlot * rowHeight;
         const height = duration * rowHeight;
+        const subjColWidth = dayColumnWidth * 0.7;
+        const roomColWidth = dayColumnWidth * 0.3;
 
-        // Draw Block Box
-        doc.setFillColor(240, 240, 240); 
-        doc.setDrawColor(128, 0, 0);     
-        doc.setLineWidth(0.3);
-        doc.rect(xPos, yPos, dayColumnWidth, height, 'FD'); 
+        const lineSpacing = 3.8;
+        const codeFontSize = 8.0;
+        const textFontSize = 7.0;
+        const timeFontSize = 6.5;
+        const roomFontSize = 6.5;
 
-        // --- DYNAMIC TEXT SCALING ---
-        let startPadding = 5;
-        let lineSpacing = 4.2;
-        let bottomBoundary = 6;
-        let codeFontSize = 10;
-        let textFontSize = 9;
-        let timeFontSize = 9.5;
-        let timeBottomPadding = 2;
-
-        if (duration <= 2) { 
-          startPadding = 3.5;
-          lineSpacing = 2.8;
-          bottomBoundary = 3.5;
-          codeFontSize = 7.5;   
-          textFontSize = 6.5;   
-          timeFontSize = 7;     
-          timeBottomPadding = 1.2;
-        } else if (duration === 3) { 
-          startPadding = 4;
-          lineSpacing = 3.4;
-          bottomBoundary = 4.5;
-          codeFontSize = 8.5;   
-          textFontSize = 7.5;   
-          timeFontSize = 8;     
-          timeBottomPadding = 1.5;
-        } else if (duration === 4) { 
-          startPadding = 5;
-          lineSpacing = 4;
-          bottomBoundary = 5;
-          codeFontSize = 9.5;   
-          textFontSize = 8.5;   
-          timeFontSize = 9;     
-          timeBottomPadding = 1.8;
+        let programDisplay: string;
+        if (item._mergedPrograms && item._mergedPrograms.length > 1) {
+          programDisplay =
+            item._mergedPrograms.sort().reverse().join('/') +
+            ` ${item.year_level} - ${item.section_name}`;
+        } else {
+          programDisplay =
+            `${item.program_code} ${item.year_level} - ${item.section_name}`;
         }
 
-        // ALWAYS print the Time Range at the very bottom of the box first
-        const timeString = `${this.formatTimeTo12Hour(item.start_time)} - ${this.formatTimeTo12Hour(item.end_time)}`;
-        doc.setTextColor(0);
-        doc.setFontSize(timeFontSize);
-        doc.setFont('helvetica', 'normal');
-        doc.text(timeString, xPos + dayColumnWidth / 2, yPos + height - timeBottomPadding, { align: 'center' });
+        const formatTime = (minutes: number): string => {
+          const h = Math.floor(minutes / 60);
+          const m = minutes % 60;
+          const suffix = h >= 12 ? 'PM' : 'AM';
+          const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
+          return `${displayH}:${m.toString().padStart(2, '0')} ${suffix}`;
+        };
 
-        // Block Content (Tailored for Rescheduling - Internal Arrangements)
+        const timeRange =
+          `${formatTime(originalStart)} - ${formatTime(originalEnd)}`;
+
+        // Block Content (Tailored dynamically based on export type)
         const content = [
           item.course_details?.course_code || '',
           item.course_details?.course_title || '',
-          `${item.program_code} ${item.year_level} - ${item.section_name}`, 
-          item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA'
-        ].filter(line => line !== ''); 
+          // Line 3: If Program, show Faculty. Otherwise, show Section.
+          entityType === 'program' 
+            ? (item.faculty_name || 'Faculty TBA') 
+            : `${item.program_code} ${item.year_level} - ${item.section_name}`,
+          // Line 4: If Room, show Faculty. Otherwise, show Room.
+          entityType === 'room' 
+            ? (item.faculty_name || 'Faculty TBA') 
+            : (item.room_code && item.room_code.trim() !== '' ? item.room_code : 'Room TBA')
+        ].filter(line => line !== '');
 
-        const isBridging = item.course_details?.offering_type === 'bridging';
+        const fontSizes = [
+          codeFontSize,
+          textFontSize,
+          textFontSize,
+          timeFontSize
+        ];
+        const fontStyles = ['bold', 'normal', 'normal', 'normal'];
 
-        let textY = yPos + startPadding;
+        const isBridging =
+          item.course_details?.offering_type === 'bridging';
 
-        // Draw "Bridging" badge at top-right of block if applicable
         if (isBridging) {
           const badgeLabel = 'Bridging';
-          const badgeFontSize = duration <= 2 ? 5.5 : 6.5;
-          const badgePaddingX = 2.5;
+          const badgeFontSize = duration <= 2 ? 5.5 : 6;
+          const badgePaddingX = 2;
           const badgePaddingY = 1.5;
           doc.setFontSize(badgeFontSize);
           doc.setFont('helvetica', 'bold');
           const badgeTextWidth = doc.getTextWidth(badgeLabel);
           const badgeW = badgeTextWidth + badgePaddingX * 2;
           const badgeH = badgeFontSize * 0.45 + badgePaddingY * 2;
-          // Center the badge horizontally in the block
-          const badgeX = xPos + (dayColumnWidth - badgeW) / 2;
-          // Place it just below the course code (textY is already advanced past course code)
-          const badgeY = textY - lineSpacing + (duration <= 2 ? 0.5 : 1);
+          const badgeX = xPos + (subjColWidth - badgeW) / 2;
+          const badgeY = yPos + 1;
           doc.setFillColor(128, 0, 0);
           doc.setDrawColor(128, 0, 0);
           doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 1, 1, 'FD');
           doc.setTextColor(255, 255, 255);
-          doc.text(badgeLabel, badgeX + badgePaddingX, badgeY + badgeH - badgePaddingY - 0.2);
+          doc.text(
+            badgeLabel,
+            badgeX + badgePaddingX,
+            badgeY + badgeH - badgePaddingY - 0.2
+          );
           doc.setTextColor(0, 0, 0);
-          // Advance textY so subsequent lines don't overlap the badge
-          textY += badgeH + (duration <= 2 ? 0.5 : 1.5);
         }
 
+        let totalSubjectLines = 0;
+        content.forEach(line => {
+          totalSubjectLines +=
+            doc.splitTextToSize(line, subjColWidth - 4).length;
+        });
+
+        const totalSubjectHeight = (totalSubjectLines - 1) * lineSpacing;
+        let subjectStartY = yPos + (height / 2) - (totalSubjectHeight / 2);
+        if (isBridging) subjectStartY += 2;
+
+        const minTopPadding = 3.5;
+        const maxBottomBoundary = yPos + height - 3;
+        subjectStartY = Math.max(subjectStartY, yPos + minTopPadding);
+
         content.forEach((line, idx) => {
-          doc.setFontSize(idx === 0 ? codeFontSize : textFontSize);
-          doc.setFont('helvetica', idx === 0 ? 'bold' : 'normal');
-          
-          const wrappedLines = doc.splitTextToSize(line, dayColumnWidth - 2);
+          doc.setFontSize(fontSizes[idx] ?? textFontSize);
+          doc.setFont('helvetica', fontStyles[idx] ?? 'normal');
+          doc.setTextColor(idx === content.length - 1 ? 128 : 0, 0, 0);
+
+          const wrappedLines = doc.splitTextToSize(line, subjColWidth - 4);
           wrappedLines.forEach((wLine: string) => {
-            if (textY < yPos + height - bottomBoundary) { 
-              doc.text(wLine, xPos + dayColumnWidth / 2, textY, { align: 'center' });
-              textY += lineSpacing; 
+            if (subjectStartY <= maxBottomBoundary) {
+              doc.text(wLine, xPos + subjColWidth / 2, subjectStartY, {
+                align: 'center',
+                baseline: 'middle'
+              });
             }
+            subjectStartY += lineSpacing;
           });
         });
+
+        doc.setTextColor(0, 0, 0);
+
+        const roomText =
+          item.room_code && item.room_code.trim() !== ''
+            ? item.room_code
+            : 'TBA';
+        doc.setFontSize(roomFontSize);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+
+        const wrappedRoom = doc.splitTextToSize(roomText, roomColWidth - 2);
+        const roomLineSpacing = 3.2;
+        const totalRoomHeight = (wrappedRoom.length - 1) * roomLineSpacing;
+        let roomStartY = yPos + (height / 2) - (totalRoomHeight / 2);
+
+        roomStartY = Math.max(roomStartY, yPos + 3.2);
+        const maxRoomBoundary = yPos + height - 3;
+
+        wrappedRoom.forEach((rLine: string) => {
+          if (roomStartY <= maxRoomBoundary) {
+            doc.text(rLine, xPos + subjColWidth + roomColWidth / 2, roomStartY, {
+              align: 'center',
+              baseline: 'middle'
+            });
+          }
+          roomStartY += roomLineSpacing;
+        });
+      });
+
+      // PASS 2.5: Draw all text on top (Time Plots)
+      timePlots.forEach(plot => {
+        const dayIndex = days.indexOf(plot.day);
+        if (dayIndex === -1) return;
+
+        const originalStart = this.timeToMinutes(plot.start_time);
+        const originalEnd = this.timeToMinutes(plot.end_time);
+        const cappedStart = Math.max(originalStart, chunk.start);
+        const cappedEnd = Math.min(originalEnd, chunk.end);
+        if (cappedStart >= cappedEnd) return;
+
+        const startSlot = chunkSlots.findIndex(
+          slot => slot.minutes === cappedStart
+        );
+        if (startSlot === -1) return;
+
+        const duration = Math.ceil((cappedEnd - cappedStart) / 30);
+        const xPos = margin + timeColWidth + dayIndex * dayColumnWidth;
+        const yPos = currentY + startSlot * rowHeight;
+        const height = duration * rowHeight;
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+
+        if (plot.time_type === 'night_service') {
+          doc.setTextColor(21, 101, 192);
+        } else if (plot.time_type === 'official_time') {
+          doc.setTextColor(230, 81, 0);
+        } else {
+          doc.setTextColor(74, 20, 140);
+        }
+
+        const typeLabel =
+          this.getDisplayTypeName(plot.time_type).toUpperCase();
+        const timeRange =
+          `${this.formatTime(plot.start_time)} - ` +
+          `${this.formatTime(plot.end_time)}`;
+
+        doc.text(
+          typeLabel,
+          xPos + dayColumnWidth / 2,
+          yPos + (height / 2) - 1.5,
+          { align: 'center', baseline: 'middle' }
+        );
+
+        doc.setFontSize(6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(
+          timeRange,
+          xPos + dayColumnWidth / 2,
+          yPos + (height / 2) + 2.5,
+          { align: 'center', baseline: 'middle' }
+        );
       });
     });
   }
@@ -1646,6 +2305,219 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     );
 
     this.conflictMessages = validation.hasConflicts ? validation.messages : [];
+    if (this.conflictMessages.length > 0) {
+      this.buildSwapCandidates();
+    }
+  }
+
+  /**
+   * Auto-populates the new schedule fields using the requested schedule details from the appeal.
+   */
+  copyRequestedScheduleToNewSchedule(): void {
+    if (!this.selectedAppeal || !this.newSchedule) return;
+
+    let hasCopiedAny = false;
+
+    if (this.selectedAppeal.preferredDay) {
+      this.newSchedule.preferredDay = this.selectedAppeal.preferredDay;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredStartTime) {
+      this.newSchedule.preferredStartTime = this.selectedAppeal.preferredStartTime;
+      this.onStartTimeChange();
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredEndTime) {
+      this.newSchedule.preferredEndTime = this.selectedAppeal.preferredEndTime;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.room) {
+      this.newSchedule.room = this.selectedAppeal.room;
+      hasCopiedAny = true;
+    }
+
+    if (hasCopiedAny) {
+      this.onScheduleFieldChange();
+      this.snackBar.open('Copied requested schedule details to New Schedule fields.', 'Close', { duration: 2500 });
+    } else {
+      this.snackBar.open('No requested schedule details available to copy.', 'Close', { duration: 2500 });
+    }
+  }
+
+  /**
+   * Pre-populates swap candidates from conflicting schedules detected in cached schedules.
+   */
+  buildSwapCandidates(): void {
+    if (
+      !this.cachedSchedules ||
+      !this.newSchedule?.preferredDay ||
+      !this.newSchedule?.preferredStartTime ||
+      !this.newSchedule?.preferredEndTime
+    ) {
+      this.swapCandidates = [];
+      return;
+    }
+
+    const day = this.newSchedule.preferredDay;
+    const startStr = this.to24Hour(this.newSchedule.preferredStartTime);
+    const endStr = this.to24Hour(this.newSchedule.preferredEndTime);
+    const roomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+
+    const parseMinutes = (t: string) => {
+      if (!t) return 0;
+      const parts = t.split(':').map(Number);
+      return (parts[0] || 0) * 60 + (parts[1] || 0);
+    };
+
+    const sMinutes = parseMinutes(startStr);
+    const eMinutes = parseMinutes(endStr);
+
+    const candidatesMap = new Map<
+      number,
+      { scheduleId: number; label: string; hasExistingArrangement: boolean }
+    >();
+
+    this.cachedSchedules.programs.forEach((prog) => {
+      prog.year_levels.forEach((yl) => {
+        yl.semesters.forEach((sem) => {
+          sem.sections.forEach((sec) => {
+            sec.courses.forEach((c) => {
+              if (!c.schedule?.schedule_id) return;
+              const schedId = c.schedule.schedule_id;
+
+              if (schedId === this.selectedAppeal?.scheduleId) return;
+
+              const arr = this.cachedArrangements.find(
+                (a) => a.schedule_id === schedId,
+              );
+              const effDay = arr?.day || c.schedule.day;
+              const effStart = arr?.start_time || c.schedule.start_time;
+              const effEnd = arr?.end_time || c.schedule.end_time;
+              const effRoomId = arr?.room_id || c.schedule.room_id;
+
+              if (effDay === day && effStart && effEnd) {
+                const effSMin = parseMinutes(effStart);
+                const effEMin = parseMinutes(effEnd);
+
+                const timeOverlap = sMinutes < effEMin && eMinutes > effSMin;
+                const roomOverlap =
+                  roomId && effRoomId === roomId && timeOverlap;
+
+                if (timeOverlap || roomOverlap) {
+                  const profName = c.professor || 'No Faculty';
+                  const label = `${prog.program_code} ${yl.year_level}-${sec.section_name} | ${c.course_code} | ${profName} (${effDay} ${this.to12Hour(effStart)}-${this.to12Hour(effEnd)})`;
+
+                  candidatesMap.set(schedId, {
+                    scheduleId: schedId,
+                    label,
+                    hasExistingArrangement: !!arr,
+                  });
+                }
+              }
+            });
+          });
+        });
+      });
+    });
+
+    this.swapCandidates = Array.from(candidatesMap.values());
+  }
+
+  /**
+   * Toggles schedule swap mode and populates candidate options.
+   */
+  onSwapModeToggle(): void {
+    if (this.isSwapMode) {
+      this.buildSwapCandidates();
+      if (this.swapCandidates.length > 0) {
+        this.selectedSwapScheduleId = this.swapCandidates[0].scheduleId;
+        this.onSwapPartnerChange();
+      } else {
+        this.selectedSwapScheduleId = null;
+        this.selectedSwapCandidateHasArrangement = false;
+      }
+    } else {
+      this.selectedSwapScheduleId = null;
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Handles selection change for the swap partner candidate.
+   */
+  onSwapPartnerChange(): void {
+    if (this.selectedSwapScheduleId) {
+      const candidate = this.swapCandidates.find(
+        (c) => c.scheduleId === this.selectedSwapScheduleId,
+      );
+      this.selectedSwapCandidateHasArrangement =
+        candidate?.hasExistingArrangement || false;
+    } else {
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Approves the selected appeal as a mutual schedule swap with another schedule.
+   */
+  approveSwap(): void {
+    if (
+      !this.selectedAppeal ||
+      !this.newSchedule ||
+      !this.selectedSwapScheduleId
+    ) {
+      return;
+    }
+
+    this.reschedulingService
+      .approveSwap(
+        this.selectedAppeal.rawAppealId,
+        this.selectedSwapScheduleId,
+        {
+          day: this.newSchedule.preferredDay ?? '',
+          startTime: this.newSchedule.preferredStartTime ?? '',
+          endTime: this.newSchedule.preferredEndTime ?? '',
+          room: this.newSchedule.room ?? '',
+        },
+        this.adminRemarks,
+      )
+      .subscribe({
+        next: () => {
+          this.snackBar.open(
+            'Schedule swap approved successfully.',
+            'Close',
+            { duration: 5000 },
+          );
+
+          this.reschedulingService.getAllAppeals().subscribe({
+            next: (appeals) => {
+              const mappedAppeals = appeals.map((a) => this.mapAppeal(a));
+              this.dataSource.data = mappedAppeals;
+              this.cachedArrangements =
+                this.buildArrangementOverrides(mappedAppeals);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.cdr.detectChanges();
+
+              if (this.selectedTermId) {
+                this.loadArrangementsForTerm(
+                  this.selectedTermId,
+                  mappedAppeals,
+                );
+              }
+            },
+          });
+
+          this.closeDialog();
+        },
+        error: (err) => {
+          const errorMessage = this.getErrorMessage(
+            err,
+            'Failed to approve schedule swap',
+          );
+          this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+          console.error('Failed to approve schedule swap:', err);
+        },
+      });
   }
 
   /**
@@ -1677,6 +2549,24 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (hours === 0) hours = 12;
     else if (hours > 12) hours -= 12;
     return `${hours}:${minutes} ${period}`;
+  }
+
+  /**
+   * Converts a 12-hour display string to 24-hour HH:mm format.
+   *
+   * @param time The time string to convert.
+   */
+  private to24Hour(time: string | null | undefined): string {
+    if (!time) return '';
+    if (!time.includes('AM') && !time.includes('PM')) return time;
+
+    const [timePart, period] = time.trim().split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
   /**
@@ -1729,7 +2619,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedAppeal = { ...appeal };
     this.dialog.open(this.viewDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
-      height: 'auto', disableClose: true,
+      height: 'auto', disableClose: false,
       panelClass: 'custom-dialog-container',
       autoFocus: true,
     });
@@ -1748,6 +2638,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
     
     this.loadRoomOptions();
     this.availableEndTimes = [...this.timeOptions];
@@ -1760,7 +2654,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.dialog.open(this.appealDialog, {
       width: '55%', maxWidth: '1000px', maxHeight: '90vh',
-      height: 'auto', disableClose: true,
+      height: 'auto', disableClose: false,
       panelClass: 'custom-dialog-container',
       autoFocus: true,
     });
@@ -1778,6 +2672,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newSchedule    = null;
     this.adminRemarks   = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
@@ -1792,6 +2690,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
@@ -1801,19 +2703,23 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param defaultMessage The fallback message to use when the error is unclear.
    */
   private getErrorMessage(error: any, defaultMessage: string): string {
-    // Handle different error response structures
-    if (error?.status && error?.statusText) {
-      // HttpErrorResponse with status
-      if (error?.error?.message) return error.error.message;
-      if (error?.error?.error) return error.error.error;
-      if (typeof error?.error === 'string') return error.error;
-      if (error?.message) return error.message;
+    const rawMsg =
+      error?.error?.message ||
+      error?.error?.error ||
+      (typeof error?.error === 'string' ? error.error : '') ||
+      error?.message ||
+      '';
+
+    if (
+      rawMsg &&
+      !rawMsg.includes('SQLSTATE') &&
+      !rawMsg.includes('Integrity constraint violation') &&
+      !rawMsg.includes('Connection:') &&
+      !rawMsg.includes('SQL:')
+    ) {
+      return rawMsg;
     }
-    
-    // Handle plain error objects
-    if (typeof error === 'string') return error;
-    if (error?.message) return error.message;
-    
+
     return defaultMessage;
   }
 

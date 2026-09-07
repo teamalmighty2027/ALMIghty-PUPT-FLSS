@@ -40,7 +40,7 @@
 // ─── Tab content wrapper ───────────────────────────────────────
 .tab-content-wrapper {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none, $gap: var(--spacing-md));
-  background-color: var(--neutral-light);
+  background-color: #ffffff;
   border-radius: 8px;
   padding: 20px;
   box-shadow: var(--shadow-level-1);
@@ -50,7 +50,52 @@
 }
 
 // ─── Header containers ─────────────────────────────────────────
-.rescheduling-header-container,
+.rescheduling-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  .check-slot-btn {
+    @include mixins.gradient-primary(315deg);
+    color: white !important;
+    min-height: 40px;
+    height: 40px;
+    padding: 0 var(--spacing-md);
+    border-radius: var(--border-radius-lg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+
+    mat-icon {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      line-height: 1 !important;
+      flex-shrink: 0;
+      color: white !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      margin: 0 !important;
+    }
+
+    span {
+      color: white !important;
+      font-weight: 500;
+    }
+
+    ::ng-deep .mdc-button__label {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+    }
+  }
+}
+
 .report-header-container {
   flex-shrink: 0;
 }
@@ -150,23 +195,32 @@
 
       &.action {
         .action-button-container {
-          @include mixins.flex-layout($align: center, $justify: center, $gap: var(--spacing-xs));
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-xs);
+          white-space: nowrap;
         }
 
         .view-button,
-        .export-button {
-          @include mixins.flex-layout;
-          color: var(--secondary-text);
-          .button-content { @include mixins.flex-layout($gap: var(--spacing-xs)); }
-          mat-icon { @include mixins.flex-layout; font-size: var(--font-size-lg); }
-          &:hover { background-color: var(--secondary-hover); }
-        }
-
+        .export-button,
         .edit-button {
-          @include mixins.flex-layout;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
           color: var(--secondary-text);
-          .button-content { @include mixins.flex-layout($gap: var(--spacing-xs)); }
-          mat-icon { @include mixins.flex-layout; font-size: var(--font-size-lg); }
+          white-space: nowrap;
+
+          mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            line-height: 1;
+            flex-shrink: 0;
+          }
+
           &:hover { background-color: var(--secondary-hover); }
         }
       }
@@ -197,6 +251,21 @@
       .flex-cell {
         @include mixins.flex-layout($align: center, $justify: center, $gap: var(--spacing-xs));
         span { opacity: var(--opacity-semi-opaque); }
+
+        .no-data-text {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+
+          mat-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            line-height: 1;
+            flex-shrink: 0;
+          }
+        }
       }
     }
   }
@@ -452,6 +521,22 @@
   .time-field { width: 100%; }
 }
 
+.swap-toggle-box {
+  margin-top: 12px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  mat-slide-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 .modal-footer {
   flex-shrink: 0;
   padding: var(--spacing-sm) var(--spacing-md);
@@ -515,6 +600,18 @@
     font-size: var(--font-size-sm);
     min-height: 36px;
     padding: 0 var(--spacing-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
 
     &:disabled,
     &.disabled-button {
@@ -527,8 +624,50 @@
 }
 
 ::ng-deep {
-  mat-icon[matPrefix] { margin-right: var(--spacing-xs); color: var(--secondary-text); }
+  .mat-mdc-form-field-icon-prefix {
+    padding-left: 10px !important;
+    padding-right: 6px !important;
+    align-self: center !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    mat-icon {
+      font-size: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+      line-height: 1 !important;
+      color: var(--secondary-text);
+      margin-right: 4px !important;
+    }
+  }
+  mat-icon[matPrefix] { margin-left: 4px; margin-right: var(--spacing-xs); color: var(--secondary-text); }
   textarea.mat-mdc-input-element { font-size: 0.9rem !important; line-height: 1.4 !important; }
+}
+
+.copy-requested-btn {
+  height: 28px !important;
+  line-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  color: var(--primary-one) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  text-transform: none !important;
+
+  mat-icon {
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
+    line-height: 1 !important;
+    color: var(--primary-one) !important;
+  }
+
+  &:hover {
+    background-color: var(--primary-one-fade) !important;
+  }
 }
 
 .disabled-button {

@@ -248,6 +248,74 @@
   }
 }
 
+// ── Header Sync button ─────────────────────────────────────────
+.sync-header-button {
+  background-color: var(--primary-one) !important;
+  color: white !important;
+
+  mat-icon {
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+
+    &.spin {
+      animation: spin-icon 1s linear infinite;
+    }
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #660000 !important;
+  }
+}
+
+// ── Sync button ───────────────────────────────────────────────
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 0 15px;
+  margin-right: 8px;
+  border-radius: 9999px;
+  border: 1px solid rgba(128, 0, 0, 0.2);
+  background: var(--primary-one);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-base);
+  @include mixins.default-transition;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(128, 0, 0, 0.15);
+
+  .material-symbols-rounded {
+    font-size: 16px;
+
+    &.spin {
+      animation: spin-icon 1s linear infinite;
+    }
+  }
+
+  &:hover:not(:disabled) {
+    background: #660000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    box-shadow: none;
+  }
+}
+
+@keyframes spin-icon {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 860px) {
   .filter-toolbar {
     align-items: flex-start;
