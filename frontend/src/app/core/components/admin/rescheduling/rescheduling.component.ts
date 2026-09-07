@@ -1402,7 +1402,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       
       let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
       // Pass 'program' as the entityType to swap Section for Faculty Name
-      this.drawScheduleTable(doc, programData.schedules, title, subtitle, currentY, margin, pageWidth, 'program');
+      this.drawScheduleTable(doc, programData.schedules, title, subtitle, 
+        currentY, margin, pageWidth, [], 'program'
+      );
     });
 
     this.reportHeaderService.addStandardFooter(doc);
@@ -1506,7 +1508,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       
       let currentY = this.drawHeader(doc, topMargin, pageWidth, margin, logoSize, title, subtitle);
       // Pass 'room' to adapt the schedule block content
-      this.drawScheduleTable(doc, roomData.schedules, title, subtitle, currentY, margin, pageWidth, 'room');
+      this.drawScheduleTable(doc, roomData.schedules, title, subtitle, 
+        currentY, margin, pageWidth, [], 'room'
+      );
     });
 
     this.reportHeaderService.addStandardFooter(doc);
@@ -1622,7 +1626,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         currentY,
         margin,
         pageWidth,
-        []
+        [],
+        'faculty'
       );
     }
 
