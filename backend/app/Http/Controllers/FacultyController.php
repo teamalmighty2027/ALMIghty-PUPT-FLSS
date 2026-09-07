@@ -8,6 +8,7 @@ use App\Models\UserProfile;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\FacultyDataService;
 use App\Services\IdpSyncService;
@@ -478,5 +479,130 @@ class FacultyController extends Controller
             'message' => 'Faculty account reactivated successfully.',
             'user'    => $user->load('faculty.facultyType'),
         ]);
+    }
+
+    /**
+     * Syncs faculty IDP user UUIDs from external IDP system.
+     * Accessible only to superadmin accounts.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function syncIdpUuids(Request $request)
+    {
+        // Enforce superadmin role restriction
+        if ($request->user()?->role !== 'superadmin') {
+            return response()->json([
+                'message' => 'Unauthorized. Superadmin access required.'
+            ], 403);
+        }
+
+        $token = $request->input('idp_access_token')
+            ?? $request->cookie('access_token');
+
+        if (empty($token)) {
+            return response()->json([
+                'message' => 'IDP access token is missing.'
+            ], 400);
+        }
+
+        $baseUrl = config('services.idp.base_url')
+            ?? 'https://identity-provider.isaxbsit2027.com';
+
+        $domain = parse_url($baseUrl, PHP_URL_HOST)
+            ?? 'identity-provider.isaxbsit2027.com';
+
+        // Query all faculty users missing idp_user_id
+        $faculties = Faculty::join('users', 'faculty.user_id', '=', 'users.id')
+            ->select(
+                'faculty.id as faculty_id',
+                'users.email',
+                'faculty.idp_user_id'
+            )
+            ->get();
+
+        $emailsToSync = [];
+
+        foreach ($faculties as $fac) {
+            if (empty($fac->idp_user_id)) {
+                $emailsToSync[strtolower($fac->email)] = $fac;
+            }
+        }
+
+        $missingCount = count($emailsToSync);
+
+        if ($missingCount === 0) {
+            return response()->json([
+                'message'       => 'All faculties already have IDP user IDs.',
+                'matched'       => 0,
+                'total_missing' => 0,
+            ], 200);
+        }
+
+        $page = 1;
+        $limit = 100;
+        $matched = 0;
+
+        while (true) {
+            $response = Http::withoutVerifying()
+                ->withCookies(['access_token' => $token], $domain)
+                ->get(rtrim($baseUrl, '/') . '/api/v1/admin/users', [
+                    'page'  => $page,
+                    'limit' => $limit,
+                ]);
+
+            if (! $response->successful()) {
+                Log::warning('IDP users fetch failed on page ' . $page, [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+                break;
+            }
+
+            $data = $response->json();
+            $usersList = [];
+
+            if (isset($data['data']) && is_array($data['data'])) {
+                $usersList = $data['data'];
+            } elseif (isset($data['users']) && is_array($data['users'])) {
+                $usersList = $data['users'];
+            } elseif (is_array($data)) {
+                $usersList = $data;
+            }
+
+            if (empty($usersList)) {
+                break;
+            }
+
+            foreach ($usersList as $idpUser) {
+                if (! isset($idpUser['email']) || ! isset($idpUser['id'])) {
+                    continue;
+                }
+
+                $idpEmail = strtolower($idpUser['email']);
+                $idpId = $idpUser['id'];
+
+                if (isset($emailsToSync[$idpEmail])) {
+                    $fac = $emailsToSync[$idpEmail];
+                    $matched++;
+
+                    Faculty::where('id', $fac->faculty_id)->update([
+                        'idp_user_id' => $idpId,
+                    ]);
+                }
+            }
+
+            if (count($usersList) < $limit) {
+                break;
+            }
+
+            $page++;
+        }
+
+        return response()->json([
+            'message'       => 'IDP UUID sync completed successfully.',
+            'matched'       => $matched,
+            'total_missing' => $missingCount,
+        ], 200);
     }
 }

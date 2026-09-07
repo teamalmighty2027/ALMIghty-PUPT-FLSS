@@ -149,6 +149,16 @@ export class FacultyService {
     );
   }
 
+  /**
+   * Syncs faculty IDP user UUIDs from external IDP system.
+   */
+  syncIdpUuids(idpAccessToken: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.baseUrl}/faculty/sync-idp-uuids`,
+      { idp_access_token: idpAccessToken }
+    );
+  }
+
   // ==========================================
   // PERSONAL PROFILE METHODS
   // ==========================================

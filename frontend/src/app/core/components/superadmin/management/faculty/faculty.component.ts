@@ -30,6 +30,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatRippleModule } from '@angular/material/core';
+import { MatIconModule } from '@angular/material/icon';
 
 import {
   TableDialogComponent,
@@ -54,6 +55,8 @@ import {
   FacultyTypeService,
   FacultyType,
 } from '../../../../services/superadmin/management/faculty/faculty-type.service';
+import { AuthService } from '../../../../services/auth/auth.service';
+import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../../../animations/animations';
 import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
@@ -78,6 +81,7 @@ interface Column {
     MatFormFieldModule,
     MatTooltipModule,
     MatRippleModule,
+    MatIconModule,
   ],
   templateUrl: './faculty.component.html',
   styleUrls: ['./faculty.component.scss'],
@@ -97,6 +101,8 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   faculty: Faculty[] = [];
   filteredFaculty: Faculty[] = [];
   isLoading = true;
+  isSyncing = false;
+  isSuperAdmin = false;
 
   searchControl = new FormControl('');
   private activeFilters: { search: string; facultyType: string; status: string; sortBy: string } = {
@@ -166,17 +172,28 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     private snackBar: MatSnackBar,
     private facultyService: FacultyService,
     private router: Router,
-    private facultyTypeService: FacultyTypeService
+    private facultyTypeService: FacultyTypeService,
+    private authService: AuthService,
+    private cookieService: CookieService
   ) {}
 
   /**
    * Initializes the component by loading faculty types and data.
    */
   ngOnInit() {
+    this.checkSuperAdminRole();
     this.updateViewMode();
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
+  }
+
+  /**
+   * Checks if the currently logged in user is a superadmin.
+   */
+  private checkSuperAdminRole(): void {
+    const user = this.authService.getUserData();
+    this.isSuperAdmin = user?.role === 'superadmin';
   }
 
   /**
@@ -317,6 +334,13 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     // Clicking "All" always clears the type filter
     this.filterFacultyType = type === '' ? '' : (this.filterFacultyType === type ? '' : type);
     this.activeFilters.facultyType = this.filterFacultyType;
+    this.applyFiltersAndSort();
+  }
+
+  /** Handle faculty type dropdown change */
+  onFacultyTypeChange(value: string): void {
+    this.filterFacultyType = value;
+    this.activeFilters.facultyType = value;
     this.applyFiltersAndSort();
   }
 
@@ -875,5 +899,67 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         });
       },
     });
+  }
+
+  /**
+   * Syncs faculty IDP user UUIDs from external IDP system.
+   * Restricted strictly to superadmin users.
+   */
+  syncIdpUuids(): void {
+    if (!this.isSuperAdmin || this.isSyncing) {
+      return;
+    }
+
+    const token = this.cookieService.get('access_token') ||
+      this.getCookieByName('access_token');
+
+    if (!token) {
+      this.snackBar.open(
+        'IDP access token missing in cookies. Please log in via IDP first.',
+        'Close',
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    this.isSyncing = true;
+    this.cdr.markForCheck();
+
+    this.facultyService
+      .syncIdpUuids(token)
+      .pipe(
+        catchError((error) => {
+          console.error('Error syncing IDP UUIDs:', error);
+          const msg =
+            error.error?.message || 'Failed to sync IDP UUIDs.';
+          this.snackBar.open(msg, 'Close', { duration: 5000 });
+          this.isSyncing = false;
+          this.cdr.markForCheck();
+          return of(null);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((res) => {
+        this.isSyncing = false;
+        if (res) {
+          this.snackBar.open(
+            `IDP UUID Sync: ${res.matched} matched out of ${res.total_missing} missing.`,
+            'Close',
+            { duration: 5000 }
+          );
+          this.fetchFaculty();
+        }
+        this.cdr.markForCheck();
+      });
+  }
+
+  /**
+   * Helper to retrieve a document cookie by key name.
+   */
+  private getCookieByName(name: string): string {
+    const match = document.cookie.match(
+      new RegExp('(^| )' + name + '=([^;]+)')
+    );
+    return match ? decodeURIComponent(match[2]) : '';
   }
 }

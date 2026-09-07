@@ -206,11 +206,18 @@
     }
   }
 
-  /* Local Login Link Section */
-  .local-login-section {
+  /* Portal & Local Links Section */
+  .portal-links-section {
     width: 100%;
-    @include mixins.flex-layout($justify: center);
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-sm)
+    );
+    flex-wrap: wrap;
 
+    .portal-link,
     .local-login-link {
       @include mixins.flex-layout(
         $direction: row,
@@ -230,16 +237,60 @@
         font-size: var(--font-size-mdx);
       }
 
+      .external-icon {
+        font-size: var(--font-size-sm);
+      }
+
       &:hover {
         color: var(--primary-one-hover);
         text-decoration: underline;
       }
     }
+
+    .link-divider {
+      color: var(--neutral-button);
+      font-size: var(--font-size-md);
+      user-select: none;
+    }
   }
 
   .toggle-theme-section {
     width: 100%;
-    @include mixins.flex-layout($justify: flex-end, $gap: var(--spacing-md));
+    @include mixins.flex-layout(
+      $direction: row,
+      $align: center,
+      $justify: space-between,
+      $gap: var(--spacing-md)
+    );
+
+    .portal-link {
+      @include mixins.flex-layout(
+        $direction: row,
+        $align: center,
+        $gap: var(--spacing-xs)
+      );
+      color: var(--primary-one);
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--border-radius-sm);
+      transition: color 0.3s ease, background-color 0.3s ease;
+
+      span[mat-symbol] {
+        font-size: var(--font-size-mdx);
+      }
+
+      .external-icon {
+        font-size: var(--font-size-sm);
+      }
+
+      &:hover {
+        color: var(--primary-one-hover);
+        text-decoration: underline;
+      }
+    }
 
     .toggle-button {
       &.light-theme {
