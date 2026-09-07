@@ -12,7 +12,14 @@ describe('DialogGenericComponent', () => {
       imports: [DialogGenericComponent],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
-        { provide: MAT_DIALOG_DATA, useValue: {} }
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            title: 'Confirm',
+            content: 'Are you sure?',
+            action: 'Confirm'
+          }
+        }
       ]
     })
     .compileComponents();
