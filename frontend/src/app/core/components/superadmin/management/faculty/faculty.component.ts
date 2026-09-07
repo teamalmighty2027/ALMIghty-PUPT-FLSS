@@ -30,6 +30,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatRippleModule } from '@angular/material/core';
+import { MatIconModule } from '@angular/material/icon';
 
 import {
   TableDialogComponent,
@@ -80,6 +81,7 @@ interface Column {
     MatFormFieldModule,
     MatTooltipModule,
     MatRippleModule,
+    MatIconModule,
   ],
   templateUrl: './faculty.component.html',
   styleUrls: ['./faculty.component.scss'],
@@ -332,6 +334,13 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     // Clicking "All" always clears the type filter
     this.filterFacultyType = type === '' ? '' : (this.filterFacultyType === type ? '' : type);
     this.activeFilters.facultyType = this.filterFacultyType;
+    this.applyFiltersAndSort();
+  }
+
+  /** Handle faculty type dropdown change */
+  onFacultyTypeChange(value: string): void {
+    this.filterFacultyType = value;
+    this.activeFilters.facultyType = value;
     this.applyFiltersAndSort();
   }
 

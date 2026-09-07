@@ -51,24 +51,22 @@
           </div>
         </div>
 
-        <div class="filter-group" *ngIf="facultyTypeOptions.length">
+        <div class="filter-group sort-group" *ngIf="facultyTypeOptions.length">
           <span class="filter-label">Type</span>
-          <div class="chip-row">
-            <button
-              class="filter-chip"
-              [class.active]="filterFacultyType === ''"
-              (click)="toggleFacultyType('')"
-              matRipple>
-              All
-            </button>
-            <button
-              *ngFor="let t of facultyTypeOptions"
-              class="filter-chip"
-              [class.active]="filterFacultyType === t"
-              (click)="toggleFacultyType(t)"
-              matRipple>
-              {{ t }}
-            </button>
+          <div class="sort-select-wrapper">
+            <span class="sort-icon material-symbols-rounded" aria-hidden="true">badge</span>
+            <mat-select
+              class="sort-select"
+              [(ngModel)]="filterFacultyType"
+              (selectionChange)="onFacultyTypeChange($event.value)"
+              panelClass="sort-select-panel"
+              disableOptionCentering
+              aria-label="Filter by faculty type">
+              <mat-option value="">All Types</mat-option>
+              <mat-option *ngFor="let t of facultyTypeOptions" [value]="t">
+                {{ t }}
+              </mat-option>
+            </mat-select>
           </div>
         </div>
 
@@ -221,22 +219,19 @@
 
       <div class="mobile-filter-group" *ngIf="facultyTypeOptions.length">
         <span class="mobile-filter-group__label">Type</span>
-        <div class="mobile-chip-row">
-          <button
-            class="filter-chip"
-            [class.active]="mobileFilterFacultyType === ''"
-            (click)="toggleMobileFacultyType('')"
-            matRipple>
-            All
-          </button>
-          <button
-            *ngFor="let t of facultyTypeOptions"
-            class="filter-chip"
-            [class.active]="mobileFilterFacultyType === t"
-            (click)="toggleMobileFacultyType(t)"
-            matRipple>
-            {{ t }}
-          </button>
+        <div class="mobile-sort-select-wrapper">
+          <span class="mobile-sort-icon material-symbols-rounded" aria-hidden="true">badge</span>
+          <mat-select
+            class="mobile-sort-select"
+            [(ngModel)]="mobileFilterFacultyType"
+            panelClass="sort-select-panel"
+            disableOptionCentering
+            aria-label="Filter by faculty type">
+            <mat-option value="">All Types</mat-option>
+            <mat-option *ngFor="let t of facultyTypeOptions" [value]="t">
+              {{ t }}
+            </mat-option>
+          </mat-select>
         </div>
       </div>
 

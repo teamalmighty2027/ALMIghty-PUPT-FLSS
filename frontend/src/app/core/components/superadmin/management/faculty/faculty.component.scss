@@ -248,6 +248,26 @@
   }
 }
 
+// ── Header Sync button ─────────────────────────────────────────
+.sync-header-button {
+  background-color: var(--primary-one) !important;
+  color: white !important;
+
+  mat-icon {
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+
+    &.spin {
+      animation: spin-icon 1s linear infinite;
+    }
+  }
+
+  &:hover:not(:disabled) {
+    background-color: #660000 !important;
+  }
+}
+
 // ── Sync button ───────────────────────────────────────────────
 .sync-btn {
   display: inline-flex;
