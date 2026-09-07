@@ -147,7 +147,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Tab 2: Internal Arrangements ──
   arrangementsInputFields: any[] = [{ type: 'text', label: 'Search Faculty', key: 'search' }];
-  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'allowAppeals', 'action'];
+  arrangementsColumns: string[] = ['index', 'facultyName', 'facultyCode', 'facultyType', 'facultyUnits', 'action', 'allowAppeals'];
   arrangementsDataSource = new MatTableDataSource<FacultyArrangement>([]);
   @ViewChild('arrangementsPaginator') arrangementsPaginator!: MatPaginator;
 
@@ -172,6 +172,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   roomOptions: string[] = [];
   availableEndTimes: string[] = [];
   timeSlots: TimeSlot[] = [];
+
+  // Swap mode state
+  isSwapMode = false;
+  selectedSwapScheduleId: number | null = null;
+  swapCandidates: { scheduleId: number; label: string; hasExistingArrangement: boolean }[] = [];
+  selectedSwapCandidateHasArrangement = false;
 
   isListening = false;
   speechSupported = false;
@@ -790,6 +796,8 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.dialog.open(DialogArrangementCheckerComponent, {
       width: '680px',
+      maxWidth: '95vw',
+      maxHeight: '85vh',
       data: {
         cachedSchedules: this.cachedSchedules,
         cachedRooms: this.cachedRooms,
@@ -984,36 +992,9 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── PDF and Excel Export Methods ─────────────────────────────────────
 
   // ── Export By Programs Trigger ──
+  // ── Export By Programs Trigger ──
   onExportByPrograms(): void {
-    if (this.allFaculties.length === 0) {
-      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const groupedByProgram = this.groupSchedulesByProgram();
-    const baseFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
-
-    this.dialog.open(DialogViewScheduleComponent, {
-      maxWidth: '90vw',
-      width: '100%',
-      data: {
-        exportType: 'all',
-        entity: 'faculty', 
-        entityData: groupedByProgram.map(p => p.schedules).flat(),
-        customTitle: 'Internal Arrangements By Program',
-        fileName: baseFileName,
-        academicYear: this.academicYear,
-        semester: this.semester,
-        generatePdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
-        generateExcelFunction: async () => {
-          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
-        },
-        showViewToggle: false,
-      },
-      disableClose: true,
-      autoFocus: true,
-    });
+    this.onExportArrangements('program');
   }
 
   private groupSchedulesByProgram(): { program: string, schedules: any[] }[] {
@@ -1040,35 +1021,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── Export By Rooms Trigger ──
   onExportByRooms(): void {
-    if (this.allFaculties.length === 0) {
-      this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const groupedByRoom = this.groupSchedulesByRoom();
-    const baseFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
-
-    this.dialog.open(DialogViewScheduleComponent, {
-      maxWidth: '90vw',
-      width: '100%',
-      data: {
-        exportType: 'all',
-        entity: 'faculty', // Spoofed to bypass modal validation
-        entityData: groupedByRoom.map(r => r.schedules).flat(),
-        customTitle: 'Internal Arrangements By Room',
-        fileName: baseFileName,
-        academicYear: this.academicYear,
-        semester: this.semester,
-        generatePdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
-        generateExcelFunction: async () => {
-          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
-        },
-        showViewToggle: false,
-      },
-      disableClose: true,
-      autoFocus: true,
-    });
+    this.onExportArrangements('room');
   }
 
   private groupSchedulesByRoom(): { room: string, schedules: any[] }[] {
@@ -1092,35 +1045,43 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     })).sort((a, b) => a.room.localeCompare(b.room));
   }
   
-  onExportArrangements(): void {
+  onExportArrangements(defaultGroup: 'faculty' | 'program' | 'room' = 'faculty'): void {
     if (this.allFaculties.length === 0) {
       this.snackBar.open('No active arrangements available to export.', 'Close', { duration: 3000 });
       return;
     }
 
-    const generatePdfFunction = (): Blob | void => {
-      return this.generateAllSchedulesPdfBlob();
-    };
+    const groupedByProgram = this.groupSchedulesByProgram();
+    const groupedByRoom = this.groupSchedulesByRoom();
 
-    const baseFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const facultyFileName = `All_Internal_Arrangements_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const programFileName = `Internal_Arrangements_By_Program_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
+    const roomFileName = `Internal_Arrangements_By_Room_${this.academicYear}_${this.semester.replace(/\s+/g, '_')}`;
 
     this.dialog.open(DialogViewInternalArrangementsComponent, {
       maxWidth: '90vw',
       width: '100%',
       data: {
         exportType: 'all',
-        entity: 'faculty',
-        entityData: this.allFaculties.map(f => f.schedules).flat(),
-        customTitle: 'All Internal Arrangements',
-        fileName: baseFileName,
+        exportGroup: defaultGroup,
+        customTitle: 'Internal Arrangements',
         academicYear: this.academicYear,
         semester: this.semester,
-        generatePdfFunction: generatePdfFunction,
-        generateExcelFunction: async () => {
+        generateFacultyPdfFunction: () => this.generateAllSchedulesPdfBlob(),
+        generateFacultyExcelFunction: async () => {
           const excelBlob = await this.generateArrangementsExcelBlobAll();
-          saveAs(excelBlob, `${baseFileName}.xlsx`);
+          saveAs(excelBlob, `${facultyFileName}.xlsx`);
         },
-        showViewToggle: false,
+        generateProgramsPdfFunction: () => this.generateProgramsPdfBlobAll(groupedByProgram),
+        generateProgramsExcelFunction: async () => {
+          const excelBlob = await this.generateProgramsExcelBlobAll(groupedByProgram);
+          saveAs(excelBlob, `${programFileName}.xlsx`);
+        },
+        generateRoomsPdfFunction: () => this.generateRoomsPdfBlobAll(groupedByRoom),
+        generateRoomsExcelFunction: async () => {
+          const excelBlob = await this.generateRoomsExcelBlobAll(groupedByRoom);
+          saveAs(excelBlob, `${roomFileName}.xlsx`);
+        },
       },
       disableClose: false,
       autoFocus: true,
@@ -2344,6 +2305,219 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     );
 
     this.conflictMessages = validation.hasConflicts ? validation.messages : [];
+    if (this.conflictMessages.length > 0) {
+      this.buildSwapCandidates();
+    }
+  }
+
+  /**
+   * Auto-populates the new schedule fields using the requested schedule details from the appeal.
+   */
+  copyRequestedScheduleToNewSchedule(): void {
+    if (!this.selectedAppeal || !this.newSchedule) return;
+
+    let hasCopiedAny = false;
+
+    if (this.selectedAppeal.preferredDay) {
+      this.newSchedule.preferredDay = this.selectedAppeal.preferredDay;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredStartTime) {
+      this.newSchedule.preferredStartTime = this.selectedAppeal.preferredStartTime;
+      this.onStartTimeChange();
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.preferredEndTime) {
+      this.newSchedule.preferredEndTime = this.selectedAppeal.preferredEndTime;
+      hasCopiedAny = true;
+    }
+    if (this.selectedAppeal.room) {
+      this.newSchedule.room = this.selectedAppeal.room;
+      hasCopiedAny = true;
+    }
+
+    if (hasCopiedAny) {
+      this.onScheduleFieldChange();
+      this.snackBar.open('Copied requested schedule details to New Schedule fields.', 'Close', { duration: 2500 });
+    } else {
+      this.snackBar.open('No requested schedule details available to copy.', 'Close', { duration: 2500 });
+    }
+  }
+
+  /**
+   * Pre-populates swap candidates from conflicting schedules detected in cached schedules.
+   */
+  buildSwapCandidates(): void {
+    if (
+      !this.cachedSchedules ||
+      !this.newSchedule?.preferredDay ||
+      !this.newSchedule?.preferredStartTime ||
+      !this.newSchedule?.preferredEndTime
+    ) {
+      this.swapCandidates = [];
+      return;
+    }
+
+    const day = this.newSchedule.preferredDay;
+    const startStr = this.to24Hour(this.newSchedule.preferredStartTime);
+    const endStr = this.to24Hour(this.newSchedule.preferredEndTime);
+    const roomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+
+    const parseMinutes = (t: string) => {
+      if (!t) return 0;
+      const parts = t.split(':').map(Number);
+      return (parts[0] || 0) * 60 + (parts[1] || 0);
+    };
+
+    const sMinutes = parseMinutes(startStr);
+    const eMinutes = parseMinutes(endStr);
+
+    const candidatesMap = new Map<
+      number,
+      { scheduleId: number; label: string; hasExistingArrangement: boolean }
+    >();
+
+    this.cachedSchedules.programs.forEach((prog) => {
+      prog.year_levels.forEach((yl) => {
+        yl.semesters.forEach((sem) => {
+          sem.sections.forEach((sec) => {
+            sec.courses.forEach((c) => {
+              if (!c.schedule?.schedule_id) return;
+              const schedId = c.schedule.schedule_id;
+
+              if (schedId === this.selectedAppeal?.scheduleId) return;
+
+              const arr = this.cachedArrangements.find(
+                (a) => a.schedule_id === schedId,
+              );
+              const effDay = arr?.day || c.schedule.day;
+              const effStart = arr?.start_time || c.schedule.start_time;
+              const effEnd = arr?.end_time || c.schedule.end_time;
+              const effRoomId = arr?.room_id || c.schedule.room_id;
+
+              if (effDay === day && effStart && effEnd) {
+                const effSMin = parseMinutes(effStart);
+                const effEMin = parseMinutes(effEnd);
+
+                const timeOverlap = sMinutes < effEMin && eMinutes > effSMin;
+                const roomOverlap =
+                  roomId && effRoomId === roomId && timeOverlap;
+
+                if (timeOverlap || roomOverlap) {
+                  const profName = c.professor || 'No Faculty';
+                  const label = `${prog.program_code} ${yl.year_level}-${sec.section_name} | ${c.course_code} | ${profName} (${effDay} ${this.to12Hour(effStart)}-${this.to12Hour(effEnd)})`;
+
+                  candidatesMap.set(schedId, {
+                    scheduleId: schedId,
+                    label,
+                    hasExistingArrangement: !!arr,
+                  });
+                }
+              }
+            });
+          });
+        });
+      });
+    });
+
+    this.swapCandidates = Array.from(candidatesMap.values());
+  }
+
+  /**
+   * Toggles schedule swap mode and populates candidate options.
+   */
+  onSwapModeToggle(): void {
+    if (this.isSwapMode) {
+      this.buildSwapCandidates();
+      if (this.swapCandidates.length > 0) {
+        this.selectedSwapScheduleId = this.swapCandidates[0].scheduleId;
+        this.onSwapPartnerChange();
+      } else {
+        this.selectedSwapScheduleId = null;
+        this.selectedSwapCandidateHasArrangement = false;
+      }
+    } else {
+      this.selectedSwapScheduleId = null;
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Handles selection change for the swap partner candidate.
+   */
+  onSwapPartnerChange(): void {
+    if (this.selectedSwapScheduleId) {
+      const candidate = this.swapCandidates.find(
+        (c) => c.scheduleId === this.selectedSwapScheduleId,
+      );
+      this.selectedSwapCandidateHasArrangement =
+        candidate?.hasExistingArrangement || false;
+    } else {
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Approves the selected appeal as a mutual schedule swap with another schedule.
+   */
+  approveSwap(): void {
+    if (
+      !this.selectedAppeal ||
+      !this.newSchedule ||
+      !this.selectedSwapScheduleId
+    ) {
+      return;
+    }
+
+    this.reschedulingService
+      .approveSwap(
+        this.selectedAppeal.rawAppealId,
+        this.selectedSwapScheduleId,
+        {
+          day: this.newSchedule.preferredDay ?? '',
+          startTime: this.newSchedule.preferredStartTime ?? '',
+          endTime: this.newSchedule.preferredEndTime ?? '',
+          room: this.newSchedule.room ?? '',
+        },
+        this.adminRemarks,
+      )
+      .subscribe({
+        next: () => {
+          this.snackBar.open(
+            'Schedule swap approved successfully.',
+            'Close',
+            { duration: 5000 },
+          );
+
+          this.reschedulingService.getAllAppeals().subscribe({
+            next: (appeals) => {
+              const mappedAppeals = appeals.map((a) => this.mapAppeal(a));
+              this.dataSource.data = mappedAppeals;
+              this.cachedArrangements =
+                this.buildArrangementOverrides(mappedAppeals);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.cdr.detectChanges();
+
+              if (this.selectedTermId) {
+                this.loadArrangementsForTerm(
+                  this.selectedTermId,
+                  mappedAppeals,
+                );
+              }
+            },
+          });
+
+          this.closeDialog();
+        },
+        error: (err) => {
+          const errorMessage = this.getErrorMessage(
+            err,
+            'Failed to approve schedule swap',
+          );
+          this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+          console.error('Failed to approve schedule swap:', err);
+        },
+      });
   }
 
   /**
@@ -2375,6 +2549,24 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     if (hours === 0) hours = 12;
     else if (hours > 12) hours -= 12;
     return `${hours}:${minutes} ${period}`;
+  }
+
+  /**
+   * Converts a 12-hour display string to 24-hour HH:mm format.
+   *
+   * @param time The time string to convert.
+   */
+  private to24Hour(time: string | null | undefined): string {
+    if (!time) return '';
+    if (!time.includes('AM') && !time.includes('PM')) return time;
+
+    const [timePart, period] = time.trim().split(' ');
+    let [hours, minutes] = timePart.split(':').map(Number);
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
 
   /**
@@ -2446,6 +2638,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
     
     this.loadRoomOptions();
     this.availableEndTimes = [...this.timeOptions];
@@ -2476,6 +2672,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newSchedule    = null;
     this.adminRemarks   = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
@@ -2490,6 +2690,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
@@ -2499,19 +2703,23 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
    * @param defaultMessage The fallback message to use when the error is unclear.
    */
   private getErrorMessage(error: any, defaultMessage: string): string {
-    // Handle different error response structures
-    if (error?.status && error?.statusText) {
-      // HttpErrorResponse with status
-      if (error?.error?.message) return error.error.message;
-      if (error?.error?.error) return error.error.error;
-      if (typeof error?.error === 'string') return error.error;
-      if (error?.message) return error.message;
+    const rawMsg =
+      error?.error?.message ||
+      error?.error?.error ||
+      (typeof error?.error === 'string' ? error.error : '') ||
+      error?.message ||
+      '';
+
+    if (
+      rawMsg &&
+      !rawMsg.includes('SQLSTATE') &&
+      !rawMsg.includes('Integrity constraint violation') &&
+      !rawMsg.includes('Connection:') &&
+      !rawMsg.includes('SQL:')
+    ) {
+      return rawMsg;
     }
-    
-    // Handle plain error objects
-    if (typeof error === 'string') return error;
-    if (error?.message) return error.message;
-    
+
     return defaultMessage;
   }
 

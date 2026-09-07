@@ -1,13 +1,24 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 85vh;
+  overflow: hidden;
+}
+
 .dialog-container {
   display: flex;
   flex-direction: column;
   max-width: 680px;
   width: 100%;
-  max-height: 90vh;
+  height: 100%;
+  max-height: 85vh;
   padding: 16px;
   box-sizing: border-box;
+  overflow: hidden;
 
   .dialog-header {
+    flex-shrink: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -35,8 +46,9 @@
   .dialog-content {
     padding: 16px 0;
     overflow-y: auto;
-    flex-grow: 1;
-    max-height: calc(90vh - 120px);
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
 
     &::-webkit-scrollbar {
       width: 6px;
@@ -206,6 +218,7 @@
   }
 
   .dialog-actions {
+    flex-shrink: 0;
     display: flex;
     justify-content: flex-end;
     padding-top: 12px;

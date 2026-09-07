@@ -457,6 +457,7 @@ Route::middleware([
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
         Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
+        Route::post('/rescheduling-appeals/{id}/approve-swap', [RescheduleController::class, 'approveSwap']);
         Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);
     });
 

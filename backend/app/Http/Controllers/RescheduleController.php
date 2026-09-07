@@ -445,10 +445,120 @@ class RescheduleController extends Controller
                 'appeal'  => $appeal,
             ], 201);
         } catch (\Exception $e) {
-            Log::warning('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to approve appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to approve appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * ADMIN — Approve an appeal as a mutual schedule swap
+     * POST /api/rescheduling-appeals/{id}/approve-swap
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function approveSwap(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'swap_schedule_id' => 'required|integer|exists:schedules,schedule_id',
+                'day'              => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+                'start_time'       => ['required', 'date_format:H:i'],
+                'end_time'         => ['required', 'date_format:H:i'],
+                'room'             => 'nullable|string',
+                'admin_remarks'    => 'nullable|string',
+            ]);
+
+            if (strtotime($validated['end_time']) <= strtotime($validated['start_time'])) {
+                return response()->json(['message' => 'The end time must be after the start time.'], 422);
+            }
+
+            $appeal = Appeal::findOrFail($id);
+            $scheduleA = Schedule::findOrFail($appeal->schedule_id);
+            $scheduleB = Schedule::findOrFail($validated['swap_schedule_id']);
+
+            // Get target room_id for Schedule A's new slot
+            $targetRoomId = $appeal->room_id;
+            if (!empty($validated['room'])) {
+                $room = Room::where('room_code', $validated['room'])->first();
+                $targetRoomId = $room?->room_id ?? $targetRoomId;
+            }
+
+            // Get Schedule A's current effective slot (from internal_arrangements if exists, else schedules)
+            $arrA = \App\Models\InternalArrangement::where('schedule_id', $scheduleA->schedule_id)->first();
+            $slotA = [
+                'day'        => $arrA->day ?? $scheduleA->day,
+                'start_time' => $arrA->start_time ?? $scheduleA->start_time,
+                'end_time'   => $arrA->end_time ?? $scheduleA->end_time,
+                'room_id'    => $arrA->room_id ?? $scheduleA->room_id,
+            ];
+
+            DB::transaction(function () use ($appeal, $scheduleA, $scheduleB, $validated, $targetRoomId, $slotA) {
+                // 1. Update Appeal A
+                $appeal->update([
+                    'is_approved'   => 1,
+                    'admin_remarks' => $validated['admin_remarks'] ?? null,
+                    'day'           => $validated['day'],
+                    'start_time'    => $validated['start_time'],
+                    'end_time'      => $validated['end_time'],
+                    'room_id'       => $targetRoomId,
+                ]);
+
+                // 2. InternalArrangement for Schedule A (takes Slot B / target slot)
+                $arrangementA = \App\Models\InternalArrangement::updateOrCreate(
+                    ['schedule_id' => $scheduleA->schedule_id],
+                    [
+                        'appeal_id'  => $appeal->appeal_id,
+                        'day'        => $validated['day'],
+                        'start_time' => $validated['start_time'],
+                        'end_time'   => $validated['end_time'],
+                        'room_id'    => $targetRoomId,
+                    ]
+                );
+
+                // 3. InternalArrangement for Schedule B (takes Slot A / original slot of A)
+                $arrangementB = \App\Models\InternalArrangement::updateOrCreate(
+                    ['schedule_id' => $scheduleB->schedule_id],
+                    [
+                        'appeal_id'  => $appeal->appeal_id,
+                        'day'        => $slotA['day'],
+                        'start_time' => $slotA['start_time'],
+                        'end_time'   => $slotA['end_time'],
+                        'room_id'    => $slotA['room_id'],
+                    ]
+                );
+
+                AuditLogger::logUpdate(
+                    model: 'InternalArrangement',
+                    modelId: $arrangementA->arrangement_id,
+                    oldData: [],
+                    newData: $arrangementA->toArray(),
+                    description: "Approved appeal #{$appeal->appeal_id} (Swap A) for Schedule #{$scheduleA->schedule_id}"
+                );
+
+                AuditLogger::logUpdate(
+                    model: 'InternalArrangement',
+                    modelId: $arrangementB->arrangement_id,
+                    oldData: [],
+                    newData: $arrangementB->toArray(),
+                    description: "Schedule Swap B: Moved Schedule #{$scheduleB->schedule_id} to original slot of Schedule #{$scheduleA->schedule_id}"
+                );
+            });
+
+            return response()->json([
+                'message' => 'Schedule swap approved successfully.',
+                'appeal'  => $appeal
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to approve schedule swap: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json([
+                'message' => 'Failed to approve schedule swap. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -473,10 +583,10 @@ class RescheduleController extends Controller
 
             return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
         } catch (\Exception $e) {
-            Log::warning('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to deny appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to deny appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
