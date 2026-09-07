@@ -639,6 +639,38 @@
               <ul class="validation-message-list">
                 <li *ngFor="let message of conflictMessages">{{ message }}</li>
               </ul>
+
+              <div class="swap-toggle-box" style="margin-top: 12px; width: 100%;">
+                <mat-slide-toggle
+                  [(ngModel)]="isSwapMode"
+                  (change)="onSwapModeToggle()"
+                  color="primary">
+                  Approve as Schedule Swap
+                </mat-slide-toggle>
+
+                @if (isSwapMode) {
+                  <div class="swap-selector-wrapper" style="margin-top: 12px;">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Select Schedule to Swap With</mat-label>
+                      <mat-select
+                        [(ngModel)]="selectedSwapScheduleId"
+                        (selectionChange)="onSwapPartnerChange()">
+                        <mat-option *ngFor="let candidate of swapCandidates" [value]="candidate.scheduleId">
+                          {{ candidate.label }}
+                        </mat-option>
+                      </mat-select>
+                      <mat-icon matPrefix>swap_horiz</mat-icon>
+                    </mat-form-field>
+
+                    @if (selectedSwapCandidateHasArrangement) {
+                      <div class="arrangement-warning-note" style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #d97706; margin-top: 4px;">
+                        <mat-icon style="font-size: 1.1rem; width: 1.1rem; height: 1.1rem;">warning</mat-icon>
+                        <span>Note: The selected schedule already has an internal arrangement override. Proceeding will overwrite its existing arrangement.</span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
             </div>
           }
         </div>
@@ -658,21 +690,38 @@
           <button mat-flat-button class="btn-deny" (click)="denyAppeal()">
             Deny
           </button>
-          <button
-            mat-flat-button
-            class="btn-approve"
-            (click)="approveAppeal()"
-             [disabled]="
-              conflictMessages.length > 0 ||
-              !newSchedule?.preferredDay ||
-              !newSchedule?.preferredStartTime ||
-              !newSchedule?.preferredEndTime ||
-              !newSchedule?.room
-            "
-            [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
-          >
-            Approve
-          </button>
+          @if (isSwapMode) {
+            <button
+              mat-flat-button
+              class="btn-approve"
+              (click)="approveSwap()"
+              [disabled]="
+                !selectedSwapScheduleId ||
+                !newSchedule?.preferredDay ||
+                !newSchedule?.preferredStartTime ||
+                !newSchedule?.preferredEndTime ||
+                !newSchedule?.room
+              "
+            >
+              Approve Swap
+            </button>
+          } @else {
+            <button
+              mat-flat-button
+              class="btn-approve"
+              (click)="approveAppeal()"
+              [disabled]="
+                conflictMessages.length > 0 ||
+                !newSchedule?.preferredDay ||
+                !newSchedule?.preferredStartTime ||
+                !newSchedule?.preferredEndTime ||
+                !newSchedule?.room
+              "
+              [ngClass]="{ 'disabled-button': conflictMessages.length > 0 }"
+            >
+              Approve
+            </button>
+          }
         }
       </div>
     </div>

@@ -151,6 +151,39 @@ export class ReschedulingService {
     );
   }
 
+  /**
+   * Approves an appeal as a mutual schedule swap between two schedules.
+   * @param appealId - The ID of the appeal being approved.
+   * @param swapScheduleId - The ID of the counter-schedule to swap with.
+   * @param newSchedule - The target schedule slot details.
+   * @param adminRemarks - Optional administrative remarks.
+   */
+  approveSwap(
+    appealId: number,
+    swapScheduleId: number,
+    newSchedule: {
+      day: string;
+      startTime: string;
+      endTime: string;
+      room: string;
+    },
+    adminRemarks: string,
+  ): Observable<any> {
+    return this.handleResponseWithPhpNotices(
+      this.http.post(
+        `${this.baseUrl}/rescheduling-appeals/${appealId}/approve-swap`,
+        {
+          swap_schedule_id: swapScheduleId,
+          day: newSchedule.day,
+          start_time: this.to24Hour(newSchedule.startTime),
+          end_time: this.to24Hour(newSchedule.endTime),
+          room: newSchedule.room,
+          admin_remarks: adminRemarks,
+        },
+      ),
+    );
+  }
+
   denyAppeal(appealId: number, adminRemarks: string): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/rescheduling-appeals/${appealId}/deny`, {

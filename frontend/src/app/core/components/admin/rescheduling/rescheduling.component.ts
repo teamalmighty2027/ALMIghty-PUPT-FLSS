@@ -173,6 +173,12 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
   availableEndTimes: string[] = [];
   timeSlots: TimeSlot[] = [];
 
+  // Swap mode state
+  isSwapMode = false;
+  selectedSwapScheduleId: number | null = null;
+  swapCandidates: { scheduleId: number; label: string; hasExistingArrangement: boolean }[] = [];
+  selectedSwapCandidateHasArrangement = false;
+
   isListening = false;
   speechSupported = false;
   isRefreshing = false;
@@ -2344,6 +2350,185 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     );
 
     this.conflictMessages = validation.hasConflicts ? validation.messages : [];
+    if (this.conflictMessages.length > 0) {
+      this.buildSwapCandidates();
+    }
+  }
+
+  /**
+   * Pre-populates swap candidates from conflicting schedules detected in cached schedules.
+   */
+  buildSwapCandidates(): void {
+    if (
+      !this.cachedSchedules ||
+      !this.newSchedule?.preferredDay ||
+      !this.newSchedule?.preferredStartTime ||
+      !this.newSchedule?.preferredEndTime
+    ) {
+      this.swapCandidates = [];
+      return;
+    }
+
+    const day = this.newSchedule.preferredDay;
+    const startStr = this.to24Hour(this.newSchedule.preferredStartTime);
+    const endStr = this.to24Hour(this.newSchedule.preferredEndTime);
+    const roomId = this.getRoomIdByCode(this.newSchedule.room ?? null);
+
+    const parseMinutes = (t: string) => {
+      if (!t) return 0;
+      const parts = t.split(':').map(Number);
+      return (parts[0] || 0) * 60 + (parts[1] || 0);
+    };
+
+    const sMinutes = parseMinutes(startStr);
+    const eMinutes = parseMinutes(endStr);
+
+    const candidatesMap = new Map<
+      number,
+      { scheduleId: number; label: string; hasExistingArrangement: boolean }
+    >();
+
+    this.cachedSchedules.programs.forEach((prog) => {
+      prog.year_levels.forEach((yl) => {
+        yl.semesters.forEach((sem) => {
+          sem.sections.forEach((sec) => {
+            sec.courses.forEach((c) => {
+              if (!c.schedule?.schedule_id) return;
+              const schedId = c.schedule.schedule_id;
+
+              if (schedId === this.selectedAppeal?.scheduleId) return;
+
+              const arr = this.cachedArrangements.find(
+                (a) => a.schedule_id === schedId,
+              );
+              const effDay = arr?.day || c.schedule.day;
+              const effStart = arr?.start_time || c.schedule.start_time;
+              const effEnd = arr?.end_time || c.schedule.end_time;
+              const effRoomId = arr?.room_id || c.schedule.room_id;
+
+              if (effDay === day && effStart && effEnd) {
+                const effSMin = parseMinutes(effStart);
+                const effEMin = parseMinutes(effEnd);
+
+                const timeOverlap = sMinutes < effEMin && eMinutes > effSMin;
+                const roomOverlap =
+                  roomId && effRoomId === roomId && timeOverlap;
+
+                if (timeOverlap || roomOverlap) {
+                  const profName = c.professor || 'No Faculty';
+                  const label = `${prog.program_code} ${yl.year_level}-${sec.section_name} | ${c.course_code} | ${profName} (${effDay} ${this.to12Hour(effStart)}-${this.to12Hour(effEnd)})`;
+
+                  candidatesMap.set(schedId, {
+                    scheduleId: schedId,
+                    label,
+                    hasExistingArrangement: !!arr,
+                  });
+                }
+              }
+            });
+          });
+        });
+      });
+    });
+
+    this.swapCandidates = Array.from(candidatesMap.values());
+  }
+
+  /**
+   * Toggles schedule swap mode and populates candidate options.
+   */
+  onSwapModeToggle(): void {
+    if (this.isSwapMode) {
+      this.buildSwapCandidates();
+      if (this.swapCandidates.length > 0) {
+        this.selectedSwapScheduleId = this.swapCandidates[0].scheduleId;
+        this.onSwapPartnerChange();
+      } else {
+        this.selectedSwapScheduleId = null;
+        this.selectedSwapCandidateHasArrangement = false;
+      }
+    } else {
+      this.selectedSwapScheduleId = null;
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Handles selection change for the swap partner candidate.
+   */
+  onSwapPartnerChange(): void {
+    if (this.selectedSwapScheduleId) {
+      const candidate = this.swapCandidates.find(
+        (c) => c.scheduleId === this.selectedSwapScheduleId,
+      );
+      this.selectedSwapCandidateHasArrangement =
+        candidate?.hasExistingArrangement || false;
+    } else {
+      this.selectedSwapCandidateHasArrangement = false;
+    }
+  }
+
+  /**
+   * Approves the selected appeal as a mutual schedule swap with another schedule.
+   */
+  approveSwap(): void {
+    if (
+      !this.selectedAppeal ||
+      !this.newSchedule ||
+      !this.selectedSwapScheduleId
+    ) {
+      return;
+    }
+
+    this.reschedulingService
+      .approveSwap(
+        this.selectedAppeal.rawAppealId,
+        this.selectedSwapScheduleId,
+        {
+          day: this.newSchedule.preferredDay ?? '',
+          startTime: this.newSchedule.preferredStartTime ?? '',
+          endTime: this.newSchedule.preferredEndTime ?? '',
+          room: this.newSchedule.room ?? '',
+        },
+        this.adminRemarks,
+      )
+      .subscribe({
+        next: () => {
+          this.snackBar.open(
+            'Schedule swap approved successfully.',
+            'Close',
+            { duration: 5000 },
+          );
+
+          this.reschedulingService.getAllAppeals().subscribe({
+            next: (appeals) => {
+              const mappedAppeals = appeals.map((a) => this.mapAppeal(a));
+              this.dataSource.data = mappedAppeals;
+              this.cachedArrangements =
+                this.buildArrangementOverrides(mappedAppeals);
+              this.arrangementsDataSource.data = [...this.allFaculties];
+              this.cdr.detectChanges();
+
+              if (this.selectedTermId) {
+                this.loadArrangementsForTerm(
+                  this.selectedTermId,
+                  mappedAppeals,
+                );
+              }
+            },
+          });
+
+          this.closeDialog();
+        },
+        error: (err) => {
+          const errorMessage = this.getErrorMessage(
+            err,
+            'Failed to approve schedule swap',
+          );
+          this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
+          console.error('Failed to approve schedule swap:', err);
+        },
+      });
   }
 
   /**
@@ -2446,6 +2631,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           preferredEndTime: undefined, room: undefined };
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
     
     this.loadRoomOptions();
     this.availableEndTimes = [...this.timeOptions];
@@ -2476,6 +2665,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.newSchedule    = null;
     this.adminRemarks   = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
@@ -2490,6 +2683,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
     this.availableEndTimes = [...this.timeOptions];
     this.adminRemarks = '';
     this.conflictMessages = [];
+    this.isSwapMode = false;
+    this.selectedSwapScheduleId = null;
+    this.swapCandidates = [];
+    this.selectedSwapCandidateHasArrangement = false;
   }
 
   /**
