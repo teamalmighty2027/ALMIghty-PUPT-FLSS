@@ -42,7 +42,7 @@ class RescheduleController extends Controller
             'startTime'   => ['required', 'date_format:H:i'],
             'endTime'     => ['required', 'date_format:H:i'],
             'roomCode'    => 'nullable|string',
-            'appealFile'  => 'nullable|file|mimes:pdf|max:5120',
+            'appealFile'  => 'nullable|file|mimes:pdf|max:10240',
             'forceSubmit' => 'nullable|string',
         ]);
 

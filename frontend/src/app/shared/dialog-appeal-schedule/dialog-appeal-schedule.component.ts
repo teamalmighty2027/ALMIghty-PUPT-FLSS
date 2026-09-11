@@ -277,10 +277,10 @@ export class DialogAppealScheduleComponent implements OnDestroy {
       return;
     }
 
-    // 2. Size Check (5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // 2. Size Check (10MB)
+    if (file.size > 10 * 1024 * 1024) {
       this.snackBar.open(
-        'File size must be less than 5MB.', 
+        'File size must be less than 10MB.', 
         'Close', 
         { duration: 3000 }
       );
