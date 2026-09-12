@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,7 +23,7 @@ class User extends Authenticatable
         'code',
         'email',
         'password',
-        'role',
+        'role_id',
         'status',
     ];
 
@@ -82,6 +83,22 @@ class User extends Authenticatable
     {
         $this->attributes['password'] = Hash::needsRehash($value) 
           ? Hash::make($value) : $value;
+    }
+
+    /**
+     * Get the role associated with the user.
+     */
+    public function roleModel(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Accessor to return the role name string.
+     */
+    public function getRoleAttribute(): ?string
+    {
+        return $this->roleModel->name ?? null;
     }
 
     public function faculty()

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -23,11 +24,17 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $facultyRoleId = Role::firstOrCreate(['name' => 'faculty'])->id;
+
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'first_name'  => fake()->firstName(),
+            'last_name'   => fake()->lastName(),
+            'middle_name' => fake()->optional()->firstName(),
+            'code'        => fake()->unique()->numerify('####'),
+            'email'       => fake()->unique()->safeEmail(),
+            'password'    => static::$password ??= Hash::make('password'),
+            'role_id'     => $facultyRoleId,
+            'status'      => 'Active',
             'remember_token' => Str::random(10),
         ];
     }
@@ -39,6 +46,50 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Set user role to admin.
+     */
+    public function admin(): static
+    {
+        $adminRoleId = Role::firstOrCreate(['name' => 'admin'])->id;
+
+        return $this->state(fn (array $attributes) => [
+            'role_id' => $adminRoleId,
+        ]);
+    }
+
+    /**
+     * Set user role to superadmin.
+     */
+    public function superAdmin(): static
+    {
+        $superAdminRoleId = Role::firstOrCreate(['name' => 'superadmin'])->id;
+
+        return $this->state(fn (array $attributes) => [
+            'role_id' => $superAdminRoleId,
+        ]);
+    }
+
+    /**
+     * Set user status to Inactive.
+     */
+    public function inactive(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'Inactive',
+        ]);
+    }
+
+    /**
+     * Set user status to Retired.
+     */
+    public function retired(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => 'Retired',
         ]);
     }
 }

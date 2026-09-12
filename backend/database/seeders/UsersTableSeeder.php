@@ -19,6 +19,8 @@ class UsersTableSeeder extends Seeder
             return;
         }
 
+        $roleMap = DB::table('roles')->pluck('id', 'name')->toArray();
+
         $dataToInsert = [];
 
         foreach ($csvData as $record) {
@@ -31,7 +33,7 @@ class UsersTableSeeder extends Seeder
                 'code' => $record['code'],
                 'email' => $record['email'],
                 'password' => $record['password'],
-                'role' => $record['role'],
+                'role_id' => $roleMap[$record['role']] ?? null,
                 'status' => $record['status'],
                 'created_at' => $record['created_at'],
                 'updated_at' => $record['updated_at'],
