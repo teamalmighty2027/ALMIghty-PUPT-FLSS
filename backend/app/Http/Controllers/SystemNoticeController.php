@@ -120,6 +120,28 @@ class SystemNoticeController extends Controller
     }
 
     /**
+     * Bulk-resolve multiple notices in one request (superadmin only).
+     * PATCH /api/system-notices/bulk-resolve
+     */
+    public function bulkResolve(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'required|integer|exists:system_notices,id',
+        ]);
+
+        $updated = SystemNoticeService::bulkResolve(
+            $validated['ids'],
+            Auth::id()
+        );
+
+        return response()->json([
+            'message' => "{$updated} notice(s) marked as resolved.",
+            'updated' => $updated,
+        ]);
+    }
+
+    /**
      * Count unresolved actionable (error/critical) notices for sidebar badge.
      * GET /api/system-notices/unresolved-count
      */

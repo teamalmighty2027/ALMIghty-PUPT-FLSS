@@ -141,7 +141,7 @@ export const SUPERADMIN_ROUTES: Routes = [
           import('./maintenance/system-notices/system-notices.component').then(
             (m) => m.SystemNoticesComponent,
           ),
-        data: { pageTitle: 'System Notices' },
+        data: { pageTitle: 'System Alerts' },
       },
       { path: '**', redirectTo: 'admin' },
     ],

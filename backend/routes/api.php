@@ -165,6 +165,12 @@ Route::middleware([
             '/unresolved-count',
             [SystemNoticeController::class, 'unresolvedCount']
         );
+
+        Route::patch(
+            '/bulk-resolve',
+            [SystemNoticeController::class, 'bulkResolve']
+        );
+
         Route::get('/{id}', [SystemNoticeController::class, 'show']);
         Route::patch(
             '/{id}/resolve',
