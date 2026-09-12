@@ -17,8 +17,9 @@ class AssignExistingAdminPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Get all existing admins (excluding superadmins)
-        $admins = User::where('role', 'admin')
-            ->get();
+        $admins = User::whereHas('roleModel', function ($q) {
+            $q->where('name', 'admin');
+        })->get();
 
         // Get all permission IDs
         $permissionIds = Permission::pluck('id')->toArray();
