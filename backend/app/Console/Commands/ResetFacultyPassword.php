@@ -90,7 +90,9 @@ class ResetFacultyPassword extends Command
             return null;
         }
 
-        return User::where('role', 'faculty')->get();
+        return User::whereHas('roleModel', function ($q) {
+            $q->where('name', 'faculty');
+        })->get();
     }
 
     /**

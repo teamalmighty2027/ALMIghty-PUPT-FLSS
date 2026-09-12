@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Models\Permission;
 use App\Services\AuditLogger;
 use Illuminate\Validation\Rule;
@@ -24,7 +25,10 @@ class AccountController extends Controller
      */
     public function indexAdmins()
     {
-        $admins = User::where('role', 'admin')->get();
+        $admins = User::whereHas('roleModel', function ($q) {
+            $q->where('name', 'admin');
+        })->get();
+
         return response()->json($admins);
     }
 
@@ -33,6 +37,8 @@ class AccountController extends Controller
      */
     public function storeAdmin(Request $request)
     {
+        $adminRoleId = Role::where('name', 'admin')->value('id');
+
         $validatedData = $request->validate([
             'last_name' => 'required|string|max:255',
             'first_name' => 'required|string|max:255',
@@ -41,7 +47,7 @@ class AccountController extends Controller
             'code' => 'required|string|max:255|unique:users',
             'email' => [
               'required', 'email',
-              Rule::unique('users')->where('role', 'admin'),
+              Rule::unique('users')->where('role_id', $adminRoleId),
             ],
             'password' => [
                 'required',
@@ -56,6 +62,7 @@ class AccountController extends Controller
         ]);
 
         $existingCode = User::where('code', $validatedData['code'])->exists();
+
         if ($existingCode) {
             return response()->json([
                 'message' => 'Admin code already exists.',
@@ -64,7 +71,7 @@ class AccountController extends Controller
         }
 
         try {
-            return DB::transaction(function () use ($validatedData) {
+            return DB::transaction(function () use ($validatedData, $adminRoleId) {
                 $admin = User::create([
                     'last_name' => $validatedData['last_name'],
                     'first_name' => $validatedData['first_name'],
@@ -72,7 +79,7 @@ class AccountController extends Controller
                     'suffix_name' => $validatedData['suffix_name'],
                     'code' => $validatedData['code'],
                     'email' => $validatedData['email'],
-                    'role' => $validatedData['role'],
+                    'role_id' => $adminRoleId,
                     'password' => $validatedData['password'],
                     'status' => $validatedData['status'],
                 ]);
@@ -110,6 +117,8 @@ class AccountController extends Controller
      */
     public function updateAdmin(Request $request, User $admin)
     {
+        $adminRoleId = Role::where('name', 'admin')->value('id');
+
         // ═══════════════════════════════════════════════════════
         // SAVE OLD DATA FOR DETAILED CHANGE TRACKING
         // ═══════════════════════════════════════════════════════
@@ -133,7 +142,7 @@ class AccountController extends Controller
             // Email must be unique within the same role only.
             'email' => [
               'sometimes', 'required', 'email',
-              Rule::unique('users')->where('role', 'admin')
+              Rule::unique('users')->where('role_id', $adminRoleId)
                 ->ignore($admin->id),
             ],
             'password' => [
@@ -149,7 +158,7 @@ class AccountController extends Controller
         ]);
 
         try {
-            return DB::transaction(function () use ($admin, $validatedData, $oldData) {
+            return DB::transaction(function () use ($admin, $validatedData, $oldData, $adminRoleId) {
                 // Update the user model instances manually
                 if (isset($validatedData['last_name'])) $admin->last_name = $validatedData['last_name'];
                 if (isset($validatedData['first_name'])) $admin->first_name = $validatedData['first_name'];
@@ -157,7 +166,7 @@ class AccountController extends Controller
                 if (isset($validatedData['suffix_name'])) $admin->suffix_name = $validatedData['suffix_name'];
                 if (isset($validatedData['code'])) $admin->code = $validatedData['code'];
                 if (isset($validatedData['email'])) $admin->email = $validatedData['email'];
-                if (isset($validatedData['role'])) $admin->role = $validatedData['role'];
+                if (isset($validatedData['role'])) $admin->role_id = $adminRoleId;
                 if (isset($validatedData['status'])) $admin->status = $validatedData['status'];
 
                 // Handle password update

@@ -17,7 +17,9 @@ class PasswordResetController extends Controller
         $request->validate(['email' => 'required|email']);
 
         $user = User::where('email', $request->email)
-            ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+            ->whereHas('roleModel', function ($q) {
+                $q->whereIn('name', ['faculty', 'admin', 'superadmin']);
+            })
             ->first();
 
         if (! $user) {
@@ -55,7 +57,9 @@ class PasswordResetController extends Controller
         ]);
 
         $user = User::where('email', $request->email)
-            ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+            ->whereHas('roleModel', function ($q) {
+                $q->whereIn('name', ['faculty', 'admin', 'superadmin']);
+            })
             ->first();
 
         if (! $user) {
@@ -88,7 +92,9 @@ class PasswordResetController extends Controller
         ]);
 
         $user = User::where('email', $request->email)
-            ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+            ->whereHas('roleModel', function ($q) {
+                $q->whereIn('name', ['faculty', 'admin', 'superadmin']);
+            })
             ->first();
 
         if (! $user || ! Password::tokenExists($user, $request->token)) {

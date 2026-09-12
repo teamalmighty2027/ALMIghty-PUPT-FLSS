@@ -30,9 +30,15 @@ class AuthController extends Controller
 
         $allowedRoles = array_values(array_unique($loginUserData['allowed_roles']));
 
-        $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
+        $user = User::with([
+            'faculty.facultyType',
+            'permissions',
+            'allowedPrograms',
+        ])
             ->where('email', $loginUserData['email'])
-            ->whereIn('role', $allowedRoles)
+            ->whereHas('roleModel', function ($query) use ($allowedRoles) {
+                $query->whereIn('name', $allowedRoles);
+            })
             ->first();
 
         if (! $user) {
@@ -342,13 +348,17 @@ class AuthController extends Controller
                 $user = User::whereHas('faculty', function ($query) use ($id) {
                     $query->where('idp_user_id', $id);
                 })
-                    ->whereIn('role', $requestedRole)
+                    ->whereHas('roleModel', function ($query) use ($requestedRole) {
+                        $query->whereIn('name', $requestedRole);
+                    })
                     ->first();
             }
 
             if (! $user) {
                 $user = User::where('email', $email)
-                    ->whereIn('role', $requestedRole)
+                    ->whereHas('roleModel', function ($query) use ($requestedRole) {
+                        $query->whereIn('name', $requestedRole);
+                    })
                     ->first();
             }
 
@@ -593,7 +603,12 @@ class AuthController extends Controller
                     ->whereHas('faculty', function ($query) use ($idpUserId) {
                         $query->where('idp_user_id', $idpUserId);
                     })
-                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->whereHas('roleModel', function ($query) {
+                        $query->whereIn(
+                            'name',
+                            ['faculty', 'admin', 'superadmin']
+                        );
+                    })
                     ->get();
             }
 
@@ -604,7 +619,12 @@ class AuthController extends Controller
                     'allowedPrograms',
                 ])
                     ->where('email', $email)
-                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->whereHas('roleModel', function ($query) {
+                        $query->whereIn(
+                            'name',
+                            ['faculty', 'admin', 'superadmin']
+                        );
+                    })
                     ->get();
             }
 

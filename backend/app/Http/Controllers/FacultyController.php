@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Faculty;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Services\AuditLogger;
@@ -27,7 +28,10 @@ class FacultyController extends Controller
      */
     public function index()
     {
-        $users = User::with('faculty')->where('role', 'faculty')->get();
+        $users = User::with('faculty')->whereHas('roleModel', function ($q) {
+            $q->where('name', 'faculty');
+        })->get();
+
         return response()->json($users);
     }
 
@@ -41,7 +45,9 @@ class FacultyController extends Controller
         $suffix = "TG{$year}";
 
         // Find the most recently added faculty user by ID
-        $lastCode = User::where('role', 'faculty')
+        $lastCode = User::whereHas('roleModel', function ($q) {
+            $q->where('name', 'faculty');
+        })
             ->where('code', 'LIKE', "{$prefix}%")
             ->orderBy('id', 'desc')
             ->first();
@@ -88,6 +94,8 @@ class FacultyController extends Controller
             ],
         ]);
 
+        $facultyRoleId = Role::where('name', 'faculty')->value('id');
+
         DB::beginTransaction();
         try {
             $user = User::create([
@@ -97,7 +105,7 @@ class FacultyController extends Controller
                 'suffix_name' => $validatedData['suffix_name'],
                 'code'        => $validatedData['code'],
                 'email'       => $validatedData['email'],
-                'role'        => 'faculty',
+                'role_id'     => $facultyRoleId,
                 'status'      => $validatedData['status'],
                 'password'    => $validatedData['password'],
             ]);
@@ -274,7 +282,9 @@ class FacultyController extends Controller
                 }
 
                 // Notify superadmin users of status changes
-                $superAdmins = User::where('role', 'superadmin')->get();
+                $superAdmins = User::whereHas('roleModel', function ($q) {
+                    $q->where('name', 'superadmin');
+                })->get();
                 if ($superAdmins->isNotEmpty()) {
                     Notification::send(
                         $superAdmins,
@@ -397,7 +407,9 @@ class FacultyController extends Controller
         ]);
 
         $user = User::where('email', $request->email)
-            ->where('role', 'faculty')
+            ->whereHas('roleModel', function ($q) {
+                $q->where('name', 'faculty');
+            })
             ->where('status', 'Inactive')
             ->first();
 
@@ -407,7 +419,9 @@ class FacultyController extends Controller
             ]);
 
             // Reactivation requests are managed exclusively by the Super Admin
-            $superAdmins = User::where('role', 'superadmin')->get();
+            $superAdmins = User::whereHas('roleModel', function ($q) {
+                $q->where('name', 'superadmin');
+            })->get();
             if ($superAdmins->isNotEmpty()) {
                 Notification::send(
                     $superAdmins,

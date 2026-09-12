@@ -24,7 +24,9 @@ class DeleteAccount extends Command
         $query = User::where('email', $email);
 
         if ($role) {
-            $query->where('role', $role);
+            $query->whereHas('roleModel', function ($q) use ($role) {
+                $q->where('name', $role);
+            });
         }
 
         $user = $query->first();

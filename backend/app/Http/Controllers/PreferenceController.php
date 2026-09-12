@@ -164,7 +164,9 @@ class PreferenceController extends Controller
             // ═══════════════════════════════════════════════════════
             // NOTIFY ADMIN: Preference Submitted/Updated (Optimized)
             // ═══════════════════════════════════════════════════════
-            $admins = User::where('role', 'admin')
+            $admins = User::whereHas('roleModel', function ($q) {
+                $q->where('name', 'admin');
+            })
                 ->where('status', 'Active')
                 ->get();
 
@@ -2012,7 +2014,9 @@ class PreferenceController extends Controller
             $preferenceSetting->save();
         }
 
-        $admins = User::where('role', 'admin')
+        $admins = User::whereHas('roleModel', function ($q) {
+            $q->where('name', 'admin');
+        })
             ->where('status', 'Active')
             ->get();
 
