@@ -1,14 +1,20 @@
-import { Component, Input, OnInit, AfterViewInit, ViewChild, Output, EventEmitter, TemplateRef } from '@angular/core';
+import { Component, Input, OnInit, AfterViewInit, ViewChild,
+  Output, EventEmitter, TemplateRef, OnChanges,
+  SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
+import { SelectionModel } from '@angular/cdk/collections';
 import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
-import { DialogGenericComponent } from '../dialog-generic/dialog-generic.component';
+import {
+  DialogGenericComponent
+} from '../dialog-generic/dialog-generic.component';
 
 @Component({
   selector: 'app-table-generic',
@@ -19,12 +25,14 @@ import { DialogGenericComponent } from '../dialog-generic/dialog-generic.compone
     MatPaginatorModule,
     MatIconModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatSymbolDirective,
   ],
   templateUrl: './table-generic.component.html',
   styleUrls: ['./table-generic.component.scss'],
 })
-export class TableGenericComponent<T> implements OnInit, AfterViewInit {
+export class TableGenericComponent<T>
+  implements OnInit, AfterViewInit, OnChanges {
   @Input() columns: {
     key: string;
     label: string;
@@ -34,16 +42,31 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Input() set data(value: T[]) {
     this._data = value;
     this.dataSource.data = this._data;
+
+    // Clear row selection whenever the data set changes
+    this.selection.clear();
   }
   get data(): T[] {
     return this._data;
   }
+
   @Input() displayedColumns: string[] = [];
   @Input() showViewButton: boolean = false;
   @Input() showDeleteButton: boolean = true;
   @Input() isHeaderSticky: boolean = true;
   @Input() disableEdit: boolean = false;
-  @Input() customActions: any[] = [];
+
+  /**
+   * Custom action buttons per row.
+   * showIf(row) can be provided to conditionally hide per row.
+   */
+  @Input() customActions: {
+    action: string;
+    label: string;
+    icon: string;
+    showIf?: (row: T) => boolean;
+  }[] = [];
+
   @Input() showEditButton: boolean = true;
 
   @Input() showTableHeading: boolean = false;
@@ -57,17 +80,25 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   @Input() isServerSidePagination: boolean = false;
   @Input() pageIndex: number = 0;
 
+  /** Enable checkbox column for multi-select */
+  @Input() showCheckbox: boolean = false;
+
   @Output() edit = new EventEmitter<T>();
   @Output() delete = new EventEmitter<T>();
   @Output() view = new EventEmitter<T>();
   @Output() tableHeadingButtonClick = new EventEmitter<void>();
   @Output() customAction = new EventEmitter<{ action: string; row: T }>();
-
   @Output() pageChange = new EventEmitter<any>();
+
+  /** Emits the current selected rows array on every change */
+  @Output() selectionChange = new EventEmitter<T[]>();
 
   private _data: T[] = [];
   public dataSource = new MatTableDataSource<T>([]);
   public showFirstLastButtons: boolean = true;
+
+  /** Tracks which rows are currently checked */
+  public selection = new SelectionModel<T>(true, []);
 
   @ViewChild(MatPaginator) set paginator(
     paginator: MatPaginator | undefined
@@ -88,8 +119,21 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.dataSource.data = this.data;
+
+    // Prepend checkbox column when enabled
+    if (this.showCheckbox && !this.displayedColumns.includes('select')) {
+      this.displayedColumns.unshift('select');
+    }
+
     if (!this.displayedColumns.includes('action')) {
       this.displayedColumns.push('action');
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // Emit updated selection list when the data refreshes
+    if (changes['data']) {
+      this.selectionChange.emit(this.selection.selected);
     }
   }
 
@@ -111,6 +155,38 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
   isFirstColumn(columnKey: string): boolean {
     return this.columns.length > 0 && this.columns[0].key === columnKey;
   }
+
+  // --- Checkbox helpers ---
+
+  /** Returns true if every visible row is selected */
+  isAllSelected(): boolean {
+    return this.dataSource.data.length > 0 &&
+      this.selection.selected.length === this.dataSource.data.length;
+  }
+
+  /** Toggles select-all for the current page */
+  toggleAllRows(): void {
+    if (this.isAllSelected()) {
+      this.selection.clear();
+    } else {
+      this.selection.select(...this.dataSource.data);
+    }
+    this.selectionChange.emit(this.selection.selected);
+  }
+
+  /** Toggles a single row and emits updated selection */
+  toggleRow(row: T): void {
+    this.selection.toggle(row);
+    this.selectionChange.emit(this.selection.selected);
+  }
+
+  /** Programmatically clears all checkboxes */
+  clearSelection(): void {
+    this.selection.clear();
+    this.selectionChange.emit([]);
+  }
+
+  // --- Action handlers ---
 
   onEdit(item: T) {
     this.edit.emit(item);
@@ -136,7 +212,8 @@ export class TableGenericComponent<T> implements OnInit, AfterViewInit {
     const dialogRef = this.dialog.open(DialogGenericComponent, {
       data: {
         title: 'Confirm Delete',
-        content: 'Are you sure you want to delete this? This action cannot be undone.',
+        content:
+          'Are you sure you want to delete this? This action cannot be undone.',
         actionText: 'Delete',
         cancelText: 'Cancel',
         action: 'delete',
