@@ -153,7 +153,9 @@ export class TableGenericComponent<T>
   }
 
   isFirstColumn(columnKey: string): boolean {
-    return this.columns.length > 0 && this.columns[0].key === columnKey;
+    return !this.showCheckbox &&
+      this.columns.length > 0 &&
+      this.columns[0].key === columnKey;
   }
 
   // --- Checkbox helpers ---

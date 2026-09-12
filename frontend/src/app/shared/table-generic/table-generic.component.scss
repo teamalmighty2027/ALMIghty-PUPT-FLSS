@@ -46,7 +46,12 @@
     &.sticky {
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 3;
+    }
+
+    &.select-header {
+      width: 48px;
+      min-width: 48px;
     }
 
     &.action {
@@ -61,6 +66,12 @@
   .custom-cell {
     text-align: center;
     padding: var(--spacing-xs);
+
+    &.select-cell {
+      width: 48px;
+      min-width: 48px;
+      padding: var(--spacing-xs) var(--spacing-xxs);
+    }
 
     .status-badge {
       padding: var(--spacing-xxs) var(--spacing-sm);
