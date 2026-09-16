@@ -177,6 +177,28 @@ export class ReschedulingService {
     return this.handleResponseWithPhpNotices(this.http.post(url, form));
   }
 
+    /**
+   * Requests access for a faculty member to submit rescheduling appeals.
+   * @param facultyId - The ID of the faculty member requesting access.
+   * @returns An observable that emits the response from the server.
+   */
+  requestAppealAccess(facultyId: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/request-access`, { faculty_id: facultyId })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
+  /**
+   * Cancels a faculty member's request for access to submit rescheduling appeals.
+   * @param facultyId - The ID of the faculty member canceling the request.
+   * @returns An observable that emits the response from the server.
+   */
+  cancelAppealAccessRequest(facultyId: string): Observable<any> {
+    return this.http
+      .post(`${this.baseUrl}/rescheduling-appeals/cancel-request`, { faculty_id: facultyId })
+      .pipe(catchError((error: any) => throwError(() => error)));
+  }
+
   /**
    * Gets the list of appeals submitted by the current faculty member.
    * @returns 
@@ -207,6 +229,10 @@ export class ReschedulingService {
       .get<AppealResponse[]>(`${this.baseUrl}/rescheduling-appeals`)
       .pipe(catchError((error: any) => throwError(() => error)));
   }
+
+  //
+  // ADMIN ACTIONS
+  //
 
   /**
    * Submits an approval for a rescheduling appeal with the provided
@@ -320,12 +346,12 @@ export class ReschedulingService {
   }
 
   /**
-   * 
-   * @param isEnabled 
-   * @param activeSemesterId 
-   * @param startDate 
-   * @param endDate 
-   * @param sendEmail 
+   * Toggles the access status of all faculty members for rescheduling appeals.
+   * @param isEnabled - The new access status (true for enabled, false for disabled).
+   * @param activeSemesterId - The ID of the active semester.
+   * @param startDate - Optional start date for the access period.
+   * @param endDate - Optional end date for the access period.
+   * @param sendEmail - Optional flag to indicate if an email should be sent.
    * @returns 
    */
   toggleAllFacultyAppealAccess(
@@ -346,19 +372,22 @@ export class ReschedulingService {
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
-  requestAppealAccess(facultyId: string): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/rescheduling-appeals/request-access`, { faculty_id: facultyId })
-      .pipe(catchError((error: any) => throwError(() => error)));
-  }
-
-  cancelAppealAccessRequest(facultyId: string): Observable<any> {
-    return this.http
-      .post(`${this.baseUrl}/rescheduling-appeals/cancel-request`, { faculty_id: facultyId })
-      .pipe(catchError((error: any) => throwError(() => error)));
-  }
-
   // ── VALIDATION ────────────────────────────────────────────────
+
+  /**
+   * Validates a rescheduling appeal before it is approved.
+   * @param proposedDay The day of the proposed schedule.
+   * @param proposedStartTime The start time of the proposed schedule.
+   * @param proposedEndTime The end time of the proposed schedule.
+   * @param proposedRoomId The ID of the proposed room.
+   * @param schedules The current schedules.
+   * @param rooms - The available rooms.
+   * @param arrangements - The schedule arrangement overrides.
+   * @param scheduleContext - An object containing the context of the schedule 
+   * being appealed, including course ID, schedule ID, program ID, 
+   * year level, section ID, and faculty ID.
+   * @returns 
+   */
   validateAppealBeforeApproval(
     proposedDay: string,
     proposedStartTime: string,
@@ -395,6 +424,11 @@ export class ReschedulingService {
     );
   }
 
+  /**
+   * Downloads the document associated with a rescheduling appeal.
+   * @param appealId 
+   * @returns 
+   */
   downloadAppealDocument(appealId: number): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/rescheduling-appeals/${appealId}/download`, {
       responseType: 'blob'
