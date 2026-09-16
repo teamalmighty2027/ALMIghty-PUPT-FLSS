@@ -21,6 +21,68 @@ use Illuminate\Support\Str;
 class RescheduleController extends Controller
 {
     /**
+     * Scans an uploaded file for malicious content using Cloudmersive API.
+     *
+     * @param \Illuminate\Http\UploadedFile|string $file Uploaded file or path
+     * @param string $originalName Original file name for scan metadata
+     * @throws ValidationException If malicious content is detected
+     * @return JsonResponse|null Returns 503 response if service is unavailable
+     */
+    private function scanFileForViruses($file, string $originalName): ?JsonResponse
+    {
+        $apiKey = config('services.cloudmersive.api_key');
+        if (!$apiKey) {
+            return null;
+        }
+
+        $fileContents = is_string($file)
+            ? file_get_contents($file)
+            : file_get_contents($file->getRealPath());
+
+        try {
+            $scanResponse = Http::retry(2, 500)
+                ->timeout(15)
+                ->withHeaders(['Apikey' => $apiKey])
+                ->attach('inputFile', $fileContents, $originalName)
+                ->post('https://api.cloudmersive.com/virus/scan/file');
+
+            Log::info('Virus scan response: ' . $scanResponse->body());
+
+            if ($scanResponse->successful()) {
+                $scanResult = $scanResponse->json();
+
+                if (
+                    isset($scanResult['CleanResult']) &&
+                    $scanResult['CleanResult'] === false
+                ) {
+                    throw ValidationException::withMessages([
+                        'appealFile' => 'Security alert: Malicious content ' .
+                            'detected. Upload blocked.',
+                    ]);
+                }
+            } else {
+                return response()->json(
+                    ['message' => 'Security scan service unavailable. ' .
+                        'Try again later.'],
+                    503
+                );
+            }
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Virus scan exception: ' . $e->getMessage());
+
+            return response()->json(
+                ['message' => 'Security scan service unavailable. ' .
+                    'Try again later.'],
+                503
+            );
+        }
+
+        return null;
+    }
+
+    /**
      * Pre-scans an uploaded appeal document using Gemini AI.
      * Stores the file temporarily and returns extracted fields + AI summary.
      */
@@ -31,6 +93,16 @@ class RescheduleController extends Controller
         ]);
 
         $file = $request->file('appealFile');
+
+        // Run virus scan before saving temp file or pre-scanning with AI
+        $scanError = $this->scanFileForViruses(
+            $file,
+            $file->getClientOriginalName()
+        );
+        if ($scanError) {
+            return $scanError;
+        }
+
         $uuid = (string) Str::uuid();
         $tempPath = $file->storeAs('tmp/appeal-prescan', "{$uuid}.pdf", 'public');
         $absolutePath = storage_path('app/public/' . $tempPath);
@@ -142,6 +214,13 @@ class RescheduleController extends Controller
                     }
                 } elseif ($request->hasFile('appealFile')) {
                     $file = $request->file('appealFile');
+                    $scanError = $this->scanFileForViruses(
+                        $file,
+                        $file->getClientOriginalName()
+                    );
+                    if ($scanError) {
+                        return $scanError;
+                    }
                     $filePath = $file->store('appeals', 'public');
                 }
 
@@ -212,6 +291,13 @@ class RescheduleController extends Controller
             }
         } elseif ($request->hasFile('appealFile')) {
             $file = $request->file('appealFile');
+            $scanError = $this->scanFileForViruses(
+                $file,
+                $file->getClientOriginalName()
+            );
+            if ($scanError) {
+                return $scanError;
+            }
             $filePath = $file->store('appeals', 'public');
         }
 
