@@ -11,7 +11,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil } from 'rxjs';
-import { ReschedulingService } from '../../core/services/faculty/rescheduling/rescheduling.service';
+import {
+  ExtractedSchedule,
+  PreScanResult,
+  ReschedulingService
+} from '../../core/services/faculty/rescheduling/rescheduling.service';
 import { SpeechRecognitionService } from '../../core/services/speech/speech-recognition.service';
 
 interface DialogData {  
@@ -76,8 +80,15 @@ export class DialogAppealScheduleComponent implements OnDestroy {
   isListening: boolean = false;
   speechSupported: boolean = false;
 
+  // AI Pre-scan properties
+  isAnalyzing: boolean = false;
+  extractedSchedule: ExtractedSchedule | null = null;
+  preScanToken: string | null = null;
+  aiSummary: string | null = null;
+
   private destroy$ = new Subject<void>();
   private speechSession$ = new Subject<void>();
+  private scanCancel$ = new Subject<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -307,17 +318,129 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         this.selectedFile = file;
         this.selectedFileName = file.name;
         this.appealForm.patchValue({ appealFile: file });
+        this.startPreScan(file);
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+
+  // Start background pre-scan of uploaded PDF with Gemini AI
+  private startPreScan(file: File): void {
+    if (this.preScanToken) {
+      this.reschedulingService.cancelPreScan(this.preScanToken)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe();
+    }
+
+    this.scanCancel$.next();
+    this.preScanToken = null;
+    this.extractedSchedule = null;
+    this.aiSummary = null;
+    this.isAnalyzing = true;
+    this.cdr.markForCheck();
+
+    this.reschedulingService.preScanAppealDocument(file)
+      .pipe(
+        takeUntil(this.scanCancel$),
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: (res) => {
+          this.preScanToken = res.tempToken;
+          this.extractedSchedule = res.extracted;
+          this.aiSummary = res.aiSummary;
+          this.isAnalyzing = false;
+          this.cdr.markForCheck();
+        },
+        error: (err) => {
+          console.error('Pre-scan error:', err);
+          this.isAnalyzing = false;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  // Apply extracted schedule fields to appeal form controls
+  applyExtractedSchedule(): void {
+    if (!this.extractedSchedule) return;
+
+    const patches: any = {};
+
+    if (
+      this.extractedSchedule.day &&
+      this.days.includes(this.extractedSchedule.day)
+    ) {
+      patches.appealDay = this.extractedSchedule.day;
+    }
+
+    if (
+      this.extractedSchedule.startTime &&
+      this.data.options.timeOptions.includes(this.extractedSchedule.startTime)
+    ) {
+      patches.appealStartTime = this.extractedSchedule.startTime;
+    }
+
+    if (this.extractedSchedule.endTime) {
+      const startTime = patches.appealStartTime ||
+        this.appealForm.get('appealStartTime')?.value;
+      if (startTime) {
+        this.updateEndTimeOptions(startTime);
+      }
+      if (
+        this.data.options.endTimeOptions.includes(
+          this.extractedSchedule.endTime
+        )
+      ) {
+        patches.appealEndTime = this.extractedSchedule.endTime;
+      }
+    }
+
+    if (
+      this.extractedSchedule.room &&
+      this.roomOptions.includes(this.extractedSchedule.room)
+    ) {
+      patches.appealRoom = this.extractedSchedule.room;
+    }
+
+    if (this.extractedSchedule.reason) {
+      const currentReason = this.appealForm.get('reason')?.value || '';
+      if (!currentReason.trim()) {
+        patches.reason = this.extractedSchedule.reason;
+      } else if (!currentReason.includes(this.extractedSchedule.reason)) {
+        patches.reason = currentReason + ' ' + this.extractedSchedule.reason;
+      }
+    }
+
+    this.appealForm.patchValue(patches);
+    this.appealForm.markAsDirty();
+    this.cdr.markForCheck();
+  }
+
+  // Check if any extracted field can be populated into the form
+  hasAutoFillableFields(): boolean {
+    if (!this.extractedSchedule) return false;
+    const { day, startTime, endTime, room, reason } = this.extractedSchedule;
+    return !!(day || startTime || endTime || room || reason);
   }
 
   // Remove selected file button handler
   removeFile(): void {
     if (this.isSubmitting) return;
 
+    this.scanCancel$.next();
+
+    if (this.preScanToken) {
+      this.reschedulingService.cancelPreScan(this.preScanToken)
+        .pipe(takeUntil(this.destroy$))
+        .subscribe();
+    }
+
     this.selectedFile = null;
     this.selectedFileName = '';
+    this.preScanToken = null;
+    this.extractedSchedule = null;
+    this.aiSummary = null;
+    this.isAnalyzing = false;
     this.appealForm.patchValue({ appealFile: null });
   }
 
@@ -392,9 +515,11 @@ export class DialogAppealScheduleComponent implements OnDestroy {
         day: formValues.appealDay,
         startTime: formValues.appealStartTime,
         endTime: formValues.appealEndTime,
-        roomCode: formValues.appealRoom
+        roomCode: roomCode
       },
-      force
+      force,
+      this.preScanToken,
+      this.aiSummary
     )
     .pipe(takeUntil(this.destroy$))
     .subscribe({
@@ -554,6 +679,8 @@ export class DialogAppealScheduleComponent implements OnDestroy {
    * Clean up subscriptions and abort speech recognition on component destroy
    */
   ngOnDestroy(): void {
+    this.scanCancel$.next();
+    this.scanCancel$.complete();
     this.destroy$.next();
     this.destroy$.complete();
     
