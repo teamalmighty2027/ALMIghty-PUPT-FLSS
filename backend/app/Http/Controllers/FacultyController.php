@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Faculty;
 use App\Models\User;
 use App\Models\UserProfile;
+use App\Models\SystemNotice;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\FacultyDataService;
 use App\Services\IdpSyncService;
+use App\Services\SystemNoticeService;
 use App\Notifications\FacultyStatusChangedNotification;
 use App\Notifications\FacultyReactivationRequestNotification;
 use Illuminate\Support\Facades\Notification;
@@ -416,7 +418,7 @@ class FacultyController extends Controller
             }
 
             // Create a trace notice in SystemNoticeService
-            \App\Services\SystemNoticeService::create(
+            SystemNoticeService::create(
                 'reactivation_request',
                 'info',
                 'backend',
@@ -464,13 +466,13 @@ class FacultyController extends Controller
         }
 
         // Resolve any pending reactivation system notices for this user
-        $pendingNotices = \App\Models\SystemNotice::where('user_id', $user->id)
+        $pendingNotices = SystemNotice::where('user_id', $user->id)
             ->where('type', 'reactivation_request')
             ->whereNull('resolved_at')
             ->get();
 
         foreach ($pendingNotices as $notice) {
-            \App\Services\SystemNoticeService::resolve($notice->id, auth()->id());
+            SystemNoticeService::resolve($notice->id, auth()->id());
         }
 
         AuditLogger::logStatusChange($user, 'Inactive', 'Active');

@@ -16,6 +16,38 @@
 
 <div class="table-container">
   <table mat-table [dataSource]="dataSource" class="custom-table">
+
+    <!-- Checkbox column: only rendered when showCheckbox is true -->
+    @if (showCheckbox) {
+    <ng-container matColumnDef="select">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        class="custom-header common select-header"
+        [ngClass]="{
+          sticky: isHeaderSticky,
+          'top-left-radius': true
+        }"
+      >
+        <mat-checkbox
+          [checked]="isAllSelected()"
+          [indeterminate]="
+            selection.hasValue() && !isAllSelected()
+          "
+          (change)="toggleAllRows()"
+          aria-label="Select all rows"
+        ></mat-checkbox>
+      </th>
+      <td mat-cell *matCellDef="let row" class="custom-cell select-cell">
+        <mat-checkbox
+          [checked]="selection.isSelected(row)"
+          (change)="toggleRow(row)"
+          [aria-label]="'Select row'"
+        ></mat-checkbox>
+      </td>
+    </ng-container>
+    }
+
     @for (column of columns; track column.key) {
     <ng-container [matColumnDef]="column.key">
       <th
@@ -108,14 +140,16 @@
           }
 
           @for (customAction of customActions; track customAction.action) {
-          <button
-            mat-button
-            class="sec-ripple custom-action-button"
-            (click)="onCustomAction(customAction.action, element)"
-          >
-            <mat-icon>{{ customAction.icon }}</mat-icon>
-            <span>{{ customAction.label }}</span>
-          </button>
+            @if (!customAction.showIf || customAction.showIf(element)) {
+            <button
+              mat-button
+              class="sec-ripple custom-action-button"
+              (click)="onCustomAction(customAction.action, element)"
+            >
+              <mat-icon>{{ customAction.icon }}</mat-icon>
+              <span>{{ customAction.label }}</span>
+            </button>
+            }
           }
 
           @if (showDeleteButton) {
@@ -154,4 +188,4 @@
     ></mat-paginator>
   </div>
   }
-</div>
+</div>
