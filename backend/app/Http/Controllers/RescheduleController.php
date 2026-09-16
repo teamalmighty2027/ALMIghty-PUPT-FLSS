@@ -395,7 +395,10 @@ class RescheduleController extends Controller
                 DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', "
                         . "COALESCE(u.middle_name, '')) AS faculty_name"),
                 'p.program_code',
+                'c.course_code',
                 'c.course_title',
+                'spy.year_level',
+                'spy.section_name',
                 's.day              AS original_day',
                 's.start_time       AS original_start_time',
                 's.end_time         AS original_end_time',
