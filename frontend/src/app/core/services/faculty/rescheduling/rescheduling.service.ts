@@ -10,6 +10,20 @@ import {
 } from '../../../models/scheduling.model';
 import { ScheduleValidationService } from '../../admin/scheduling/schedule-validation.service';
 
+export interface ExtractedSchedule {
+  day: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  reason: string | null;
+}
+
+export interface PreScanResult {
+  tempToken: string;
+  extracted: ExtractedSchedule;
+  aiSummary: string | null;
+}
+
 export interface AppealResponse {
   appeal_id: number;
   schedule_id: number;
@@ -86,13 +100,53 @@ export class ReschedulingService {
     );
   }
 
-  // ── FACULTY — Submit appeal ───────────────────────────────────
+  /** 
+   * Pre-scan an appeal document using AI to extract 
+   * schedule information and generate a summary.
+   */
+  preScanAppealDocument(file: File): Observable<PreScanResult> {
+    const url = `${this.baseUrl}/rescheduling-appeals/pre-scan`;
+    const form = new FormData();
+    form.append('appealFile', file, file.name);
+
+    return this.handleResponseWithPhpNotices(this.http.post(url, form));
+  }
+
+  /**
+   * Cancels a pre-scan operation by sending a DELETE request to the server.
+   * @param tempToken 
+   * @returns 
+   */
+  cancelPreScan(tempToken: string): Observable<any> {
+    const url = `${this.baseUrl}/rescheduling-appeals/pre-scan`;
+
+    return this.http.delete(url, { body: { tempToken } });
+  }
+
+  /**
+   * Submits a rescheduling appeal to the server with the provided details.
+   * @param scheduleId - The ID of the schedule being appealed.
+   * @param appealFile - The appeal document file, if available.
+   * @param reason - The reason for the appeal.
+   * @param appealDetails - An object containing the proposed schedule details
+   * @param forceSubmit - A boolean indicating forcing submission with conflicts.
+   * @param tempToken - A temporary token from a pre-scan operation, if applicable.
+   * @param aiSummary - An optional AI-generated summary of the appeal document.
+   * @returns 
+   */
   submitReschedulingAppeal(
     scheduleId: number,
     appealFile: File | null,
     reason: string,
-    appealDetails: { day: string; startTime: string; endTime: string; roomCode: string; },
-    forceSubmit: boolean = false
+    appealDetails: {
+      day: string;
+      startTime: string;
+      endTime: string;
+      roomCode: string;
+    },
+    forceSubmit: boolean = false,
+    tempToken?: string | null,
+    aiSummary?: string | null
   ): Observable<any> {
     const url = `${this.baseUrl}/rescheduling-appeals`;
 
@@ -103,7 +157,15 @@ export class ReschedulingService {
     const form = new FormData();
     form.append('scheduleId', String(scheduleId));
 
-    if (appealFile) form.append('appealFile', appealFile, appealFile.name);
+    if (tempToken) {
+      form.append('tempToken', tempToken);
+    } else if (appealFile) {
+      form.append('appealFile', appealFile, appealFile.name);
+    }
+
+    if (aiSummary) {
+      form.append('aiSummary', aiSummary);
+    }
 
     form.append('reason',    reason);
     form.append('day',       appealDetails.day ?? '');
@@ -115,26 +177,45 @@ export class ReschedulingService {
     return this.handleResponseWithPhpNotices(this.http.post(url, form));
   }
 
-  // ── FACULTY — My Appeals ──────────────────────────────────────
+  /**
+   * Gets the list of appeals submitted by the current faculty member.
+   * @returns 
+   */
   getMyAppeals(): Observable<AppealResponse[]> {
     return this.http
       .get<AppealResponse[]>(`${this.baseUrl}/my-appeals`)
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
+  /**
+   * Cancels an appeal by its ID.
+   * @param appealId 
+   * @returns 
+   */
   cancelAppeal(appealId: number): Observable<any> {
     return this.http
       .delete(`${this.baseUrl}/my-appeals/${appealId}`)
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
-  // ── ADMIN ─────────────────────────────────────────────────────
+  /**
+   * Gets the list of all rescheduling appeals.
+   * @returns 
+   */
   getAllAppeals(): Observable<AppealResponse[]> {
     return this.http
       .get<AppealResponse[]>(`${this.baseUrl}/rescheduling-appeals`)
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
+  /**
+   * Submits an approval for a rescheduling appeal with the provided
+   * new schedule and administrative remarks.
+   * @param appealId - The ID of the appeal being approved.
+   * @param newSchedule - The target schedule slot details.
+   * @param adminRemarks - Optional administrative remarks.
+   * @returns 
+   */
   approveAppeal(
     appealId: number,
     newSchedule: { day: string; startTime: string; endTime: string; room: string; },
@@ -184,6 +265,12 @@ export class ReschedulingService {
     );
   }
 
+  /**
+   * Denies a rescheduling appeal with the provided administrative remarks.
+   * @param appealId - The ID of the appeal being denied.
+   * @param adminRemarks - Optional administrative remarks explaining the denial.
+   * @returns - An Observable emitting the server response for the denial action.
+   */
   denyAppeal(appealId: number, adminRemarks: string): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/rescheduling-appeals/${appealId}/deny`, {
@@ -192,13 +279,26 @@ export class ReschedulingService {
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
-  // ── ADMIN / FACULTY — Appeal Access Toggles & Requests ────────
+  /**
+   * Rejects a rescheduling appeal access request for the specified faculty member.
+   * @param facultyId - The ID of the faculty member whose access request is being rejected.
+   * @returns - An Observable emitting the server response for the rejection action.
+   */
   rejectAppealAccessRequest(facultyId: string): Observable<any> {
     return this.http
       .post(`${this.baseUrl}/rescheduling-appeals/reject-access`, { faculty_id: facultyId })
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
+  /**
+   * Toggles the access status of a faculty member for rescheduling appeals.
+   * @param facultyId - The ID of the faculty member whose access is being toggled.
+   * @param isEnabled - The new access status (true for enabled, false for disabled).
+   * @param activeSemesterId - The ID of the active semester.
+   * @param startDate - Optional start date for the access period.
+   * @param endDate - Optional end date for the access period.
+   * @param sendEmail - Optional flag to indicate if an email should be sent.
+   */   
   toggleFacultyAppealAccess(
     facultyId: number,
     isEnabled: boolean,
@@ -219,6 +319,15 @@ export class ReschedulingService {
       .pipe(catchError((error: any) => throwError(() => error)));
   }
 
+  /**
+   * 
+   * @param isEnabled 
+   * @param activeSemesterId 
+   * @param startDate 
+   * @param endDate 
+   * @param sendEmail 
+   * @returns 
+   */
   toggleAllFacultyAppealAccess(
     isEnabled: boolean,
     activeSemesterId: number,
