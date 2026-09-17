@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class RescheduleController extends Controller
 {
