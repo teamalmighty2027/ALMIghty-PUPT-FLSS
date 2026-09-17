@@ -71,6 +71,12 @@
           </div>
         </div>
 
+        <!-- AI Document Analyzing Status Indicator -->
+        <div class="ai-analyzing-status" *ngIf="isAnalyzing">
+          <mat-spinner diameter="16" strokeWidth="2"></mat-spinner>
+          <span>Analyzing document...</span>
+        </div>
+
         <!-- Day Selection -->
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>Day</mat-label>
@@ -205,7 +211,7 @@
       [disabled]="appealForm.invalid || isSubmitting || (hasConflicts && conflictMessages.length >= 3)">
       <ng-container *ngIf="isSubmitting; else submitText">
         <span class="submitting-spinner-wrapper">
-          <mat-spinner diameter="18" strokeWidth="2.5"></mat-spinner>
+          <mat-spinner diameter="18" strokeWidth="2.5" class="submit-spinner--accent"></mat-spinner>
           <span>Submitting...</span>
         </span>
       </ng-container>

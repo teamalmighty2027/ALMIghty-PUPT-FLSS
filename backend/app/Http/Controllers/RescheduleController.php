@@ -15,10 +15,124 @@ use App\Mail\AppealAccessApproved;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class RescheduleController extends Controller
 {
+    /**
+     * Scans an uploaded file for malicious content using Cloudmersive API.
+     *
+     * @param \Illuminate\Http\UploadedFile|string $file Uploaded file or path
+     * @param string $originalName Original file name for scan metadata
+     * @throws ValidationException If malicious content is detected
+     * @return JsonResponse|null Returns 503 response if service is unavailable
+     */
+    private function scanFileForViruses($file, string $originalName): ?JsonResponse
+    {
+        $apiKey = config('services.cloudmersive.api_key');
+        if (!$apiKey) {
+            return null;
+        }
+
+        $fileContents = is_string($file)
+            ? file_get_contents($file)
+            : file_get_contents($file->getRealPath());
+
+        try {
+            $scanResponse = Http::retry(2, 500)
+                ->timeout(15)
+                ->withHeaders(['Apikey' => $apiKey])
+                ->attach('inputFile', $fileContents, $originalName)
+                ->post('https://api.cloudmersive.com/virus/scan/file');
+
+            Log::info('Virus scan response: ' . $scanResponse->body());
+
+            if ($scanResponse->successful()) {
+                $scanResult = $scanResponse->json();
+
+                if (
+                    isset($scanResult['CleanResult']) &&
+                    $scanResult['CleanResult'] === false
+                ) {
+                    throw ValidationException::withMessages([
+                        'appealFile' => 'Security alert: Malicious content ' .
+                            'detected. Upload blocked.',
+                    ]);
+                }
+            } else {
+                return response()->json(
+                    ['message' => 'Security scan service unavailable. ' .
+                        'Try again later.'],
+                    503
+                );
+            }
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Virus scan exception: ' . $e->getMessage());
+
+            return response()->json(
+                ['message' => 'Security scan service unavailable. ' .
+                    'Try again later.'],
+                503
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Pre-scans an uploaded appeal document using Gemini AI.
+     * Stores the file temporarily and returns extracted fields + AI summary.
+     */
+    public function preScanAppealDocument(Request $request): JsonResponse
+    {
+        $request->validate([
+            'appealFile' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        $file = $request->file('appealFile');
+
+        // Run virus scan before saving temp file or pre-scanning with AI
+        $scanError = $this->scanFileForViruses(
+            $file,
+            $file->getClientOriginalName()
+        );
+        if ($scanError) {
+            return $scanError;
+        }
+
+        $uuid = (string) Str::uuid();
+        $tempPath = $file->storeAs('tmp/appeal-prescan', "{$uuid}.pdf", 'public');
+        $absolutePath = storage_path('app/public/' . $tempPath);
+
+        $result = GeminiService::extractAndSummarizeDocument($absolutePath);
+
+        return response()->json([
+            'tempToken' => $uuid,
+            'extracted' => $result['extracted'],
+            'aiSummary' => $result['aiSummary'],
+        ]);
+    }
+
+    /**
+     * Cancels a pre-scan session by removing the temporary document.
+     */
+    public function cancelPreScan(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tempToken' => 'required|string',
+        ]);
+
+        $tempPath = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+        if (Storage::disk('public')->exists($tempPath)) {
+            Storage::disk('public')->delete($tempPath);
+        }
+
+        return response()->json(['message' => 'Pre-scan file cancelled.']);
+    }
+
     // ─────────────────────────────────────────────────────────
     //  FACULTY — Submit an appeal
     //  POST /api/rescheduling-appeals
@@ -29,7 +143,7 @@ class RescheduleController extends Controller
      *
      * @param Request $request Contains scheduleId, reason, day,
      *                          startTime, endTime, roomCode,
-     *                          and optional appealFile
+     *                          and optional appealFile or tempToken
      * @return JsonResponse Appeal confirmation or validation error
      */
     public function submitReschedulingAppeal(Request $request): JsonResponse
@@ -43,6 +157,8 @@ class RescheduleController extends Controller
             'endTime'     => ['required', 'date_format:H:i'],
             'roomCode'    => 'nullable|string',
             'appealFile'  => 'nullable|file|mimes:pdf|max:10240',
+            'tempToken'   => 'nullable|string',
+            'aiSummary'   => 'nullable|string',
             'forceSubmit' => 'nullable|string',
         ]);
 
@@ -89,8 +205,22 @@ class RescheduleController extends Controller
         if ($existing) {
             if ($user->role === 'admin') {
                 $filePath = null;
-                if ($request->hasFile('appealFile')) {
+                if (!empty($validated['tempToken'])) {
+                    $tempRel = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+                    if (Storage::disk('public')->exists($tempRel)) {
+                        $targetRel = 'appeals/' . Str::uuid() . '.pdf';
+                        Storage::disk('public')->move($tempRel, $targetRel);
+                        $filePath = $targetRel;
+                    }
+                } elseif ($request->hasFile('appealFile')) {
                     $file = $request->file('appealFile');
+                    $scanError = $this->scanFileForViruses(
+                        $file,
+                        $file->getClientOriginalName()
+                    );
+                    if ($scanError) {
+                        return $scanError;
+                    }
                     $filePath = $file->store('appeals', 'public');
                 }
 
@@ -149,13 +279,29 @@ class RescheduleController extends Controller
         }
 
         $filePath = null;
-        $aiSummary = null;
+        $aiSummary = $validated['aiSummary'] ?? null;
 
-        if ($request->hasFile('appealFile')) {
+        if (!empty($validated['tempToken'])) {
+            $tempRel = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+            
+            if (Storage::disk('public')->exists($tempRel)) {
+                $targetRel = 'appeals/' . Str::uuid() . '.pdf';
+                Storage::disk('public')->move($tempRel, $targetRel);
+                $filePath = $targetRel;
+            }
+        } elseif ($request->hasFile('appealFile')) {
             $file = $request->file('appealFile');
-
-            // Proceed with file storage only after schedule conflicts pass
+            $scanError = $this->scanFileForViruses(
+                $file,
+                $file->getClientOriginalName()
+            );
+            if ($scanError) {
+                return $scanError;
+            }
             $filePath = $file->store('appeals', 'public');
+        }
+
+        if (empty($aiSummary) && $filePath) {
             $absolutePath = storage_path('app/public/' . $filePath);
             $aiSummary = GeminiService::summarizeAppealDocument(
                 $absolutePath
@@ -163,7 +309,7 @@ class RescheduleController extends Controller
         }
 
         $finalReasoning = $validated['reason'];
-        if ($aiSummary) {
+        if (!empty($aiSummary)) {
             $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" .
               trim($aiSummary);
         }
@@ -335,7 +481,10 @@ class RescheduleController extends Controller
                 DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', "
                         . "COALESCE(u.middle_name, '')) AS faculty_name"),
                 'p.program_code',
+                'c.course_code',
                 'c.course_title',
+                'spy.year_level',
+                'spy.section_name',
                 's.day              AS original_day',
                 's.start_time       AS original_start_time',
                 's.end_time         AS original_end_time',

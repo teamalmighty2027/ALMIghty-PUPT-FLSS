@@ -312,7 +312,7 @@
                     Program / Course
                   </th>
                   <td mat-cell *matCellDef="let element" class="custom-cell">
-                    {{ element.programCode }} - {{ element.courseTitle }}
+                    {{ element.programCode }}<ng-container *ngIf="element.yearLevel && element.sectionName"> {{ element.yearLevel }}-{{ element.sectionName }}</ng-container> - {{ element.courseCode || element.courseTitle }}
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="originalSchedule">
@@ -427,6 +427,12 @@
         <div class="schedule-summary">
           <div class="section-label">CURRENT SCHEDULE</div>
           <div class="current-schedule-grid">
+            <div class="info-row" *ngIf="selectedAppeal?.yearLevel || selectedAppeal?.sectionName">
+              <span class="label">Section:</span>
+              <span class="value"
+                >{{ selectedAppeal?.programCode }} {{ selectedAppeal?.yearLevel }}-{{ selectedAppeal?.sectionName }}</span
+              >
+            </div>
             <div class="info-row">
               <span class="label">Course:</span>
               <span class="value"
@@ -461,6 +467,21 @@
       <div class="modal-body">
         <div class="schedule-summary requested-schedule">
           <div class="section-label">REQUESTED SCHEDULE</div>
+          <div class="info-row" *ngIf="selectedAppeal?.courseTitle">
+            <span class="label">Course:</span>
+            <span class="value">
+              {{ selectedAppeal?.courseCode ? selectedAppeal?.courseCode + ' - ' : '' }}{{ selectedAppeal?.courseTitle }}
+            </span>
+          </div>
+          <div class="info-row" *ngIf="selectedAppeal?.programCode">
+            <span class="label">Section:</span>
+            <span class="value">
+              {{ selectedAppeal?.programCode }}
+              <ng-container *ngIf="selectedAppeal?.yearLevel && selectedAppeal?.sectionName">
+                {{ selectedAppeal?.yearLevel }}-{{ selectedAppeal?.sectionName }}
+              </ng-container>
+            </span>
+          </div>
           <div class="info-row">
             <span class="label">Day:</span>
             <span class="value">{{ selectedAppeal?.preferredDay || "—" }}</span>
@@ -522,6 +543,21 @@
       <div class="modal-body">
         <div class="schedule-summary requested-schedule">
           <div class="section-label">REQUESTED SCHEDULE</div>
+          <div class="info-row" *ngIf="selectedAppeal?.courseTitle">
+            <span class="label">Course:</span>
+            <span class="value">
+              {{ selectedAppeal?.courseCode ? selectedAppeal?.courseCode + ' - ' : '' }}{{ selectedAppeal?.courseTitle }}
+            </span>
+          </div>
+          <div class="info-row" *ngIf="selectedAppeal?.programCode">
+            <span class="label">Section:</span>
+            <span class="value">
+              {{ selectedAppeal?.programCode }}
+              <ng-container *ngIf="selectedAppeal?.yearLevel && selectedAppeal?.sectionName">
+                {{ selectedAppeal?.yearLevel }}-{{ selectedAppeal?.sectionName }}
+              </ng-container>
+            </span>
+          </div>
           <div class="info-row">
             <span class="label">Day:</span>
             <span class="value">{{ selectedAppeal?.preferredDay || "—" }}</span>

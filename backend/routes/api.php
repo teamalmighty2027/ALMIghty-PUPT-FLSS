@@ -448,6 +448,8 @@ Route::middleware([
      * Rescheduling Appeals
      */
     // ── FACULTY (Submit & Manage) ──
+    Route::post('/rescheduling-appeals/pre-scan',       [RescheduleController::class, 'preScanAppealDocument']);
+    Route::delete('/rescheduling-appeals/pre-scan',     [RescheduleController::class, 'cancelPreScan']);
     Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
