@@ -7,7 +7,14 @@ Streamlining the academic scheduling at PUP Taguig.
 ## Table of Contents
 - [Version and Technology](#version-and-technology)
 - [File Architecture](#file-architecture)
+- [Onboarding & Setup Guide](#onboarding--setup-guide)
+  - [Prerequisites](#prerequisites)
+  - [Frontend Setup](#frontend-setup)
+  - [Backend Setup](#backend-setup)
 - [Commands and Testing](#commands-and-testing)
+  - [Build Command](#build-command)
+  - [Angular Tests](#angular-tests)
+  - [Backend Artisan Commands](#backend-artisan-commands)
 - [External Integration Endpoints](#external-integration-endpoints)
 
 ---
@@ -39,7 +46,7 @@ Streamlining the academic scheduling at PUP Taguig.
 
 The repository is structured into the following main directories:
 
-- [frontend/](ffrontend)
+- [frontend/](frontend)
   - `src/app/`: Angular components, services, guards, models, and routes.
   - `src/assets/`: Static image assets and icons.
   - `src/environments/`: Client environment configuration.
@@ -47,11 +54,79 @@ The repository is structured into the following main directories:
 - [backend/](backend)
   - `app/Http/Controllers/`: API request handlers.
   - `app/Http/Middleware/`: Middleware (HMAC verification, Sanctum auth, rate limiting).
+  - `app/Console/Commands/`: Custom Artisan backend CLI commands.
   - `routes/api.php`: Core API routes and external partner endpoints.
   - `database/`: Database migrations, seeders, and CSV seed data.
 - [ml/](ml)
   - `notebooks/`: Machine learning model training scripts and data analysis.
   - `ml_training_guide.md`: Guide for training ML scheduling models.
+
+---
+
+## Onboarding & Setup Guide
+
+### Prerequisites
+- **Node.js**: v18.0.0 or higher
+- **npm**: v9.0.0 or higher
+- **PHP**: ^8.1
+- **Composer**: ^2.0
+- **Database**: MySQL 8.0+
+
+### Frontend Setup
+1. **Install Angular CLI Globally**:
+   ```bash
+   npm install -g @angular/cli
+   ```
+
+2. **Navigate to the Frontend Directory**:
+   ```bash
+   cd frontend
+   ```
+
+3. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+4. **Start the Development Server**:
+   ```bash
+   ng serve
+   ```
+   Navigate to `http://localhost:4200/` in your browser.
+
+### Backend Setup
+1. **Navigate to the Backend Directory**:
+   ```bash
+   cd backend
+   ```
+
+2. **Install PHP Dependencies**:
+   ```bash
+   composer install
+   ```
+
+3. **Configure Environment File**:
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+   Update database credentials and environment variables in `.env`.
+
+4. **Set Up Storage Directory & Permissions**:
+   ```bash
+   php artisan storage:link
+   ```
+
+5. **Run Migrations & Seeders**:
+   ```bash
+   php artisan migrate --seed
+   ```
+
+6. **Start Backend Server**:
+   ```bash
+   php artisan serve
+   ```
+   The backend API will run on `http://127.0.0.1:8000/`.
 
 ---
 
@@ -81,30 +156,48 @@ cd frontend
 ng test
 ```
 
----
+### Backend Artisan Commands
 
-## Coding Guidelines
-1. Keep code lines within 80 columns
-2. Add atleast one line of comment (//) or docstring on top 
-  of newly added methods explaining briefly it's purpose
-3. Add a whitespace in between large code blocks before and after, example:
+The backend includes custom `php artisan` management commands:
 
-```
-// code
+| Command Signature | Description |
+|---|---|
+| `php artisan user:reset-password {email?}` | Resets faculty user password & dispatches email |
+| `php artisan user:delete-account {email}` | Deletes faculty or admin account and profile |
+| `php artisan api:add-key {system} {key?}` | Adds or updates integration API key |
+| `php artisan api:generate-key {--length=64}` | Generates a secure random API key |
+| `php artisan api:get-keys {system}` | Retrieves API keys for an external system |
+| `php artisan preferences:check-deadline` | Disables preferences after submission deadlines |
+| `php artisan appeals:cleanup-temp` | Cleans up appeal prescan temp files older than 24h |
+| `php artisan deploy:backend` | Prepares backend for production deployment |
+| `php artisan ml:export-dataset` | Exports scheduling dataset CSV for ML model training |
+| `php artisan address:sync` | Downloads and caches Philippine PSGC address dataset |
+| `php artisan sync:idp-uuids` | Syncs faculty email addresses with IDP user UUIDs |
+| `php artisan optimize:clear` | Clears all backend caches (config, route, view) |
 
-if () {
-  // statement
-}
+#### Key Command Usage Examples
 
-// code
-```
+- **Reset Faculty Password**:
+  ```bash
+  php artisan user:reset-password user@example.com --default
+  ```
+
+- **Generate API Key for Integration**:
+  ```bash
+  php artisan api:generate-key --length=64
+  ```
+
+- **Export ML Dataset**:
+  ```bash
+  php artisan ml:export-dataset --all
+  ```
 
 ---
 
 ## External Integration Endpoints
 
 Partnered systems integrate with PUPT-FLSS via external API endpoints
-defined in [api.php](/backend/routes/api.php)
+defined in [api.php](backend/routes/api.php)
 under the `/api/v1/` prefix. Requests are authenticated using HMAC security
 verification (`check.hmac` middleware).
 
