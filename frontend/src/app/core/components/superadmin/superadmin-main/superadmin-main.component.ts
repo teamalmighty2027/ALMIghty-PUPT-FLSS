@@ -13,6 +13,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { DialogGenericComponent, DialogData } from '../../../../shared/dialog-generic/dialog-generic.component';
@@ -42,6 +43,7 @@ import { SystemNoticeService } from '../../../services/superadmin/system-notice/
     MatSymbolDirective,
     MatTooltipModule,
     MatBadgeModule,
+    MatMenuModule,
   ],
   animations: [fadeAnimation, slideInAnimation],
 })
@@ -56,6 +58,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   public pageTitle = 'Dashboard';
   public accountName!: string;
   public accountRole!: string;
+  public accountEmail!: string;
   public unresolvedNoticesCount = 0;
   public isSidebarPinned: boolean =
     SafeStorage.getItem('superadmin_sidebar_pinned') !== 'false';
@@ -156,6 +159,7 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
   private initializeUserData(): void {
     this.accountName = this.authService.getUserName();
     this.accountRole = this.toTitleCase(this.authService.getUserRole());
+    this.accountEmail = this.authService.getUserEmail();
   }
 
   public toggleTheme() {
@@ -341,6 +345,16 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
         });
       }
     });
+  }
+
+  onMenuAction(action: string) {
+    if (action === 'theme' || action === 'toggle-theme') {
+      this.toggleTheme();
+    } else if (action === 'logout') {
+      this.logout();
+    } else if (action === 'change-password') {
+      this.openChangePasswordDialog();
+    }
   }
 
   /**
