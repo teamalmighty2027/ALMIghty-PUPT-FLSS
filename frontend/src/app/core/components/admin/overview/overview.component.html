@@ -14,8 +14,13 @@
           Here's the key overview of the loading and scheduling this semester.
         </p>
       </div>
-      <div class="active-year-sem-container" [class.mismatched]="isMismatchedSemester">
-        <p class="text">A.Y. {{ activeYear }}, {{ formatSemester(activeSemester) }}</p>
+      <div
+        class="active-year-sem-container"
+        [class.mismatched]="isMismatchedSemester"
+      >
+        <p class="text">
+          A.Y. {{ activeYear }}, {{ formatSemester(activeSemester) }}
+        </p>
         <p class="label">Active Year & Semester</p>
       </div>
     </header>
@@ -30,8 +35,20 @@
           <div class="stats active-faculty card">
             <span mat-symbol="groups" class="stats-icon" size="24px"></span>
             <div class="stats-info">
-              <h2 class="card-title">Active Faculty</h2>
-              <div class="card-content">{{ activeFacultyCount }}</div>
+              <h2 class="card-title">Active Faculty 
+                <span
+                  mat-symbol="help"
+                  class="help-icon"
+                  [fill]="false"
+                  [matTooltip]="
+                    `${facultyWithSchedulesCount} out of ${activeFacultyCount} faculty have schedules assigned`
+                  "
+                  matTooltipPosition="right"
+                ></span>
+              </h2>
+              <div class="card-content">
+                {{ activeFacultyCount }}
+              </div>
             </div>
           </div>
           <!-- Content for Active Programs -->
@@ -44,7 +61,11 @@
           </div>
           <!-- Content for Active Curricula -->
           <div class="stats active-curricula card">
-            <span mat-symbol="description" class="stats-icon" size="24px"></span>
+            <span
+              mat-symbol="description"
+              class="stats-icon"
+              size="24px"
+            ></span>
             <div class="stats-info">
               <h2 class="card-title">Active Curricula</h2>
               <div class="card-content">
@@ -204,7 +225,11 @@
                   role="button"
                   class="item faculty-pref"
                   [class.disabled-action]="!canEditPreferences"
-                  [matTooltip]="!canEditPreferences ? 'You do not have permission to manage faculty preferences' : ''"
+                  [matTooltip]="
+                    !canEditPreferences
+                      ? 'You do not have permission to manage faculty preferences'
+                      : ''
+                  "
                   (click)="togglePreferencesSubmission()"
                 >
                   <span mat-symbol="groups"></span>
@@ -220,7 +245,11 @@
                 <div
                   class="item publish-sched"
                   [class.disabled-action]="!canAssignSchedules"
-                  [matTooltip]="!canAssignSchedules ? 'You do not have permission to publish schedules' : ''"
+                  [matTooltip]="
+                    !canAssignSchedules
+                      ? 'You do not have permission to publish schedules'
+                      : ''
+                  "
                   (click)="togglePublishSchedules()"
                 >
                   <span mat-symbol="schedule_send"></span>
@@ -235,20 +264,28 @@
               </div>
               <div class="item-group two">
                 <!--Action: Open Generate Report-->
-                <div 
-                  class="item generate-report" 
+                <div
+                  class="item generate-report"
                   [class.disabled-action]="!canViewReports"
-                  [matTooltip]="!canViewReports ? 'You do not have permission to generate reports' : ''"
+                  [matTooltip]="
+                    !canViewReports
+                      ? 'You do not have permission to generate reports'
+                      : ''
+                  "
                   (click)="generateReports()"
                 >
                   <span mat-symbol="assessment"></span>
                   <span class="desc">Generate the Schedule Reports</span>
                 </div>
                 <!--Action: View Data Analytics-->
-                <div 
-                  class="item view-analytics" 
+                <div
+                  class="item view-analytics"
                   [class.disabled-action]="!canViewReports"
-                  [matTooltip]="!canViewReports ? 'You do not have permission to view analytics' : ''"
+                  [matTooltip]="
+                    !canViewReports
+                      ? 'You do not have permission to view analytics'
+                      : ''
+                  "
                   (click)="viewAnalytics()"
                 >
                   <span mat-symbol="analytics"></span>
@@ -281,7 +318,11 @@
               <div class="requests-loading"></div>
             } @else if (!requestNotifications.length && !isAnimatingOut) {
               <div class="no-requests">
-                <span mat-symbol="mark_email_read" class="no-img" size="48px"></span>
+                <span
+                  mat-symbol="mark_email_read"
+                  class="no-img"
+                  size="48px"
+                ></span>
                 <div class="no-text">
                   <strong>No pending faculty requests.</strong>
                   <span>All requests have been processed.</span>
@@ -298,15 +339,34 @@
                 ) {
                   <div class="request-item">
                     <div class="request-content">
-                      <div class="faculty-name" style="align-items: flex-start;">
-                        <span mat-symbol="person" style="margin-top: 4px;"></span>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                          <p style="margin: 0; line-height: 1;">{{ request.faculty_name }}</p>
-                          <span 
-                            class="request-tag" 
-                            [ngClass]="request.request_type === 'appeal' ? 'tag-appeal' : 'tag-preference'"
+                      <div class="faculty-name" style="align-items: flex-start">
+                        <span
+                          mat-symbol="person"
+                          style="margin-top: 4px"
+                        ></span>
+                        <div
+                          style="
+                            display: flex;
+                            flex-direction: column;
+                            gap: 4px;
+                          "
+                        >
+                          <p style="margin: 0; line-height: 1">
+                            {{ request.faculty_name }}
+                          </p>
+                          <span
+                            class="request-tag"
+                            [ngClass]="
+                              request.request_type === 'appeal'
+                                ? 'tag-appeal'
+                                : 'tag-preference'
+                            "
                           >
-                            {{ request.request_type === 'appeal' ? 'Appeal Request' : 'Preference Request' }}
+                            {{
+                              request.request_type === "appeal"
+                                ? "Appeal Request"
+                                : "Preference Request"
+                            }}
                           </span>
                         </div>
                       </div>
@@ -316,8 +376,16 @@
                           [class.disabled-action]="!canEditPreferences"
                           [disabled]="!canEditPreferences"
                           [attr.aria-disabled]="!canEditPreferences"
-                          [attr.aria-label]="canEditPreferences ? 'Approve request' : 'Approve request - You do not have permission to approve requests'"
-                          [matTooltip]="!canEditPreferences ? 'You do not have permission to approve requests' : ''"
+                          [attr.aria-label]="
+                            canEditPreferences
+                              ? 'Approve request'
+                              : 'Approve request - You do not have permission to approve requests'
+                          "
+                          [matTooltip]="
+                            !canEditPreferences
+                              ? 'You do not have permission to approve requests'
+                              : ''
+                          "
                           (click)="approveRequest(request)"
                         >
                           <span mat-symbol="check"></span>
@@ -328,8 +396,16 @@
                           [class.disabled-action]="!canEditPreferences"
                           [disabled]="!canEditPreferences"
                           [attr.aria-disabled]="!canEditPreferences"
-                          [attr.aria-label]="canEditPreferences ? 'Discard request' : 'Discard request - You do not have permission to discard requests'"
-                          [matTooltip]="!canEditPreferences ? 'You do not have permission to discard requests' : ''"
+                          [attr.aria-label]="
+                            canEditPreferences
+                              ? 'Discard request'
+                              : 'Discard request - You do not have permission to discard requests'
+                          "
+                          [matTooltip]="
+                            !canEditPreferences
+                              ? 'You do not have permission to discard requests'
+                              : ''
+                          "
                           (click)="discardRequest(request)"
                         >
                           <span mat-symbol="close"></span>

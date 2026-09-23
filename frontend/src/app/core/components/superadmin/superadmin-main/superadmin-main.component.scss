@@ -237,7 +237,8 @@
         }
         .admin-account {
           @include mixins.flex-layout(
-            $direction: row-reverse,
+            $direction: row,
+            $align: center,
             $gap: var(--spacing-sm)
           );
           align-items: center;
