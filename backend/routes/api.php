@@ -422,6 +422,12 @@ Route::middleware([
     Route::get('/faculty/{faculty_id}/preferences/history', [
         PreferenceController::class, 'getPreferencesHistoryByFacultyId'
     ]);
+    Route::post('/preferences/access-requests', [
+        PreferenceController::class, 'requestAccess'
+    ]);
+    Route::delete('/preferences/access-requests', [
+        PreferenceController::class, 'cancelRequestAccess'
+    ]);
     Route::delete('/preferences/{preference_id}', [
         PreferenceController::class, 'deletePreferences'
     ]);
@@ -433,12 +439,6 @@ Route::middleware([
     ]);
     Route::patch('/preferences/{faculty_id}/toggle', [
         PreferenceController::class, 'toggleSinglePreferences'
-    ]);
-    Route::post('/preferences/access-requests', [
-        PreferenceController::class, 'requestAccess'
-    ]);
-    Route::delete('/preferences/access-requests', [
-        PreferenceController::class, 'cancelRequestAccess'
     ]);
     Route::patch('/preferences/{preference_id}/toggle-ignore', [
         PreferenceController::class, 'toggleIgnorePreference'
