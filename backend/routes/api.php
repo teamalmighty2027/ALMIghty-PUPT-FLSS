@@ -211,12 +211,6 @@ Route::middleware([
     Route::post('/academic-years', [
         AcademicYearController::class, 'addAcademicYear'
     ]);
-    Route::delete('/academic-years/{id}', [
-        AcademicYearController::class, 'deleteAcademicYear'
-    ]);
-    Route::put('/academic-years/{id}', [
-        AcademicYearController::class, 'updateAcademicYear'
-    ]);
     Route::get('/academic-years/active-semester', [
         AcademicYearController::class, 'getActiveAcademicYearAndSemester'
     ]);
@@ -226,11 +220,20 @@ Route::middleware([
     Route::put('/academic-years/faculty-view-semester', [
         AcademicYearController::class, 'setFacultyViewSemester'
     ]);
-    Route::get('/academic-years/{id}/program-details', [
-        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
-    ]);
     Route::get('/academic-years/active/year-levels-curricula', [
         AcademicYearController::class, 'getActiveYearLevelsCurricula'
+    ]);
+    Route::get('/academic-years/active/offered-courses', [
+        AcademicYearController::class, 'getOfferedCoursesBySem'
+    ]);
+    Route::delete('/academic-years/{id}', [
+        AcademicYearController::class, 'deleteAcademicYear'
+    ]);
+    Route::put('/academic-years/{id}', [
+        AcademicYearController::class, 'updateAcademicYear'
+    ]);
+    Route::get('/academic-years/{id}/program-details', [
+        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
     ]);
     Route::put('/academic-years/{id}/year-level-curricula', [
         AcademicYearController::class, 'updateYearLevelCurricula'
@@ -240,9 +243,6 @@ Route::middleware([
     ]);
     Route::delete('/academic-years/{ayId}/programs/{progId}', [
         AcademicYearController::class, 'removeProgramFromAcademicYear'
-    ]);
-    Route::get('/academic-years/active/offered-courses', [
-        AcademicYearController::class, 'getOfferedCoursesBySem'
     ]);
     Route::get('/programs/{id}/courses', [
         AcademicYearController::class, 'getProgramCourses'
