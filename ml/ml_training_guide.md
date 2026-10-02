@@ -369,6 +369,9 @@ Update this table each time you retrain:
 | Date | Train Rows | Test Rows | Split | RMSE | R² | Notes |
 |---|---|---|---|---|---|---|
 | 2026-05-04 | 1,021 | 698 | S1→S2 | 0.3063 | -0.2610 | Fallback split used; negative R² found |
+| 2026-07-01 | 1572  | 393 | Random Split | 0.1797 | 0.4817 | 20% data split 
+
+Out-of-range predictions: 81 rows (Angular will clip these to 0–1)
 
 > [!WARNING]
 > **Interpreting a Negative R² Score:**

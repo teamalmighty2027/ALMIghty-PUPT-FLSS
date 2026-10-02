@@ -565,6 +565,10 @@ class ExternalController extends Controller
                 $department = $this->assignDepartmentFromSchedules($profile);
             }
 
+            $facultyType = str_starts_with($faculty->faculty_type, 'Designee')
+                ? 'Designee'
+                : $faculty->faculty_type;
+
             $data = [
                 'faculty_id'    => $faculty->faculty_id,
                 'idp_user_id'   => $faculty->idp_user_id,
@@ -573,7 +577,7 @@ class ExternalController extends Controller
                 'last_name'     => $faculty->last_name,
                 'suffix_name'   => $faculty->suffix_name ?? null,
                 'faculty_code'  => $faculty->faculty_code,
-                'faculty_type'  => $faculty->faculty_type,
+                'faculty_type'  => $facultyType,
                 'department'    => $department,
                 'email'         => $faculty->email,
                 'status'        => $faculty->status,                
@@ -637,6 +641,11 @@ class ExternalController extends Controller
                 $department = $this->assignDepartmentFromSchedules($profile);
             }
 
+            $rawFacultyType = $faculty->facultyType?->faculty_type ?? '';
+            $facultyType = str_starts_with($rawFacultyType, 'Designee')
+                ? 'Designee'
+                : $rawFacultyType;
+
             $data = [
                 'faculty_id'    => $user->id,
                 'idp_user_id'   => $faculty->idp_user_id,
@@ -645,7 +654,7 @@ class ExternalController extends Controller
                 'last_name'     => $user->last_name,
                 'suffix_name'   => $user->suffix_name ?? null,
                 'faculty_code'  => $user->code,
-                'faculty_type'  => $faculty->facultyType->faculty_type,
+                'faculty_type'  => $facultyType,
                 'department'    => $department,
                 'email'         => $user->email,
                 'status'        => $user->status
