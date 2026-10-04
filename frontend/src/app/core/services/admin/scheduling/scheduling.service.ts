@@ -658,7 +658,7 @@ export class SchedulingService {
             return currentConfidence > bestConfidence ? current : best;
           }, null),
           map(bestMatch => {
-            if (bestMatch && bestMatch.ml!.confidence >= 0.3) {
+            if (bestMatch && bestMatch.ml!.confidence >= 0.1) {
               console.log(
                 `✅ ML Suggestion Accepted: ${bestMatch.faculty_name} ` +
                 `with confidence ${bestMatch.ml!.confidence.toFixed(4)}`
@@ -678,7 +678,7 @@ export class SchedulingService {
             if (bestMatch) {
               console.log(
                 `⚠️ ML Match Rejected (Confidence ` +
-                `${bestMatch.ml!.confidence.toFixed(4)} < 0.3). ` +
+                `${bestMatch.ml!.confidence.toFixed(4)} < 0.1). ` +
                 `Falling back to heuristics.`
               );
             } else {
