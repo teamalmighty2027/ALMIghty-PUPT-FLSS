@@ -1,11 +1,15 @@
 <div class="system-notices-container">
-  
+
   <!-- Filters Bar -->
   <div class="filters-bar">
     <div class="filter-group">
       <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Status</mat-label>
-        <mat-select [(ngModel)]="selectedResolved" (selectionChange)="onFilterChange()" aria-label="Filter by resolved status">
+        <mat-select
+          [(ngModel)]="selectedResolved"
+          (selectionChange)="onFilterChange()"
+          aria-label="Filter by resolved status"
+        >
           <mat-option value="false">Open</mat-option>
           <mat-option value="true">Resolved</mat-option>
           <mat-option value="">All</mat-option>
@@ -14,7 +18,11 @@
 
       <mat-form-field appearance="outline" class="filter-field">
         <mat-label>Severity</mat-label>
-        <mat-select [(ngModel)]="selectedSeverity" (selectionChange)="onFilterChange()" aria-label="Filter by severity">
+        <mat-select
+          [(ngModel)]="selectedSeverity"
+          (selectionChange)="onFilterChange()"
+          aria-label="Filter by severity"
+        >
           <mat-option value="">All Severities</mat-option>
           <mat-option value="info">Info</mat-option>
           <mat-option value="warning">Warning</mat-option>
@@ -24,10 +32,16 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline" class="filter-field">
-        <mat-label>Notice Type</mat-label>
-        <mat-select [(ngModel)]="selectedType" (selectionChange)="onFilterChange()" aria-label="Filter by type">
+        <mat-label>Log Type</mat-label>
+        <mat-select
+          [(ngModel)]="selectedType"
+          (selectionChange)="onFilterChange()"
+          aria-label="Filter by type"
+        >
           <mat-option value="">All Types</mat-option>
-          <mat-option value="reactivation_request">Reactivation Request</mat-option>
+          <mat-option value="reactivation_request">
+            Reactivation Request
+          </mat-option>
           <mat-option value="audit_event">Audit Event</mat-option>
           <mat-option value="backend_exception">Backend Exception</mat-option>
           <mat-option value="frontend_error">Frontend Error</mat-option>
@@ -36,13 +50,34 @@
     </div>
   </div>
 
+  <!-- Bulk-resolve action bar — visible only when rows are checked -->
+  @if (selectedNotices.length > 0) {
+    <div class="bulk-action-bar">
+      <span class="bulk-count">
+        {{ selectedNotices.length }}
+        {{ selectedNotices.length === 1 ? 'alert' : 'alerts' }} selected
+      </span>
+      <button
+        mat-flat-button
+        color="primary"
+        class="bulk-resolve-btn"
+        [disabled]="isBulkResolving"
+        (click)="onBulkResolve()"
+        aria-label="Resolve selected notices"
+      >
+        <mat-icon>check_circle</mat-icon>
+        {{ isBulkResolving ? 'Resolving...' : 'Resolve Selected' }}
+      </button>
+    </div>
+  }
+
   @if (isLoading) {
     <div class="loading-wrapper">
       <app-loading></app-loading>
     </div>
   } @else {
     <div class="system-notices-table-container" [@fadeAnimation]>
-      
+
       <!-- Severity Badge Template -->
       <ng-template #severityBadgeTemplate let-element>
         <span class="severity-badge" [ngClass]="element.severity.toLowerCase()">
@@ -53,13 +88,14 @@
       <!-- Status Template -->
       <ng-template #statusTemplate let-element>
         @if (element.resolved_at) {
-          <span class="status-badge resolved" matTooltip="Resolved at {{ formatDateTime(element.resolved_at) }}">
+          <span
+            class="status-badge resolved"
+            matTooltip="Resolved at {{ formatDateTime(element.resolved_at) }}"
+          >
             Resolved
           </span>
         } @else {
-          <span class="status-badge open">
-            Open
-          </span>
+          <span class="status-badge open">Open</span>
         }
       </ng-template>
 
@@ -67,17 +103,22 @@
         [data]="(notices$ | async) || []"
         [columns]="columns"
         [displayedColumns]="displayedColumns"
+        [showCheckbox]="true"
         [showViewButton]="true"
-        [showEditButton]="false"  
+        [showEditButton]="false"
         [showDeleteButton]="false"
+        [customActions]="resolveCustomActions"
         [totalItems]="totalNotices"
         [pageSize]="pageSize"
-        [pageIndex]="currentPage - 1" 
-        [isServerSidePagination]="true" 
+        [pageIndex]="currentPage - 1"
+        [isServerSidePagination]="true"
         (pageChange)="onPageChange($event)"
-        (view)="onViewDetails($event)"> 
+        (view)="onViewDetails($event)"
+        (selectionChange)="onSelectionChange($event)"
+        (customAction)="onCustomAction($event)">
       </app-table-generic>
-      
+
     </div>
   }
 </div>
+

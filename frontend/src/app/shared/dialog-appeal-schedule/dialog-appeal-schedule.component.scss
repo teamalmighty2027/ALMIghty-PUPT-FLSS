@@ -192,10 +192,24 @@ mat-dialog-content {
   display: flex;
   align-items: center;
   gap: 8px;
+}
 
-  ::ng-deep .mat-mdc-progress-spinner circle {
+.submit-spinner--accent {
+  ::ng-deep circle {
     stroke: currentColor !important;
   }
+}
+
+// AI Document Analyzing Status Indicator
+.ai-analyzing-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--secondary-text);
+  font-style: italic;
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
 }
 
 .time-row {

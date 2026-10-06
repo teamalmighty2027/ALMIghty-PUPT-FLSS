@@ -140,6 +140,18 @@ export class SystemNoticeService {
   }
 
   /**
+   * Bulk-resolves multiple notices by ID in a single request.
+   */
+  bulkResolve(
+    ids: number[]
+  ): Observable<{ message: string; updated: number }> {
+    return this.http.patch<{ message: string; updated: number }>(
+      `${this.baseUrl}/system-notices/bulk-resolve`,
+      { ids }
+    );
+  }
+
+  /**
    * Gets count of unresolved error/critical notices.
    */
   getUnresolvedCount(): Observable<{ count: number }> {

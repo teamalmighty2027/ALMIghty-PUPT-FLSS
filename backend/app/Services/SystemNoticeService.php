@@ -19,18 +19,18 @@ class SystemNoticeService
         'critical' => 'critical',
     ];
 
-    // ── Public API ───────────────────────────────────────────────────
+    // ── Public API ───────────────────────────────────────────────
 
     /**
      * Create a new system notice, persist to DB, and write to log file.
      *
-     * @param  string      $type     Category (frontend_error, audit_event, etc.)
+     * @param  string      $type     Category (frontend_error, etc.)
      * @param  string      $severity info|warning|error|critical
      * @param  string      $source   frontend|backend
      * @param  string      $title    Short summary (≤255 chars)
      * @param  string      $message  Full description
-     * @param  array       $context  Extra data: stack, route, user info, etc.
-     * @param  int|null    $userId   Originating user ID (null for system events)
+     * @param  array       $context  Extra data: stack, route, etc.
+     * @param  int|null    $userId   Originating user ID (or null)
      * @return SystemNotice
      */
     public static function create(
@@ -75,6 +75,24 @@ class SystemNoticeService
     public static function resolve(int $noticeId, int $resolvedBy): void
     {
         SystemNotice::where('id', $noticeId)
+            ->whereNull('resolved_at')
+            ->update([
+                'resolved_at' => now(),
+                'resolved_by' => $resolvedBy,
+            ]);
+    }
+
+    /**
+     * Bulk-resolve multiple notices in a single query.
+     * Already-resolved notices in the array are safely skipped.
+     *
+     * @param  int[]  $noticeIds   IDs to resolve
+     * @param  int    $resolvedBy  Superadmin performing the action
+     * @return int    Number of rows actually updated
+     */
+    public static function bulkResolve(array $noticeIds, int $resolvedBy): int
+    {
+        return SystemNotice::whereIn('id', $noticeIds)
             ->whereNull('resolved_at')
             ->update([
                 'resolved_at' => now(),

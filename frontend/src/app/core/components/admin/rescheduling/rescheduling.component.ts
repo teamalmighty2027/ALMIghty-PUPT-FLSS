@@ -52,7 +52,10 @@ interface ReschedulingAppeal {
   scheduleId: number;
   facultyName: string;
   programCode: string;
+  courseCode?: string;
   courseTitle: string;
+  yearLevel?: number | string;
+  sectionName?: string;
   originalSchedule: string;
   originalDay?: string;
   originalStartTime?: string;
@@ -2205,12 +2208,15 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           const availableRooms = response.rooms.filter(
             (room: any) => room.status === 'Available'
           );
-          this.roomOptions = availableRooms.map((room: any) => room.room_code);
+          this.roomOptions = [
+            'None / TBA',
+            ...availableRooms.map((room: any) => room.room_code)
+          ];
         }
       },
       error: (error: any) => {
         console.error('Failed to load rooms:', error);
-        this.roomOptions = ['A401', 'A402']; 
+        this.roomOptions = ['None / TBA', 'A401', 'A402']; 
       }
     });
   }
@@ -2477,7 +2483,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
           day: this.newSchedule.preferredDay ?? '',
           startTime: this.newSchedule.preferredStartTime ?? '',
           endTime: this.newSchedule.preferredEndTime ?? '',
-          room: this.newSchedule.room ?? '',
+          room: (this.newSchedule.room === 'None / TBA' || this.newSchedule.room === 'None / Any') ? '' : (this.newSchedule.room ?? ''),
         },
         this.adminRemarks,
       )
@@ -2591,7 +2597,10 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
       scheduleId:         a.schedule_id,
       facultyName:        a.faculty_name,
       programCode:        a.program_code,
+      courseCode:         a.course_code,
       courseTitle:        a.course_title,
+      yearLevel:          a.year_level,
+      sectionName:        a.section_name,
       originalSchedule:  `${a.original_day} | ${origStart} - ${origEnd}`,
       originalDay:        a.original_day,
       originalStartTime:  origStart,
@@ -2765,7 +2774,7 @@ export class ReschedulingComponent implements OnInit, AfterViewInit, OnDestroy {
         day:       this.newSchedule?.preferredDay       ?? '',
         startTime: this.newSchedule?.preferredStartTime ?? '',
         endTime:   this.newSchedule?.preferredEndTime   ?? '',
-        room:      this.newSchedule?.room               ?? '',
+        room:      (this.newSchedule?.room === 'None / TBA' || this.newSchedule?.room === 'None / Any') ? '' : (this.newSchedule?.room ?? ''),
       },
       this.adminRemarks
     ).subscribe({

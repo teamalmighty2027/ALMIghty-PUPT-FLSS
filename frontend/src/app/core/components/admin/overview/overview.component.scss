@@ -157,6 +157,13 @@
           flex: 1;
           padding: 0;
         }
+
+        
+        span {
+          font-size: var(--font-size-sm);
+          color: var(--neutral-base);
+          opacity: 0.8;
+        }
       }
     }
 

@@ -165,6 +165,12 @@ Route::middleware([
             '/unresolved-count',
             [SystemNoticeController::class, 'unresolvedCount']
         );
+
+        Route::patch(
+            '/bulk-resolve',
+            [SystemNoticeController::class, 'bulkResolve']
+        );
+
         Route::get('/{id}', [SystemNoticeController::class, 'show']);
         Route::patch(
             '/{id}/resolve',
@@ -205,12 +211,6 @@ Route::middleware([
     Route::post('/academic-years', [
         AcademicYearController::class, 'addAcademicYear'
     ]);
-    Route::delete('/academic-years/{id}', [
-        AcademicYearController::class, 'deleteAcademicYear'
-    ]);
-    Route::put('/academic-years/{id}', [
-        AcademicYearController::class, 'updateAcademicYear'
-    ]);
     Route::get('/academic-years/active-semester', [
         AcademicYearController::class, 'getActiveAcademicYearAndSemester'
     ]);
@@ -220,11 +220,20 @@ Route::middleware([
     Route::put('/academic-years/faculty-view-semester', [
         AcademicYearController::class, 'setFacultyViewSemester'
     ]);
-    Route::get('/academic-years/{id}/program-details', [
-        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
-    ]);
     Route::get('/academic-years/active/year-levels-curricula', [
         AcademicYearController::class, 'getActiveYearLevelsCurricula'
+    ]);
+    Route::get('/academic-years/active/offered-courses', [
+        AcademicYearController::class, 'getOfferedCoursesBySem'
+    ]);
+    Route::delete('/academic-years/{id}', [
+        AcademicYearController::class, 'deleteAcademicYear'
+    ]);
+    Route::put('/academic-years/{id}', [
+        AcademicYearController::class, 'updateAcademicYear'
+    ]);
+    Route::get('/academic-years/{id}/program-details', [
+        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
     ]);
     Route::put('/academic-years/{id}/year-level-curricula', [
         AcademicYearController::class, 'updateYearLevelCurricula'
@@ -234,9 +243,6 @@ Route::middleware([
     ]);
     Route::delete('/academic-years/{ayId}/programs/{progId}', [
         AcademicYearController::class, 'removeProgramFromAcademicYear'
-    ]);
-    Route::get('/academic-years/active/offered-courses', [
-        AcademicYearController::class, 'getOfferedCoursesBySem'
     ]);
     Route::get('/programs/{id}/courses', [
         AcademicYearController::class, 'getProgramCourses'
@@ -416,6 +422,12 @@ Route::middleware([
     Route::get('/faculty/{faculty_id}/preferences/history', [
         PreferenceController::class, 'getPreferencesHistoryByFacultyId'
     ]);
+    Route::post('/preferences/access-requests', [
+        PreferenceController::class, 'requestAccess'
+    ]);
+    Route::delete('/preferences/access-requests', [
+        PreferenceController::class, 'cancelRequestAccess'
+    ]);
     Route::delete('/preferences/{preference_id}', [
         PreferenceController::class, 'deletePreferences'
     ]);
@@ -428,12 +440,6 @@ Route::middleware([
     Route::patch('/preferences/{faculty_id}/toggle', [
         PreferenceController::class, 'toggleSinglePreferences'
     ]);
-    Route::post('/preferences/access-requests', [
-        PreferenceController::class, 'requestAccess'
-    ]);
-    Route::delete('/preferences/access-requests', [
-        PreferenceController::class, 'cancelRequestAccess'
-    ]);
     Route::patch('/preferences/{preference_id}/toggle-ignore', [
         PreferenceController::class, 'toggleIgnorePreference'
     ]);
@@ -442,6 +448,8 @@ Route::middleware([
      * Rescheduling Appeals
      */
     // ── FACULTY (Submit & Manage) ──
+    Route::post('/rescheduling-appeals/pre-scan',       [RescheduleController::class, 'preScanAppealDocument']);
+    Route::delete('/rescheduling-appeals/pre-scan',     [RescheduleController::class, 'cancelPreScan']);
     Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
