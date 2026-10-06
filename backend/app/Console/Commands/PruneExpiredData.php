@@ -119,33 +119,44 @@ class PruneExpiredData extends Command
     {
         $cutoff = Carbon::now()->subYears(self::PREFERENCE_RETENTION_YEARS);
 
-        $query = DB::table('preferences')
-            ->join(
-                'active_semesters',
-                'preferences.active_semester_id',
-                '=',
-                'active_semesters.active_semester_id'
-            )
-            ->join(
-                'academic_years',
-                'active_semesters.academic_year_id',
-                '=',
-                'academic_years.academic_year_id'
-            )
-            ->where('academic_years.year_end', '<', $cutoff->year);
+      try {
+          // Apply db transaction
+          DB::beginTransaction();
 
-        $count = $query->count();
-        $years = self::PREFERENCE_RETENTION_YEARS;
+          $query = DB::table('preferences')
+              ->join(
+                  'active_semesters',
+                  'preferences.active_semester_id',
+                  '=',
+                  'active_semesters.active_semester_id'
+              )
+              ->join(
+                  'academic_years',
+                  'active_semesters.academic_year_id',
+                  '=',
+                  'academic_years.academic_year_id'
+              )
+              ->where('academic_years.year_end', '<', $cutoff->year);
 
-        $this->line(
-            "Preferences eligible for pruning (older than {$years} years): " .
-            "{$count} records"
-        );
+          $count = $query->count();
+          $years = self::PREFERENCE_RETENTION_YEARS;
 
-        if (!$isDryRun && $count > 0) {
-            $deleted = $query->delete();
-            $this->info("Deleted {$deleted} preference records.");
-        }
+          $this->line(
+              "Preferences eligible for pruning (older than {$years} years): " .
+              "{$count} records"
+          );
+
+          if (!$isDryRun && $count > 0) {
+              $deleted = $query->delete();
+              $this->info("Deleted {$deleted} preference records.");
+              DB::commit();
+          }
+
+      } catch (\Exception $e) {
+          DB::rollBack();
+          $this->error('Error: ' . $e->getMessage());
+          return;
+      }
     }
 
     /**
@@ -155,20 +166,28 @@ class PruneExpiredData extends Command
     {
         $cutoff = Carbon::now()->subDays(self::AUDIT_LOG_RETENTION_DAYS);
 
-        $count = DB::table('audit_logs')
-            ->where('created_at', '<', $cutoff)
-            ->count();
+        try { 
+          $count = DB::table('audit_logs')
+              ->where('created_at', '<', $cutoff)
+              ->count();
 
-        $this->line(
-            "Audit logs eligible for pruning (older than 3 years): " .
-            "{$count} records"
-        );
+          $this->line(
+              "Audit logs eligible for pruning (older than 3 years): " .
+              "{$count} records" .
+              "Remember to export archive before deletion!"
+          );
 
-        if (!$isDryRun && $count > 0) {
-            $this->warn(
-                'Audit log deletion requires pre-archive export. ' .
-                'Skipping destructive purge.'
-            );
+          if (!$isDryRun && $count > 0) {
+              $this->warn(
+                  'Audit log deletion requires pre-archive export. ' .
+                  'Skipping destructive purge.'
+              );
+              DB::commit();
+          }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error('Error: ' . $e->getMessage());
+            return;
         }
     }
 }
