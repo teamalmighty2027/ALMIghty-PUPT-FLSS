@@ -131,7 +131,7 @@ class PruneExpiredData extends Command
               "Delete {$count} audit records?", false)) 
           {
               $deleted = $query->delete();
-              $this->info("Deleted {$deleted} preference records.");
+              $this->info("Deleted {$deleted} audit log records.");
               DB::commit();
           }
         } catch (\Exception $e) {
