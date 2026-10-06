@@ -15,7 +15,6 @@ class PruneExpiredData extends Command
      */
     protected $signature = 'data:prune
         {--execute : Actually delete records; omit for dry run}
-        {--schedules : Prune old schedule records}
         {--audit-logs : Prune old audit log records}
         {--preferences : Prune old preference records}';
 
@@ -24,11 +23,10 @@ class PruneExpiredData extends Command
      *
      * @var string
      */
-    protected $description = 'Prune expired scheduling, preference, and ' .
+    protected $description = 'Prune expired preference, and ' .
         'audit data according to retention policies';
 
     // Retention periods
-    private const SCHEDULE_RETENTION_YEARS = 5;
     private const PREFERENCE_RETENTION_YEARS = 5;
     private const AUDIT_LOG_RETENTION_DAYS = 1095; // 3 years
 
@@ -45,14 +43,8 @@ class PruneExpiredData extends Command
             );
         }
 
-        $pruneAll = !$this->option('schedules')
-            && !$this->option('audit-logs')
+        $pruneAll = !$this->option('audit-logs')
             && !$this->option('preferences');
-
-        // Check and prune schedules
-        if ($pruneAll || $this->option('schedules')) {
-            $this->pruneSchedules($isDryRun);
-        }
 
         // Check and prune preferences
         if ($pruneAll || $this->option('preferences')) {
@@ -67,49 +59,6 @@ class PruneExpiredData extends Command
         $this->info('Data pruning check completed.');
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Prune schedule records older than the retention period.
-     */
-    private function pruneSchedules(bool $isDryRun): void
-    {
-        $cutoff = Carbon::now()->subYears(self::SCHEDULE_RETENTION_YEARS);
-
-        $count = DB::table('schedules')
-            ->join(
-                'section_courses',
-                'schedules.section_course_id',
-                '=',
-                'section_courses.section_course_id'
-            )
-            ->join(
-                'sections_per_program_year',
-                'section_courses.sections_per_program_year_id',
-                '=',
-                'sections_per_program_year.sections_per_program_year_id'
-            )
-            ->join(
-                'academic_years',
-                'sections_per_program_year.academic_year_id',
-                '=',
-                'academic_years.academic_year_id'
-            )
-            ->where('academic_years.year_end', '<', $cutoff->year)
-            ->count();
-
-        $years = self::SCHEDULE_RETENTION_YEARS;
-        $this->line(
-            "Schedules eligible for pruning (older than {$years} years): " .
-            "{$count} records"
-        );
-
-        if (!$isDryRun && $count > 0) {
-            $this->warn(
-                'Schedule deletion requires pre-archive export. ' .
-                'Skipping destructive purge.'
-            );
-        }
     }
 
     /**
@@ -167,9 +116,10 @@ class PruneExpiredData extends Command
         $cutoff = Carbon::now()->subDays(self::AUDIT_LOG_RETENTION_DAYS);
 
         try { 
-          $count = DB::table('audit_logs')
-              ->where('created_at', '<', $cutoff)
-              ->count();
+          $query = DB::table('audit_logs')
+              ->where('created_at', '<', $cutoff);
+
+          $count = $query->count();
 
           $this->line(
               "Audit logs eligible for pruning (older than 3 years): " .
@@ -177,11 +127,11 @@ class PruneExpiredData extends Command
               "Remember to export archive before deletion!"
           );
 
-          if (!$isDryRun && $count > 0) {
-              $this->warn(
-                  'Audit log deletion requires pre-archive export. ' .
-                  'Skipping destructive purge.'
-              );
+          if (!$isDryRun && $count > 0 && $this->confirm(
+              "Delete {$count} audit records?", false)) 
+          {
+              $deleted = $query->delete();
+              $this->info("Deleted {$deleted} preference records.");
               DB::commit();
           }
         } catch (\Exception $e) {
