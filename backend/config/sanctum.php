@@ -32,7 +32,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Token expiration hardcoded to 24 hours (1440 minutes)
+    'expiration' => 1440,
 
     /*
     |--------------------------------------------------------------------------
