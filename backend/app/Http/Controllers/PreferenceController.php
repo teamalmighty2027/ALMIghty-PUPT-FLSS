@@ -1786,7 +1786,10 @@ class PreferenceController extends Controller
 
             // Dispatch email jobs if sendEmail is true
             if ($sendEmail) {
-                $faculties = Faculty::all();
+                $faculties = Faculty::whereHas('user', function ($query) {
+                    $query->where('status', 'Active');
+                })->get();
+
                 foreach ($faculties as $faculty) {
                     if ($finalStatus) {
                         SendFacultyPreferenceEmailJob::dispatch($faculty->id);
@@ -1819,7 +1822,11 @@ class PreferenceController extends Controller
             }
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Failed to toggle all preferences: ' . $e->getMessage());
+            Log::error(
+                'Failed to toggle all preferences: ' . $e->getMessage() .
+                ' in ' . $e->getFile() . ':' . $e->getLine() .
+                "\n" . $e->getTraceAsString()
+            );
             return response()->json([
                 'message' => 'An error occurred while updating settings.',
             ], 500);
@@ -1952,7 +1959,9 @@ class PreferenceController extends Controller
             DB::rollBack();
             Log::error(
                 'Failed to toggle preference for faculty ' .
-                $faculty_id . ': ' . $e->getMessage()
+                $faculty_id . ': ' . $e->getMessage() .
+                ' in ' . $e->getFile() . ':' . $e->getLine() .
+                "\n" . $e->getTraceAsString()
             );
 
             return response()->json([
