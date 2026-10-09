@@ -100,6 +100,20 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                         ->subject(
                             'Faculty Load & Schedule Preferences ' .
                             'Submission is now open'
+                        )
+                        ->attach(
+                            $pilotTesting,
+                            [
+                                'as' => 'Pilot_Testing_Letter.pdf',
+                                'mime' => 'application/pdf',
+                            ]
+                        )
+                        ->attach(
+                            $emailUsage,
+                            [
+                                'as' => 'Email_Usage.pdf',
+                                'mime' => 'application/pdf',
+                            ]
                         );
                 }
             );
