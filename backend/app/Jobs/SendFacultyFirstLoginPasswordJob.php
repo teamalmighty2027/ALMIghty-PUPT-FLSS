@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendFacultyFirstLoginPasswordJob implements ShouldQueue
@@ -17,7 +18,7 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
     protected $faculty;
     protected $password;
 
-    public $tries = 5;
+    public $tries = 3;
     public $timeout = 60;
 
     /**
@@ -29,7 +30,7 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      */
     public function __construct($faculty, $password)
     {
-        $this->faculty = $faculty;
+        $this->faculty  = $faculty;
         $this->password = $password;
     }
 
@@ -42,6 +43,15 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
     {
         // Convert array to object if needed for consistency
         $faculty = (object) $this->faculty;
+        $email   = $faculty->email ?? null;
+
+        if (!$email) {
+            Log::warning(
+                "Skipping faculty first login password email: missing email"
+            );
+
+            return;
+        }
 
         $data = [
             'first_name' => $faculty->first_name ?? 'Faculty',
@@ -50,10 +60,25 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
             'login_url'  => $this->loginUrl ?? url('/login'),
         ];
 
-        Mail::send('emails.faculty_first_login_password', $data, function ($message) use ($faculty) {
-            $message->to($faculty->email)
-                ->subject('Your PUPT FLSS Account Password');
-        });
+        try {
+            Mail::send(
+                'emails.faculty_first_login_password',
+                $data,
+                function ($message) use ($email) {
+                    $message->to($email)
+                        ->subject('Your PUPT FLSS Account Password');
+                }
+            );
+
+            Log::info(
+                "Faculty first login password email sent to: " . $email
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                "Failed to send faculty first login password email to: " .
+                $email . ". Error: " . $e->getMessage()
+            );
+        }
     }
 
     /**
@@ -64,9 +89,13 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
-        \Log::error('Failed to send faculty first login password email', [
-            'faculty_code' => $this->faculty->code,
-            'error' => $exception->getMessage(),
+        $code = is_object($this->faculty)
+            ? ($this->faculty->code ?? 'Unknown')
+            : ($this->faculty['code'] ?? 'Unknown');
+
+        Log::error('Failed to send faculty first login password email', [
+            'faculty_code' => $code,
+            'error'        => $exception->getMessage(),
         ]);
     }
 }

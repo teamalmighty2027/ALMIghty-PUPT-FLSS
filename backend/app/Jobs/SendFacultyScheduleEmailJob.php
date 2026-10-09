@@ -17,8 +17,8 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
 
     protected $faculty;
 
-    public $tries = 10;
-    public $timeout = 300;
+    public $tries = 3;
+    public $timeout = 60;
 
     /**
      * Create a new job instance.
@@ -38,26 +38,57 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function handle()
     {
+        $email = $this->faculty->user->email ?? null;
+
+        if (!$email) {
+            Log::warning(
+                "Skipping schedule email: missing email address for faculty ID " .
+                ($this->faculty->id ?? 'unknown')
+            );
+
+            return;
+        }
+
         $dataSchedule = [
-            'faculty_name' => $this->faculty->user->name,
-            'email' => $this->faculty->user->email,
+            'faculty_name' => $this->faculty->user->name ?? 'Faculty Member',
+            'email'        => $email,
         ];
 
-        Mail::send('emails.load_schedule_published', $dataSchedule, function ($message) use ($dataSchedule) {
-            $message->to($dataSchedule['email'])
-                ->subject('Your Official Load & Schedule is now available');
-        });
+        try {
+            Mail::send(
+                'emails.load_schedule_published',
+                $dataSchedule,
+                function ($message) use ($email) {
+                    $message->to($email)
+                        ->subject(
+                            'Your Official Load & Schedule is now available'
+                        );
+                }
+            );
+
+            Log::info(
+                "Official load & schedule email sent to: " . $email
+            );
+        } catch (\Exception $e) {
+            Log::error(
+                "Failed to send schedule email to faculty " . $email .
+                ": " . $e->getMessage()
+            );
+        }
     }
 
     /**
      * Handle job failure.
      *
+     * @param  Exception  $exception
      * @return void
      */
     public function failed(Exception $exception)
     {
-        // Use the user relationship to get the email safely
         $email = $this->faculty->user->email ?? 'Unknown Email';
-        Log::error('Failed to send schedule email to faculty: ' . $email . ' Error: ' . $exception->getMessage());
+        Log::error(
+            'SendFacultyScheduleEmailJob failed for faculty ' . $email .
+            ': ' . $exception->getMessage()
+        );
     }
 }
