@@ -350,7 +350,7 @@
                 <p style="margin-top: 0;">To better understand the system process, you can watch these videos:</p>
                 <ul class="video-list">
                     <li>
-                        <a href="https://youtu.be/IzAfVlUYY7s?si=-6z8Z3rJSbodNwfu" target="_blank">How to Login</a>
+                        <a href="https://youtu.be/vmWXIIPeS8s?si=TXJ0TgcA0NNGmgxM" target="_blank">How to Login</a>
                     </li>
                     <li>
                         <a href="https://youtu.be/2TPF8RWpOlc?si=1Jvukyua718bpF7f" target="_blank">How to Set Preferences</a>
