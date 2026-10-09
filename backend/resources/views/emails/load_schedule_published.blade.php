@@ -173,17 +173,6 @@
                 <b>now published.</b> You may now view them in your FLSS account.
             </p>
 
-            <!-- TEMPORARY: Faculty default login credentials notice. -->
-            <!-- Remove when temporary access notice is no longer needed. -->
-            <div class="action-note">
-                <b>Note:</b> If this is your first time logging in,
-                please use the credentials below:<br>
-                <b>Email:</b> {{ $email }}<br>
-                <b>Default Password:</b> puptfaculty123* <br>
-                Or login through your IDP account <br>
-                <b>Default Password:</b> PUPTfaculty123*
-            </div>
-
             <div class="button-container">
                 <a href="{{ url('/faculty/load-and-schedule') }}" class="button">
                     View Official Load and Schedule

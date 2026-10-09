@@ -2,11 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Models\Faculty as FacultyModel;
 use App\Models\PreferencesSetting;
 use App\Models\Faculty;
 use App\Http\Controllers\PreferenceController;
-use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,36 +24,36 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     protected $global_deadline;
     protected $appUrl;
 
-    public $tries = 10;
-    public $timeout = 300;
+    public $tries = 3;
+    public $timeout = 60;
 
     /**
      * Create a new job instance.
      *
      * @param int $facultyId The ID of the faculty member.
-     * @param bool $is_individual Indicates if the email is for an individual deadline.
+     * @param bool $is_individual Whether this is an individual deadline email.
      */
     public function __construct(int $facultyId, $is_individual = false)
     {
-        $this->facultyId = $facultyId;
+        $this->facultyId     = $facultyId;
         $this->is_individual = $is_individual;
-        $this->appUrl = config('app.url');
+        $this->appUrl        = config('app.url');
 
         // Retrieve preference settings for the faculty.
-        $settings = PreferencesSetting::where('faculty_id', $facultyId)->first();
+        $settings = PreferencesSetting::where('faculty_id', $facultyId)
+            ->first();
 
-        // Only set deadlines if settings exist
         if ($settings) {
             $this->individual_deadline = $settings->individual_deadline;
-            $this->global_deadline = $settings->global_deadline;
+            $this->global_deadline     = $settings->global_deadline;
         } else {
             $this->individual_deadline = null;
-            $this->global_deadline = null;
+            $this->global_deadline     = null;
         }
     }
 
     /**
-     * Execute the job.
+     * Execute the job — sends the preference-open email to the faculty.
      */
     public function handle()
     {
@@ -75,6 +73,18 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             return;
         }
 
+        $email = $previousPreferencesData['email'] ?? null;
+
+        if (!$email) {
+            Log::warning(
+                "Skipping preference email for faculty ID: " .
+                $this->facultyId .
+                " because email address is missing."
+            );
+
+            return;
+        }
+
         $previousPreferencesData['app_url'] = rtrim($this->appUrl, '/');
 
         $template = $this->is_individual
@@ -82,18 +92,11 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             : 'emails.preferences_all_open';
 
         try {
-            if (!$previousPreferencesData['email']) {
-                throw new \Exception('Faculty email address is missing');
-            }
-
-            $pilotTesting = storage_path('app/public/PilotTestingLetter.pdf');
-            $emailUsage = storage_path('app/public/EmailUsage.pdf');
-
             Mail::send(
                 $template,
                 $previousPreferencesData,
-                function ($message) use ($previousPreferencesData, $pilotTesting, $emailUsage) {
-                    $message->to($previousPreferencesData['email'])
+                function ($message) use ($email) {
+                    $message->to($email)
                         ->subject(
                             'Faculty Load & Schedule Preferences ' .
                             'Submission is now open'
@@ -116,22 +119,26 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             );
 
             Log::info(
-                'Preference submission email sent to ' .
-                $previousPreferencesData['email']
+                'Preference submission email sent to ' . $email
             );
         } catch (\Exception $e) {
             Log::error(
-                'Failed to send email to ' .
-                ($previousPreferencesData['email'] ?? 'unknown email') .
-                ': ' . $e->getMessage()
+                'Failed to send email to ' . $email .
+                ' (faculty ID ' . $this->facultyId . '): ' .
+                $e->getMessage()
             );
-
-            throw $e;
         }
     }
 
+    /**
+     * Called when the job exhausts all its retry attempts.
+     */
     public function failed(Exception $exception)
     {
-        Log::error('Job failed: ' . $exception->getMessage());
+        Log::error(
+            'SendFacultyPreferenceEmailJob permanently failed for' .
+            ' faculty ID ' . $this->facultyId . ': ' .
+            $exception->getMessage()
+        );
     }
 }
