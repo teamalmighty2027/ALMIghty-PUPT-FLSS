@@ -319,7 +319,9 @@
                 <div class="action-note">
                     <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
                     <b>Email:</b> {{ $email }}<br>
-                    <b>Default Password:</b> puptfaculty123*
+                    <b>Identity Provider (IDP) Password:</b> PUPTfaculty123* <br>
+                      Can't access account? Use your backup account <br>
+                    <b> Backup Password: puptfaculty123* </b> 
                 </div>
 
                 <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
@@ -331,7 +333,9 @@
                 <div class="action-note">
                     <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
                     <b>Email:</b> {{ $email }}<br>
-                    <b>Default Password:</b> puptfaculty123*
+                    <b>Identity Provider (IDP) Password:</b> PUPTfaculty123* <br>
+                      Can't access account? Use your backup account <br>
+                    <b> Backup Password: puptfaculty123* </b> 
                 </div>
                 
                 <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
