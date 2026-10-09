@@ -54,7 +54,6 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
 
     /**
      * Execute the job — sends the preference-open email to the faculty.
-     * Invalid or undeliverable addresses are skipped without failing the job.
      */
     public function handle()
     {
@@ -75,6 +74,16 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
 
         $email = $previousPreferencesData['email'] ?? null;
+
+        if (!$email) {
+            Log::warning(
+                "Skipping preference email for faculty ID: " .
+                $this->facultyId .
+                " because email address is missing."
+            );
+
+            return;
+        }
 
         $previousPreferencesData['app_url'] = rtrim($this->appUrl, '/');
 
@@ -99,7 +108,6 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 'Preference submission email sent to ' . $email
             );
         } catch (\Exception $e) {
-            // Log the failure but continue sending
             Log::error(
                 'Failed to send email to ' . $email .
                 ' (faculty ID ' . $this->facultyId . '): ' .
