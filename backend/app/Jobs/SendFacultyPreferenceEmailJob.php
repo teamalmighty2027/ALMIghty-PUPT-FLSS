@@ -97,7 +97,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             Mail::send(
                 $template,
                 $previousPreferencesData,
-                function ($message) use ($email) {
+                function ($message) use ($email, $pilotTesting, $emailUsage) {
                     $message->to($email)
                         ->subject(
                             'Faculty Load & Schedule Preferences ' .
