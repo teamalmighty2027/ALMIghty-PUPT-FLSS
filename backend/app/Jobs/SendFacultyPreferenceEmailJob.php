@@ -86,6 +86,8 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
 
         $previousPreferencesData['app_url'] = rtrim($this->appUrl, '/');
+        $pilotTesting = storage_path('app/public/PilotTestingLetter.pdf');
+        $emailUsage = storage_path('app/public/EmailUsage.pdf');
 
         $template = $this->is_individual
             ? 'emails.preferences_single_open'
