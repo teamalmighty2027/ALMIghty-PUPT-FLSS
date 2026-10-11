@@ -3,7 +3,8 @@
     <div class="header-title">
       <h2>Email Monitoring & Requests</h2>
       <p class="subtitle">
-        Monitor outgoing email dispatches and review pending faculty access requests.
+        Monitor outgoing email dispatches and review pending faculty access
+        requests.
       </p>
     </div>
   </div>
@@ -11,7 +12,7 @@
   <mat-tab-group
     [(selectedIndex)]="activeTabIndex"
     animationDuration="200ms"
-    class="custom-tab-group"
+    class="custom-tab-group bottom-tabs"
   >
     <!-- ========================================== -->
     <!-- TAB 1: EMAIL DISPATCH LOGS                -->
@@ -23,49 +24,81 @@
       </ng-template>
 
       <div class="tab-content">
-        <!-- Metric Cards -->
-        <div class="metrics-row">
-          <div class="metric-card queued">
-            <span mat-symbol="hourglass_top" class="metric-icon"></span>
-            <div class="metric-info">
-              <span class="metric-label">In Queue</span>
-              <span class="metric-value">{{ emailMetrics.queued }}</span>
+        <!-- Quick Stats Counters (Overview Style) -->
+        <div class="quick-stats">
+          <div class="stats in-queue card">
+            <span
+              mat-symbol="hourglass_top"
+              class="stats-icon queued-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">In Queue</h2>
+              <div class="card-content">{{ emailMetrics.queued }}</div>
             </div>
           </div>
 
-          <div class="metric-card sent">
-            <span mat-symbol="check_circle" class="metric-icon"></span>
-            <div class="metric-info">
-              <span class="metric-label">Delivered</span>
-              <span class="metric-value">{{ emailMetrics.sent }}</span>
+          <div class="stats delivered card">
+            <span
+              mat-symbol="check_circle"
+              class="stats-icon sent-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Delivered</h2>
+              <div class="card-content">{{ emailMetrics.sent }}</div>
             </div>
           </div>
 
-          <div class="metric-card failed">
-            <span mat-symbol="error" class="metric-icon"></span>
-            <div class="metric-info">
-              <span class="metric-label">Failed</span>
-              <span class="metric-value">{{ emailMetrics.failed }}</span>
+          <div class="stats failed card">
+            <span
+              mat-symbol="error"
+              class="stats-icon failed-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Failed</h2>
+              <div class="card-content">{{ emailMetrics.failed }}</div>
             </div>
           </div>
         </div>
 
-        <!-- Controls / Filters -->
+        <!-- Controls / Filters Toolbar -->
         <div class="filters-toolbar">
           <div class="filter-controls">
-            <!-- Search -->
-            <div class="search-box">
-              <span mat-symbol="search" class="search-icon"></span>
+            <!-- Search Field matching other pages -->
+            <mat-form-field
+              appearance="fill"
+              class="search-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Search email or recipient</mat-label>
               <input
-                type="text"
-                placeholder="Search email or recipient..."
+                maxlength="50"
+                matInput
                 [(ngModel)]="searchQuery"
-                (keyup.enter)="onFilterChange()"
+                placeholder="Search email or recipient"
+                (ngModelChange)="onFilterChange()"
               />
-            </div>
+              <mat-icon matPrefix>search</mat-icon>
+              @if (searchQuery && searchQuery.length > 0) {
+                <button
+                  type="button"
+                  mat-icon-button
+                  matSuffix
+                  (click)="clearSearch()"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
 
             <!-- Status Filter -->
-            <mat-form-field appearance="outline" class="filter-field">
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
               <mat-label>Status</mat-label>
               <mat-select
                 [(ngModel)]="statusFilter"
@@ -79,18 +112,32 @@
             </mat-form-field>
 
             <!-- Purpose Filter -->
-            <mat-form-field appearance="outline" class="filter-field">
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
               <mat-label>Purpose</mat-label>
               <mat-select
                 [(ngModel)]="purposeFilter"
                 (selectionChange)="onFilterChange()"
               >
                 <mat-option value="all">All Purposes</mat-option>
-                <mat-option value="preference_toggle">Preference Submission</mat-option>
-                <mat-option value="schedule_published">Official Schedule</mat-option>
-                <mat-option value="first_login_password">Account Password</mat-option>
-                <mat-option value="deadline_warning">Deadline Warning</mat-option>
-                <mat-option value="reschedule_notification">Change Request</mat-option>
+                <mat-option value="preference_toggle">
+                  Preference Submission
+                </mat-option>
+                <mat-option value="schedule_published">
+                  Official Schedule
+                </mat-option>
+                <mat-option value="first_login_password">
+                  Account Password
+                </mat-option>
+                <mat-option value="deadline_warning">
+                  Deadline Warning
+                </mat-option>
+                <mat-option value="reschedule_notification">
+                  Change Request
+                </mat-option>
               </mat-select>
             </mat-form-field>
           </div>
@@ -103,103 +150,186 @@
               </mat-slide-toggle>
             </div>
 
-            <!-- Manual refresh -->
+            <!-- Borderless Refresh button -->
             <button
-              mat-stroked-button
-              class="refresh-btn"
+              mat-icon-button
+              type="button"
+              class="refresh-icon-button"
+              [matTooltip]="'Refresh email data'"
+              [disabled]="isLoadingEmails"
               (click)="loadEmailData()"
             >
-              <span mat-symbol="refresh"></span>
-              Refresh
+              <span
+                mat-symbol="sync"
+                class="refresh-icon"
+                [class.spinning]="isLoadingEmails"
+              ></span>
             </button>
           </div>
         </div>
 
-        <!-- Email Logs Table -->
-        <div class="table-container">
-          @if (isLoadingEmails) {
-            <div class="loading-state">
-              <app-loading></app-loading>
-            </div>
-          } @else if (emailLogs.length === 0) {
-            <div class="empty-state">
-              <span mat-symbol="inbox" class="empty-icon"></span>
-              <p>No email dispatch logs found matching your filters.</p>
-            </div>
-          } @else {
-            <table class="custom-table">
-              <thead>
-                <tr>
-                  <th>Recipient</th>
-                  <th>Purpose</th>
-                  <th>Status</th>
-                  <th>Dispatched At</th>
-                  <th>Processed At</th>
-                  <th>Error / Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (log of emailLogs; track log.id) {
-                  <tr>
-                    <td>
-                      <div class="recipient-cell">
-                        <strong>{{ log.recipient_name || 'Faculty Member' }}</strong>
-                        <span class="email-sub">{{ log.recipient_email }}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span class="purpose-badge">
-                        {{ formatPurpose(log.purpose) }}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        class="status-chip"
-                        [ngClass]="{
-                          'chip-sent': log.status === 'sent',
-                          'chip-queued': log.status === 'queued',
-                          'chip-failed': log.status === 'failed'
-                        }"
-                      >
-                        {{ log.status | titlecase }}
-                      </span>
-                    </td>
-                    <td>{{ log.dispatched_at | date: 'MMM d, y, h:mm a' }}</td>
-                    <td>
-                      {{
-                        log.processed_at
-                          ? (log.processed_at | date: 'MMM d, y, h:mm a')
-                          : '—'
-                      }}
-                    </td>
-                    <td>
-                      @if (log.error_message) {
-                        <span
-                          class="error-indicator"
-                          [matTooltip]="log.error_message"
-                          matTooltipPosition="above"
-                        >
-                          <span mat-symbol="warning"></span>
-                          View Error
-                        </span>
-                      } @else {
-                        <span class="no-error">—</span>
-                      }
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+        <!-- Email Logs Material Table -->
+        <div class="emails-table-container">
+          <div class="table-container">
+            @if (isLoadingEmails) {
+              <div class="loading-state">
+                <app-loading></app-loading>
+              </div>
+            } @else {
+              <table mat-table [dataSource]="emailLogs" class="custom-table">
+                <!-- Index Column -->
+                <ng-container matColumnDef="index">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header index"
+                  >
+                    #
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element; let i = index"
+                    class="custom-cell index"
+                  >
+                    {{ i + 1 + (currentPage - 1) * pageSize }}
+                  </td>
+                </ng-container>
 
-            <mat-paginator
-              [length]="totalEmails"
-              [pageSize]="pageSize"
-              [pageSizeOptions]="[10, 15, 25, 50]"
-              [pageIndex]="currentPage - 1"
-              (page)="onPageChange($event)"
-              showFirstLastButtons
-            ></mat-paginator>
-          }
+                <!-- Recipient Column -->
+                <ng-container matColumnDef="recipient">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header recipient-header"
+                  >
+                    Recipient
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let log"
+                    class="custom-cell recipient-cell"
+                  >
+                    <div class="recipient-info">
+                      <strong>
+                        {{ log.recipient_name || "Faculty Member" }}
+                      </strong>
+                      <span class="email-sub">{{ log.recipient_email }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <!-- Purpose Column -->
+                <ng-container matColumnDef="purpose">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Purpose
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    <span class="purpose-badge">
+                      {{ formatPurpose(log.purpose) }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Status Column -->
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Status
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    <span
+                      class="status-chip"
+                      [ngClass]="{
+                        'chip-sent': log.status === 'sent',
+                        'chip-queued': log.status === 'queued',
+                        'chip-failed': log.status === 'failed',
+                      }"
+                    >
+                      {{ log.status | titlecase }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Dispatched At Column -->
+                <ng-container matColumnDef="dispatched_at">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Dispatched At
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    {{ log.dispatched_at | date: "MMM d, y, h:mm a" }}
+                  </td>
+                </ng-container>
+
+                <!-- Processed At Column -->
+                <ng-container matColumnDef="processed_at">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Processed At
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    {{
+                      log.processed_at
+                        ? (log.processed_at | date: "MMM d, y, h:mm a")
+                        : "—"
+                    }}
+                  </td>
+                </ng-container>
+
+                <!-- Error Column -->
+                <ng-container matColumnDef="error_details">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Error / Details
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    @if (log.error_message) {
+                      <span
+                        class="error-indicator"
+                        [matTooltip]="log.error_message"
+                        matTooltipPosition="above"
+                      >
+                        <span mat-symbol="warning"></span>
+                        View Error
+                      </span>
+                    } @else {
+                      <span class="no-error">—</span>
+                    }
+                  </td>
+                </ng-container>
+
+                <tr
+                  mat-header-row
+                  *matHeaderRowDef="displayedColumns; sticky: true"
+                ></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: displayedColumns"
+                ></tr>
+
+                <!-- No Data Row -->
+                <tr *matNoDataRow>
+                  <td
+                    class="no-data-cell"
+                    [attr.colspan]="displayedColumns.length"
+                  >
+                    <div class="flex-cell">
+                      <span mat-symbol="info"></span>
+                      <span>
+                        No email dispatch logs found matching your filters.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                class="custom-paginator"
+                [length]="totalEmails"
+                [pageSize]="pageSize"
+                [pageSizeOptions]="[10, 15, 25, 50]"
+                [pageIndex]="currentPage - 1"
+                (page)="onPageChange($event)"
+                showFirstLastButtons
+              ></mat-paginator>
+            }
+          </div>
         </div>
       </div>
     </mat-tab>
@@ -218,12 +348,18 @@
           <div class="section-header">
             <h3>Pending Faculty Requests</h3>
             <button
-              mat-stroked-button
-              class="refresh-btn"
+              mat-icon-button
+              type="button"
+              class="refresh-icon-button"
+              [matTooltip]="'Refresh requests'"
+              [disabled]="isLoadingRequests"
               (click)="loadRequests()"
             >
-              <span mat-symbol="refresh"></span>
-              Refresh
+              <span
+                mat-symbol="sync"
+                class="refresh-icon"
+                [class.spinning]="isLoadingRequests"
+              ></span>
             </button>
           </div>
 
@@ -234,7 +370,9 @@
           } @else if (requests.length === 0) {
             <div class="empty-state">
               <span mat-symbol="task_alt" class="empty-icon"></span>
-              <p>No pending faculty requests. All requests have been processed.</p>
+              <p>
+                No pending faculty requests. All requests have been processed.
+              </p>
             </div>
           } @else {
             <div class="requests-grid">
@@ -253,9 +391,9 @@
                         "
                       >
                         {{
-                          request.request_type === 'appeal'
-                            ? 'Appeal Request'
-                            : 'Preference Request'
+                          request.request_type === "appeal"
+                            ? "Appeal Request"
+                            : "Preference Request"
                         }}
                       </span>
                     </div>

@@ -91,4 +91,23 @@ describe('EmailsComponent', () => {
     expect(component.isLivePolling).toBeTrue();
     component.ngOnDestroy();
   });
+
+  it('should define displayedColumns for mat-table', () => {
+    expect(component.displayedColumns).toEqual([
+      'index',
+      'recipient',
+      'purpose',
+      'status',
+      'dispatched_at',
+      'processed_at',
+      'error_details',
+    ]);
+  });
+
+  it('should clear search query when clearSearch is called', () => {
+    component.searchQuery = 'test';
+    component.clearSearch();
+    expect(component.searchQuery).toBe('');
+    expect(component.currentPage).toBe(1);
+  });
 });

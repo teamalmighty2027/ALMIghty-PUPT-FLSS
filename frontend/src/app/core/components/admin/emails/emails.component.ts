@@ -20,6 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
@@ -33,17 +34,25 @@ import {
   OverviewService,
   RequestNotification,
 } from '../../../services/admin/overview/overview.service';
-import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
-import { ReschedulingService } from '../../../services/faculty/rescheduling/rescheduling.service';
-import { PermissionService } from '../../../services/permission/permission.service';
+import {
+  PreferencesService,
+} from '../../../services/faculty/preference/preferences.service';
+import {
+  ReschedulingService,
+} from '../../../services/faculty/rescheduling/rescheduling.service';
+import {
+  PermissionService,
+} from '../../../services/permission/permission.service';
 
 import {
   DialogTogglePreferencesComponent,
   DialogTogglePreferencesData,
-} from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
+} from
+  '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 import {
   DialogToggleAppealsComponent,
-} from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+} from
+  '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
 
 @Component({
   selector: 'app-emails',
@@ -63,6 +72,7 @@ import {
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatIconModule,
     MatSymbolDirective,
     LoadingComponent,
   ],
@@ -83,6 +93,15 @@ export class EmailsComponent implements OnInit, OnDestroy {
   isLivePolling = false;
 
   // Email Filters & Pagination
+  displayedColumns: string[] = [
+    'index',
+    'recipient',
+    'purpose',
+    'status',
+    'dispatched_at',
+    'processed_at',
+    'error_details',
+  ];
   statusFilter = 'all';
   purposeFilter = 'all';
   dateFilter = '';
@@ -193,6 +212,14 @@ export class EmailsComponent implements OnInit, OnDestroy {
   onFilterChange(): void {
     this.currentPage = 1;
     this.loadEmailLogs();
+  }
+
+  /**
+   * Clears search query and reloads email logs.
+   */
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.onFilterChange();
   }
 
   /**

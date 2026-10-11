@@ -1,13 +1,24 @@
 @use '../../../../../styles/mixins' as mixins;
 @use '../../../../../styles/breakpoints' as bp;
 
+* {
+  @include mixins.reset-styles;
+}
+
 .emails-main-container {
-  padding: var(--spacing-lg);
-  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
-  min-height: 100%;
+  height: 100%;
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: flex-start,
+    $gap: var(--spacing-sm)
+  );
+  padding: 0;
 }
 
 .header-section {
+  flex: 0 0 auto;
+
   .header-title {
     h2 {
       font-size: var(--font-size-xl);
@@ -26,75 +37,128 @@
 }
 
 .custom-tab-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+
   .tab-icon {
     font-size: 20px;
     margin-right: var(--spacing-xs);
     vertical-align: middle;
   }
+
+  // Move tabs to bottom (matching rescheduling component)
+  &.bottom-tabs {
+    ::ng-deep .mat-mdc-tab-header {
+      order: 1;
+      border-top: 1px solid var(--neutral-fade, #e5e7eb);
+      border-bottom: none;
+      flex: 0 0 auto;
+    }
+
+    ::ng-deep .mat-mdc-tab-body-wrapper {
+      order: 0;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+  }
+
+  ::ng-deep .mat-mdc-tab-body.mat-mdc-tab-body-active {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  ::ng-deep .mat-mdc-tab-body-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
 }
 
 .tab-content {
-  padding-top: var(--spacing-md);
-  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-bottom: var(--spacing-sm);
+  gap: var(--spacing-sm);
 }
 
 // ==========================================
-// METRIC CARDS
+// QUICK STATS COUNTER (OVERVIEW STYLE)
 // ==========================================
-.metrics-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
+.card {
+  @include mixins.default-transition;
+  background-color: var(--admin-bg);
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-level-1);
+}
 
-  .metric-card {
-    background-color: var(--surface-bg, #fff);
-    border-radius: var(--border-radius-sm);
+.quick-stats {
+  @include mixins.flex-layout($gap: var(--spacing-md));
+  flex: 0 0 auto;
+
+  & .stats {
+    @include mixins.flex-layout($align: center);
+    flex: 1;
     padding: var(--spacing-md);
-    box-shadow: var(--shadow-level-1, 0 1px 3px rgba(0, 0, 0, 0.1));
-    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
-    border-left: 4px solid transparent;
+    gap: var(--spacing-md);
 
-    .metric-icon {
-      font-size: 32px;
+    .stats-icon {
+      @include mixins.reset-styles;
+      @include mixins.flex-layout($align: center, $justify: center);
+      font-family: 'Material Symbols Rounded';
+      font-size: 24px;
+      width: 24px;
+      height: 24px;
+      color: var(--primary-text);
+      opacity: 0.75;
       user-select: none;
-    }
+      flex-shrink: 0;
 
-    .metric-info {
-      @include mixins.flex-layout($direction: column, $gap: var(--spacing-xxs));
-
-      .metric-label {
-        font-size: var(--font-size-xs);
-        text-transform: uppercase;
-        color: var(--neutral-base);
-        opacity: 0.7;
-        font-weight: 600;
+      &.queued-icon {
+        color: #3b82f6;
+        opacity: 1;
       }
 
-      .metric-value {
+      &.sent-icon {
+        color: #10b981;
+        opacity: 1;
+      }
+
+      &.failed-icon {
+        color: #ef4444;
+        opacity: 1;
+      }
+    }
+
+    .stats-info {
+      flex: 1;
+      padding: 0;
+
+      .card-title {
+        @include mixins.flex-layout(
+          $justify: flex-start,
+          $gap: var(--spacing-xs)
+        );
+        font-size: var(--font-size-md);
+        font-weight: 500;
+        color: var(--neutral-base);
+        @include mixins.ellipsis;
+      }
+
+      .card-content {
         font-size: var(--font-size-xl);
         font-weight: 700;
         color: var(--neutral-base);
-      }
-    }
-
-    &.queued {
-      border-left-color: #3b82f6;
-      .metric-icon {
-        color: #3b82f6;
-      }
-    }
-
-    &.sent {
-      border-left-color: #10b981;
-      .metric-icon {
-        color: #10b981;
-      }
-    }
-
-    &.failed {
-      border-left-color: #ef4444;
-      .metric-icon {
-        color: #ef4444;
       }
     }
   }
@@ -110,157 +174,241 @@
     $gap: var(--spacing-md)
   );
   flex-wrap: wrap;
+  flex: 0 0 auto;
 
   .filter-controls {
     @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
     flex-wrap: wrap;
     flex: 1;
 
-    .search-box {
-      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
-      background-color: var(--surface-bg, #fff);
-      border: 1px solid var(--border-color, #e5e7eb);
-      border-radius: var(--border-radius-xs);
-      padding: var(--spacing-xs) var(--spacing-sm);
-      min-width: 250px;
-
-      .search-icon {
-        font-size: 20px;
-        color: var(--neutral-base);
-        opacity: 0.6;
-      }
-
-      input {
-        border: none;
-        outline: none;
-        background: transparent;
-        font-size: var(--font-size-sm);
-        color: var(--neutral-base);
-        width: 100%;
-      }
+    .search-field {
+      max-width: 25rem;
+      width: 100%;
+      flex: 1 1 auto;
+      min-width: 200px;
     }
 
     .filter-field {
-      min-width: 180px;
-
-      ::ng-deep .mat-mdc-form-field-subscript-wrapper {
-        display: none;
-      }
+      width: auto;
+      min-width: 160px;
+      flex: 0 1 auto;
     }
   }
 
   .toolbar-actions {
-    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
 
     .live-toggle {
       cursor: pointer;
-    }
-
-    .refresh-btn {
-      span[mat-symbol] {
-        font-size: 18px;
-        margin-right: 4px;
-      }
     }
   }
 }
 
 // ==========================================
-// TABLE STYLES
+// BORDERLESS REFRESH BUTTON (SPINNING)
 // ==========================================
-.table-container {
-  background-color: var(--surface-bg, #fff);
-  border-radius: var(--border-radius-sm);
-  box-shadow: var(--shadow-level-1, 0 1px 3px rgba(0, 0, 0, 0.1));
-  overflow-x: auto;
+.refresh-icon-button {
+  color: var(--primary-text);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
 
-  .custom-table {
-    width: 100%;
-    border-collapse: collapse;
+  &:hover {
+    background-color: var(--hover-bg, rgba(0, 0, 0, 0.04));
+  }
 
-    th,
-    td {
-      padding: var(--spacing-sm) var(--spacing-md);
-      text-align: left;
-      font-size: var(--font-size-sm);
-      border-bottom: 1px solid var(--border-color, #e5e7eb);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .refresh-icon {
+    font-size: 22px;
+
+    &.spinning {
+      animation: spin-refresh 1s linear infinite;
     }
+  }
+}
 
-    th {
-      background-color: var(--main-bg, #f9fafb);
-      color: var(--neutral-base);
-      font-weight: 600;
-      text-transform: uppercase;
-      font-size: var(--font-size-xs);
-      letter-spacing: 0.5px;
-    }
+@keyframes spin-refresh {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
 
-    tr:hover td {
-      background-color: var(--hover-bg, rgba(0, 0, 0, 0.02));
-    }
+// ==========================================
+// MATERIAL TABLE & CONTAINER
+// ==========================================
+.emails-table-container {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: stretch,
+    $justify: none
+  );
+  @include mixins.hide-scrollbar;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-level-1);
 
-    .recipient-cell {
-      @include mixins.flex-layout($direction: column, $gap: 2px);
+  .table-container {
+    @include mixins.hide-scrollbar;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background-color: var(--neutral-light);
 
-      strong {
-        color: var(--neutral-base);
+    .custom-table {
+      @include mixins.default-transition;
+      background-color: var(--neutral-light);
+      width: 100%;
+
+      td {
+        border-bottom: 1px solid var(--mat-table-row-item-outline-color);
       }
 
-      .email-sub {
+      tr:last-child td {
+        border-bottom: none;
+      }
+    }
+
+    .custom-header {
+      text-wrap: nowrap;
+      background-color: var(--primary-one);
+      color: white;
+      font-weight: 500;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+
+      &.index {
+        padding: 0 var(--spacing-md);
+        text-align: center;
+        width: 60px;
+      }
+
+      &.recipient-header {
+        text-align: left;
+        padding-left: var(--spacing-md);
+      }
+    }
+
+    .custom-cell {
+      padding: var(--spacing-xs);
+      text-align: center;
+
+      &.index {
+        padding: 0 var(--spacing-md);
+        text-align: center;
+      }
+
+      &.recipient-cell {
+        text-align: left;
+        padding-left: var(--spacing-md);
+
+        .recipient-info {
+          @include mixins.flex-layout($direction: column, $gap: 2px);
+
+          strong {
+            color: var(--neutral-base);
+          }
+
+          .email-sub {
+            font-size: var(--font-size-xs);
+            color: var(--neutral-base);
+            opacity: 0.7;
+          }
+        }
+      }
+
+      .purpose-badge {
         font-size: var(--font-size-xs);
+        padding: 2px 8px;
+        border-radius: var(--border-radius-xs);
+        background-color: var(--main-bg, #f3f4f6);
         color: var(--neutral-base);
-        opacity: 0.7;
+        font-weight: 500;
+      }
+
+      .status-chip {
+        display: inline-block;
+        font-size: var(--font-size-xs);
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-weight: 600;
+
+        &.chip-sent {
+          background-color: #d1fae5;
+          color: #065f46;
+        }
+
+        &.chip-queued {
+          background-color: #dbeafe;
+          color: #1e40af;
+        }
+
+        &.chip-failed {
+          background-color: #fee2e2;
+          color: #991b1b;
+        }
+      }
+
+      .error-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #dc2626;
+        font-weight: 500;
+        cursor: pointer;
+
+        span[mat-symbol] {
+          font-size: 16px;
+        }
+      }
+
+      .no-error {
+        color: var(--neutral-base);
+        opacity: 0.4;
       }
     }
 
-    .purpose-badge {
-      font-size: var(--font-size-xs);
-      padding: 2px 8px;
-      border-radius: var(--border-radius-xs);
-      background-color: var(--main-bg, #f3f4f6);
-      color: var(--neutral-base);
-      font-weight: 500;
-    }
+    .no-data-cell {
+      text-align: center;
+      padding: var(--spacing-lg);
 
-    .status-chip {
-      display: inline-block;
-      font-size: var(--font-size-xs);
-      padding: 3px 10px;
-      border-radius: 9999px;
-      font-weight: 600;
+      .flex-cell {
+        @include mixins.flex-layout(
+          $align: center,
+          $justify: center,
+          $gap: var(--spacing-xs)
+        );
 
-      &.chip-sent {
-        background-color: #d1fae5;
-        color: #065f46;
-      }
-
-      &.chip-queued {
-        background-color: #dbeafe;
-        color: #1e40af;
-      }
-
-      &.chip-failed {
-        background-color: #fee2e2;
-        color: #991b1b;
+        span {
+          opacity: var(--opacity-semi-opaque);
+        }
       }
     }
 
-    .error-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      color: #dc2626;
-      font-weight: 500;
-      cursor: pointer;
-
-      span[mat-symbol] {
-        font-size: 16px;
-      }
-    }
-
-    .no-error {
-      color: var(--neutral-base);
-      opacity: 0.4;
+    .custom-paginator {
+      background-color: var(--neutral-light);
+      border-top: 1px solid var(--mat-table-row-item-outline-color);
+      margin-top: auto;
     }
   }
 }
@@ -269,9 +417,15 @@
 // TAB 2: REQUESTS STYLES
 // ==========================================
 .requests-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
   .section-header {
     @include mixins.flex-layout($align: center, $justify: space-between);
     margin-bottom: var(--spacing-md);
+    flex: 0 0 auto;
 
     h3 {
       font-size: var(--font-size-mdx);
@@ -285,6 +439,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: var(--spacing-md);
+    overflow-y: auto;
+    flex: 1;
 
     .request-card {
       background-color: var(--surface-bg, #fff);
@@ -396,6 +552,7 @@
   color: var(--neutral-base);
   opacity: 0.65;
   text-align: center;
+  flex: 1;
 
   .empty-icon {
     font-size: 48px;
@@ -410,4 +567,5 @@
 .loading-state {
   padding: var(--spacing-xl);
   @include mixins.flex-layout($align: center, $justify: center);
+  flex: 1;
 }
