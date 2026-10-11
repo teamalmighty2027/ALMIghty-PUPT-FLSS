@@ -33,6 +33,17 @@ export const ADMIN_ROUTES: Routes = [
         },
       },
       {
+        path: 'emails',
+        loadComponent: () =>
+          import('./emails/emails.component').then(
+            (m) => m.EmailsComponent
+          ),
+        data: {
+          pageTitle: 'Emails',
+          requirePermission: 'view_notification_center',
+        },
+      },
+      {
         path: 'scheduling',
         loadComponent: () =>
           import('./scheduling/scheduling.component').then(

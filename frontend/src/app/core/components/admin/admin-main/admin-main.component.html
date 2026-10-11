@@ -36,6 +36,15 @@
         <a
           mat-list-item
           class="list-item"
+          routerLink="/admin/emails"
+          routerLinkActive="active-link"
+          *appHasPermission="'view_notification_center'">
+          <span mat-symbol="mail" matListItemIcon></span>
+          <span matListItemTitle>Emails</span>
+        </a>
+        <a
+          mat-list-item
+          class="list-item"
           routerLink="/admin/academic-years"
           routerLinkActive="active-link"
           *appHasPermission="'edit_academic_years'">
