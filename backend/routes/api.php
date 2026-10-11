@@ -38,7 +38,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\AssignmentTypeController;
 use App\Http\Controllers\SystemNoticeController;
 use App\Http\Controllers\AdminConfigurationController;
-use App\Http\Controllers\NotificationCenterController;
+use App\Http\Controllers\EmailMonitoringController;
 use App\Http\Controllers\AdminNotificationController;
 
 /*
@@ -256,10 +256,10 @@ Route::middleware([
     Route::post('/admin/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead']);
     Route::delete('/admin/notifications/clear-all', [AdminNotificationController::class, 'clearAll']);
 
-    // Notification Center (Email Dispatch Logs & Metrics)
-    Route::prefix('notification-center')->group(function () {
-        Route::get('/email-logs', [NotificationCenterController::class, 'getEmailLogs']);
-        Route::get('/email-metrics', [NotificationCenterController::class, 'getEmailMetrics']);
+    // Email Monitoring (Dispatch Logs & Metrics)
+    Route::prefix('emails')->group(function () {
+        Route::get('/email-logs', [EmailMonitoringController::class, 'getEmailLogs']);
+        Route::get('/email-metrics', [EmailMonitoringController::class, 'getEmailMetrics']);
     });
 
     Route::prefix('admin/config')->group(function () {

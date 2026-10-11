@@ -6,7 +6,7 @@ use App\Models\EmailDispatchLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class NotificationCenterController extends Controller
+class EmailMonitoringController extends Controller
 {
     /**
      * Get paginated email dispatch logs with optional status, purpose,
