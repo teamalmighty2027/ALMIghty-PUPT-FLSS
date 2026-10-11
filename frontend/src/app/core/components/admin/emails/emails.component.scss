@@ -1,0 +1,413 @@
+@use '../../../../../styles/mixins' as mixins;
+@use '../../../../../styles/breakpoints' as bp;
+
+.emails-main-container {
+  padding: var(--spacing-lg);
+  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+  min-height: 100%;
+}
+
+.header-section {
+  .header-title {
+    h2 {
+      font-size: var(--font-size-xl);
+      font-weight: 600;
+      color: var(--neutral-base);
+      margin: 0;
+    }
+
+    .subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--neutral-base);
+      opacity: 0.75;
+      margin-top: var(--spacing-xxs);
+    }
+  }
+}
+
+.custom-tab-group {
+  .tab-icon {
+    font-size: 20px;
+    margin-right: var(--spacing-xs);
+    vertical-align: middle;
+  }
+}
+
+.tab-content {
+  padding-top: var(--spacing-md);
+  @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+}
+
+// ==========================================
+// METRIC CARDS
+// ==========================================
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+
+  .metric-card {
+    background-color: var(--surface-bg, #fff);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-level-1, 0 1px 3px rgba(0, 0, 0, 0.1));
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+    border-left: 4px solid transparent;
+
+    .metric-icon {
+      font-size: 32px;
+      user-select: none;
+    }
+
+    .metric-info {
+      @include mixins.flex-layout($direction: column, $gap: var(--spacing-xxs));
+
+      .metric-label {
+        font-size: var(--font-size-xs);
+        text-transform: uppercase;
+        color: var(--neutral-base);
+        opacity: 0.7;
+        font-weight: 600;
+      }
+
+      .metric-value {
+        font-size: var(--font-size-xl);
+        font-weight: 700;
+        color: var(--neutral-base);
+      }
+    }
+
+    &.queued {
+      border-left-color: #3b82f6;
+      .metric-icon {
+        color: #3b82f6;
+      }
+    }
+
+    &.sent {
+      border-left-color: #10b981;
+      .metric-icon {
+        color: #10b981;
+      }
+    }
+
+    &.failed {
+      border-left-color: #ef4444;
+      .metric-icon {
+        color: #ef4444;
+      }
+    }
+  }
+}
+
+// ==========================================
+// FILTERS & TOOLBAR
+// ==========================================
+.filters-toolbar {
+  @include mixins.flex-layout(
+    $align: center,
+    $justify: space-between,
+    $gap: var(--spacing-md)
+  );
+  flex-wrap: wrap;
+
+  .filter-controls {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+    flex-wrap: wrap;
+    flex: 1;
+
+    .search-box {
+      @include mixins.flex-layout($align: center, $gap: var(--spacing-xs));
+      background-color: var(--surface-bg, #fff);
+      border: 1px solid var(--border-color, #e5e7eb);
+      border-radius: var(--border-radius-xs);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      min-width: 250px;
+
+      .search-icon {
+        font-size: 20px;
+        color: var(--neutral-base);
+        opacity: 0.6;
+      }
+
+      input {
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: var(--font-size-sm);
+        color: var(--neutral-base);
+        width: 100%;
+      }
+    }
+
+    .filter-field {
+      min-width: 180px;
+
+      ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+        display: none;
+      }
+    }
+  }
+
+  .toolbar-actions {
+    @include mixins.flex-layout($align: center, $gap: var(--spacing-md));
+
+    .live-toggle {
+      cursor: pointer;
+    }
+
+    .refresh-btn {
+      span[mat-symbol] {
+        font-size: 18px;
+        margin-right: 4px;
+      }
+    }
+  }
+}
+
+// ==========================================
+// TABLE STYLES
+// ==========================================
+.table-container {
+  background-color: var(--surface-bg, #fff);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-level-1, 0 1px 3px rgba(0, 0, 0, 0.1));
+  overflow-x: auto;
+
+  .custom-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      text-align: left;
+      font-size: var(--font-size-sm);
+      border-bottom: 1px solid var(--border-color, #e5e7eb);
+    }
+
+    th {
+      background-color: var(--main-bg, #f9fafb);
+      color: var(--neutral-base);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: var(--font-size-xs);
+      letter-spacing: 0.5px;
+    }
+
+    tr:hover td {
+      background-color: var(--hover-bg, rgba(0, 0, 0, 0.02));
+    }
+
+    .recipient-cell {
+      @include mixins.flex-layout($direction: column, $gap: 2px);
+
+      strong {
+        color: var(--neutral-base);
+      }
+
+      .email-sub {
+        font-size: var(--font-size-xs);
+        color: var(--neutral-base);
+        opacity: 0.7;
+      }
+    }
+
+    .purpose-badge {
+      font-size: var(--font-size-xs);
+      padding: 2px 8px;
+      border-radius: var(--border-radius-xs);
+      background-color: var(--main-bg, #f3f4f6);
+      color: var(--neutral-base);
+      font-weight: 500;
+    }
+
+    .status-chip {
+      display: inline-block;
+      font-size: var(--font-size-xs);
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-weight: 600;
+
+      &.chip-sent {
+        background-color: #d1fae5;
+        color: #065f46;
+      }
+
+      &.chip-queued {
+        background-color: #dbeafe;
+        color: #1e40af;
+      }
+
+      &.chip-failed {
+        background-color: #fee2e2;
+        color: #991b1b;
+      }
+    }
+
+    .error-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #dc2626;
+      font-weight: 500;
+      cursor: pointer;
+
+      span[mat-symbol] {
+        font-size: 16px;
+      }
+    }
+
+    .no-error {
+      color: var(--neutral-base);
+      opacity: 0.4;
+    }
+  }
+}
+
+// ==========================================
+// TAB 2: REQUESTS STYLES
+// ==========================================
+.requests-section {
+  .section-header {
+    @include mixins.flex-layout($align: center, $justify: space-between);
+    margin-bottom: var(--spacing-md);
+
+    h3 {
+      font-size: var(--font-size-mdx);
+      font-weight: 600;
+      color: var(--neutral-base);
+      margin: 0;
+    }
+  }
+
+  .requests-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-md);
+
+    .request-card {
+      background-color: var(--surface-bg, #fff);
+      border-radius: var(--border-radius-sm);
+      padding: var(--spacing-md);
+      box-shadow: var(--shadow-level-1, 0 1px 3px rgba(0, 0, 0, 0.1));
+      @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
+
+      .request-card-header {
+        @include mixins.flex-layout(
+          $align: flex-start,
+          $gap: var(--spacing-sm)
+        );
+
+        .person-icon {
+          font-size: 28px;
+          color: var(--neutral-base);
+          opacity: 0.65;
+        }
+
+        .faculty-info {
+          @include mixins.flex-layout($direction: column, $gap: 4px);
+
+          h4 {
+            margin: 0;
+            font-size: var(--font-size-md);
+            font-weight: 600;
+            color: var(--neutral-base);
+          }
+
+          .request-tag {
+            font-size: var(--font-size-xs);
+            padding: 2px 8px;
+            border-radius: var(--border-radius-xs);
+            font-weight: 500;
+            width: fit-content;
+
+            &.tag-preference {
+              background-color: #e0f2fe;
+              color: #0369a1;
+              border: 1px solid #bae6fd;
+            }
+
+            &.tag-appeal {
+              background-color: #fff7ed;
+              color: #c2410c;
+              border: 1px solid #ffedd5;
+            }
+          }
+        }
+      }
+
+      .request-actions {
+        @include mixins.flex-layout($align: center, $gap: var(--spacing-sm));
+
+        button {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          padding: 8px 16px;
+          border-radius: var(--border-radius-xs);
+          border: none;
+          font-size: var(--font-size-sm);
+          font-weight: 500;
+          cursor: pointer;
+          transition: opacity 0.2s;
+
+          &:hover:not(:disabled) {
+            opacity: 0.85;
+          }
+
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+
+          span[mat-symbol] {
+            font-size: 18px;
+          }
+        }
+
+        .approve-btn {
+          background-color: #d1fae5;
+          color: #065f46;
+        }
+
+        .discard-btn {
+          background-color: #fee2e2;
+          color: #991b1b;
+        }
+      }
+    }
+  }
+}
+
+// ==========================================
+// SHARED EMPTY & LOADING STATES
+// ==========================================
+.empty-state {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: center,
+    $justify: center,
+    $gap: var(--spacing-sm)
+  );
+  padding: var(--spacing-xl);
+  color: var(--neutral-base);
+  opacity: 0.65;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 48px;
+  }
+
+  p {
+    margin: 0;
+    font-size: var(--font-size-md);
+  }
+}
+
+.loading-state {
+  padding: var(--spacing-xl);
+  @include mixins.flex-layout($align: center, $justify: center);
+}

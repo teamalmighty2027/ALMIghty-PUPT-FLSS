@@ -1,0 +1,290 @@
+<div class="emails-main-container">
+  <div class="header-section">
+    <div class="header-title">
+      <h2>Email Monitoring & Requests</h2>
+      <p class="subtitle">
+        Monitor outgoing email dispatches and review pending faculty access requests.
+      </p>
+    </div>
+  </div>
+
+  <mat-tab-group
+    [(selectedIndex)]="activeTabIndex"
+    animationDuration="200ms"
+    class="custom-tab-group"
+  >
+    <!-- ========================================== -->
+    <!-- TAB 1: EMAIL DISPATCH LOGS                -->
+    <!-- ========================================== -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span mat-symbol="mail" class="tab-icon"></span>
+        <span>Email Dispatch Log</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <!-- Metric Cards -->
+        <div class="metrics-row">
+          <div class="metric-card queued">
+            <span mat-symbol="hourglass_top" class="metric-icon"></span>
+            <div class="metric-info">
+              <span class="metric-label">In Queue</span>
+              <span class="metric-value">{{ emailMetrics.queued }}</span>
+            </div>
+          </div>
+
+          <div class="metric-card sent">
+            <span mat-symbol="check_circle" class="metric-icon"></span>
+            <div class="metric-info">
+              <span class="metric-label">Delivered</span>
+              <span class="metric-value">{{ emailMetrics.sent }}</span>
+            </div>
+          </div>
+
+          <div class="metric-card failed">
+            <span mat-symbol="error" class="metric-icon"></span>
+            <div class="metric-info">
+              <span class="metric-label">Failed</span>
+              <span class="metric-value">{{ emailMetrics.failed }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls / Filters -->
+        <div class="filters-toolbar">
+          <div class="filter-controls">
+            <!-- Search -->
+            <div class="search-box">
+              <span mat-symbol="search" class="search-icon"></span>
+              <input
+                type="text"
+                placeholder="Search email or recipient..."
+                [(ngModel)]="searchQuery"
+                (keyup.enter)="onFilterChange()"
+              />
+            </div>
+
+            <!-- Status Filter -->
+            <mat-form-field appearance="outline" class="filter-field">
+              <mat-label>Status</mat-label>
+              <mat-select
+                [(ngModel)]="statusFilter"
+                (selectionChange)="onFilterChange()"
+              >
+                <mat-option value="all">All Statuses</mat-option>
+                <mat-option value="sent">Delivered (Sent)</mat-option>
+                <mat-option value="queued">In Queue</mat-option>
+                <mat-option value="failed">Failed</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Purpose Filter -->
+            <mat-form-field appearance="outline" class="filter-field">
+              <mat-label>Purpose</mat-label>
+              <mat-select
+                [(ngModel)]="purposeFilter"
+                (selectionChange)="onFilterChange()"
+              >
+                <mat-option value="all">All Purposes</mat-option>
+                <mat-option value="preference_toggle">Preference Submission</mat-option>
+                <mat-option value="schedule_published">Official Schedule</mat-option>
+                <mat-option value="first_login_password">Account Password</mat-option>
+                <mat-option value="deadline_warning">Deadline Warning</mat-option>
+                <mat-option value="reschedule_notification">Change Request</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="toolbar-actions">
+            <!-- Live update toggle -->
+            <div class="live-toggle" (click)="toggleLivePolling()">
+              <mat-slide-toggle [checked]="isLivePolling" color="primary">
+                Live update (15s)
+              </mat-slide-toggle>
+            </div>
+
+            <!-- Manual refresh -->
+            <button
+              mat-stroked-button
+              class="refresh-btn"
+              (click)="loadEmailData()"
+            >
+              <span mat-symbol="refresh"></span>
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Email Logs Table -->
+        <div class="table-container">
+          @if (isLoadingEmails) {
+            <div class="loading-state">
+              <app-loading></app-loading>
+            </div>
+          } @else if (emailLogs.length === 0) {
+            <div class="empty-state">
+              <span mat-symbol="inbox" class="empty-icon"></span>
+              <p>No email dispatch logs found matching your filters.</p>
+            </div>
+          } @else {
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Recipient</th>
+                  <th>Purpose</th>
+                  <th>Status</th>
+                  <th>Dispatched At</th>
+                  <th>Processed At</th>
+                  <th>Error / Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (log of emailLogs; track log.id) {
+                  <tr>
+                    <td>
+                      <div class="recipient-cell">
+                        <strong>{{ log.recipient_name || 'Faculty Member' }}</strong>
+                        <span class="email-sub">{{ log.recipient_email }}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="purpose-badge">
+                        {{ formatPurpose(log.purpose) }}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        class="status-chip"
+                        [ngClass]="{
+                          'chip-sent': log.status === 'sent',
+                          'chip-queued': log.status === 'queued',
+                          'chip-failed': log.status === 'failed'
+                        }"
+                      >
+                        {{ log.status | titlecase }}
+                      </span>
+                    </td>
+                    <td>{{ log.dispatched_at | date: 'MMM d, y, h:mm a' }}</td>
+                    <td>
+                      {{
+                        log.processed_at
+                          ? (log.processed_at | date: 'MMM d, y, h:mm a')
+                          : '—'
+                      }}
+                    </td>
+                    <td>
+                      @if (log.error_message) {
+                        <span
+                          class="error-indicator"
+                          [matTooltip]="log.error_message"
+                          matTooltipPosition="above"
+                        >
+                          <span mat-symbol="warning"></span>
+                          View Error
+                        </span>
+                      } @else {
+                        <span class="no-error">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+
+            <mat-paginator
+              [length]="totalEmails"
+              [pageSize]="pageSize"
+              [pageSizeOptions]="[10, 15, 25, 50]"
+              [pageIndex]="currentPage - 1"
+              (page)="onPageChange($event)"
+              showFirstLastButtons
+            ></mat-paginator>
+          }
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: FACULTY ACCESS REQUESTS            -->
+    <!-- ========================================== -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span mat-symbol="assignment" class="tab-icon"></span>
+        <span>Faculty Access Requests</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <div class="requests-section">
+          <div class="section-header">
+            <h3>Pending Faculty Requests</h3>
+            <button
+              mat-stroked-button
+              class="refresh-btn"
+              (click)="loadRequests()"
+            >
+              <span mat-symbol="refresh"></span>
+              Refresh
+            </button>
+          </div>
+
+          @if (isLoadingRequests) {
+            <div class="loading-state">
+              <app-loading></app-loading>
+            </div>
+          } @else if (requests.length === 0) {
+            <div class="empty-state">
+              <span mat-symbol="task_alt" class="empty-icon"></span>
+              <p>No pending faculty requests. All requests have been processed.</p>
+            </div>
+          } @else {
+            <div class="requests-grid">
+              @for (request of requests; track request.faculty_id) {
+                <div class="request-card">
+                  <div class="request-card-header">
+                    <span mat-symbol="person" class="person-icon"></span>
+                    <div class="faculty-info">
+                      <h4>{{ request.faculty_name }}</h4>
+                      <span
+                        class="request-tag"
+                        [ngClass]="
+                          request.request_type === 'appeal'
+                            ? 'tag-appeal'
+                            : 'tag-preference'
+                        "
+                      >
+                        {{
+                          request.request_type === 'appeal'
+                            ? 'Appeal Request'
+                            : 'Preference Request'
+                        }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="request-actions">
+                    <button
+                      class="approve-btn"
+                      [disabled]="!canEditPreferences"
+                      (click)="approveRequest(request)"
+                    >
+                      <span mat-symbol="check"></span>
+                      Approve
+                    </button>
+                    <button
+                      class="discard-btn"
+                      [disabled]="!canEditPreferences"
+                      (click)="discardRequest(request)"
+                    >
+                      <span mat-symbol="close"></span>
+                      Discard
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
