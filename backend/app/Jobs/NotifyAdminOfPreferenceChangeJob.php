@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Faculty;
 use App\Models\User;
+use App\Models\EmailDispatchLog;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -18,6 +20,7 @@ class NotifyAdminOfPreferenceChangeJob implements ShouldQueue
 
     protected $faculty;
     protected $admin;
+    protected $dispatchedAt;
 
     /**
      * Create a new job instance.
@@ -28,8 +31,9 @@ class NotifyAdminOfPreferenceChangeJob implements ShouldQueue
      */
     public function __construct(Faculty $faculty, User $admin)
     {
-        $this->faculty = $faculty;
-        $this->admin = $admin;
+        $this->faculty      = $faculty;
+        $this->admin        = $admin;
+        $this->dispatchedAt = Carbon::now();
     }
 
     /**
@@ -87,15 +91,40 @@ class NotifyAdminOfPreferenceChangeJob implements ShouldQueue
                 }
             );
 
+            // Record successful email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->faculty->id ?? null,
+                'recipient_email' => $adminEmail,
+                'recipient_name'  => $adminName,
+                'purpose'         => 'reschedule_notification',
+                'status'          => 'sent',
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::info(
                 "Preference change request email sent to admin: " .
                 $adminEmail
             );
         } catch (\Exception $e) {
+            // Record failed email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->faculty->id ?? null,
+                'recipient_email' => $adminEmail,
+                'recipient_name'  => $adminName,
+                'purpose'         => 'reschedule_notification',
+                'status'          => 'failed',
+                'error_message'   => $e->getMessage(),
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::error(
                 "Failed to send preference change email to admin: " .
                 $adminEmail . ". Error: " . $e->getMessage()
             );
+
+            $this->fail($e);
         }
     }
 
