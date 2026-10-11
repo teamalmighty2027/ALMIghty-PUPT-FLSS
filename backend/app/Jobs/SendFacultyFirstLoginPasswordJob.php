@@ -2,6 +2,8 @@
 
 namespace App\Jobs;
 
+use App\Models\EmailDispatchLog;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -17,6 +19,7 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
 
     protected $faculty;
     protected $password;
+    protected $dispatchedAt;
 
     public $tries = 3;
     public $timeout = 60;
@@ -30,8 +33,9 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      */
     public function __construct($faculty, $password)
     {
-        $this->faculty  = $faculty;
-        $this->password = $password;
+        $this->faculty      = $faculty;
+        $this->password     = $password;
+        $this->dispatchedAt = Carbon::now();
     }
 
     /**
@@ -44,6 +48,10 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
         // Convert array to object if needed for consistency
         $faculty = (object) $this->faculty;
         $email   = $faculty->email ?? null;
+        $name    = trim(
+            ($faculty->first_name ?? '') . ' ' .
+            ($faculty->last_name ?? '')
+        );
 
         if (!$email) {
             Log::warning(
@@ -70,14 +78,39 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                 }
             );
 
+            // Record successful email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $faculty->id ?? null,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'first_login_password',
+                'status'          => 'sent',
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::info(
                 "Faculty first login password email sent to: " . $email
             );
         } catch (\Exception $e) {
+            // Record failed email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $faculty->id ?? null,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'first_login_password',
+                'status'          => 'failed',
+                'error_message'   => $e->getMessage(),
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::error(
                 "Failed to send faculty first login password email to: " .
                 $email . ". Error: " . $e->getMessage()
             );
+
+            $this->fail($e);
         }
     }
 

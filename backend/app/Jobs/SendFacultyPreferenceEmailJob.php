@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Models\PreferencesSetting;
 use App\Models\Faculty;
+use App\Models\EmailDispatchLog;
 use App\Http\Controllers\PreferenceController;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +25,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     protected $individual_deadline;
     protected $global_deadline;
     protected $appUrl;
+    protected $dispatchedAt;
 
     public $tries = 3;
     public $timeout = 60;
@@ -38,6 +41,7 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         $this->facultyId     = $facultyId;
         $this->is_individual = $is_individual;
         $this->appUrl        = config('app.url');
+        $this->dispatchedAt  = Carbon::now();
 
         // Retrieve preference settings for the faculty.
         $settings = PreferencesSetting::where('faculty_id', $facultyId)
@@ -74,6 +78,10 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
 
         $email = $previousPreferencesData['email'] ?? null;
+        $name = trim(
+            ($previousPreferencesData['first_name'] ?? '') . ' ' .
+            ($previousPreferencesData['last_name'] ?? '')
+        );
 
         if (!$email) {
             Log::warning(
@@ -104,15 +112,40 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 }
             );
 
+            // Record successful email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->facultyId,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'preference_toggle',
+                'status'          => 'sent',
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::info(
                 'Preference submission email sent to ' . $email
             );
         } catch (\Exception $e) {
+            // Record failed dispatch log
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->facultyId,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'preference_toggle',
+                'status'          => 'failed',
+                'error_message'   => $e->getMessage(),
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
             Log::error(
                 'Failed to send email to ' . $email .
                 ' (faculty ID ' . $this->facultyId . '): ' .
                 $e->getMessage()
             );
+
+            $this->fail($e);
         }
     }
 
