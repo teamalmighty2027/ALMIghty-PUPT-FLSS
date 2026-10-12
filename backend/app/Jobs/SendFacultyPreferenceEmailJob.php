@@ -78,10 +78,15 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
 
         $email = $previousPreferencesData['email'] ?? null;
-        $name = trim(
-            ($previousPreferencesData['first_name'] ?? '') . ' ' .
-            ($previousPreferencesData['last_name'] ?? '')
-        );
+        $name = $previousPreferencesData['faculty_name'] ?? null;
+
+        if (!$name || $name === 'N/A') {
+            $faculty = Faculty::with('user')->find($this->facultyId);
+            $name = $faculty?->user?->formatted_name
+                ?? ($faculty?->user?->name ?? null);
+        }
+
+        $name = trim($name ?? '');
 
         if (!$email) {
             Log::warning(

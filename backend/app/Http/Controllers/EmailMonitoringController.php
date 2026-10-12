@@ -48,6 +48,22 @@ class EmailMonitoringController extends Controller
         $perPage = $request->input('per_page', 15);
         $logs = $query->paginate($perPage);
 
+        // Ensure recipient_name is filled from associated faculty user
+        $logs->getCollection()->transform(function ($log) {
+            $hasGenericName = empty($log->recipient_name)
+                || $log->recipient_name === 'Faculty Member';
+
+            if ($hasGenericName && $log->faculty && $log->faculty->user) {
+                $user = $log->faculty->user;
+                $resolved = $user->formatted_name ?? $user->name;
+                if ($resolved) {
+                    $log->recipient_name = $resolved;
+                }
+            }
+
+            return $log;
+        });
+
         return response()->json($logs);
     }
 

@@ -185,26 +185,48 @@
                   </td>
                 </ng-container>
 
-                <!-- Recipient Column -->
-                <ng-container matColumnDef="recipient">
+                <!-- Recipient Name Column -->
+                <ng-container matColumnDef="recipient_name">
                   <th
                     mat-header-cell
                     *matHeaderCellDef
-                    class="custom-header recipient-header"
+                    class="custom-header text-left pl-md"
                   >
-                    Recipient
+                    Recipient Name
                   </th>
                   <td
                     mat-cell
                     *matCellDef="let log"
-                    class="custom-cell recipient-cell"
+                    class="custom-cell text-left pl-md recipient-name-cell"
                   >
-                    <div class="recipient-info">
-                      <strong>
-                        {{ log.recipient_name || "Faculty Member" }}
-                      </strong>
-                      <span class="email-sub">{{ log.recipient_email }}</span>
-                    </div>
+                    <span class="recipient-name">
+                      {{
+                        log.recipient_name ||
+                          log.faculty?.user?.formatted_name ||
+                          log.faculty?.user?.name ||
+                          "Faculty Member"
+                      }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Recipient Email Column -->
+                <ng-container matColumnDef="recipient_email">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header text-left pl-md"
+                  >
+                    Recipient Email
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let log"
+                    class="custom-cell text-left pl-md recipient-email-cell"
+                  >
+                    <span class="recipient-email">
+                      {{ log.recipient_email }}
+                    </span>
                   </td>
                 </ng-container>
 
@@ -612,7 +634,7 @@
                           mat-flat-button
                           class="action-resolve-btn"
                           (click)="onNotificationActionClick(row)"
-                          matTooltip="Navigate to relevant page and mark as read"
+                          matTooltip="Navigate to relevant page"
                         >
                           <mat-icon>open_in_new</mat-icon>
                           <span>Review</span>

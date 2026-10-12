@@ -308,8 +308,11 @@
         width: 60px;
       }
 
-      &.recipient-header {
+      &.text-left {
         text-align: left;
+      }
+
+      &.pl-md {
         padding-left: var(--spacing-md);
       }
     }
@@ -323,22 +326,26 @@
         text-align: center;
       }
 
-      &.recipient-cell {
+      &.text-left {
         text-align: left;
+      }
+
+      &.pl-md {
         padding-left: var(--spacing-md);
+      }
 
-        .recipient-info {
-          @include mixins.flex-layout($direction: column, $gap: 2px);
+      &.recipient-name-cell {
+        .recipient-name {
+          color: var(--neutral-base);
+          font-size: var(--font-size-sm);
+        }
+      }
 
-          strong {
-            color: var(--neutral-base);
-          }
-
-          .email-sub {
-            font-size: var(--font-size-xs);
-            color: var(--neutral-base);
-            opacity: 0.7;
-          }
+      &.recipient-email-cell {
+        .recipient-email {
+          font-size: var(--font-size-sm);
+          color: var(--neutral-base);
+          opacity: 0.85;
         }
       }
 

@@ -79,7 +79,8 @@ export class EmailsComponent implements OnInit, OnDestroy {
 
   displayedColumns: string[] = [
     'index',
-    'recipient',
+    'recipient_name',
+    'recipient_email',
     'purpose',
     'status',
     'dispatched_at',

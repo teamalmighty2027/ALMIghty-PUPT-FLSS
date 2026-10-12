@@ -42,8 +42,23 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function handle()
     {
-        $email = $this->faculty->user->email ?? null;
-        $name  = $this->faculty->user->name ?? 'Faculty Member';
+        $faculty = $this->faculty;
+        $needsReload = !($faculty instanceof \App\Models\Faculty)
+            || !$faculty->relationLoaded('user');
+
+        if ($needsReload) {
+            $facultyId = is_numeric($faculty)
+                ? $faculty
+                : ($faculty->id ?? null);
+
+            if ($facultyId) {
+                $faculty = \App\Models\Faculty::with('user')->find($facultyId);
+            }
+        }
+
+        $user = $faculty?->user ?? ($this->faculty->user ?? null);
+        $email = $user?->email ?? null;
+        $name = $user?->formatted_name ?? ($user?->name ?? 'Faculty Member');
 
         if (!$email) {
             Log::warning(
