@@ -22,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\PreferenceSubmittedNotification;
+use App\Notifications\FacultyPreferenceRequestNotification;
 
 class PreferenceController extends Controller
 {
@@ -2025,10 +2026,17 @@ class PreferenceController extends Controller
             ->where('status', 'Active')
             ->get();
 
+        $faculty = Faculty::find($facultyId);
+
         foreach ($admins as $admin) {
             NotifyAdminOfPreferenceChangeJob::dispatch(
-                Faculty::find($facultyId),
+                $faculty,
                 $admin
+            );
+
+            // Notify admin with in-app notification
+            $admin->notify(
+                new FacultyPreferenceRequestNotification($faculty)
             );
         }
 

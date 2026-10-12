@@ -6,6 +6,12 @@ use App\Services\GeminiService;
 use App\Models\Appeal;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\User;
+use App\Models\Faculty;
+use App\Notifications\FacultyAppealRequestNotification;
+use App\Notifications\FacultyAppealRequestCancelledNotification;
+use App\Notifications\AppealSubmittedNotification;
+use App\Notifications\AppealCancelledNotification;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -330,6 +336,20 @@ class RescheduleController extends Controller
             'is_approved'         => null,
         ]);
 
+        // Notify active admins of appeal submission
+        $facultyModel = Faculty::find($faculty->id);
+        if ($facultyModel) {
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
+
+            foreach ($admins as $admin) {
+                $admin->notify(
+                    new AppealSubmittedNotification($facultyModel)
+                );
+            }
+        }
+
         return response()->json([
             'message' => 'Appeal submitted successfully.',
             'appeal' => $appeal,
@@ -441,7 +461,23 @@ class RescheduleController extends Controller
 
         $appeal->delete();
 
-        return response()->json(['message' => 'Appeal cancelled successfully.']);
+        // Notify active admins of appeal cancellation
+        $facultyModel = Faculty::find($faculty->id);
+        if ($facultyModel) {
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
+
+            foreach ($admins as $admin) {
+                $admin->notify(
+                    new AppealCancelledNotification($facultyModel)
+                );
+            }
+        }
+
+        return response()->json([
+            'message' => 'Appeal cancelled successfully.'
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -887,6 +923,17 @@ class RescheduleController extends Controller
 
         $faculty->update(['has_appeal_request' => 1]);
 
+        // Notify active admins of appeal access request
+        $admins = User::where('role', 'admin')
+            ->where('status', 'Active')
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(
+                new FacultyAppealRequestNotification($faculty)
+            );
+        }
+
         $fName = $user->first_name ?? 'Faculty';
         $lName = $user->last_name ?? '';
 
@@ -908,6 +955,17 @@ class RescheduleController extends Controller
         $faculty = \App\Models\Faculty::where('user_id', $user->id)->firstOrFail();
 
         $faculty->update(['has_appeal_request' => 0]);
+
+        // Notify active admins of cancelled appeal access request
+        $admins = User::where('role', 'admin')
+            ->where('status', 'Active')
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(
+                new FacultyAppealRequestCancelledNotification($faculty)
+            );
+        }
 
         return response()->json(['message' => 'Appeal request cancelled']);
     }
