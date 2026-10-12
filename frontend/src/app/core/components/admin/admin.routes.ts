@@ -39,7 +39,7 @@ export const ADMIN_ROUTES: Routes = [
             (m) => m.EmailsComponent
           ),
         data: {
-          pageTitle: 'Emails',
+          pageTitle: 'Emails and Notifications',
           requirePermission: 'view_notification_center',
         },
       },

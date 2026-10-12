@@ -130,7 +130,9 @@ Route::middleware([
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
-    Route::post('/programs/sync', [ProgramSyncController::class, 'syncProgramsManual']);
+    Route::post('/programs/sync', [
+      ProgramSyncController::class, 'syncProgramsManual'
+    ]);
 
     /*
     |----------------------------------
@@ -138,8 +140,12 @@ Route::middleware([
     |----------------------------------
      */
     Route::get('/permissions', [AccountController::class, 'getPermissions']);
-    Route::get('/admins/{admin}/permissions', [AccountController::class, 'getAdminPermissions']);
-    Route::post('/admins/{admin}/permissions', [AccountController::class, 'updateAdminPermissions']);
+    Route::get('/admins/{admin}/permissions', [
+      AccountController::class, 'getAdminPermissions'
+    ]);    
+    Route::post('/admins/{admin}/permissions', [
+      AccountController::class, 'updateAdminPermissions'
+    ]);
     Route::get('/programs', [ProgramController::class, 'index']);
 
     /*
@@ -147,13 +153,18 @@ Route::middleware([
     | Bridging Courses Management Routes
     |----------------------------------
     */
-    Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
-    Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
-    Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
-    Route::patch(
-        '/bridging-courses/{id}/combine',
-        [BridgingCourseController::class, 'combine']
-    );
+    Route::post('/bridging-courses', [
+      BridgingCourseController::class, 'store'
+    ]);
+    Route::put('/bridging-courses/{id}', [
+      BridgingCourseController::class, 'update'
+    ]);
+    Route::delete('/bridging-courses/{id}', [
+      BridgingCourseController::class, 'destroy'
+    ]);
+    Route::patch('/bridging-courses/{id}/combine',[
+      BridgingCourseController::class, 'combine'
+    ]);
 
     /*
     |----------------------------------
@@ -163,8 +174,7 @@ Route::middleware([
     Route::prefix('system-notices')->group(function () {
         Route::get('/', [SystemNoticeController::class, 'index']);
         Route::post('/', [SystemNoticeController::class, 'store']);
-        Route::get(
-            '/unresolved-count',
+        Route::get('/unresolved-count',
             [SystemNoticeController::class, 'unresolvedCount']
         );
 
@@ -251,30 +261,70 @@ Route::middleware([
     ]);
 
 
-    Route::get('/admin/notifications', [AdminNotificationController::class, 'index']);
-    Route::post('/admin/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
-    Route::post('/admin/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead']);
-    Route::delete('/admin/notifications/clear-all', [AdminNotificationController::class, 'clearAll']);
+    Route::get('/admin/notifications', [
+        AdminNotificationController::class, 'index'
+    ]);
+    Route::post('/admin/notifications/{id}/read', [
+        AdminNotificationController::class, 'markAsRead'
+    ]);
+    Route::post('/admin/notifications/read-all', [
+        AdminNotificationController::class, 'markAllAsRead'
+    ]);
+    Route::delete('/admin/notifications/clear-all', [
+        AdminNotificationController::class, 'clearAll'
+    ]);
+    Route::delete('/admin/notifications/clear-read', [
+        AdminNotificationController::class, 'clearRead'
+    ]);
+    Route::delete('/admin/notifications/{id}', [
+        AdminNotificationController::class, 'destroy'
+    ]);
+    Route::post('/admin/notifications/bulk-read', [
+        AdminNotificationController::class, 'bulkRead'
+    ]);
+    Route::post('/admin/notifications/bulk-delete', [
+        AdminNotificationController::class, 'bulkDelete'
+    ]);
 
     // Email Monitoring (Dispatch Logs & Metrics)
     Route::prefix('emails')->group(function () {
-        Route::get('/email-logs', [EmailMonitoringController::class, 'getEmailLogs']);
-        Route::get('/email-metrics', [EmailMonitoringController::class, 'getEmailMetrics']);
+        Route::get('/email-logs', [
+          EmailMonitoringController::class, 'getEmailLogs'
+        ]);
+        Route::get('/email-metrics', [
+          EmailMonitoringController::class, 'getEmailMetrics'
+        ]);
     });
 
     Route::prefix('admin/config')->group(function () {
         
         // Academic Ranks Endpoints
-        Route::get('/academic-ranks', [AdminConfigurationController::class, 'getAcademicRanks']);
-        Route::post('/academic-ranks', [AdminConfigurationController::class, 'addAcademicRank']);
-        Route::put('/academic-ranks/{id}', [AdminConfigurationController::class, 'updateAcademicRank']);
-        Route::delete('/academic-ranks/{id}', [AdminConfigurationController::class, 'deleteAcademicRank']);
+        Route::get('/academic-ranks', [
+          AdminConfigurationController::class, 'getAcademicRanks'
+        ]);
+        Route::post('/academic-ranks', [
+          AdminConfigurationController::class, 'addAcademicRank'
+        ]);
+        Route::put('/academic-ranks/{id}', [
+          AdminConfigurationController::class, 'updateAcademicRank'
+        ]);
+        Route::delete('/academic-ranks/{id}', [
+          AdminConfigurationController::class, 'deleteAcademicRank'
+        ]);
 
         // Departments Endpoints
-        Route::get('/departments', [AdminConfigurationController::class, 'getDepartments']);
-        Route::post('/departments', [AdminConfigurationController::class, 'addDepartment']);
-        Route::put('/departments/{id}', [AdminConfigurationController::class, 'updateDepartment']);
-        Route::delete('/departments/{id}', [AdminConfigurationController::class, 'deleteDepartment']);
+        Route::get('/departments', [
+          AdminConfigurationController::class, 'getDepartments'
+        ]);
+        Route::post('/departments', [
+          AdminConfigurationController::class, 'addDepartment'
+        ]);
+        Route::put('/departments/{id}', [
+          AdminConfigurationController::class, 'updateDepartment'
+        ]);
+        Route::delete('/departments/{id}', [
+          AdminConfigurationController::class, 'deleteDepartment'
+        ]);
         
     });
 
@@ -333,13 +383,25 @@ Route::middleware([
      * Electives
      */
     Route::get('/electives', [ElectiveController::class, 'index']);
-    Route::post('/electives', [ElectiveController::class, 'storeElective']);           
-    Route::put('/electives/{id}', [ElectiveController::class, 'updateElective']);
-    Route::delete('/electives/{id}', [ElectiveController::class, 'destroyElective']);  
-    Route::get('/electives/{slotName}', [ElectiveController::class, 'showBySlot']);
-    Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
-    Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
-    Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
+    Route::post('/electives', [ElectiveController::class, 'storeElective']);
+    Route::put('/electives/{id}', [
+      ElectiveController::class, 'updateElective'
+    ]);
+    Route::delete('/electives/{id}', [
+      ElectiveController::class, 'destroyElective'
+    ]);  
+    Route::get('/electives/{slotName}', [
+      ElectiveController::class, 'showBySlot'
+    ]);
+    Route::post('/curriculum-electives', [
+      ElectiveController::class, 'storeCurriculumElective'
+    ]);
+    Route::put('/curriculum-electives/{id}', [
+      ElectiveController::class, 'updateCurriculumElective'
+    ]);
+    Route::get('/curriculum/{curriculumYear}/electives', [
+      ElectiveController::class, 'getCurriculumElectives'
+    ]);
 
     /**
      * Email
@@ -467,7 +529,7 @@ Route::middleware([
     Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
     Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
     Route::post('/rescheduling-appeals/reject-access', [RescheduleController::class, 'rejectAppealAccessRequest']);
-    Route::get('/rescheduling-appeals/{id}/download', [App\Http\Controllers\RescheduleController::class, 'downloadAppealDocument']);
+    Route::get('/rescheduling-appeals/{id}/download', [RescheduleController::class, 'downloadAppealDocument']);
 
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
