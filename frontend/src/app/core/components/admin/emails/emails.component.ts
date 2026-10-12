@@ -6,14 +6,15 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
+import { SelectionModel } from '@angular/cdk/collections';
 
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
@@ -21,6 +22,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 import { MatSymbolDirective } from '../../../imports/mat-symbol.directive';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
@@ -31,28 +33,9 @@ import {
   EmailMetrics,
 } from '../../../services/admin/emails/emails.service';
 import {
-  OverviewService,
-  RequestNotification,
-} from '../../../services/admin/overview/overview.service';
-import {
-  PreferencesService,
-} from '../../../services/faculty/preference/preferences.service';
-import {
-  ReschedulingService,
-} from '../../../services/faculty/rescheduling/rescheduling.service';
-import {
-  PermissionService,
-} from '../../../services/permission/permission.service';
-
-import {
-  DialogTogglePreferencesComponent,
-  DialogTogglePreferencesData,
-} from
-  '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
-import {
-  DialogToggleAppealsComponent,
-} from
-  '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+  AdminNotificationService,
+  AppNotification,
+} from '../../../services/admin/notification/admin-notification.service';
 
 @Component({
   selector: 'app-emails',
@@ -65,7 +48,6 @@ import {
     MatPaginatorModule,
     MatTooltipModule,
     MatSnackBarModule,
-    MatDialogModule,
     MatProgressSpinnerModule,
     MatSlideToggleModule,
     MatSelectModule,
@@ -73,6 +55,7 @@ import {
     MatInputModule,
     MatButtonModule,
     MatIconModule,
+    MatCheckboxModule,
     MatSymbolDirective,
     LoadingComponent,
   ],
@@ -83,16 +66,17 @@ export class EmailsComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private pollingTimer: any = null;
 
-  // Active Tab Index
+  // Active Tab Index (0 = Email Dispatch Log, 1 = Notifications Center)
   activeTabIndex = 0;
 
-  // Tab 1: Email Logs & Metrics State
+  // ==========================================
+  // TAB 1: EMAIL DISPATCH LOGS STATE
+  // ==========================================
   emailLogs: EmailLog[] = [];
   emailMetrics: EmailMetrics = { queued: 0, sent: 0, failed: 0 };
   isLoadingEmails = false;
   isLivePolling = false;
 
-  // Email Filters & Pagination
   displayedColumns: string[] = [
     'index',
     'recipient',
@@ -110,41 +94,57 @@ export class EmailsComponent implements OnInit, OnDestroy {
   pageSize = 15;
   totalEmails = 0;
 
-  // Tab 2: Faculty Requests State
-  requests: RequestNotification[] = [];
-  isLoadingRequests = false;
-  canEditPreferences = false;
+  // ==========================================
+  // TAB 2: IN-APP NOTIFICATIONS STATE
+  // ==========================================
+  notifications: AppNotification[] = [];
+  notificationDisplayedColumns: string[] = [
+    'select',
+    'status',
+    'category',
+    'message',
+    'received',
+    'actions',
+  ];
+  selection = new SelectionModel<AppNotification>(true, []);
+
+  isLoadingNotifications = false;
+  totalNotifications = 0;
+  unreadNotificationsCount = 0;
+  readNotificationsCount = 0;
+
+  notificationPage = 1;
+  notificationPageSize = 10;
+  notificationFilter: 'all' | 'unread' | 'read' = 'all';
+  notificationSearchQuery = '';
 
   constructor(
     private emailsService: EmailsService,
-    private overviewService: OverviewService,
-    private preferencesService: PreferencesService,
-    private reschedulingService: ReschedulingService,
-    private permissionService: PermissionService,
+    private adminNotificationService: AdminNotificationService,
+    private router: Router,
+    private route: ActivatedRoute,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.checkPermissions();
+    // Listen for query params to auto-switch tabs
+    this.route.queryParams
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((params) => {
+        if (params['tab'] === 'notifications') {
+          this.activeTabIndex = 1;
+        }
+      });
+
     this.loadEmailData();
-    this.loadRequests();
+    this.loadNotifications();
   }
 
   ngOnDestroy(): void {
     this.stopPolling();
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  /**
-   * Check user permissions for actions.
-   */
-  private checkPermissions(): void {
-    this.canEditPreferences = this.permissionService.hasPermission(
-      'edit_faculty_preferences'
-    );
   }
 
   // ==========================================
@@ -160,7 +160,7 @@ export class EmailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Loads aggregate metrics for email dispatches.
+   * Loads email counters and metrics summary.
    */
   loadEmailMetrics(): void {
     this.emailsService
@@ -171,43 +171,48 @@ export class EmailsComponent implements OnInit, OnDestroy {
           this.emailMetrics = metrics;
           this.cdr.detectChanges();
         },
-        error: (err) => console.error('Failed to load email metrics:', err),
+        error: (err) => {
+          console.error('Failed to load email metrics:', err);
+        },
       });
   }
 
   /**
-   * Loads paginated email logs with current filters.
+   * Loads paginated and filtered email dispatch logs.
    */
   loadEmailLogs(): void {
     this.isLoadingEmails = true;
 
     this.emailsService
       .getEmailLogs({
+        page: this.currentPage,
+        per_page: this.pageSize,
         status: this.statusFilter,
         purpose: this.purposeFilter,
         date: this.dateFilter,
         search: this.searchQuery,
-        page: this.currentPage,
-        per_page: this.pageSize,
       })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (response) => {
-          this.emailLogs = response.data || [];
-          this.totalEmails = response.total || 0;
+        next: (res) => {
+          this.emailLogs = res.data;
+          this.totalEmails = res.total;
           this.isLoadingEmails = false;
           this.cdr.detectChanges();
         },
         error: (err) => {
           console.error('Failed to load email logs:', err);
           this.isLoadingEmails = false;
+          this.snackBar.open('Failed to load email dispatch logs.', 'Close', {
+            duration: 3000,
+          });
           this.cdr.detectChanges();
         },
       });
   }
 
   /**
-   * Handles filter change events.
+   * Handles filter changes for email logs.
    */
   onFilterChange(): void {
     this.currentPage = 1;
@@ -215,7 +220,7 @@ export class EmailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Clears search query and reloads email logs.
+   * Clears the search query field.
    */
   clearSearch(): void {
     this.searchQuery = '';
@@ -223,7 +228,7 @@ export class EmailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handles paginator page change events.
+   * Handles pagination page changes for email logs.
    */
   onPageChange(event: PageEvent): void {
     this.currentPage = event.pageIndex + 1;
@@ -232,7 +237,7 @@ export class EmailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Toggles the 15-second live auto-polling for email logs.
+   * Toggles live polling of email logs every 15 seconds.
    */
   toggleLivePolling(): void {
     this.isLivePolling = !this.isLivePolling;
@@ -241,19 +246,13 @@ export class EmailsComponent implements OnInit, OnDestroy {
       this.pollingTimer = setInterval(() => {
         this.loadEmailData();
       }, 15000);
-      this.snackBar.open('Live polling enabled (every 15s)', 'Close', {
-        duration: 2500,
-      });
     } else {
       this.stopPolling();
-      this.snackBar.open('Live polling stopped', 'Close', {
-        duration: 2000,
-      });
     }
   }
 
   /**
-   * Stops the live polling interval.
+   * Stops background live polling timer.
    */
   private stopPolling(): void {
     if (this.pollingTimer) {
@@ -263,189 +262,361 @@ export class EmailsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Maps purpose enum to a human-readable display string.
-   *
-   * @param purpose The purpose key from EmailLog
+   * Returns formatted human-readable purpose label.
+   */
+  getPurposeLabel(purpose: string): string {
+    const map: Record<string, string> = {
+      preference_toggle: 'Preference Submission',
+      schedule_published: 'Official Schedule',
+      first_login_password: 'Account Password',
+      deadline_warning: 'Deadline Warning',
+      reschedule_notification: 'Change Request',
+      appeal_notification: 'Appeal Request',
+    };
+
+    return map[purpose] || purpose.replace(/_/g, ' ');
+  }
+
+  /**
+   * Formats purpose key into displayable string.
    */
   formatPurpose(purpose: string): string {
-    switch (purpose) {
-      case 'preference_toggle':
-        return 'Preference Submission';
-      case 'schedule_published':
-        return 'Official Schedule';
-      case 'first_login_password':
-        return 'Account Password';
-      case 'deadline_warning':
-        return 'Deadline Warning';
-      case 'reschedule_notification':
-        return 'Change Request';
-      default:
-        return purpose;
-    }
+    return this.getPurposeLabel(purpose);
+  }
+
+  /**
+   * Returns CSS class corresponding to email purpose chip.
+   */
+  getPurposeClass(purpose: string): string {
+    const map: Record<string, string> = {
+      preference_toggle: 'purpose-pref',
+      schedule_published: 'purpose-sched',
+      first_login_password: 'purpose-pass',
+      deadline_warning: 'purpose-deadline',
+      reschedule_notification: 'purpose-resched',
+      appeal_notification: 'purpose-appeal',
+    };
+
+    return map[purpose] || 'purpose-default';
   }
 
   // ==========================================
-  // TAB 2: FACULTY REQUESTS
+  // TAB 2: IN-APP NOTIFICATIONS CENTER
   // ==========================================
 
   /**
-   * Loads pending faculty requests from overview service.
+   * Loads in-app notifications with current pagination and filter settings.
    */
-  loadRequests(): void {
-    this.isLoadingRequests = true;
+  loadNotifications(): void {
+    this.isLoadingNotifications = true;
 
-    this.overviewService
-      .getRequestNotifications()
+    this.adminNotificationService
+      .getNotifications({
+        page: this.notificationPage,
+        per_page: this.notificationPageSize,
+        filter: this.notificationFilter,
+        search: this.notificationSearchQuery,
+      })
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (requests) => {
-          this.requests = requests || [];
-          this.isLoadingRequests = false;
+        next: (res) => {
+          this.notifications = res.notifications || [];
+          this.totalNotifications = res.total ?? res.notifications.length;
+          this.unreadNotificationsCount = res.unread_count ?? 0;
+          this.readNotificationsCount =
+            res.read_count ??
+            Math.max(0, this.totalNotifications - this.unreadNotificationsCount);
+
+          this.selection.clear();
+          this.isLoadingNotifications = false;
           this.cdr.detectChanges();
         },
         error: (err) => {
-          console.error('Failed to load requests:', err);
-          this.isLoadingRequests = false;
+          console.error('Failed to load notifications:', err);
+          this.isLoadingNotifications = false;
+          this.snackBar.open('Failed to load notifications.', 'Close', {
+            duration: 3000,
+          });
           this.cdr.detectChanges();
         },
       });
   }
 
   /**
-   * Approves a faculty request.
-   *
-   * @param request The request notification to approve
+   * Handles filter dropdown change for notifications.
    */
-  approveRequest(request: RequestNotification): void {
-    if (!this.canEditPreferences) {
-      this.snackBar.open(
-        'You do not have permission to approve requests.',
-        'Close',
-        { duration: 3000 }
-      );
+  onNotificationFilterChange(): void {
+    this.notificationPage = 1;
+    this.loadNotifications();
+  }
+
+  /**
+   * Clears notification search query.
+   */
+  clearNotificationSearch(): void {
+    this.notificationSearchQuery = '';
+    this.onNotificationFilterChange();
+  }
+
+  /**
+   * Handles pagination change for notifications table.
+   */
+  onNotificationPageChange(event: PageEvent): void {
+    this.notificationPage = event.pageIndex + 1;
+    this.notificationPageSize = event.pageSize;
+    this.loadNotifications();
+  }
+
+  /**
+   * Checks whether all currently visible notifications are selected.
+   */
+  isAllSelected(): boolean {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.notifications.length;
+
+    return numRows > 0 && numSelected === numRows;
+  }
+
+  /**
+   * Toggles select-all across all visible rows.
+   */
+  masterToggle(): void {
+    if (this.isAllSelected()) {
+      this.selection.clear();
+    } else {
+      this.notifications.forEach((row) => this.selection.select(row));
+    }
+  }
+
+  /**
+   * Mark an individual notification as read.
+   */
+  markNotificationAsRead(notif: AppNotification): void {
+    if (notif.read_at) {
       return;
     }
 
-    if (request.request_type === 'appeal') {
-      const dialogRef = this.dialog.open(DialogToggleAppealsComponent, {
-        data: {
-          faculty_id: request.faculty_id,
-          faculty_name: request.faculty_name,
-          appeal_start_date: request.appeal_start_date,
-          appeal_end_date: request.appeal_end_date,
-        },
-      });
+    this.adminNotificationService
+      .markAsRead(notif.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          notif.read_at = new Date().toISOString();
 
-      dialogRef.afterClosed().subscribe((result) => {
-        if (result) {
-          this.requests = this.requests.filter(
-            (r) => r.faculty_id !== request.faculty_id
-          );
-          this.snackBar.open('Appeal access granted.', 'Close', {
+          if (this.unreadNotificationsCount > 0) {
+            this.unreadNotificationsCount--;
+          }
+          this.readNotificationsCount++;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.snackBar.open('Failed to mark notification as read.', 'Close', {
             duration: 3000,
           });
-        }
+        },
       });
-    } else {
-      const dialogData: DialogTogglePreferencesData = {
-        type: 'single_preferences',
-        academicYear: '',
-        semester: '',
-        currentState: false,
-        facultyName: request.faculty_name,
-        faculty_id: request.faculty_id,
-        global_deadline: null,
-        global_start_date: null,
-      };
+  }
 
-      const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
-        data: dialogData,
+  /**
+   * Deletes a single notification from the system.
+   */
+  deleteSingleNotification(notif: AppNotification): void {
+    this.adminNotificationService
+      .deleteNotification(notif.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Notification deleted.', 'Close', {
+            duration: 2500,
+          });
+          this.loadNotifications();
+        },
+        error: () => {
+          this.snackBar.open('Failed to delete notification.', 'Close', {
+            duration: 3000,
+          });
+        },
       });
+  }
 
-      dialogRef.afterClosed().subscribe((result: boolean) => {
-        if (result) {
-          this.preferencesService
-            .cancelRequestAccess(request.faculty_id.toString())
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-              next: () => {
-                this.requests = this.requests.filter(
-                  (r) => r.faculty_id !== request.faculty_id
-                );
-                this.snackBar.open(
-                  'Faculty preferences access enabled.',
-                  'Close',
-                  { duration: 3000 }
-                );
-              },
-              error: () => {
-                this.snackBar.open('Failed to process request.', 'Close', {
-                  duration: 3000,
-                });
-              },
-            });
-        }
+  /**
+   * Marks all selected notifications as read.
+   */
+  bulkMarkAsRead(): void {
+    const selectedIds = this.selection.selected.map((item) => item.id);
+
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    this.adminNotificationService
+      .bulkRead(selectedIds)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.snackBar.open(
+            `${selectedIds.length} notifications marked as read.`,
+            'Close',
+            { duration: 3000 }
+          );
+          this.loadNotifications();
+        },
+        error: () => {
+          this.snackBar.open('Failed to mark selected as read.', 'Close', {
+            duration: 3000,
+          });
+        },
+      });
+  }
+
+  /**
+   * Deletes all selected notifications.
+   */
+  bulkDeleteSelected(): void {
+    const selectedIds = this.selection.selected.map((item) => item.id);
+
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    this.adminNotificationService
+      .bulkDelete(selectedIds)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.snackBar.open(
+            `${selectedIds.length} notifications deleted.`,
+            'Close',
+            { duration: 3000 }
+          );
+          this.loadNotifications();
+        },
+        error: () => {
+          this.snackBar.open('Failed to delete selected notifications.', 'Close', {
+            duration: 3000,
+          });
+        },
+      });
+  }
+
+  /**
+   * Marks all notifications as read.
+   */
+  markAllNotificationsAsRead(): void {
+    this.adminNotificationService
+      .markAllAsRead()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.snackBar.open('All notifications marked as read.', 'Close', {
+            duration: 3000,
+          });
+          this.loadNotifications();
+        },
+        error: () => {
+          this.snackBar.open('Failed to mark all as read.', 'Close', {
+            duration: 3000,
+          });
+        },
+      });
+  }
+
+  /**
+   * Clears all read notifications, preserving unread ones.
+   */
+  clearReadNotifications(): void {
+    this.adminNotificationService
+      .clearRead()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.snackBar.open('Read notifications cleared.', 'Close', {
+            duration: 3000,
+          });
+          this.loadNotifications();
+        },
+        error: () => {
+          this.snackBar.open('Failed to clear read notifications.', 'Close', {
+            duration: 3000,
+          });
+        },
+      });
+  }
+
+  /**
+   * Navigates to target action URL and marks notification as read.
+   */
+  onNotificationActionClick(notif: AppNotification): void {
+    if (!notif.read_at) {
+      this.markNotificationAsRead(notif);
+    }
+
+    if (notif.data.action_url) {
+      this.router.navigate([notif.data.action_url], {
+        queryParams: { search: notif.data.faculty_id },
       });
     }
   }
 
   /**
-   * Discards a faculty request.
-   *
-   * @param request The request notification to discard
+   * Returns Material symbol icon for notification type.
    */
-  discardRequest(request: RequestNotification): void {
-    if (!this.canEditPreferences) {
-      this.snackBar.open(
-        'You do not have permission to discard requests.',
-        'Close',
-        { duration: 3000 }
-      );
-      return;
+  getNotificationIcon(notif: AppNotification): string {
+    if (notif.data.icon) {
+      return notif.data.icon;
     }
 
-    if (request.request_type === 'appeal') {
-      this.reschedulingService
-        .rejectAppealAccessRequest(request.faculty_id.toString())
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            this.requests = this.requests.filter(
-              (r) => r.faculty_id !== request.faculty_id
-            );
-            this.snackBar.open('Appeal request denied.', 'Close', {
-              duration: 3000,
-            });
-          },
-          error: () => {
-            this.snackBar.open('Failed to discard appeal request.', 'Close', {
-              duration: 3000,
-            });
-          },
-        });
-    } else {
-      this.preferencesService
-        .cancelRequestAccess(request.faculty_id.toString())
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            this.requests = this.requests.filter(
-              (r) => r.faculty_id !== request.faculty_id
-            );
-            this.snackBar.open(
-              'Faculty preference request discarded.',
-              'Close',
-              { duration: 3000 }
-            );
-          },
-          error: () => {
-            this.snackBar.open(
-              'Failed to discard request. Please try again.',
-              'Close',
-              { duration: 3000 }
-            );
-          },
-        });
+    const type = notif.data.type || '';
+
+    if (type.includes('preference')) {
+      return 'tune';
     }
+
+    if (type.includes('appeal')) {
+      return 'swap_horiz';
+    }
+
+    return 'notifications';
+  }
+
+  /**
+   * Returns category badge label for notification type.
+   */
+  getNotificationCategoryLabel(notif: AppNotification): string {
+    const type = notif.data.type || '';
+
+    switch (type) {
+      case 'preference_request':
+        return 'Preference Request';
+      case 'preference_submission':
+        return 'Preferences Submitted';
+      case 'appeal_request':
+        return 'Appeal Request';
+      case 'appeal_request_cancelled':
+        return 'Appeal Request Cancelled';
+      case 'appeal_submitted':
+        return 'Appeal Submitted';
+      case 'appeal_cancelled':
+        return 'Appeal Cancelled';
+      default:
+        return 'System Alert';
+    }
+  }
+
+  /**
+   * Returns category badge CSS class.
+   */
+  getNotificationCategoryClass(notif: AppNotification): string {
+    const type = notif.data.type || '';
+
+    if (type.includes('preference')) {
+      return 'badge-preference';
+    }
+
+    if (type.includes('appeal')) {
+      return 'badge-appeal';
+    }
+
+    return 'badge-general';
   }
 }

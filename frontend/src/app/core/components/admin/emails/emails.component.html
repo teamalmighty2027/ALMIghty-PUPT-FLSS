@@ -1,14 +1,4 @@
 <div class="emails-main-container">
-  <div class="header-section">
-    <div class="header-title">
-      <h2>Email Monitoring & Requests</h2>
-      <p class="subtitle">
-        Monitor outgoing email dispatches and review pending faculty access
-        requests.
-      </p>
-    </div>
-  </div>
-
   <mat-tab-group
     [(selectedIndex)]="activeTabIndex"
     animationDuration="200ms"
@@ -335,93 +325,366 @@
     </mat-tab>
 
     <!-- ========================================== -->
-    <!-- TAB 2: FACULTY ACCESS REQUESTS            -->
+    <!-- TAB 2: IN-APP NOTIFICATIONS CENTER         -->
     <!-- ========================================== -->
     <mat-tab>
       <ng-template mat-tab-label>
-        <span mat-symbol="assignment" class="tab-icon"></span>
-        <span>Faculty Access Requests</span>
+        <span mat-symbol="notifications" class="tab-icon"></span>
+        <span>Notifications Center</span>
+        @if (unreadNotificationsCount > 0) {
+          <span class="tab-badge">{{ unreadNotificationsCount }}</span>
+        }
       </ng-template>
 
       <div class="tab-content">
-        <div class="requests-section">
-          <div class="section-header">
-            <h3>Pending Faculty Requests</h3>
+        <!-- Quick Stats Counters (Overview Style) -->
+        <div class="quick-stats">
+          <div class="stats total card">
+            <span
+              mat-symbol="notifications"
+              class="stats-icon total-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Total</h2>
+              <div class="card-content">{{ totalNotifications }}</div>
+            </div>
+          </div>
+
+          <div class="stats unread card">
+            <span
+              mat-symbol="mark_email_unread"
+              class="stats-icon unread-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Unread</h2>
+              <div class="card-content">{{ unreadNotificationsCount }}</div>
+            </div>
+          </div>
+
+          <div class="stats read card">
+            <span
+              mat-symbol="mark_email_read"
+              class="stats-icon read-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Read</h2>
+              <div class="card-content">{{ readNotificationsCount }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls / Filters Toolbar -->
+        <div class="filters-toolbar">
+          <div class="filter-controls">
+            <!-- Search Field -->
+            <mat-form-field
+              appearance="fill"
+              class="search-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Search message or details</mat-label>
+              <input
+                maxlength="50"
+                matInput
+                [(ngModel)]="notificationSearchQuery"
+                placeholder="Search message or details"
+                (ngModelChange)="onNotificationFilterChange()"
+              />
+              <mat-icon matPrefix>search</mat-icon>
+              @if (notificationSearchQuery && notificationSearchQuery.length > 0) {
+                <button
+                  type="button"
+                  mat-icon-button
+                  matSuffix
+                  (click)="clearNotificationSearch()"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+
+            <!-- Status Filter -->
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Status</mat-label>
+              <mat-select
+                [(ngModel)]="notificationFilter"
+                (selectionChange)="onNotificationFilterChange()"
+              >
+                <mat-option value="all">All Notifications</mat-option>
+                <mat-option value="unread">Unread Only</mat-option>
+                <mat-option value="read">Read Only</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="toolbar-actions">
+            @if (selection.selected.length > 0) {
+              <!-- Bulk Actions Bar -->
+              <div class="bulk-actions-group">
+                <span class="selection-count-chip">
+                  {{ selection.selected.length }} selected
+                </span>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="bulk-action-btn"
+                  (click)="bulkMarkAsRead()"
+                >
+                  <mat-icon>done_all</mat-icon>
+                  <span>Mark Read</span>
+                </button>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  color="warn"
+                  class="bulk-action-btn bulk-delete-btn"
+                  (click)="bulkDeleteSelected()"
+                >
+                  <mat-icon>delete</mat-icon>
+                  <span>Delete</span>
+                </button>
+              </div>
+            } @else {
+              <!-- General Actions -->
+              <button
+                mat-button
+                type="button"
+                class="header-action-btn"
+                [disabled]="unreadNotificationsCount === 0"
+                (click)="markAllNotificationsAsRead()"
+              >
+                <mat-icon>done_all</mat-icon>
+                <span>Mark All Read</span>
+              </button>
+
+              <button
+                mat-button
+                type="button"
+                class="header-action-btn"
+                [disabled]="readNotificationsCount === 0"
+                (click)="clearReadNotifications()"
+              >
+                <mat-icon>delete_sweep</mat-icon>
+                <span>Clear Read</span>
+              </button>
+            }
+
+            <!-- Borderless Refresh button -->
             <button
               mat-icon-button
               type="button"
               class="refresh-icon-button"
-              [matTooltip]="'Refresh requests'"
-              [disabled]="isLoadingRequests"
-              (click)="loadRequests()"
+              [matTooltip]="'Refresh notifications'"
+              [disabled]="isLoadingNotifications"
+              (click)="loadNotifications()"
             >
               <span
                 mat-symbol="sync"
                 class="refresh-icon"
-                [class.spinning]="isLoadingRequests"
+                [class.spinning]="isLoadingNotifications"
               ></span>
             </button>
           </div>
-
-          @if (isLoadingRequests) {
-            <div class="loading-state">
-              <app-loading></app-loading>
-            </div>
-          } @else if (requests.length === 0) {
-            <div class="empty-state">
-              <span mat-symbol="task_alt" class="empty-icon"></span>
-              <p>
-                No pending faculty requests. All requests have been processed.
-              </p>
-            </div>
-          } @else {
-            <div class="requests-grid">
-              @for (request of requests; track request.faculty_id) {
-                <div class="request-card">
-                  <div class="request-card-header">
-                    <span mat-symbol="person" class="person-icon"></span>
-                    <div class="faculty-info">
-                      <h4>{{ request.faculty_name }}</h4>
-                      <span
-                        class="request-tag"
-                        [ngClass]="
-                          request.request_type === 'appeal'
-                            ? 'tag-appeal'
-                            : 'tag-preference'
-                        "
-                      >
-                        {{
-                          request.request_type === "appeal"
-                            ? "Appeal Request"
-                            : "Preference Request"
-                        }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div class="request-actions">
-                    <button
-                      class="approve-btn"
-                      [disabled]="!canEditPreferences"
-                      (click)="approveRequest(request)"
-                    >
-                      <span mat-symbol="check"></span>
-                      Approve
-                    </button>
-                    <button
-                      class="discard-btn"
-                      [disabled]="!canEditPreferences"
-                      (click)="discardRequest(request)"
-                    >
-                      <span mat-symbol="close"></span>
-                      Discard
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          }
         </div>
+
+        <!-- Table Section -->
+        <div class="emails-table-container">
+          <div class="table-container">
+            @if (isLoadingNotifications) {
+              <div class="loading-state">
+                <app-loading></app-loading>
+              </div>
+            } @else {
+              <table
+                mat-table
+                [dataSource]="notifications"
+                class="custom-table"
+              >
+                <!-- Select Checkbox Column -->
+                <ng-container matColumnDef="select">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header checkbox-header"
+                  >
+                    <mat-checkbox
+                      (change)="$event ? masterToggle() : null"
+                      [checked]="selection.hasValue() && isAllSelected()"
+                      [indeterminate]="selection.hasValue() && !isAllSelected()"
+                      color="primary"
+                    ></mat-checkbox>
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="checkbox-cell">
+                    <mat-checkbox
+                      (click)="$event.stopPropagation()"
+                      (change)="$event ? selection.toggle(row) : null"
+                      [checked]="selection.isSelected(row)"
+                      color="primary"
+                    ></mat-checkbox>
+                  </td>
+                </ng-container>
+
+                <!-- Status Dot Column -->
+                <ng-container matColumnDef="status">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header status-header"
+                  ></th>
+                  <td mat-cell *matCellDef="let row" class="status-cell">
+                    <span
+                      class="status-dot"
+                      [class.unread-dot]="!row.read_at"
+                      [class.read-dot]="!!row.read_at"
+                      [matTooltip]="row.read_at ? 'Read' : 'Unread'"
+                    ></span>
+                  </td>
+                </ng-container>
+
+                <!-- Category Badge Column -->
+                <ng-container matColumnDef="category">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Category
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell">
+                    <span
+                      class="category-badge"
+                      [ngClass]="getNotificationCategoryClass(row)"
+                    >
+                      <span
+                        [mat-symbol]="getNotificationIcon(row)"
+                        class="badge-icon"
+                      ></span>
+                      <span>{{ getNotificationCategoryLabel(row) }}</span>
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Message Details Column -->
+                <ng-container matColumnDef="message">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header message-header"
+                  >
+                    Message
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell message-cell">
+                    <div class="message-content">
+                      <strong class="message-title">{{ row.data.title }}</strong>
+                      <span class="message-body">{{ row.data.message }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <!-- Received Date Column -->
+                <ng-container matColumnDef="received">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Received
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell date-cell">
+                    {{ row.created_at | date: "MMM d, y, h:mm a" }}
+                  </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header actions-header"
+                  >
+                    Actions
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell actions-cell">
+                    <div class="row-actions">
+                      @if (row.data.action_url) {
+                        <button
+                          mat-flat-button
+                          class="action-resolve-btn"
+                          (click)="onNotificationActionClick(row)"
+                          matTooltip="Navigate to relevant page and mark as read"
+                        >
+                          <mat-icon>open_in_new</mat-icon>
+                          <span>Review</span>
+                        </button>
+                      }
+
+                      @if (!row.read_at) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="row-icon-btn"
+                          (click)="markNotificationAsRead(row)"
+                          matTooltip="Mark as read"
+                        >
+                          <mat-icon>mark_email_read</mat-icon>
+                        </button>
+                      }
+
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="row-icon-btn delete-icon-btn"
+                        (click)="deleteSingleNotification(row)"
+                        matTooltip="Delete notification"
+                      >
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <tr
+                  mat-header-row
+                  *matHeaderRowDef="notificationDisplayedColumns; sticky: true"
+                ></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: notificationDisplayedColumns"
+                  [class.unread-row]="!row.read_at"
+                ></tr>
+
+                <!-- No Data Row -->
+                <tr *matNoDataRow>
+                  <td
+                    class="no-data-cell"
+                    [attr.colspan]="notificationDisplayedColumns.length"
+                  >
+                    <div class="flex-cell">
+                      <div class="no-data-text">
+                        <span mat-symbol="notifications_off"></span>
+                        <span>
+                          No notifications found matching your filters.
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                class="custom-paginator"
+                [length]="totalNotifications"
+                [pageSize]="notificationPageSize"
+                [pageSizeOptions]="[10, 15, 25, 50]"
+                [pageIndex]="notificationPage - 1"
+                (page)="onNotificationPageChange($event)"
+                showFirstLastButtons
+              ></mat-paginator>
+            }
+          </div>
+        </div>
+
       </div>
     </mat-tab>
   </mat-tab-group>
