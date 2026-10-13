@@ -36,6 +36,15 @@
         <a
           mat-list-item
           class="list-item"
+          routerLink="/admin/emails"
+          routerLinkActive="active-link"
+          *appHasPermission="'view_notification_center'">
+          <span mat-symbol="mail" matListItemIcon></span>
+          <span matListItemTitle>Emails / Notifications</span>
+        </a>
+        <a
+          mat-list-item
+          class="list-item"
           routerLink="/admin/academic-years"
           routerLinkActive="active-link"
           *appHasPermission="'edit_academic_years'">
@@ -264,6 +273,17 @@
             <p>You're all caught up!</p>
           </div>
         }
+      </div>
+
+      <div class="notif-footer" (click)="$event.stopPropagation()">
+        <button
+          mat-button
+          class="view-all-notifs-btn"
+          (click)="openNotificationCenter()"
+        >
+          <mat-icon>open_in_new</mat-icon>
+          <span>View All in Notification Center</span>
+        </button>
       </div>
     </mat-menu>
 

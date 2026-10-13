@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Faculty;
+use App\Models\EmailDispatchLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -17,6 +18,7 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $faculty;
+    protected $dispatchedAt;
 
     /**
      * Create a new job instance.
@@ -25,7 +27,8 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
      */
     public function __construct(Faculty $faculty)
     {
-        $this->faculty = $faculty;
+        $this->faculty      = $faculty;
+        $this->dispatchedAt = Carbon::now();
     }
 
     /**
@@ -33,10 +36,14 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
      */
     public function handle()
     {
-        $facultyUser = $this->faculty->user; // ✅ Corrected relationship
+        $facultyUser = $this->faculty->user;
 
         if (!$facultyUser || !$facultyUser->email) {
-            Log::error("❌ Faculty email is missing for faculty ID: {$this->faculty->id}");
+            Log::error(
+                "Faculty email is missing for faculty ID: " .
+                "{$this->faculty->id}"
+            );
+
             return;
         }
 
@@ -47,32 +54,79 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
             $facultyUser->suffix_name
         );
 
+        $deadline = Carbon::parse(
+            $this->faculty->preferenceSetting->individual_deadline
+        )->format('F d, Y');
+
         $data = [
             'faculty_name' => $facultyName,
-            'deadline' => Carbon::parse($this->faculty->preferenceSetting->individual_deadline)->format('F d, Y'),
+            'deadline'     => $deadline,
         ];
 
         try {
-            Mail::send('emails.faculty_deadline_warning', $data, function ($message) use ($facultyUser) {
-                $message->to($facultyUser->email)
-                        ->subject('24-Hour Notification: Individual Deadline Approaching');
-            });
+            Mail::send(
+                'emails.faculty_deadline_warning',
+                $data,
+                function ($message) use ($facultyUser) {
+                    $message->to($facultyUser->email)
+                        ->subject(
+                            '24-Hour Notification: Individual Deadline Approaching'
+                        );
+                }
+            );
 
-            Log::info("✅ Email sent successfully to faculty ID: {$this->faculty->id}, Email: {$facultyUser->email}");
+            // Record successful email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->faculty->id,
+                'recipient_email' => $facultyUser->email,
+                'recipient_name'  => $facultyName,
+                'purpose'         => 'deadline_warning',
+                'status'          => 'sent',
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
+            Log::info(
+                "Email sent successfully to faculty ID: " .
+                "{$this->faculty->id}, Email: {$facultyUser->email}"
+            );
         } catch (\Exception $e) {
-            Log::error("❌ Failed to send email to faculty ID: {$this->faculty->id}. Error: {$e->getMessage()}");
+            // Record failed email dispatch
+            EmailDispatchLog::create([
+                'faculty_id'      => $this->faculty->id,
+                'recipient_email' => $facultyUser->email,
+                'recipient_name'  => $facultyName,
+                'purpose'         => 'deadline_warning',
+                'status'          => 'failed',
+                'error_message'   => $e->getMessage(),
+                'dispatched_at'   => $this->dispatchedAt,
+                'processed_at'    => Carbon::now(),
+            ]);
+
+            Log::error(
+                "Failed to send email to faculty ID: " .
+                "{$this->faculty->id}. Error: {$e->getMessage()}"
+            );
+
+            $this->fail($e);
         }
     }
 
     /**
      * Format the faculty's full name.
      */
-    private function formatName($lastName, $firstName, $middleName = null, $suffixName = null)
-    {
+    private function formatName(
+        $lastName,
+        $firstName,
+        $middleName = null,
+        $suffixName = null
+    ) {
         $name = "{$lastName}, {$firstName}";
+
         if ($middleName) {
             $name .= " {$middleName}";
         }
+
         if ($suffixName) {
             $name .= " {$suffixName}";
         }

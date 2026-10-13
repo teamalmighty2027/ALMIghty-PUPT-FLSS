@@ -589,4 +589,30 @@
     // A faint PUP Red background to indicate unread status
     background-color: rgba(128, 0, 0, 0.04);
   }
-}
+
+  .notif-footer {
+    display: flex;
+    justify-content: center;
+    padding: 8px 16px;
+    border-top: 1px solid var(--neutral-option);
+    background-color: var(--card-bg, #fff);
+
+    .view-all-notifs-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--primary-one);
+      font-size: 13px;
+      font-weight: 500;
+      text-transform: none;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
