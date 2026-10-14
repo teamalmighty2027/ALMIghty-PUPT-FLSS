@@ -3,30 +3,35 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
 
 import { EmailsComponent } from './emails.component';
 import { EmailsService } from '../../../services/admin/emails/emails.service';
-import { OverviewService } from '../../../services/admin/overview/overview.service';
+import {
+  AdminNotificationService
+} from '../../../services/admin/notification/admin-notification.service';
 import { PermissionService } from '../../../services/permission/permission.service';
 
 describe('EmailsComponent', () => {
   let component: EmailsComponent;
   let fixture: ComponentFixture<EmailsComponent>;
   let emailsService: jasmine.SpyObj<EmailsService>;
-  let overviewService: jasmine.SpyObj<OverviewService>;
+  let adminNotificationService: jasmine.SpyObj<AdminNotificationService>;
 
   beforeEach(async () => {
     const emailsSpy = jasmine.createSpyObj('EmailsService', [
       'getEmailLogs',
       'getEmailMetrics',
     ]);
-    const overviewSpy = jasmine.createSpyObj('OverviewService', [
-      'getRequestNotifications',
-    ]);
+    const adminNotificationSpy = jasmine.createSpyObj(
+      'AdminNotificationService',
+      ['getNotifications', 'markAsRead', 'deleteNotification']
+    );
     const permissionSpy = jasmine.createSpyObj('PermissionService', [
       'hasPermission',
     ]);
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     emailsSpy.getEmailMetrics.and.returnValue(
       of({ queued: 0, sent: 10, failed: 1 })
@@ -34,7 +39,9 @@ describe('EmailsComponent', () => {
     emailsSpy.getEmailLogs.and.returnValue(
       of({ data: [], current_page: 1, last_page: 1, per_page: 15, total: 0 })
     );
-    overviewSpy.getRequestNotifications.and.returnValue(of([]));
+    adminNotificationSpy.getNotifications.and.returnValue(
+      of({ notifications: [], total: 0, unread_count: 0, read_count: 0 })
+    );
     permissionSpy.hasPermission.and.returnValue(true);
 
     await TestBed.configureTestingModule({
@@ -47,17 +54,22 @@ describe('EmailsComponent', () => {
       ],
       providers: [
         { provide: EmailsService, useValue: emailsSpy },
-        { provide: OverviewService, useValue: overviewSpy },
+        { provide: AdminNotificationService, useValue: adminNotificationSpy },
         { provide: PermissionService, useValue: permissionSpy },
+        { provide: Router, useValue: routerSpy },
+        {
+          provide: ActivatedRoute,
+          useValue: { queryParams: of({}) },
+        },
       ],
     }).compileComponents();
 
     emailsService = TestBed.inject(
       EmailsService
     ) as jasmine.SpyObj<EmailsService>;
-    overviewService = TestBed.inject(
-      OverviewService
-    ) as jasmine.SpyObj<OverviewService>;
+    adminNotificationService = TestBed.inject(
+      AdminNotificationService
+    ) as jasmine.SpyObj<AdminNotificationService>;
 
     fixture = TestBed.createComponent(EmailsComponent);
     component = fixture.componentInstance;
@@ -75,7 +87,7 @@ describe('EmailsComponent', () => {
   it('should load email data and requests on init', () => {
     expect(emailsService.getEmailMetrics).toHaveBeenCalled();
     expect(emailsService.getEmailLogs).toHaveBeenCalled();
-    expect(overviewService.getRequestNotifications).toHaveBeenCalled();
+    expect(adminNotificationService.getNotifications).toHaveBeenCalled();
   });
 
   it('should toggle live polling and start interval timer', () => {
@@ -95,7 +107,8 @@ describe('EmailsComponent', () => {
   it('should define displayedColumns for mat-table', () => {
     expect(component.displayedColumns).toEqual([
       'index',
-      'recipient',
+      'recipient_name',
+      'recipient_email',
       'purpose',
       'status',
       'dispatched_at',
