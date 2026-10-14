@@ -1,0 +1,713 @@
+<div class="emails-main-container">
+  <mat-tab-group
+    [(selectedIndex)]="activeTabIndex"
+    animationDuration="200ms"
+    class="custom-tab-group bottom-tabs"
+  >
+    <!-- ========================================== -->
+    <!-- TAB 1: EMAIL DISPATCH LOGS                -->
+    <!-- ========================================== -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span mat-symbol="mail" class="tab-icon"></span>
+        <span>Email Dispatch Log</span>
+      </ng-template>
+
+      <div class="tab-content">
+        <!-- Quick Stats Counters (Overview Style) -->
+        <div class="quick-stats">
+          <div class="stats in-queue card">
+            <span
+              mat-symbol="hourglass_top"
+              class="stats-icon queued-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">In Queue</h2>
+              <div class="card-content">{{ emailMetrics.queued }}</div>
+            </div>
+          </div>
+
+          <div class="stats delivered card">
+            <span
+              mat-symbol="check_circle"
+              class="stats-icon sent-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Delivered</h2>
+              <div class="card-content">{{ emailMetrics.sent }}</div>
+            </div>
+          </div>
+
+          <div class="stats failed card">
+            <span
+              mat-symbol="error"
+              class="stats-icon failed-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Failed</h2>
+              <div class="card-content">{{ emailMetrics.failed }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls / Filters Toolbar -->
+        <div class="filters-toolbar">
+          <div class="filter-controls">
+            <!-- Search Field matching other pages -->
+            <mat-form-field
+              appearance="fill"
+              class="search-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Search email or recipient</mat-label>
+              <input
+                maxlength="50"
+                matInput
+                [(ngModel)]="searchQuery"
+                placeholder="Search email or recipient"
+                (ngModelChange)="onFilterChange()"
+              />
+              <mat-icon matPrefix>search</mat-icon>
+              @if (searchQuery && searchQuery.length > 0) {
+                <button
+                  type="button"
+                  mat-icon-button
+                  matSuffix
+                  (click)="clearSearch()"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+
+            <!-- Status Filter -->
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Status</mat-label>
+              <mat-select
+                [(ngModel)]="statusFilter"
+                (selectionChange)="onFilterChange()"
+              >
+                <mat-option value="all">All Statuses</mat-option>
+                <mat-option value="sent">Delivered (Sent)</mat-option>
+                <mat-option value="queued">In Queue</mat-option>
+                <mat-option value="failed">Failed</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <!-- Purpose Filter -->
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Purpose</mat-label>
+              <mat-select
+                [(ngModel)]="purposeFilter"
+                (selectionChange)="onFilterChange()"
+              >
+                <mat-option value="all">All Purposes</mat-option>
+                <mat-option value="preference_toggle">
+                  Preference Submission
+                </mat-option>
+                <mat-option value="schedule_published">
+                  Official Schedule
+                </mat-option>
+                <mat-option value="first_login_password">
+                  Account Password
+                </mat-option>
+                <mat-option value="deadline_warning">
+                  Deadline Warning
+                </mat-option>
+                <mat-option value="reschedule_notification">
+                  Change Request
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="toolbar-actions">
+            <!-- Live update toggle -->
+            <div class="live-toggle" (click)="toggleLivePolling()">
+              <mat-slide-toggle [checked]="isLivePolling" color="primary">
+                Live update (15s)
+              </mat-slide-toggle>
+            </div>
+
+            <!-- Borderless Refresh button -->
+            <button
+              mat-icon-button
+              type="button"
+              class="refresh-icon-button"
+              [matTooltip]="'Refresh email data'"
+              [disabled]="isLoadingEmails"
+              (click)="loadEmailData()"
+            >
+              <span
+                mat-symbol="sync"
+                class="refresh-icon"
+                [class.spinning]="isLoadingEmails"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Email Logs Material Table -->
+        <div class="emails-table-container">
+          <div class="table-container">
+            @if (isLoadingEmails) {
+              <div class="loading-state">
+                <app-loading></app-loading>
+              </div>
+            } @else {
+              <table mat-table [dataSource]="emailLogs" class="custom-table">
+                <!-- Index Column -->
+                <ng-container matColumnDef="index">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header index"
+                  >
+                    #
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let element; let i = index"
+                    class="custom-cell index"
+                  >
+                    {{ i + 1 + (currentPage - 1) * pageSize }}
+                  </td>
+                </ng-container>
+
+                <!-- Recipient Name Column -->
+                <ng-container matColumnDef="recipient_name">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header text-left pl-md"
+                  >
+                    Recipient Name
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let log"
+                    class="custom-cell text-left pl-md recipient-name-cell"
+                  >
+                    <span class="recipient-name">
+                      {{
+                        log.recipient_name ||
+                          log.faculty?.user?.formatted_name ||
+                          log.faculty?.user?.name ||
+                          "Faculty Member"
+                      }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Recipient Email Column -->
+                <ng-container matColumnDef="recipient_email">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header text-left pl-md"
+                  >
+                    Recipient Email
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let log"
+                    class="custom-cell text-left pl-md recipient-email-cell"
+                  >
+                    <span class="recipient-email">
+                      {{ log.recipient_email }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Purpose Column -->
+                <ng-container matColumnDef="purpose">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Purpose
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    <span class="purpose-badge">
+                      {{ formatPurpose(log.purpose) }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Status Column -->
+                <ng-container matColumnDef="status">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Status
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    <span
+                      class="status-chip"
+                      [ngClass]="{
+                        'chip-sent': log.status === 'sent',
+                        'chip-queued': log.status === 'queued',
+                        'chip-failed': log.status === 'failed',
+                      }"
+                    >
+                      {{ log.status | titlecase }}
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Dispatched At Column -->
+                <ng-container matColumnDef="dispatched_at">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Dispatched At
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    {{ log.dispatched_at | date: "MMM d, y, h:mm a" }}
+                  </td>
+                </ng-container>
+
+                <!-- Processed At Column -->
+                <ng-container matColumnDef="processed_at">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Processed At
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    {{
+                      log.processed_at
+                        ? (log.processed_at | date: "MMM d, y, h:mm a")
+                        : "—"
+                    }}
+                  </td>
+                </ng-container>
+
+                <!-- Error Column -->
+                <ng-container matColumnDef="error_details">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Error / Details
+                  </th>
+                  <td mat-cell *matCellDef="let log" class="custom-cell">
+                    @if (log.error_message) {
+                      <span
+                        class="error-indicator"
+                        [matTooltip]="log.error_message"
+                        matTooltipPosition="above"
+                      >
+                        <span mat-symbol="warning"></span>
+                        View Error
+                      </span>
+                    } @else {
+                      <span class="no-error">—</span>
+                    }
+                  </td>
+                </ng-container>
+
+                <tr
+                  mat-header-row
+                  *matHeaderRowDef="displayedColumns; sticky: true"
+                ></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: displayedColumns"
+                ></tr>
+
+                <!-- No Data Row -->
+                <tr *matNoDataRow>
+                  <td
+                    class="no-data-cell"
+                    [attr.colspan]="displayedColumns.length"
+                  >
+                    <div class="flex-cell">
+                      <span mat-symbol="info"></span>
+                      <span>
+                        No email dispatch logs found matching your filters.
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                class="custom-paginator"
+                [length]="totalEmails"
+                [pageSize]="pageSize"
+                [pageSizeOptions]="[10, 15, 25, 50]"
+                [pageIndex]="currentPage - 1"
+                (page)="onPageChange($event)"
+                showFirstLastButtons
+              ></mat-paginator>
+            }
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: IN-APP NOTIFICATIONS CENTER         -->
+    <!-- ========================================== -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <span mat-symbol="notifications" class="tab-icon"></span>
+        <span>Notifications Center</span>
+        @if (unreadNotificationsCount > 0) {
+          <span class="tab-badge">{{ unreadNotificationsCount }}</span>
+        }
+      </ng-template>
+
+      <div class="tab-content">
+        <!-- Quick Stats Counters (Overview Style) -->
+        <div class="quick-stats">
+          <div class="stats total card">
+            <span
+              mat-symbol="notifications"
+              class="stats-icon total-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Total</h2>
+              <div class="card-content">{{ totalNotifications }}</div>
+            </div>
+          </div>
+
+          <div class="stats unread card">
+            <span
+              mat-symbol="mark_email_unread"
+              class="stats-icon unread-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Unread</h2>
+              <div class="card-content">{{ unreadNotificationsCount }}</div>
+            </div>
+          </div>
+
+          <div class="stats read card">
+            <span
+              mat-symbol="mark_email_read"
+              class="stats-icon read-icon"
+              size="24px"
+            ></span>
+            <div class="stats-info">
+              <h2 class="card-title">Read</h2>
+              <div class="card-content">{{ readNotificationsCount }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls / Filters Toolbar -->
+        <div class="filters-toolbar">
+          <div class="filter-controls">
+            <!-- Search Field -->
+            <mat-form-field
+              appearance="fill"
+              class="search-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Search message or details</mat-label>
+              <input
+                maxlength="50"
+                matInput
+                [(ngModel)]="notificationSearchQuery"
+                placeholder="Search message or details"
+                (ngModelChange)="onNotificationFilterChange()"
+              />
+              <mat-icon matPrefix>search</mat-icon>
+              @if (notificationSearchQuery && notificationSearchQuery.length > 0) {
+                <button
+                  type="button"
+                  mat-icon-button
+                  matSuffix
+                  (click)="clearNotificationSearch()"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+
+            <!-- Status Filter -->
+            <mat-form-field
+              appearance="fill"
+              class="filter-field select-field"
+              subscriptSizing="dynamic"
+            >
+              <mat-label>Status</mat-label>
+              <mat-select
+                [(ngModel)]="notificationFilter"
+                (selectionChange)="onNotificationFilterChange()"
+              >
+                <mat-option value="all">All Notifications</mat-option>
+                <mat-option value="unread">Unread Only</mat-option>
+                <mat-option value="read">Read Only</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="toolbar-actions">
+            @if (selection.selected.length > 0) {
+              <!-- Bulk Actions Bar -->
+              <div class="bulk-actions-group">
+                <span class="selection-count-chip">
+                  {{ selection.selected.length }} selected
+                </span>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="bulk-action-btn"
+                  (click)="bulkMarkAsRead()"
+                >
+                  <mat-icon>done_all</mat-icon>
+                  <span>Mark Read</span>
+                </button>
+
+                <button
+                  mat-stroked-button
+                  type="button"
+                  color="warn"
+                  class="bulk-action-btn bulk-delete-btn"
+                  (click)="bulkDeleteSelected()"
+                >
+                  <mat-icon>delete</mat-icon>
+                  <span>Delete</span>
+                </button>
+              </div>
+            } @else {
+              <!-- General Actions -->
+              <button
+                mat-button
+                type="button"
+                class="header-action-btn"
+                [disabled]="unreadNotificationsCount === 0"
+                (click)="markAllNotificationsAsRead()"
+              >
+                <mat-icon>done_all</mat-icon>
+                <span>Mark All Read</span>
+              </button>
+
+              <button
+                mat-button
+                type="button"
+                class="header-action-btn"
+                [disabled]="readNotificationsCount === 0"
+                (click)="clearReadNotifications()"
+              >
+                <mat-icon>delete_sweep</mat-icon>
+                <span>Clear Read</span>
+              </button>
+            }
+
+            <!-- Borderless Refresh button -->
+            <button
+              mat-icon-button
+              type="button"
+              class="refresh-icon-button"
+              [matTooltip]="'Refresh notifications'"
+              [disabled]="isLoadingNotifications"
+              (click)="loadNotifications()"
+            >
+              <span
+                mat-symbol="sync"
+                class="refresh-icon"
+                [class.spinning]="isLoadingNotifications"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+        <div class="emails-table-container">
+          <div class="table-container">
+            @if (isLoadingNotifications) {
+              <div class="loading-state">
+                <app-loading></app-loading>
+              </div>
+            } @else {
+              <table
+                mat-table
+                [dataSource]="notifications"
+                class="custom-table"
+              >
+                <!-- Select Checkbox Column -->
+                <ng-container matColumnDef="select">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header checkbox-header"
+                  >
+                    <mat-checkbox
+                      (change)="$event ? masterToggle() : null"
+                      [checked]="selection.hasValue() && isAllSelected()"
+                      [indeterminate]="selection.hasValue() && !isAllSelected()"
+                      color="primary"
+                    ></mat-checkbox>
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="checkbox-cell">
+                    <mat-checkbox
+                      (click)="$event.stopPropagation()"
+                      (change)="$event ? selection.toggle(row) : null"
+                      [checked]="selection.isSelected(row)"
+                      color="primary"
+                    ></mat-checkbox>
+                  </td>
+                </ng-container>
+
+                <!-- Status Dot Column -->
+                <ng-container matColumnDef="status">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header status-header"
+                  ></th>
+                  <td mat-cell *matCellDef="let row" class="status-cell">
+                    <span
+                      class="status-dot"
+                      [class.unread-dot]="!row.read_at"
+                      [class.read-dot]="!!row.read_at"
+                      [matTooltip]="row.read_at ? 'Read' : 'Unread'"
+                    ></span>
+                  </td>
+                </ng-container>
+
+                <!-- Category Badge Column -->
+                <ng-container matColumnDef="category">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Category
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell">
+                    <span
+                      class="category-badge"
+                      [ngClass]="getNotificationCategoryClass(row)"
+                    >
+                      <span
+                        [mat-symbol]="getNotificationIcon(row)"
+                        class="badge-icon"
+                      ></span>
+                      <span>{{ getNotificationCategoryLabel(row) }}</span>
+                    </span>
+                  </td>
+                </ng-container>
+
+                <!-- Message Details Column -->
+                <ng-container matColumnDef="message">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header message-header"
+                  >
+                    Message
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell message-cell">
+                    <div class="message-content">
+                      <strong class="message-title">{{ row.data.title }}</strong>
+                      <span class="message-body">{{ row.data.message }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <!-- Received Date Column -->
+                <ng-container matColumnDef="received">
+                  <th mat-header-cell *matHeaderCellDef class="custom-header">
+                    Received
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell date-cell">
+                    {{ row.created_at | date: "MMM d, y, h:mm a" }}
+                  </td>
+                </ng-container>
+
+                <!-- Actions Column -->
+                <ng-container matColumnDef="actions">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="custom-header actions-header"
+                  >
+                    Actions
+                  </th>
+                  <td mat-cell *matCellDef="let row" class="custom-cell actions-cell">
+                    <div class="row-actions">
+                      @if (row.data.action_url) {
+                        <button
+                          mat-flat-button
+                          class="action-resolve-btn"
+                          (click)="onNotificationActionClick(row)"
+                          matTooltip="Navigate to relevant page"
+                        >
+                          <mat-icon>open_in_new</mat-icon>
+                          <span>Review</span>
+                        </button>
+                      }
+
+                      @if (!row.read_at) {
+                        <button
+                          mat-icon-button
+                          type="button"
+                          class="row-icon-btn"
+                          (click)="markNotificationAsRead(row)"
+                          matTooltip="Mark as read"
+                        >
+                          <mat-icon>mark_email_read</mat-icon>
+                        </button>
+                      }
+
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="row-icon-btn delete-icon-btn"
+                        (click)="deleteSingleNotification(row)"
+                        matTooltip="Delete notification"
+                      >
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </div>
+                  </td>
+                </ng-container>
+
+                <tr
+                  mat-header-row
+                  *matHeaderRowDef="notificationDisplayedColumns; sticky: true"
+                ></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: notificationDisplayedColumns"
+                  [class.unread-row]="!row.read_at"
+                ></tr>
+
+                <!-- No Data Row -->
+                <tr *matNoDataRow>
+                  <td
+                    class="no-data-cell"
+                    [attr.colspan]="notificationDisplayedColumns.length"
+                  >
+                    <div class="flex-cell">
+                      <div class="no-data-text">
+                        <span mat-symbol="notifications_off"></span>
+                        <span>
+                          No notifications found matching your filters.
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <mat-paginator
+                class="custom-paginator"
+                [length]="totalNotifications"
+                [pageSize]="notificationPageSize"
+                [pageSizeOptions]="[10, 15, 25, 50]"
+                [pageIndex]="notificationPage - 1"
+                (page)="onNotificationPageChange($event)"
+                showFirstLastButtons
+              ></mat-paginator>
+            }
+          </div>
+        </div>
+
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>

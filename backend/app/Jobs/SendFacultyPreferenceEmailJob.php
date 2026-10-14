@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Models\PreferencesSetting;
 use App\Models\Faculty;
+use App\Models\EmailDispatchLog;
 use App\Http\Controllers\PreferenceController;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,6 +25,8 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
     protected $individual_deadline;
     protected $global_deadline;
     protected $appUrl;
+    protected $dispatchedAt;
+    protected $dispatchLogId;
 
     public $tries = 3;
     public $timeout = 60;
@@ -32,12 +36,17 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
      *
      * @param int $facultyId The ID of the faculty member.
      * @param bool $is_individual Whether this is an individual deadline email.
+     * @param int|null $dispatchLogId Pre-created dispatch log ID if any.
      */
-    public function __construct(int $facultyId, $is_individual = false)
-    {
+    public function __construct(
+        int $facultyId,
+        $is_individual = false,
+        $dispatchLogId = null
+    ) {
         $this->facultyId     = $facultyId;
         $this->is_individual = $is_individual;
         $this->appUrl        = config('app.url');
+        $this->dispatchedAt  = Carbon::now();
 
         // Retrieve preference settings for the faculty.
         $settings = PreferencesSetting::where('faculty_id', $facultyId)
@@ -49,6 +58,27 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         } else {
             $this->individual_deadline = null;
             $this->global_deadline     = null;
+        }
+
+        if ($dispatchLogId) {
+            $this->dispatchLogId = $dispatchLogId;
+        } else {
+            $faculty = Faculty::with('user')->find($facultyId);
+            $email = $faculty?->user?->email ?? 'No email on file';
+            $name = $faculty?->user?->formatted_name
+                ?? ($faculty?->user?->name ?? 'Faculty Member');
+
+            $log = EmailDispatchLog::create([
+                'faculty_id'      => $this->facultyId,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'preference_toggle',
+                'status'          => 'queued',
+                'dispatched_at'   => $this->dispatchedAt,
+                'triggered_by'    => auth()->id(),
+            ]);
+
+            $this->dispatchLogId = $log->id;
         }
     }
 
@@ -70,10 +100,28 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 " because settings are disabled or faculty/user not found."
             );
 
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: Preferences disabled or ' .
+                        'faculty/user not found.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
             return;
         }
 
         $email = $previousPreferencesData['email'] ?? null;
+        $name = $previousPreferencesData['faculty_name'] ?? null;
+
+        if (!$name || $name === 'N/A') {
+            $faculty = Faculty::with('user')->find($this->facultyId);
+            $name = $faculty?->user?->formatted_name
+                ?? ($faculty?->user?->name ?? null);
+        }
+
+        $name = trim($name ?? '');
 
         if (!$email) {
             Log::warning(
@@ -81,6 +129,14 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 $this->facultyId .
                 " because email address is missing."
             );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: Email address is missing.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
 
             return;
         }
@@ -120,15 +176,57 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 }
             );
 
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'sent',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->facultyId,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'purpose'         => 'preference_toggle',
+                    'status'          => 'sent',
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
+
             Log::info(
                 'Preference submission email sent to ' . $email
             );
         } catch (\Exception $e) {
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'failed',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'error_message'   => $e->getMessage(),
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->facultyId,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'purpose'         => 'preference_toggle',
+                    'status'          => 'failed',
+                    'error_message'   => $e->getMessage(),
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
+
             Log::error(
                 'Failed to send email to ' . $email .
                 ' (faculty ID ' . $this->facultyId . '): ' .
                 $e->getMessage()
             );
+
+            $this->fail($e);
         }
     }
 
@@ -137,6 +235,14 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
+        if ($this->dispatchLogId) {
+            EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                'status'        => 'failed',
+                'error_message' => $exception->getMessage(),
+                'processed_at'  => Carbon::now(),
+            ]);
+        }
+
         Log::error(
             'SendFacultyPreferenceEmailJob permanently failed for' .
             ' faculty ID ' . $this->facultyId . ': ' .

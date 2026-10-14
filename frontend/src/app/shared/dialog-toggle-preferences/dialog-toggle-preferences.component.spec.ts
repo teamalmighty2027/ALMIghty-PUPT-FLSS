@@ -29,7 +29,9 @@ describe('DialogTogglePreferencesComponent', () => {
           provide: PreferencesService,
           useValue: jasmine.createSpyObj('PreferencesService', [
             'toggleAllPreferences',
-            'toggleSingleFacultyPreferences'
+            'toggleSingleFacultyPreferences',
+            'toggleMultipleFacultyPreferences',
+            'notifyFaculties'
           ])
         }
       ]

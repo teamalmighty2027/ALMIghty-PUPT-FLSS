@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Hash;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ActiveSemester;
+use App\Models\Preference;
+use App\Models\PreferencesSetting;
+use App\Jobs\AutoSubmitPreviousPreferencesJob;
 use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
@@ -116,6 +120,10 @@ class AuthController extends Controller
         // ← LOG LOGIN ACTION
         // ══════════════════════════════════════════════════════════
         AuditLogger::logLogin($loginUserData['email']);
+
+        if ($faculty) {
+            $this->checkAndTriggerFacultyPreferencesAutoSubmit($faculty->id);
+        }
 
         return response()->json([
             'message'    => 'Login successful.',
@@ -722,6 +730,12 @@ class AuthController extends Controller
             Auth::setUser($user);
             AuditLogger::logLogin($email);
 
+            if ($user->faculty) {
+                $this->checkAndTriggerFacultyPreferencesAutoSubmit(
+                    $user->faculty->id
+                );
+            }
+
             return response()->json([
                 'session'                 => true,
                 'requires_role_selection' => false,
@@ -822,5 +836,82 @@ class AuthController extends Controller
         return response()->json([
             'url' => $url,
         ]);
+    }
+
+    /**
+     * Checks eligibility and triggers historical preferences auto-submission
+     * when a faculty member logs in during an open submission period.
+     *
+     * @param int $facultyId
+     * @return void
+     */
+    private function checkAndTriggerFacultyPreferencesAutoSubmit(
+        int $facultyId
+    ): void {
+        try {
+            $activeSem = ActiveSemester::where('is_active', 1)->first();
+            if (!$activeSem) {
+                return;
+            }
+
+            $setting = PreferencesSetting::where(
+                'faculty_id',
+                $facultyId
+            )->first();
+
+            if (!$setting || !$setting->is_enabled) {
+                return;
+            }
+
+            $now = Carbon::now('Asia/Manila');
+
+            // Verify start date has been reached
+            $startDate = $setting->individual_start_date
+                ?? $setting->global_start_date;
+            if (
+                $startDate &&
+                $now->lessThan(Carbon::parse($startDate)->startOfDay())
+            ) {
+                return;
+            }
+
+            // Verify deadline has not passed
+            $deadline = $setting->individual_deadline
+                ?? $setting->global_deadline;
+            if (
+                $deadline &&
+                $now->greaterThan(Carbon::parse($deadline)->endOfDay())
+            ) {
+                return;
+            }
+
+            // Verify not already evaluated/injected this semester
+            if (
+                $setting->last_injected_active_semester_id ==
+                $activeSem->active_semester_id
+            ) {
+                return;
+            }
+
+            // Verify faculty does not already have preferences in active sem
+            $hasPreferences = Preference::where('faculty_id', $facultyId)
+                ->where('active_semester_id', $activeSem->active_semester_id)
+                ->where(function ($query) {
+                    $query->whereNotNull('course_assignment_id')
+                          ->orWhereNotNull('temporary_course_offering_id');
+                })
+                ->exists();
+
+            if ($hasPreferences) {
+                return;
+            }
+
+            AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
+        } catch (Exception $e) {
+            Log::error(
+                'Error in checkAndTriggerFacultyPreferencesAutoSubmit: ' .
+                $e->getMessage()
+            );
+        }
     }
 }

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\ActiveSemester;
 use App\Models\Faculty;
 use App\Models\Preference;
+use App\Models\PreferencesSetting;
 use App\Http\Controllers\PreferenceController;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -66,6 +67,36 @@ class AutoSubmitPreviousPreferencesJob implements ShouldQueue
      */
     protected function processFaculty($facultyId, $currentActiveSemester)
     {
+        $setting = PreferencesSetting::where('faculty_id', $facultyId)->first();
+        $activeSemId = $currentActiveSemester->active_semester_id;
+
+        if ($setting && $setting->last_injected_active_semester_id == $activeSemId) {
+            Log::info(
+                "Faculty {$facultyId} already evaluated for active semester " .
+                "{$activeSemId}. Skipping historical auto-submit."
+            );
+            return;
+        }
+
+        // Skip historical clone if faculty has preferences in active sem
+        $hasActivePreferences = Preference::where('faculty_id', $facultyId)
+            ->where('active_semester_id', $activeSemId)
+            ->where(function ($query) {
+                $query->whereNotNull('course_assignment_id')
+                      ->orWhereNotNull('temporary_course_offering_id');
+            })
+            ->exists();
+
+        if ($hasActivePreferences) {
+            Log::info(
+                "Faculty {$facultyId} already has preferences in active " .
+                "semester {$activeSemId}. Skipping historical auto-submit."
+            );
+
+            $this->markFacultyEvaluated($facultyId, $activeSemId);
+            return;
+        }
+
         // Join to find the latest past semester that MATCHES semester_id
         $latestPastSemesterId = Preference::join(
             'active_semesters',
@@ -74,11 +105,7 @@ class AutoSubmitPreviousPreferencesJob implements ShouldQueue
             'active_semesters.active_semester_id'
         )
         ->where('preferences.faculty_id', $facultyId)
-        ->where(
-            'preferences.active_semester_id',
-            '!=',
-            $currentActiveSemester->active_semester_id
-        )
+        ->where('preferences.active_semester_id', '!=', $activeSemId)
         ->where(
             'active_semesters.semester_id',
             $currentActiveSemester->semester_id
@@ -94,6 +121,7 @@ class AutoSubmitPreviousPreferencesJob implements ShouldQueue
 
         if (!$latestPastSemesterId) {
             Log::info("No past preferences found for faculty {$facultyId}.");
+            $this->markFacultyEvaluated($facultyId, $activeSemId);
             return;
         }
 
@@ -120,5 +148,17 @@ class AutoSubmitPreviousPreferencesJob implements ShouldQueue
                 $currentActiveSemester
             );
         }
+
+        $this->markFacultyEvaluated($facultyId, $activeSemId);
+    }
+
+    // Marks faculty preference setting as evaluated for the active semester
+    protected function markFacultyEvaluated(
+        int $facultyId,
+        int $activeSemesterId
+    ): void {
+        PreferencesSetting::where('faculty_id', $facultyId)->update([
+            'last_injected_active_semester_id' => $activeSemesterId,
+        ]);
     }
 }

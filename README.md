@@ -15,6 +15,7 @@ Streamlining the academic scheduling at PUP Taguig.
   - [Build Command](#build-command)
   - [Angular Tests](#angular-tests)
   - [Backend Artisan Commands](#backend-artisan-commands)
+- [Hosting](#hosting)
 - [External Integration Endpoints](#external-integration-endpoints)
 
 ---
@@ -191,6 +192,51 @@ The backend includes custom `php artisan` management commands:
   ```bash
   php artisan ml:export-dataset --all
   ```
+
+---
+
+## Hosting
+
+### 1. File & Directory Permissions
+
+Ensure the web server has appropriate write permissions to the storage
+and cache directories:
+
+```bash
+chmod -R 775 storage bootstrap/cache
+```
+
+### 2. Storage Setup
+
+Create the symbolic link to expose uploaded public assets.
+
+For standard environments:
+
+```bash
+php artisan storage:link
+```
+
+For shared hosting / cPanel environments with custom web root paths:
+
+```bash
+ln -s /path/to/backend/storage/app/public \
+  /path/to/public_html/flss/backend/public/storage
+```
+
+### 3. Cron Jobs & Background Workers
+
+Configure the server cron job to run the Laravel scheduler every minute:
+
+```cron
+* * * * * /usr/bin/php /path/to/backend/artisan schedule:run >> /dev/null 2>&1
+```
+
+Run the queue worker for background job processing (typically managed via
+Supervisor, systemd daemon, or scheduled task runner):
+
+```bash
+/usr/bin/php /path/to/backend/artisan queue:work
+```
 
 ---
 

@@ -376,4 +376,13 @@ export class AdminMainComponent implements OnInit, AfterViewInit, OnDestroy {
       this.unreadCount = 0;
     });
   }
-}
+
+  /**
+   * Navigate to the full dedicated Notification Center tab.
+   */
+  openNotificationCenter(): void {
+    this.router.navigate(['/admin/emails'], {
+      queryParams: { tab: 'notifications' },
+    });
+  }
+}

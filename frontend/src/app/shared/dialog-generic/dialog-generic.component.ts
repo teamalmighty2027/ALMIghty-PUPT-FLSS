@@ -34,7 +34,8 @@ export class DialogGenericComponent {
     this.dialogRef.close();
   }
 
+  // Closes dialog and passes the action identifier (or true if unspecified)
   onActionClick(action: string | undefined): void {
-    this.dialogRef.close(action);
+    this.dialogRef.close(action ?? true);
   }
 }

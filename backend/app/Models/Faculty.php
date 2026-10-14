@@ -73,6 +73,12 @@ class Faculty extends Authenticatable
         return $this->hasOne(PreferencesSetting::class);
     }
 
+    // Alias for preferenceSetting to maintain naming compatibility
+    public function preferencesSetting()
+    {
+        return $this->preferenceSetting();
+    }
+
     public function schedulePublications()
     {
         return $this->hasMany(FacultySchedulePublication::class, 'faculty_id', 'id');

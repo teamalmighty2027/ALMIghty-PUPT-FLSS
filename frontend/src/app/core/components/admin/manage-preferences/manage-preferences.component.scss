@@ -22,6 +22,63 @@
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-level-1);
 
+  .multi-select-bar {
+    background-color: var(--neutral-light);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-bottom: 1px solid var(--mat-table-row-item-outline-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    .batch-actions-container {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+
+      .selected-count {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        color: var(--primary-one);
+        margin-right: var(--spacing-xs);
+      }
+
+      .batch-action-btn {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-xs);
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-xxs) var(--spacing-sm);
+        border-radius: var(--border-radius-xl);
+
+        mat-icon {
+          font-size: 18px;
+          height: 18px;
+          width: 18px;
+        }
+
+        &.enable-btn {
+          background-color: var(--green-fade);
+          color: var(--green-primary);
+        }
+
+        &.disable-btn {
+          background-color: var(--primary-fade);
+          color: var(--primary-one);
+        }
+
+        &.notify-btn {
+          background-color: var(--blue-fade-lighter);
+          color: var(--blue-primary);
+        }
+
+        &.cancel-btn {
+          color: var(--secondary-text);
+        }
+      }
+    }
+  }
+
   .table-container {
     @include mixins.hide-scrollbar;
     display: flex;
@@ -48,6 +105,13 @@
 
     .index {
       padding: 0 var(--spacing-md);
+      text-align: center;
+    }
+
+    .checkbox-header,
+    .checkbox-cell {
+      width: 48px;
+      padding: 0 var(--spacing-xs);
       text-align: center;
     }
 
@@ -146,6 +210,14 @@
       }
 
       .export-button {
+        color: var(--secondary-text);
+
+        &:hover {
+          background-color: var(--secondary-hover) !important;
+        }
+      }
+
+      .notify-button {
         color: var(--secondary-text);
 
         &:hover {

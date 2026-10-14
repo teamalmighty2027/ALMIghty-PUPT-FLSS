@@ -5,7 +5,11 @@ import { FormsModule } from '@angular/forms';
 import { of, Observable } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialogRef,
+  MatDialogModule,
+} from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -13,13 +17,31 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule, DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, NativeDateAdapter } from '@angular/material/core';
+import {
+  MatNativeDateModule,
+  DateAdapter,
+  MAT_DATE_FORMATS,
+  MAT_DATE_LOCALE,
+  NativeDateAdapter,
+} from '@angular/material/core';
 
 import { PreferencesService } from '../../core/services/faculty/preference/preferences.service';
 
+export interface AvailableFaculty {
+  faculty_id: number;
+  facultyName: string;
+  facultyCode: string;
+  is_enabled: boolean;
+}
+
 export interface DialogTogglePreferencesData {
-  type: 'all_preferences' | 'single_preferences' | 'single_appeal';
+  type:
+    | 'all_preferences'
+    | 'single_preferences'
+    | 'batch_preferences'
+    | 'single_appeal';
   currentState: boolean;
   academicYear?: string;
   semester?: string;
@@ -31,6 +53,9 @@ export interface DialogTogglePreferencesData {
   faculty_id?: number;
   hasIndividualDeadlines?: boolean;
   hasSecondaryText?: boolean;
+  availableFaculties?: AvailableFaculty[];
+  preselectedFacultyIds?: number[];
+  batchAction?: 'enable' | 'disable';
 }
 
 @Injectable()
@@ -71,6 +96,7 @@ export const MY_DATE_FORMATS = {
     MatNativeDateModule,
     MatFormFieldModule,
     MatInputModule,
+    MatIconModule,
     MatSymbolDirective,
   ],
   providers: [
@@ -109,6 +135,10 @@ export class DialogTogglePreferencesComponent {
 
   isPreferencesScheduled = false;
 
+  applyMode: 'all' | 'selected' = 'all';
+  selectedFacultyIds = new Set<number>();
+  facultySearchQuery: string = '';
+
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DialogTogglePreferencesData,
     private dialogRef: MatDialogRef<DialogTogglePreferencesComponent>,
@@ -116,6 +146,15 @@ export class DialogTogglePreferencesComponent {
     private preferencesService: PreferencesService
   ) {
     this.initializeDialogContent();
+
+    if (this.data.preselectedFacultyIds?.length) {
+      this.data.preselectedFacultyIds.forEach((id) =>
+        this.selectedFacultyIds.add(id)
+      );
+      this.applyMode = 'selected';
+    } else if (this.data.type === 'batch_preferences') {
+      this.applyMode = 'selected';
+    }
 
     if (this.data.type === 'all_preferences') {
       this.submissionDeadline = this.data.global_deadline || null;
@@ -125,13 +164,29 @@ export class DialogTogglePreferencesComponent {
       this.startDate = this.data.global_start_date || null;
       this.showStartDatePicker = true;
       this.calculateRemainingDaysStart();
+    } else if (this.data.type === 'batch_preferences') {
+      const isDisable = this.data.batchAction === 'disable';
+      this.submissionDeadline = this.data.individual_deadline || null;
+      this.showDeadlinePicker = !isDisable;
+      this.startDate = this.data.individual_start_date || null;
+      this.showStartDatePicker = !isDisable;
+      if (!isDisable) {
+        this.calculateRemainingDays();
+        this.calculateRemainingDaysStart();
+      }
     } else if (this.data.type === 'single_preferences') {
-      this.submissionDeadline = this.data.individual_deadline || this.data.global_deadline || null;
+      this.submissionDeadline =
+        this.data.individual_deadline ||
+        this.data.global_deadline ||
+        null;
       this.facultyName = this.data.facultyName || '';
       this.showDeadlinePicker = true;
       this.calculateRemainingDays();
 
-      this.startDate = this.data.individual_start_date || this.data.global_start_date || null;
+      this.startDate =
+        this.data.individual_start_date ||
+        this.data.global_start_date ||
+        null;
       this.showStartDatePicker = true;
       this.calculateRemainingDaysStart();
     } else if (this.data.type === 'single_appeal') {
@@ -148,12 +203,20 @@ export class DialogTogglePreferencesComponent {
     if (this.startDate) this.calculateRemainingDaysStart();
 
     this.hasIndividualDeadlines = this.data.hasIndividualDeadlines || false;
-    this.isPreferencesScheduled = Boolean(this.data.global_start_date || this.data.individual_start_date) && !this.data.currentState;
+    const hasScheduledDate = Boolean(
+      this.data.global_start_date || this.data.individual_start_date
+    );
+    this.isPreferencesScheduled =
+      hasScheduledDate && !this.data.currentState;
   }
 
   ngOnInit(): void {
-    if (this.data.global_start_date) this.startDate = new Date(this.data.global_start_date);
-    if (this.data.global_deadline) this.endDate = new Date(this.data.global_deadline);
+    if (this.data.global_start_date) {
+      this.startDate = new Date(this.data.global_start_date);
+    }
+    if (this.data.global_deadline) {
+      this.endDate = new Date(this.data.global_deadline);
+    }
   }
 
   private initializeDialogContent(): void {
@@ -162,6 +225,15 @@ export class DialogTogglePreferencesComponent {
         this.dialogTitle = 'Faculty Preferences Submission';
         this.actionText = this.data.currentState ? 'Disable' : 'Enable';
         this.showEmailOption = !this.data.currentState;
+        break;
+      case 'batch_preferences':
+        this.dialogTitle = 'Batch Faculty Preferences';
+        this.actionText =
+          this.data.batchAction === 'disable' ? 'Disable' : 'Enable';
+        this.showEmailOption =
+          !this.data.currentState && this.data.batchAction !== 'disable';
+        this.showDeadlinePicker = this.data.batchAction !== 'disable';
+        this.showStartDatePicker = this.data.batchAction !== 'disable';
         break;
       case 'single_preferences':
         this.dialogTitle = `Faculty Preferences Submission`;
@@ -179,68 +251,230 @@ export class DialogTogglePreferencesComponent {
     }
   }
 
-  confirmAction(): void {
-    if (this.showStartDatePicker && !this.startDate && !this.data.currentState) {
-      this.snackBar.open('Please select a start date.', 'Close', { duration: this.SNACKBAR_DURATION });
+  // Returns array of faculty objects corresponding to selectedFacultyIds
+  getSelectedFaculties(): AvailableFaculty[] {
+    if (!this.data.availableFaculties) {
+      return [];
+    }
+
+    return this.data.availableFaculties.filter((f) =>
+      this.selectedFacultyIds.has(f.faculty_id)
+    );
+  }
+
+  // Checks if multiple faculties were already selected before opening dialog
+  get hasMultiplePreselected(): boolean {
+    return (
+      (this.data.preselectedFacultyIds?.length ?? 0) > 1 ||
+      this.data.type === 'batch_preferences'
+    );
+  }
+
+  // Filters available faculties based on search query
+  getFilteredFaculties(): AvailableFaculty[] {
+    const list = this.data.availableFaculties || [];
+    if (!this.facultySearchQuery.trim()) {
+      return list;
+    }
+
+    const q = this.facultySearchQuery.toLowerCase();
+    return list.filter(
+      (f) =>
+        f.facultyName.toLowerCase().includes(q) ||
+        f.facultyCode.toLowerCase().includes(q)
+    );
+  }
+
+  // Checks if a specific faculty is selected
+  isFacultySelected(id: number): boolean {
+    return this.selectedFacultyIds.has(id);
+  }
+
+  // Toggles selection for a single faculty
+  toggleFacultySelection(id: number): void {
+    if (this.selectedFacultyIds.has(id)) {
+      this.selectedFacultyIds.delete(id);
+    } else {
+      this.selectedFacultyIds.add(id);
+    }
+  }
+
+  // Checks if all visible filtered faculties are selected
+  isAllFilteredSelected(): boolean {
+    const filtered = this.getFilteredFaculties();
+    if (!filtered.length) return false;
+    return filtered.every((f) => this.selectedFacultyIds.has(f.faculty_id));
+  }
+
+  // Selects or deselects all filtered faculties
+  toggleSelectAllFiltered(checked: boolean): void {
+    const filtered = this.getFilteredFaculties();
+    filtered.forEach((f) => {
+      if (checked) {
+        this.selectedFacultyIds.add(f.faculty_id);
+      } else {
+        this.selectedFacultyIds.delete(f.faculty_id);
+      }
+    });
+  }
+
+  // Sends reminder notification email without closing active deadline
+  sendReminderEmail(): void {
+    let targetIds: number[] = [];
+
+    if (this.data.type === 'single_preferences' && this.data.faculty_id) {
+      targetIds = [this.data.faculty_id];
+    } else if (this.data.availableFaculties?.length) {
+      targetIds = this.data.availableFaculties
+        .filter((f) => f.is_enabled)
+        .map((f) => f.faculty_id);
+    }
+
+    if (!targetIds.length) {
+      this.snackBar.open('No enabled faculty found to notify.', 'Close', {
+        duration: this.SNACKBAR_DURATION,
+      });
       return;
     }
 
-    if (this.showDeadlinePicker && !this.submissionDeadline && !this.data.currentState) {
-      this.snackBar.open('Please select a submission deadline.', 'Close', { duration: this.SNACKBAR_DURATION });
+    this.isProcessing = true;
+
+    this.preferencesService
+      .notifyFaculties(targetIds)
+      .pipe(
+        finalize(() => {
+          this.isProcessing = false;
+        })
+      )
+      .subscribe({
+        next: (res) => {
+          const count = res?.notified_count ?? targetIds.length;
+          this.snackBar.open(
+            `Email reminder dispatched to ${count} faculty member(s).`,
+            'Close',
+            { duration: this.SNACKBAR_DURATION }
+          );
+          this.dialogRef.close(true);
+        },
+        error: (err) => {
+          console.error('Failed to dispatch reminder emails:', err);
+          this.snackBar.open(
+            'Failed to dispatch reminder emails.',
+            'Close',
+            { duration: this.SNACKBAR_DURATION }
+          );
+        },
+      });
+  }
+
+  confirmAction(): void {
+    const isBatchOrSelected =
+      this.applyMode === 'selected' ||
+      this.data.type === 'batch_preferences';
+
+    if (isBatchOrSelected && this.selectedFacultyIds.size === 0) {
+      this.snackBar.open(
+        'Please select at least one faculty member.',
+        'Close',
+        { duration: this.SNACKBAR_DURATION }
+      );
+      return;
+    }
+
+    if (
+      this.showStartDatePicker &&
+      !this.startDate &&
+      !this.data.currentState
+    ) {
+      this.snackBar.open('Please select a start date.', 'Close', {
+        duration: this.SNACKBAR_DURATION,
+      });
+      return;
+    }
+
+    if (
+      this.showDeadlinePicker &&
+      !this.submissionDeadline &&
+      !this.data.currentState
+    ) {
+      this.snackBar.open('Please select a submission deadline.', 'Close', {
+        duration: this.SNACKBAR_DURATION,
+      });
       return;
     }
 
     this.isProcessing = true;
     let operation$: Observable<any>;
 
-    switch (this.data.type) {
-      case 'all_preferences':
-        operation$ = this.handleAllPreferencesOperation();
-        break;
-      case 'single_preferences':
-        operation$ = this.handleSinglePreferenceOperation();
-        break;
-      case 'single_appeal':
-        const newStatus = !this.data.currentState;
-        let formattedStartDate: string | null = null;
-        let formattedDeadline: string | null = null;
+    if (isBatchOrSelected) {
+      operation$ = this.handleBatchPreferencesOperation();
+    } else {
+      switch (this.data.type) {
+        case 'all_preferences':
+          operation$ = this.handleAllPreferencesOperation();
+          break;
+        case 'single_preferences':
+          operation$ = this.handleSinglePreferenceOperation();
+          break;
+        case 'single_appeal':
+          const newStatus = !this.data.currentState;
+          let formattedStartDate: string | null = null;
+          let formattedDeadline: string | null = null;
 
-        if (newStatus && this.startDate) {
-          const date = new Date(this.startDate);
-          date.setHours(0, 0, 0, 0);
-          formattedStartDate = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
-        }
+          if (newStatus && this.startDate) {
+            const date = new Date(this.startDate);
+            date.setHours(0, 0, 0, 0);
+            formattedStartDate = formatDate(
+              date,
+              'yyyy-MM-dd HH:mm:ss',
+              'en-US'
+            );
+          }
 
-        if (newStatus && this.submissionDeadline) {
-          const date = new Date(this.submissionDeadline);
-          date.setHours(23, 59, 59, 999);
-          formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
-        }
-        
-        // Return object directly so overview dashboard can use it
-        operation$ = of({
-          startDate: formattedStartDate,
-          endDate: formattedDeadline,
-          sendEmail: this.sendEmail
-        });
-        break;
-      default:
-        operation$ = of(null);
+          if (newStatus && this.submissionDeadline) {
+            const date = new Date(this.submissionDeadline);
+            date.setHours(23, 59, 59, 999);
+            formattedDeadline = formatDate(
+              date,
+              'yyyy-MM-dd HH:mm:ss',
+              'en-US'
+            );
+          }
+          
+          // Return object directly so overview dashboard can use it
+          operation$ = of({
+            startDate: formattedStartDate,
+            endDate: formattedDeadline,
+            sendEmail: this.sendEmail
+          });
+          break;
+        default:
+          operation$ = of(null);
+      }
     }
 
     operation$
-      .pipe(finalize(() => { this.isProcessing = false; }))
+      .pipe(
+        finalize(() => {
+          this.isProcessing = false;
+        })
+      )
       .subscribe({
         next: (res) => {
           if (this.data.type !== 'single_appeal') {
-             this.snackBar.open(this.getSuccessMessage(), 'Close', { duration: this.SNACKBAR_DURATION });
+            this.snackBar.open(this.getSuccessMessage(), 'Close', {
+              duration: this.SNACKBAR_DURATION,
+            });
           }
-          // Pass the generated object back if it's an appeal, otherwise standard true boolean
-          this.dialogRef.close(this.data.type === 'single_appeal' ? res : true);
+          this.dialogRef.close(
+            this.data.type === 'single_appeal' ? res : true
+          );
         },
         error: (error) => {
           console.error('Operation failed:', error);
-          this.snackBar.open(this.getErrorMessage(), 'Close', { duration: this.SNACKBAR_DURATION });
+          this.snackBar.open(this.getErrorMessage(), 'Close', {
+            duration: this.SNACKBAR_DURATION,
+          });
           this.dialogRef.close(false);
         },
       });
@@ -298,26 +532,81 @@ export class DialogTogglePreferencesComponent {
     let successMessage = '';
 
     if (this.data.type === 'all_preferences') {
-      operation$ = this.preferencesService.toggleAllPreferences(false, null, null, false);
+      operation$ = this.preferencesService.toggleAllPreferences(
+        false,
+        null,
+        null,
+        false
+      );
       successMessage = 'Scheduled submission canceled successfully.';
     } else if (this.data.type === 'single_preferences') {
-      operation$ = this.preferencesService.toggleSingleFacultyPreferences(this.data.faculty_id!, false, null, null, false);
-      successMessage = `Scheduled submission for ${this.data.facultyName} canceled successfully.`;
+      operation$ =
+        this.preferencesService.toggleSingleFacultyPreferences(
+          this.data.faculty_id!,
+          false,
+          null,
+          null,
+          false
+        );
+      successMessage =
+        `Scheduled submission for ${this.data.facultyName} ` +
+        `canceled successfully.`;
     } else {
       operation$ = of(null);
     }
 
-    operation$.pipe(finalize(() => { this.isProcessing = false; })).subscribe({
-      next: () => {
-        this.snackBar.open(successMessage, 'Close', { duration: this.SNACKBAR_DURATION });
-        this.dialogRef.close(true);
-      },
-      error: (error) => {
-        console.error('Operation failed:', error);
-        this.snackBar.open('Failed to cancel scheduled submission.', 'Close', { duration: this.SNACKBAR_DURATION });
-        this.dialogRef.close(false);
-      },
-    });
+    operation$
+      .pipe(
+        finalize(() => {
+          this.isProcessing = false;
+        })
+      )
+      .subscribe({
+        next: () => {
+          this.snackBar.open(successMessage, 'Close', {
+            duration: this.SNACKBAR_DURATION,
+          });
+          this.dialogRef.close(true);
+        },
+        error: (error) => {
+          console.error('Operation failed:', error);
+          this.snackBar.open(
+            'Failed to cancel scheduled submission.',
+            'Close',
+            { duration: this.SNACKBAR_DURATION }
+          );
+          this.dialogRef.close(false);
+        },
+      });
+  }
+
+  // Handles toggling preferences for a selected batch of faculty members
+  private handleBatchPreferencesOperation(): Observable<any> {
+    const newStatus =
+      this.data.batchAction === 'disable' ? false : !this.data.currentState;
+    let formattedStartDate: string | null = null;
+    let formattedDeadline: string | null = null;
+
+    if (newStatus && this.startDate) {
+      const date = new Date(this.startDate);
+      date.setHours(0, 0, 0, 0);
+      formattedStartDate = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
+    }
+
+    if (newStatus && this.submissionDeadline) {
+      const date = new Date(this.submissionDeadline);
+      date.setHours(23, 59, 59, 999);
+      formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
+    }
+
+    const ids = Array.from(this.selectedFacultyIds);
+    return this.preferencesService.toggleMultipleFacultyPreferences(
+      ids,
+      newStatus,
+      formattedDeadline,
+      formattedStartDate,
+      this.sendEmail
+    );
   }
 
   private handleAllPreferencesOperation(): Observable<any> {
@@ -337,7 +626,12 @@ export class DialogTogglePreferencesComponent {
       formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
 
-    return this.preferencesService.toggleAllPreferences(newStatus, formattedDeadline, formattedStartDate, this.sendEmail);
+    return this.preferencesService.toggleAllPreferences(
+      newStatus,
+      formattedDeadline,
+      formattedStartDate,
+      this.sendEmail
+    );
   }
 
   private handleSinglePreferenceOperation(): Observable<any> {
@@ -355,7 +649,13 @@ export class DialogTogglePreferencesComponent {
       formattedDeadline = formatDate(date, 'yyyy-MM-dd HH:mm:ss', 'en-US');
     }
 
-    return this.preferencesService.toggleSingleFacultyPreferences(this.data.faculty_id!, newStatus, formattedDeadline, formattedStartDate, this.sendEmail);
+    return this.preferencesService.toggleSingleFacultyPreferences(
+      this.data.faculty_id!,
+      newStatus,
+      formattedDeadline,
+      formattedStartDate,
+      this.sendEmail
+    );
   }
 
   public getStartDateDescription(): string {
@@ -375,9 +675,20 @@ export class DialogTogglePreferencesComponent {
   private getSuccessMessage(): string {
     switch (this.data.type) {
       case 'all_preferences':
-        return `Preferences submission for all faculty ${!this.data.currentState ? 'updated' : 'disabled'} successfully.${this.sendEmail ? ' Email sent.' : ''}`;
+        return `Preferences submission for all faculty ${
+          !this.data.currentState ? 'updated' : 'disabled'
+        } successfully.${this.sendEmail ? ' Email sent.' : ''}`;
+      case 'batch_preferences':
+        const batchVerb =
+          this.data.batchAction === 'disable' || this.data.currentState
+            ? 'disabled'
+            : 'updated';
+        return `Preferences submission for selected faculty ${batchVerb} ` +
+          `successfully.${this.sendEmail ? ' Email sent.' : ''}`;
       case 'single_preferences':
-        return `Preferences submission for ${this.facultyName} ${!this.data.currentState ? 'updated' : 'disabled'} successfully.${this.sendEmail ? ' Email sent.' : ''}`;
+        return `Preferences submission for ${this.facultyName} ${
+          !this.data.currentState ? 'updated' : 'disabled'
+        } successfully.${this.sendEmail ? ' Email sent.' : ''}`;
       default:
         return 'Operation completed successfully.';
     }
@@ -386,9 +697,15 @@ export class DialogTogglePreferencesComponent {
   private getErrorMessage(): string {
     switch (this.data.type) {
       case 'all_preferences':
-        return `Failed to ${!this.data.currentState ? 'enable' : 'disable'} preferences for all faculty.`;
+        return `Failed to ${
+          !this.data.currentState ? 'enable' : 'disable'
+        } preferences for all faculty.`;
+      case 'batch_preferences':
+        return `Failed to update preferences for selected faculty.`;
       case 'single_preferences':
-        return `Failed to ${!this.data.currentState ? 'enable' : 'disable'} preferences for ${this.facultyName}.`;
+        return `Failed to ${
+          !this.data.currentState ? 'enable' : 'disable'
+        } preferences for ${this.facultyName}.`;
       default:
         return 'Operation failed.';
     }
