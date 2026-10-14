@@ -87,7 +87,7 @@ class ManageFacultyPreferencesCommand extends Command
     {
         $semId = $activeSemester->active_semester_id;
 
-        $faculties = Faculty::with(['user', 'preferencesSetting'])
+        $faculties = Faculty::with(['user', 'preferenceSetting'])
             ->whereHas('preferences', function ($q) use ($semId) {
                 $q->where('active_semester_id', $semId);
             })
@@ -122,7 +122,7 @@ class ManageFacultyPreferencesCommand extends Command
             $totalCount = $prefs->count();
             $autoCount = $prefs->where('is_auto_submitted', true)->count();
 
-            $setting = $faculty->preferencesSetting;
+            $setting = $faculty->preferenceSetting;
             $status = $this->resolveWindowStatus($setting);
             $evaluated = ($setting &&
                 $setting->last_injected_active_semester_id == $semId)
@@ -152,7 +152,7 @@ class ManageFacultyPreferencesCommand extends Command
     {
         $semId = $activeSemester->active_semester_id;
 
-        $faculty = Faculty::with(['user', 'preferencesSetting'])
+        $faculty = Faculty::with(['user', 'preferenceSetting'])
             ->find($facultyId);
 
         if (!$faculty) {
@@ -193,7 +193,7 @@ class ManageFacultyPreferencesCommand extends Command
                 "Clear evaluated tracker to allow auto-load on next login?",
                 true
             )) {
-                $faculty->preferencesSetting()?->update([
+                $faculty->preferenceSetting()?->update([
                     'last_injected_active_semester_id' => null,
                 ]);
                 $this->info("Reset evaluated tracker for {$facultyName}.");
