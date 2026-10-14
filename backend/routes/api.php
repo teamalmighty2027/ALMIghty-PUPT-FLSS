@@ -507,6 +507,12 @@ Route::middleware([
     Route::patch('/preferences/toggle', [
         PreferenceController::class, 'toggleAllPreferences'
     ]);
+    Route::patch('/preferences/batch-toggle', [
+        PreferenceController::class, 'toggleBatchPreferences'
+    ]);
+    Route::post('/preferences/notify', [
+        PreferenceController::class, 'notifyFacultyPreferences'
+    ]);
     Route::patch('/preferences/{faculty_id}/toggle', [
         PreferenceController::class, 'toggleSinglePreferences'
     ]);

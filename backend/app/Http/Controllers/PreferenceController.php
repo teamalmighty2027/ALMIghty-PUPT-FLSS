@@ -1275,65 +1275,78 @@ class PreferenceController extends Controller
         $previous_semester_label = '';
 
         if ($currentActiveSemester) {
-            // Join to find the latest past semester that MATCHES semester_id
-            $latestPastSemesterId = Preference::join(
-                'active_semesters',
-                'preferences.active_semester_id',
-                '=',
-                'active_semesters.active_semester_id'
-            )
-            ->where('preferences.faculty_id', $facultyId)
-            ->where(
-                'preferences.active_semester_id',
-                '!=',
-                $currentActiveSemester->active_semester_id
-            )
-            ->where(
-                'active_semesters.semester_id',
-                $currentActiveSemester->semester_id
-            )
-            ->where(function ($query) {
-                $query->whereNotNull('preferences.course_assignment_id')
-                      ->orWhereNotNull(
-                          'preferences.temporary_course_offering_id'
-                      );
-            })
-            ->orderBy('preferences.active_semester_id', 'desc')
-            ->value('preferences.active_semester_id');
-
-            if ($latestPastSemesterId) {
-                // Eager load everything needed for the UI table
-                $previousPreferences = Preference::with([
-                    'courseAssignment.course',
-                    'courseAssignment.curriculaProgram.program',
-                    'temporaryCourseOffering.course',
-                    'temporaryCourseOffering.program',
-                    'preferenceDays',
-                    'section'
-                ])
-                ->where('faculty_id', $facultyId)
-                ->where('active_semester_id', $latestPastSemesterId)
+            // Check if faculty already has preferences for the active semester
+            $hasActivePreferences = Preference::where('faculty_id', $facultyId)
+                ->where(
+                    'active_semester_id',
+                    $currentActiveSemester->active_semester_id
+                )
                 ->where(function ($query) {
                     $query->whereNotNull('course_assignment_id')
                           ->orWhereNotNull('temporary_course_offering_id');
                 })
-                ->get();
+                ->exists();
 
+            if (!$hasActivePreferences) {
+                // Join to find the latest past semester that MATCHES semester_id
+                $latestPastSemesterId = Preference::join(
+                    'active_semesters',
+                    'preferences.active_semester_id',
+                    '=',
+                    'active_semesters.active_semester_id'
+                )
+                ->where('preferences.faculty_id', $facultyId)
+                ->where(
+                    'preferences.active_semester_id',
+                    '!=',
+                    $currentActiveSemester->active_semester_id
+                )
+                ->where(
+                    'active_semesters.semester_id',
+                    $currentActiveSemester->semester_id
+                )
+                ->where(function ($query) {
+                    $query->whereNotNull('preferences.course_assignment_id')
+                          ->orWhereNotNull(
+                              'preferences.temporary_course_offering_id'
+                          );
+                })
+                ->orderBy('preferences.active_semester_id', 'desc')
+                ->value('preferences.active_semester_id');
 
-                $pastActiveSemester = ActiveSemester::with([
-                    'academicYear',
-                    'semester'
-                ])->find($latestPastSemesterId);
+                if ($latestPastSemesterId) {
+                    // Eager load everything needed for the UI table
+                    $previousPreferences = Preference::with([
+                        'courseAssignment.course',
+                        'courseAssignment.curriculaProgram.program',
+                        'temporaryCourseOffering.course',
+                        'temporaryCourseOffering.program',
+                        'preferenceDays',
+                        'section'
+                    ])
+                    ->where('faculty_id', $facultyId)
+                    ->where('active_semester_id', $latestPastSemesterId)
+                    ->where(function ($query) {
+                        $query->whereNotNull('course_assignment_id')
+                              ->orWhereNotNull('temporary_course_offering_id');
+                    })
+                    ->get();
 
-                if ($pastActiveSemester && $pastActiveSemester->academicYear) {
-                    $previous_academic_year =
-                        $pastActiveSemester->academicYear->year_start .
-                        '-' .
-                        $pastActiveSemester->academicYear->year_end;
-                  $semId = $pastActiveSemester->semester_id;
-                  $previous_semester_label = 
-                    $semId == 1 ? '1st Semester' : 
-                    ($semId == 2 ? '2nd Semester' : 'Summer Semester');
+                    $pastActiveSemester = ActiveSemester::with([
+                        'academicYear',
+                        'semester'
+                    ])->find($latestPastSemesterId);
+
+                    if ($pastActiveSemester && $pastActiveSemester->academicYear) {
+                        $previous_academic_year =
+                            $pastActiveSemester->academicYear->year_start .
+                            '-' .
+                            $pastActiveSemester->academicYear->year_end;
+                        $semId = $pastActiveSemester->semester_id;
+                        $previous_semester_label = 
+                            $semId == 1 ? '1st Semester' : 
+                            ($semId == 2 ? '2nd Semester' : 'Summer Semester');
+                    }
                 }
             }
         }
@@ -1360,6 +1373,22 @@ class PreferenceController extends Controller
         $previousPreferences,
         $currentActiveSemester
     ) {
+        // Do not copy historical preferences if active preferences exist
+        $hasActivePreferences = Preference::where('faculty_id', $facultyId)
+            ->where(
+                'active_semester_id',
+                $currentActiveSemester->active_semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('course_assignment_id')
+                      ->orWhereNotNull('temporary_course_offering_id');
+            })
+            ->exists();
+
+        if ($hasActivePreferences) {
+            return;
+        }
+
         $curriculumId = AcademicYearCurricula::where(
             'academic_year_id',
             $currentActiveSemester->academic_year_id
@@ -1884,6 +1913,17 @@ class PreferenceController extends Controller
         $oldSettings = PreferencesSetting::where('faculty_id', $faculty_id)->first();
         $oldData = $oldSettings ? $oldSettings->toArray() : [];
 
+        // Disallow individual toggle if global deadline is set
+        $hasGlobalDeadline = PreferencesSetting::whereNotNull('global_deadline')
+            ->exists();
+
+        if ($hasGlobalDeadline) {
+            return response()->json([
+                'message' => 'Individual preference toggles are disabled ' .
+                    'while a global deadline is set.',
+            ], 422);
+        }
+
         DB::beginTransaction();
 
         try {
@@ -1996,6 +2036,198 @@ class PreferenceController extends Controller
             'individual_deadline'   => $validated['individual_deadline'],
             'individual_start_date' => $validated['individual_start_date'],
             'updated_preference'    => PreferencesSetting::where('faculty_id', $validated['faculty_id'])->first(),
+        ], 200);
+    }
+
+    /**
+     * Toggles preference settings for a selected subset of faculty members.
+     */
+    public function toggleBatchPreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'faculty_ids'           => 'required|array|min:1',
+            'faculty_ids.*'         => 'integer|exists:faculty,id',
+            'status'                => 'required|boolean',
+            'individual_deadline'   => 'nullable|date',
+            'individual_start_date' => 'nullable|date',
+            'send_email'            => 'required|boolean',
+        ]);
+
+        $facultyIds = $validated['faculty_ids'];
+        $status     = $validated['status'];
+        $sendEmail  = $validated['send_email'];
+
+        // Disallow batch toggle if global deadline is set
+        $hasGlobalDeadline = PreferencesSetting::whereNotNull('global_deadline')
+            ->exists();
+
+        if ($hasGlobalDeadline) {
+            return response()->json([
+                'message' => 'Individual preference toggles are disabled ' .
+                    'while a global deadline is set.',
+            ], 422);
+        }
+
+        $individualDeadline = $status && $validated['individual_deadline']
+            ? Carbon::parse($validated['individual_deadline'])->endOfDay()
+            : null;
+
+        $individualStartDate = $status && $validated['individual_start_date']
+            ? Carbon::parse($validated['individual_start_date'])->startOfDay()
+            : null;
+
+        $currentDate = Carbon::now();
+        $finalStatus = false;
+
+        if ($status) {
+            $finalStatus = $individualStartDate
+                ? $individualStartDate->lessThanOrEqualTo($currentDate)
+                : true;
+        }
+
+        DB::beginTransaction();
+
+        try {
+            foreach ($facultyIds as $facultyId) {
+                $setting = PreferencesSetting::firstOrCreate(
+                    ['faculty_id' => $facultyId],
+                    [
+                        'has_request'           => 0,
+                        'is_enabled'            => 0,
+                        'global_deadline'       => null,
+                        'individual_deadline'   => null,
+                        'global_start_date'     => null,
+                        'individual_start_date' => null,
+                    ]
+                );
+
+                $setting->update([
+                    'is_enabled'            => $finalStatus,
+                    'individual_deadline'   => $individualDeadline,
+                    'individual_start_date' => $individualStartDate,
+                    'global_deadline'       => null,
+                    'global_start_date'     => null,
+                    'has_request'           => 0,
+                    'updated_at'            => now(),
+                ]);
+
+                if ($sendEmail) {
+                    $faculty = Faculty::find($facultyId);
+                    if ($faculty) {
+                        if ($finalStatus) {
+                            SendFacultyPreferenceEmailJob::dispatch(
+                                $facultyId,
+                                true
+                            );
+                        } else if ($individualStartDate) {
+                            SendFacultyPreferenceEmailJob::dispatch(
+                                $facultyId,
+                                true
+                            )->delay($individualStartDate);
+                        }
+                    }
+                }
+            }
+
+            // Clear schedule publications for the active semester
+            $activeSemester = ActiveSemester::where('is_active', 1)->first();
+            if ($activeSemester) {
+                DB::table('faculty_schedule_publication')
+                    ->where(
+                        'academic_year_id',
+                        $activeSemester->academic_year_id
+                    )
+                    ->where('semester_id', $activeSemester->semester_id)
+                    ->update([
+                        'is_published' => 0,
+                        'updated_at'   => now(),
+                    ]);
+            }
+
+            DB::commit();
+
+            if ($status) {
+                foreach ($facultyIds as $facultyId) {
+                    AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
+                }
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed batch toggle preferences: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'An error occurred while updating settings.',
+            ], 500);
+        }
+
+        $statusText = $status ? 'Enabled' : 'Disabled';
+        AuditLogger::logUpdate(
+            model: 'PreferencesSetting',
+            modelId: 0,
+            oldData: [],
+            newData: [
+                'faculty_ids' => $facultyIds,
+                'status'      => $statusText,
+                'deadline'    => $validated['individual_deadline'],
+            ],
+            description: "Batch updated preference status to: {$statusText} " .
+                "for " . count($facultyIds) . " faculty members."
+        );
+
+        return response()->json([
+            'message'             => 'Batch preferences updated successfully.',
+            'faculty_ids'         => $facultyIds,
+            'is_enabled'          => $status,
+            'individual_deadline' => $validated['individual_deadline'],
+        ], 200);
+    }
+
+    /**
+     * Sends reminder email notifications to faculty members who are enabled,
+     * maintaining their current deadline and bypassing preference cloning.
+     */
+    public function notifyFacultyPreferences(Request $request)
+    {
+        $validated = $request->validate([
+            'faculty_ids'   => 'required|array|min:1',
+            'faculty_ids.*' => 'integer|exists:faculty,id',
+        ]);
+
+        $facultyIds = $validated['faculty_ids'];
+
+        // Only notify faculty who currently have submission enabled
+        $enabledSettings = PreferencesSetting::whereIn('faculty_id', $facultyIds)
+            ->where('is_enabled', 1)
+            ->get();
+
+        if ($enabledSettings->isEmpty()) {
+            return response()->json([
+                'message'        => 'No enabled faculty found in selection.',
+                'notified_count' => 0,
+            ], 422);
+        }
+
+        foreach ($enabledSettings as $setting) {
+            $isIndividual = !empty($setting->individual_deadline);
+            SendFacultyPreferenceEmailJob::dispatch(
+                $setting->faculty_id,
+                $isIndividual
+            );
+        }
+
+        AuditLogger::logCreate(
+            model: 'EmailDispatchLog',
+            modelId: 0,
+            data: [
+                'purpose'     => 'preference_reminder_notification',
+                'faculty_ids' => $enabledSettings->pluck('faculty_id')->all(),
+            ],
+            description: "Dispatched preference submission reminder emails " .
+                "to " . $enabledSettings->count() . " faculty members."
+        );
+
+        return response()->json([
+            'message'        => 'Reminder notifications dispatched successfully.',
+            'notified_count' => $enabledSettings->count(),
         ], 200);
     }
 
