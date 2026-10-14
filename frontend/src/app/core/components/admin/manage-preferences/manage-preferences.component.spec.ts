@@ -24,6 +24,8 @@ describe('ManagePreferencesComponent', () => {
     preferencesServiceSpy = jasmine.createSpyObj('PreferencesService', [
       'clearPreferencesCache',
       'getPreferences',
+      'notifyFaculties',
+      'toggleMultipleFacultyPreferences',
     ]);
     reportsServiceSpy = jasmine.createSpyObj('ReportsService', [
       'getAllTermsForDropdown',
@@ -174,5 +176,80 @@ describe('ManagePreferencesComponent', () => {
     });
 
     expect(toggleState.isGlobalDisabled).toBeFalse();
+  });
+
+  it('disables individual toggles when global deadline is set', () => {
+    component.isToggleAllChecked = false;
+    component.isGlobalDeadlineSet = true;
+
+    const faculty = {
+      faculty_id: 1,
+      facultyName: 'Test Faculty',
+      facultyCode: 'TF-01',
+      facultyType: 'Full-time',
+      facultyUnits: 3,
+      is_enabled: true,
+      has_request: 0,
+      active_semesters: [],
+    } as any;
+
+    const state = component.getToggleState(faculty);
+
+    expect(state.isIndividualDisabled).toBeTrue();
+  });
+
+  it('toggles multi-select mode and updates displayedColumns', () => {
+    expect(component.isMultiSelectMode).toBeFalse();
+    expect(component.displayedColumns).not.toContain('select');
+
+    component.toggleMultiSelectMode();
+
+    expect(component.isMultiSelectMode).toBeTrue();
+    expect(component.displayedColumns[0]).toBe('select');
+
+    component.toggleMultiSelectMode();
+
+    expect(component.isMultiSelectMode).toBeFalse();
+    expect(component.displayedColumns).not.toContain('select');
+  });
+
+  it('notifies individual enabled faculty after confirmation', () => {
+    preferencesServiceSpy.notifyFaculties.and.returnValue(
+      of({ message: 'Success' } as any)
+    );
+    dialogSpy.open.and.returnValue({
+      afterClosed: () => of(true),
+    } as any);
+
+    const faculty = {
+      faculty_id: 10,
+      facultyName: 'John Doe',
+      is_enabled: true,
+    } as any;
+
+    component.onNotifyFaculty(faculty);
+
+    expect(dialogSpy.open).toHaveBeenCalled();
+    expect(preferencesServiceSpy.notifyFaculties).toHaveBeenCalledWith([10]);
+  });
+
+  it('notifies batch selected enabled faculty members', () => {
+    preferencesServiceSpy.notifyFaculties.and.returnValue(
+      of({ message: 'Success' } as any)
+    );
+    dialogSpy.open.and.returnValue({
+      afterClosed: () => of(true),
+    } as any);
+
+    const f1 = { faculty_id: 1, facultyName: 'F1', is_enabled: true } as any;
+    const f2 = { faculty_id: 2, facultyName: 'F2', is_enabled: false } as any;
+    const f3 = { faculty_id: 3, facultyName: 'F3', is_enabled: true } as any;
+
+    component.selection.select(f1, f2, f3);
+
+    component.onBatchNotifySelected();
+
+    expect(dialogSpy.open).toHaveBeenCalled();
+    expect(preferencesServiceSpy.notifyFaculties).toHaveBeenCalledWith([1, 3]);
   });
 });

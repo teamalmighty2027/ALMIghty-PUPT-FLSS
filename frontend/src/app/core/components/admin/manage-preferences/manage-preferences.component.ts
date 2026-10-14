@@ -5,11 +5,13 @@ import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, Subject, Subscription, firstValueFrom } from 'rxjs';
 import { filter, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
+import { SelectionModel } from '@angular/cdk/collections';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSlideToggleModule, MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
@@ -20,6 +22,7 @@ import { ReportsHeaderComponent } from '../../../../shared/reports-header/report
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { DialogPrefComponent } from '../../../../shared/dialog-pref/dialog-pref.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+import { DialogGenericComponent } from '../../../../shared/dialog-generic/dialog-generic.component';
 import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
@@ -62,6 +65,7 @@ interface ToggleState {
     FormsModule,
     MatTableModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatSlideToggleModule,
     MatPaginatorModule,
@@ -103,6 +107,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   isEnabled!: boolean;
   isGlobalStartDateSet = false;
   isIndividualStartDateSet = false;
+  isGlobalDeadlineSet = false;
+
+  isMultiSelectMode = false;
+  selection = new SelectionModel<Faculty>(true, []);
 
   isLoading = new BehaviorSubject<boolean>(true);
 
@@ -218,12 +226,20 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Recomputes the `displayedColumns` array based on whether the
-   * preference toggle column should be visible.
+   * preference toggle column and multi-select mode should be visible.
    */
   private updateDisplayedColumns(): void {
-    this.displayedColumns = this.showPreferenceToggleColumn
-      ? [...this.baseDisplayedColumns, 'toggle']
-      : [...this.baseDisplayedColumns];
+    const cols = [...this.baseDisplayedColumns];
+
+    if (this.isMultiSelectMode && this.showPreferenceToggleColumn) {
+      cols.unshift('select');
+    }
+
+    if (this.showPreferenceToggleColumn) {
+      cols.push('toggle');
+    }
+
+    this.displayedColumns = cols;
   }
 
   /**
@@ -409,13 +425,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   checkToggleAllState(): void {
     const allEnabled = this.filteredData.every((faculty) => faculty.is_enabled);
-    const isGlobalDeadlineSet = this.allData.some((faculty) =>
+    this.isGlobalDeadlineSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
         (semester) => semester.global_deadline !== null,
       ),
     );
 
-    this.isToggleAllChecked = allEnabled && isGlobalDeadlineSet;
+    this.isToggleAllChecked = allEnabled && this.isGlobalDeadlineSet;
 
     this.isAnyIndividualToggleOn = this.filteredData.some(
       (faculty) => faculty.is_enabled,
@@ -575,6 +591,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const hasIndividualDeadlines = this.hasIndividualDeadlines;
 
+    const availableFaculties = this.allData.map((f) => ({
+      faculty_id: f.faculty_id,
+      facultyName: f.facultyName,
+      facultyCode: f.facultyCode,
+      is_enabled: f.is_enabled,
+    }));
+
+    const preselectedFacultyIds = this.selection.selected.map(
+      (f) => f.faculty_id
+    );
+
     const dialogData: DialogTogglePreferencesData = {
       type: 'all_preferences',
       academicYear: activeSemester?.academic_year || '',
@@ -583,6 +610,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       global_deadline: existingDeadline,
       global_start_date: existingStartDate,
       hasIndividualDeadlines: hasIndividualDeadlines,
+      availableFaculties,
+      preselectedFacultyIds,
     };
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
@@ -592,6 +621,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) {
+        if (this.isMultiSelectMode) {
+          this.selection.clear();
+          this.toggleMultiSelectMode();
+        }
         this.refreshPreferencesTable();
       }
     });
@@ -610,6 +643,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     event: MatSlideToggleChange | MouseEvent,
     isScheduledClick = false,
   ): void {
+    if (this.isGlobalDeadlineSet) {
+      if (!isScheduledClick && event instanceof MatSlideToggleChange) {
+        event.source.checked = faculty.is_enabled;
+      }
+      this.snackBar.open(
+        'Individual preference changes are disabled while a global deadline is set.',
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
     if (!isScheduledClick && event instanceof MatSlideToggleChange) {
       event.source.checked = faculty.is_enabled;
     }
@@ -661,6 +706,178 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             this.updateExportButtonState();
             this.cdr.detectChanges();
           }
+        });
+      }
+    });
+  }
+
+  // Toggles multi-select mode in the table and clears current selection
+  toggleMultiSelectMode(): void {
+    this.isMultiSelectMode = !this.isMultiSelectMode;
+    if (!this.isMultiSelectMode) {
+      this.selection.clear();
+    }
+    this.updateDisplayedColumns();
+  }
+
+  // Checks whether all currently filtered faculties are selected
+  isAllFilteredSelected(): boolean {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.filteredData.length;
+    return numSelected > 0 && numSelected >= numRows;
+  }
+
+  // Selects or clears all currently filtered faculties
+  masterToggle(): void {
+    if (this.isAllFilteredSelected()) {
+      this.selection.clear();
+      return;
+    }
+
+    this.filteredData.forEach((row) => this.selection.select(row));
+  }
+
+  // Returns array of currently selected faculty whose submission is enabled
+  getSelectedEnabledFaculties(): Faculty[] {
+    return this.selection.selected.filter((f) => f.is_enabled);
+  }
+
+  // Opens dialog to batch-toggle submission for the selected subset of faculty
+  onBatchToggleSelected(enable: boolean): void {
+    if (!this.selection.hasValue()) {
+      return;
+    }
+
+    const preselectedIds = this.selection.selected.map((f) => f.faculty_id);
+    const availableFaculties = this.allData.map((f) => ({
+      faculty_id: f.faculty_id,
+      facultyName: f.facultyName,
+      facultyCode: f.facultyCode,
+      is_enabled: f.is_enabled,
+    }));
+
+    const activeSemesterFaculty = this.allData.find(
+      (faculty) => faculty.active_semesters?.length
+    );
+    const activeSemester = activeSemesterFaculty?.active_semesters?.[0];
+
+    const dialogData: DialogTogglePreferencesData = {
+      type: 'batch_preferences',
+      batchAction: enable ? 'enable' : 'disable',
+      academicYear: activeSemester?.academic_year || '',
+      semester: activeSemester?.semester_label || '',
+      currentState: !enable,
+      preselectedFacultyIds: preselectedIds,
+      availableFaculties,
+    };
+
+    const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+      data: dialogData,
+      autoFocus: true,
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.selection.clear();
+        this.toggleMultiSelectMode();
+        this.refreshPreferencesTable();
+      }
+    });
+  }
+
+  // Prompts confirmation and dispatches reminder email to a single faculty
+  onNotifyFaculty(faculty: Faculty): void {
+    if (!faculty.is_enabled) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Notify Faculty Member',
+        content:
+          `Send a preference submission reminder email to ` +
+          `${faculty.facultyName}? Existing deadline will be maintained.`,
+        actionText: 'Send Email',
+        cancelText: 'Cancel',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((action) => {
+      if (action) {
+        this.preferencesService
+          .notifyFaculties([faculty.faculty_id])
+          .subscribe({
+            next: () => {
+              this.snackBar.open(
+                `Reminder email sent to ${faculty.facultyName}.`,
+                'Close',
+                { duration: 3000 }
+              );
+            },
+            error: (err) => {
+              console.error('Error sending reminder email:', err);
+              this.snackBar.open(
+                `Failed to send reminder email to ${faculty.facultyName}.`,
+                'Close',
+                { duration: 3000 }
+              );
+            },
+          });
+      }
+    });
+  }
+
+  // Prompts confirmation and dispatches reminder emails to enabled selected faculty
+  onBatchNotifySelected(): void {
+    const enabledFaculties = this.getSelectedEnabledFaculties();
+
+    if (!enabledFaculties.length) {
+      this.snackBar.open(
+        'No enabled faculty in current selection to notify.',
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    const totalSelected = this.selection.selected.length;
+    const skippedCount = totalSelected - enabledFaculties.length;
+    const skipNote =
+      skippedCount > 0
+        ? ` (${skippedCount} disabled faculty member(s) will be skipped)`
+        : '';
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Send Batch Notifications',
+        content:
+          `Send reminder emails to ${enabledFaculties.length} ` +
+          `faculty member(s)?${skipNote} Current deadlines will be maintained.`,
+        actionText: 'Send Emails',
+        cancelText: 'Cancel',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((action) => {
+      if (action) {
+        const ids = enabledFaculties.map((f) => f.faculty_id);
+        this.preferencesService.notifyFaculties(ids).subscribe({
+          next: (res) => {
+            const count = res?.notified_count ?? ids.length;
+            this.snackBar.open(
+              `Reminder emails dispatched to ${count} faculty member(s).`,
+              'Close',
+              { duration: 3000 }
+            );
+          },
+          error: (err) => {
+            console.error('Error sending batch reminder emails:', err);
+            this.snackBar.open(
+              'Failed to dispatch batch reminder emails.',
+              'Close',
+              { duration: 3000 }
+            );
+          },
         });
       }
     });
@@ -1802,13 +2019,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       };
     }
 
-    const isGlobalDisabled =
-      !this.isToggleAllChecked &&
-      ((this.hasIndividualDeadlines && this.isEnabled) ||
-        this.isIndividualStartDateSet);
+    const isGlobalDisabled = false;
 
     const isIndividualDisabled =
-      this.isToggleAllChecked || this.isGlobalStartDateSet;
+      this.isToggleAllChecked ||
+      this.isGlobalStartDateSet ||
+      this.isGlobalDeadlineSet;
 
     const isGloballyScheduled = this.isGloballyScheduled();
     const isIndividuallyScheduled = this.isIndividuallyScheduled(faculty);
@@ -1816,8 +2032,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const globalTooltip =
       isGloballyScheduled && !this.isToggleAllChecked
         ? 'Preferences submission is scheduled'
-        : this.hasIndividualDeadlines && !this.isToggleAllChecked
-        ? 'Global preferences toggle is disabled because individual preferences settings are set'
         : `${
             this.isToggleAllChecked ? 'Disable' : 'Enable'
           } preferences submission for ALL faculty`;
@@ -1825,6 +2039,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const individualTooltip =
       isIndividuallyScheduled && !faculty.is_enabled
         ? 'Preferences submission is scheduled'
+        : this.isGlobalDeadlineSet
+        ? 'Global preferences deadline is active – individual changes disabled'
         : this.isGlobalStartDateSet
         ? 'Global submission start date has been set – individual changes disabled'
         : this.isToggleAllChecked

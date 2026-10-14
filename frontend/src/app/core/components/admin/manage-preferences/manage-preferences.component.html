@@ -44,8 +44,96 @@
   
 
   <div class="faculty-pref-table-container" [@fadeAnimation]>
+    @if (showPreferenceToggleColumn) {
+    <div class="multi-select-bar">
+      @if (isMultiSelectMode) {
+      <div class="batch-actions-container">
+        <span class="selected-count">
+          {{ selection.selected.length }} selected
+        </span>
+
+        <button
+          mat-button
+          class="batch-action-btn enable-btn sec-ripple"
+          (click)="onBatchToggleSelected(true)"
+          [disabled]="selection.selected.length === 0">
+          <mat-icon>check_circle</mat-icon>
+          <span>Enable Selected</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn disable-btn sec-ripple"
+          (click)="onBatchToggleSelected(false)"
+          [disabled]="selection.selected.length === 0">
+          <mat-icon>block</mat-icon>
+          <span>Disable Selected</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn notify-btn sec-ripple"
+          (click)="onBatchNotifySelected()"
+          [disabled]="getSelectedEnabledFaculties().length === 0"
+          [matTooltip]="
+            getSelectedEnabledFaculties().length === 0
+              ? 'No enabled faculty selected'
+              : ''
+          ">
+          <mat-icon>notifications</mat-icon>
+          <span>Notify ({{ getSelectedEnabledFaculties().length }})</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn cancel-btn sec-ripple"
+          (click)="toggleMultiSelectMode()">
+          <mat-icon>close</mat-icon>
+          <span>Done</span>
+        </button>
+      </div>
+      } @else {
+      <div class="multi-select-toggle-container">
+        <button
+          mat-button
+          class="select-multiple-btn sec-ripple"
+          (click)="toggleMultiSelectMode()">
+          <mat-icon>checklist</mat-icon>
+          <span>Select Multiple</span>
+        </button>
+      </div>
+      }
+    </div>
+    }
+
     <div class="table-container">
       <table mat-table [dataSource]="dataSource" class="custom-table">
+        <ng-container matColumnDef="select">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            class="custom-header checkbox-header">
+            <mat-checkbox
+              (change)="$event ? masterToggle() : null"
+              [checked]="selection.hasValue() && isAllFilteredSelected()"
+              [indeterminate]="
+                selection.hasValue() && !isAllFilteredSelected()
+              "
+              color="primary"
+              aria-label="Select all faculty">
+            </mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let row" class="custom-cell checkbox-cell">
+            <mat-checkbox
+              (click)="$event.stopPropagation()"
+              (change)="$event ? selection.toggle(row) : null"
+              [checked]="selection.isSelected(row)"
+              color="primary"
+              [aria-label]="'Select ' + row.facultyName">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="index">
           <th mat-header-cell *matHeaderCellDef class="custom-header index">
             #
@@ -141,6 +229,25 @@
                 }">
                 <mat-icon>download</mat-icon>
                 <span>Download</span>
+              </button>
+            </span>
+
+            <span
+              [matTooltip]="
+                !element.is_enabled
+                  ? 'Faculty submission is closed; cannot notify'
+                  : 'Send email notification to this faculty'
+              ">
+              <button
+                mat-button
+                class="notify-button sec-ripple"
+                (click)="onNotifyFaculty(element)"
+                [disabled]="!element.is_enabled"
+                [ngClass]="{
+                  'disabled-button': !element.is_enabled
+                }">
+                <mat-icon>notifications</mat-icon>
+                <span>Notify</span>
               </button>
             </span>
           </td>
