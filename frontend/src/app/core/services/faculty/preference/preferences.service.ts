@@ -262,6 +262,47 @@ export class PreferencesService {
       );
   }
 
+  // Toggles preference settings for a selected subset of faculty members
+  toggleMultipleFacultyPreferences(
+    facultyIds: number[],
+    status: boolean,
+    individualDeadline: string | null,
+    individualStartDate: string | null,
+    sendEmail: boolean
+  ): Observable<any> {
+    const url = `${this.baseUrl}/preferences/batch-toggle`;
+
+    return this.http
+      .patch(url, {
+        faculty_ids: facultyIds,
+        status,
+        individual_deadline: individualDeadline,
+        individual_start_date: individualStartDate,
+        send_email: sendEmail,
+      })
+      .pipe(
+        tap(() => {
+          this.getPreferences(null, true).subscribe();
+        }),
+        catchError((error) => {
+          console.error('Error batch-toggling preferences:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  // Sends reminder notification emails to enabled faculty members
+  notifyFaculties(facultyIds: number[]): Observable<any> {
+    const url = `${this.baseUrl}/preferences/notify`;
+
+    return this.http.post(url, { faculty_ids: facultyIds }).pipe(
+      catchError((error) => {
+        console.error('Error notifying faculty members:', error);
+        return throwError(() => error);
+      })
+    );
+  }
+
   requestAccess(facultyId: string): Observable<any> {
     const url = `${this.baseUrl}/preferences/access-requests`;
     return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
