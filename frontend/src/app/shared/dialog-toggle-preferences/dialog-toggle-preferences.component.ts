@@ -251,6 +251,17 @@ export class DialogTogglePreferencesComponent {
     }
   }
 
+  // Returns array of faculty objects corresponding to selectedFacultyIds
+  getSelectedFaculties(): AvailableFaculty[] {
+    if (!this.data.availableFaculties) {
+      return [];
+    }
+
+    return this.data.availableFaculties.filter((f) =>
+      this.selectedFacultyIds.has(f.faculty_id)
+    );
+  }
+
   // Checks if multiple faculties were already selected before opening dialog
   get hasMultiplePreselected(): boolean {
     return (

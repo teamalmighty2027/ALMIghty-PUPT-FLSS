@@ -173,123 +173,44 @@
   }
 }
 
-// ── Target Faculty Mode & Checklist ─────────────────────────
-.target-mode-section {
+// ── Selected Faculty Summary (Batch Preferences) ─────
+.selected-faculty-summary {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   width: 100%;
 
-  .mode-toggle-group {
-    display: flex;
-    gap: var(--spacing-xs);
-    background-color: var(--neutral-fade);
-    padding: 3px;
-    border-radius: var(--border-radius-sm);
-
-    .mode-btn {
-      flex: 1;
-      font-size: var(--font-size-xs);
-      font-weight: 500;
-      border-radius: var(--border-radius-sm);
-      color: var(--secondary-text);
-      transition: all 0.2s ease;
-
-      &.active {
-        background-color: #ffffff;
-        color: var(--primary-one);
-        font-weight: 600;
-        box-shadow: var(--shadow-level-1);
-      }
-
-      .count-badge {
-        margin-left: var(--spacing-xxs);
-        padding: 1px 6px;
-        border-radius: var(--border-radius-xl);
-        background-color: var(--primary-one);
-        color: #ffffff;
-        font-size: 10px;
-      }
-    }
+  .field-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--primary-text);
   }
 
-  .faculty-checklist-container {
+  .selected-faculty-scroll {
+    max-height: 120px;
+    overflow-y: auto;
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    background-color: var(--neutral-fade);
     border: 1px solid var(--neutral-fade);
     border-radius: var(--border-radius-sm);
-    padding: var(--spacing-xs);
+    @include mixins.custom-scrollbar;
 
-    .checklist-header {
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-xxs);
+    .selected-faculty-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background-color: var(--primary-fade);
+      color: var(--primary-text);
+      border-radius: var(--border-radius-xl);
+      font-size: var(--font-size-xs);
 
-      .faculty-search-field {
-        width: 100%;
-        margin-bottom: -15px;
-      }
-
-      .select-all-check {
-        font-size: var(--font-size-xs);
-        font-weight: 500;
-      }
-    }
-
-    .faculty-checklist-scroll {
-      max-height: 140px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding-right: 4px;
-      @include mixins.custom-scrollbar;
-
-      .faculty-check-item {
-        padding: 2px 4px;
-        border-radius: var(--border-radius-sm);
-
-        &:hover {
-          background-color: var(--neutral-fade);
-        }
-
-        .faculty-check-label {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-xs);
-          font-size: var(--font-size-xs);
-
-          .faculty-code {
-            color: var(--secondary-text);
-            font-size: var(--font-size-xxs);
-          }
-
-          .status-pill {
-            font-size: 9px;
-            font-weight: 600;
-            padding: 1px 5px;
-            border-radius: var(--border-radius-xl);
-            text-transform: uppercase;
-
-            &.open {
-              background-color: var(--green-fade);
-              color: var(--green-primary);
-            }
-
-            &.closed {
-              background-color: var(--neutral-fade);
-              color: var(--secondary-text);
-            }
-          }
-        }
-      }
-
-      .no-faculty-msg {
-        padding: var(--spacing-sm);
-        text-align: center;
+      .faculty-code {
         color: var(--secondary-text);
-        font-size: var(--font-size-xs);
+        font-size: var(--font-size-xxs);
       }
     }
   }

@@ -18,19 +18,6 @@
       (exportByProgram)="onExportByProgram()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">
-      @if (showPreferenceToggleColumn) {
-      <button
-        mat-flat-button
-        type="button"
-        class="custom-mat-button choose-multiple-btn"
-        [class.active]="isMultiSelectMode"
-        (click)="toggleMultiSelectMode()">
-        <mat-icon>{{ isMultiSelectMode ? 'close' : 'checklist' }}</mat-icon>
-        <span>
-          {{ isMultiSelectMode ? 'Cancel Selection' : 'Choose Multiple' }}
-        </span>
-      </button>
-      }
     </app-reports-header>
   </div>
 
@@ -57,7 +44,7 @@
   
 
   <div class="faculty-pref-table-container" [@fadeAnimation]>
-    @if (showPreferenceToggleColumn && isMultiSelectMode) {
+    @if (showPreferenceToggleColumn && selection.hasValue()) {
     <div class="multi-select-bar">
       <div class="batch-actions-container">
         <span class="selected-count">
@@ -68,6 +55,7 @@
           mat-button
           class="batch-action-btn enable-btn sec-ripple"
           (click)="onBatchToggleSelected(true)"
+          matTooltip="Enable preferences submission for selected faculty"
           [disabled]="selection.selected.length === 0">
           <mat-icon>check_circle</mat-icon>
           <span>Enable Selected</span>
@@ -77,6 +65,7 @@
           mat-button
           class="batch-action-btn disable-btn sec-ripple"
           (click)="onBatchToggleSelected(false)"
+          matTooltip="Disable preferences submission for selected faculty"
           [disabled]="selection.selected.length === 0">
           <mat-icon>block</mat-icon>
           <span>Disable Selected</span>
@@ -89,8 +78,8 @@
           [disabled]="getSelectedEnabledFaculties().length === 0"
           [matTooltip]="
             getSelectedEnabledFaculties().length === 0
-              ? 'No enabled faculty selected'
-              : ''
+              ? 'No enabled faculty selected to notify'
+              : 'Send reminder email to enabled selected faculty'
           ">
           <mat-icon>notifications</mat-icon>
           <span>Notify ({{ getSelectedEnabledFaculties().length }})</span>
@@ -99,9 +88,10 @@
         <button
           mat-button
           class="batch-action-btn cancel-btn sec-ripple"
-          (click)="toggleMultiSelectMode()">
+          matTooltip="Clear current faculty selection"
+          (click)="clearSelection()">
           <mat-icon>close</mat-icon>
-          <span>Done</span>
+          <span>Deselect All</span>
         </button>
       </div>
     </div>
@@ -128,7 +118,7 @@
             <mat-checkbox
               (click)="$event.stopPropagation()"
               (change)="$event ? selection.toggle(row) : null"
-              [checked]="selection.isSelected(row)"
+              [checked]="selection.isSelected(row) && isRowSelected()"
               color="primary"
               [aria-label]="'Select ' + row.facultyName">
             </mat-checkbox>

@@ -12,45 +12,6 @@
     $gap: var(--spacing-sm)
   );
   height: 100%;
-
-  .faculty-pref-header-container {
-    .choose-multiple-btn {
-      border-radius: var(--border-radius-xl) !important;
-      border: 1px solid var(--primary-one);
-      color: var(--primary-one);
-      background-color: transparent;
-      font-size: var(--font-size-sm);
-      font-weight: 500;
-      padding: 0 var(--spacing-md);
-      min-height: 38px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--spacing-xs);
-      white-space: nowrap;
-      width: auto;
-      transition: all 0.2s ease;
-
-      mat-icon {
-        font-size: var(--font-size-md);
-        width: var(--font-size-md);
-        height: var(--font-size-md);
-      }
-
-      &:hover {
-        background-color: var(--primary-fade);
-      }
-
-      &.active {
-        background-color: var(--primary-one);
-        color: #ffffff;
-
-        &:hover {
-          background-color: var(--primary-one-hover);
-        }
-      }
-    }
-  }
 }
 
 .faculty-pref-table-container {

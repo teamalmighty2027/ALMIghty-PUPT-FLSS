@@ -198,19 +198,44 @@ describe('ManagePreferencesComponent', () => {
     expect(state.isIndividualDisabled).toBeTrue();
   });
 
-  it('toggles multi-select mode and updates displayedColumns', () => {
-    expect(component.isMultiSelectMode).toBeFalse();
-    expect(component.displayedColumns).not.toContain('select');
+  it('includes select column when toggle column is enabled', () => {
+    component.showPreferenceToggleColumn = true;
+    (component as any).updateDisplayedColumns();
 
-    component.toggleMultiSelectMode();
-
-    expect(component.isMultiSelectMode).toBeTrue();
     expect(component.displayedColumns[0]).toBe('select');
+    expect(component.displayedColumns).toContain('toggle');
 
-    component.toggleMultiSelectMode();
+    component.showPreferenceToggleColumn = false;
+    (component as any).updateDisplayedColumns();
 
-    expect(component.isMultiSelectMode).toBeFalse();
     expect(component.displayedColumns).not.toContain('select');
+    expect(component.displayedColumns).not.toContain('toggle');
+  });
+
+  it('manages row selection and master toggle correctly', () => {
+    component.filteredData = [
+      {
+        faculty_id: 1,
+        facultyName: 'Faculty 1',
+        is_enabled: true,
+      },
+      {
+        faculty_id: 2,
+        facultyName: 'Faculty 2',
+        is_enabled: false,
+      },
+    ] as any;
+
+    expect(component.selection.hasValue()).toBeFalse();
+    expect(component.isAllFilteredSelected()).toBeFalse();
+
+    component.masterToggle();
+    expect(component.selection.hasValue()).toBeTrue();
+    expect(component.isAllFilteredSelected()).toBeTrue();
+    expect(component.selection.selected.length).toBe(2);
+
+    component.clearSelection();
+    expect(component.selection.hasValue()).toBeFalse();
   });
 
   it('notifies individual enabled faculty after confirmation', () => {

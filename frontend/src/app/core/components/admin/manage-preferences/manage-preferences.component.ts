@@ -116,7 +116,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   selectedTermId: number | null = null;
   private activeTermId: number | null = null;
-  showPreferenceToggleColumn = true;
+  showPreferenceToggleColumn = false;
   exportButtonsDisabled = true;
   exportTooltipMessage = '';
   private prefsSub?: Subscription;
@@ -231,11 +231,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   private updateDisplayedColumns(): void {
     const cols = [...this.baseDisplayedColumns];
 
-    if (this.isMultiSelectMode && this.showPreferenceToggleColumn) {
-      cols.unshift('select');
-    }
-
     if (this.showPreferenceToggleColumn) {
+      cols.unshift('select');
       cols.push('toggle');
     }
 
@@ -621,10 +618,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) {
-        if (this.isMultiSelectMode) {
-          this.selection.clear();
-          this.toggleMultiSelectMode();
-        }
+        this.clearSelection();
         this.refreshPreferencesTable();
       }
     });
@@ -724,7 +718,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   isAllFilteredSelected(): boolean {
     const numSelected = this.selection.selected.length;
     const numRows = this.filteredData.length;
-    return numSelected > 0 && numSelected >= numRows;
+    return numRows > 0 && numSelected >= numRows;
+  }
+
+  // Confirms whether row selection is active for the table
+  isRowSelected(): boolean {
+    return true;
+  }
+
+  // Clears all currently selected faculties from the selection model
+  clearSelection(): void {
+    this.selection.clear();
   }
 
   // Selects or clears all currently filtered faculties
@@ -778,8 +782,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) {
-        this.selection.clear();
-        this.toggleMultiSelectMode();
+        this.clearSelection();
         this.refreshPreferencesTable();
       }
     });
@@ -799,6 +802,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           `${faculty.facultyName}? Existing deadline will be maintained.`,
         actionText: 'Send Email',
         cancelText: 'Cancel',
+        action: 'confirm',
       },
     });
 
@@ -855,6 +859,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           `faculty member(s)?${skipNote} Current deadlines will be maintained.`,
         actionText: 'Send Emails',
         cancelText: 'Cancel',
+        action: 'confirm',
       },
     });
 

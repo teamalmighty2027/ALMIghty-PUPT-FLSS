@@ -44,90 +44,20 @@
       </div>
     }
 
-    <!-- Target Faculty Mode Selector (All vs Specific) -->
-    @if (
-      (data.type === "all_preferences" || data.type === "batch_preferences") &&
-      !data.currentState &&
-      data.availableFaculties?.length
-    ) {
-      <div class="target-mode-section">
-        <div class="mode-toggle-group">
-          <button
-            type="button"
-            mat-button
-            class="mode-btn"
-            [class.active]="applyMode === 'all'"
-            (click)="applyMode = 'all'"
-          >
-            All Active Faculty
-          </button>
-          <button
-            type="button"
-            mat-button
-            class="mode-btn"
-            [class.active]="applyMode === 'selected'"
-            (click)="applyMode = 'selected'"
-          >
-            Select Specific Faculty
-            @if (selectedFacultyIds.size > 0) {
-              <span class="count-badge">{{ selectedFacultyIds.size }}</span>
-            }
-          </button>
+    <!-- Selected Faculty List (Batch Preferences) -->
+    @if (data.type === "batch_preferences") {
+      <div class="selected-faculty-summary">
+        <label class="field-label">
+          Selected Faculty ({{ selectedFacultyIds.size }})
+        </label>
+        <div class="selected-faculty-scroll">
+          @for (faculty of getSelectedFaculties(); track faculty.faculty_id) {
+            <span class="selected-faculty-pill">
+              <span class="faculty-name">{{ faculty.facultyName }}</span>
+              <span class="faculty-code">({{ faculty.facultyCode }})</span>
+            </span>
+          }
         </div>
-
-        @if (applyMode === "selected") {
-          <div class="faculty-checklist-container">
-            <div class="checklist-header">
-              @if (!hasMultiplePreselected) {
-                <mat-form-field appearance="fill" class="faculty-search-field">
-                  <input
-                    matInput
-                    [(ngModel)]="facultySearchQuery"
-                    placeholder="Search faculty by name or code..."
-                  />
-                </mat-form-field>
-              }
-
-              <mat-checkbox
-                [checked]="isAllFilteredSelected()"
-                (change)="toggleSelectAllFiltered($event.checked)"
-                class="select-all-check"
-              >
-                Select All ({{ selectedFacultyIds.size }}/{{
-                  data.availableFaculties?.length || 0
-                }})
-              </mat-checkbox>
-            </div>
-
-            <div class="faculty-checklist-scroll">
-              @for (
-                faculty of getFilteredFaculties();
-                track faculty.faculty_id
-              ) {
-                <div class="faculty-check-item">
-                  <mat-checkbox
-                    [checked]="isFacultySelected(faculty.faculty_id)"
-                    (change)="toggleFacultySelection(faculty.faculty_id)"
-                  >
-                    <span class="faculty-check-label">
-                      <strong>{{ faculty.facultyName }}</strong>
-                      <span class="faculty-code"
-                        >({{ faculty.facultyCode }})</span
-                      >
-                      @if (faculty.is_enabled) {
-                        <span class="status-pill open">Open</span>
-                      } @else {
-                        <span class="status-pill closed">Closed</span>
-                      }
-                    </span>
-                  </mat-checkbox>
-                </div>
-              } @empty {
-                <div class="no-faculty-msg">No faculty matching search</div>
-              }
-            </div>
-          </div>
-        }
       </div>
     }
 
@@ -237,13 +167,15 @@
 
     <!-- Confirmation Text -->
     @if (
-      (data.type === "all_preferences" || data.type === "single_preferences") &&
-      data.currentState
+      (data.type === "all_preferences" ||
+        data.type === "single_preferences" ||
+        data.type === "batch_preferences") &&
+      (data.currentState || data.batchAction === "disable")
     ) {
       <div class="main-text">
         <div class="confirm-disable">
           This will <strong>immediately</strong> disable the preferences
-          submission and bypass the currently set deadline.
+          submission and bypass any currently set deadlines.
         </div>
       </div>
     }
