@@ -120,6 +120,9 @@ class PreferenceController extends Controller
                     'course_assignment_id'         => $courseAssignmentId,
                     'temporary_course_offering_id' => $temporaryCourseOfferingId,
                     'sections_per_program_year_id' => $sectionsPerProgramYearId,
+                ],
+                [
+                    'is_auto_submitted'            => false,
                 ]
             );
 
@@ -1552,7 +1555,8 @@ class PreferenceController extends Controller
                     'temporary_course_offering_id' =>
                         $newTemporaryOfferingId,
                     'sections_per_program_year_id' => $newSectionId,
-                    'is_ignored' => $pref->is_ignored
+                    'is_ignored' => $pref->is_ignored,
+                    'is_auto_submitted' => true,
                 ]);
 
                 foreach ($pref->preferenceDays as $day) {
@@ -1846,10 +1850,6 @@ class PreferenceController extends Controller
             }
 
             DB::commit();
-
-            if ($status) {
-                AutoSubmitPreviousPreferencesJob::dispatch();
-            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error(
@@ -1992,10 +1992,6 @@ class PreferenceController extends Controller
             }
 
             DB::commit();
-
-            if ($status) {
-                AutoSubmitPreviousPreferencesJob::dispatch($faculty_id);
-            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error(
@@ -2145,12 +2141,6 @@ class PreferenceController extends Controller
             }
 
             DB::commit();
-
-            if ($status) {
-                foreach ($facultyIds as $facultyId) {
-                    AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
-                }
-            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed batch toggle preferences: ' . $e->getMessage());
