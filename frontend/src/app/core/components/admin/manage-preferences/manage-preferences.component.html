@@ -26,8 +26,8 @@
     <mat-icon class="info-icon">info</mat-icon>
     <div class="note-content">
       <strong>Note:</strong> Previous preferences (from the matching semester
-      of the latest academic year) have been automatically loaded for all active 
-      faculty members.
+      of the latest academic year) will be automatically loaded as a draft
+      when faculty members log in while submission is open.
     </div>
   </div>
   } @else if (isAnyIndividualToggleOn) {
@@ -35,8 +35,8 @@
     <mat-icon class="info-icon">info</mat-icon>
     <div class="note-content">
       <strong>Note:</strong> Previous preferences (from the matching semester
-      of the latest academic year) have been automatically loaded for selected 
-      faculty members.
+      of the latest academic year) will be automatically loaded as a draft
+      when selected faculty members log in while submission is open.
     </div>
   </div>
   }
@@ -44,8 +44,87 @@
   
 
   <div class="faculty-pref-table-container" [@fadeAnimation]>
+    @if (showPreferenceToggleColumn && selection.hasValue()) {
+    <div class="multi-select-bar">
+      <div class="batch-actions-container">
+        <span class="selected-count">
+          {{ selection.selected.length }} selected
+        </span>
+
+        <button
+          mat-button
+          class="batch-action-btn enable-btn sec-ripple"
+          (click)="onBatchToggleSelected(true)"
+          matTooltip="Enable preferences submission for selected faculty"
+          [disabled]="selection.selected.length === 0">
+          <mat-icon>check_circle</mat-icon>
+          <span>Enable Selected</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn disable-btn sec-ripple"
+          (click)="onBatchToggleSelected(false)"
+          matTooltip="Disable preferences submission for selected faculty"
+          [disabled]="selection.selected.length === 0">
+          <mat-icon>block</mat-icon>
+          <span>Disable Selected</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn notify-btn sec-ripple"
+          (click)="onBatchNotifySelected()"
+          [disabled]="getSelectedEnabledFaculties().length === 0"
+          [matTooltip]="
+            getSelectedEnabledFaculties().length === 0
+              ? 'No enabled faculty selected to notify'
+              : 'Send reminder email to enabled selected faculty'
+          ">
+          <mat-icon>notifications</mat-icon>
+          <span>Notify ({{ getSelectedEnabledFaculties().length }})</span>
+        </button>
+
+        <button
+          mat-button
+          class="batch-action-btn cancel-btn sec-ripple"
+          matTooltip="Clear current faculty selection"
+          (click)="clearSelection()">
+          <mat-icon>close</mat-icon>
+          <span>Deselect All</span>
+        </button>
+      </div>
+    </div>
+    }
+
     <div class="table-container">
       <table mat-table [dataSource]="dataSource" class="custom-table">
+        <ng-container matColumnDef="select">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            class="custom-header checkbox-header">
+            <mat-checkbox
+              (change)="$event ? masterToggle() : null"
+              [checked]="selection.hasValue() && isAllFilteredSelected()"
+              [indeterminate]="
+                selection.hasValue() && !isAllFilteredSelected()
+              "
+              color="primary"
+              aria-label="Select all faculty">
+            </mat-checkbox>
+          </th>
+          <td mat-cell *matCellDef="let row" class="custom-cell checkbox-cell">
+            <mat-checkbox
+              (click)="$event.stopPropagation()"
+              (change)="$event ? selection.toggle(row) : null"
+              [checked]="selection.isSelected(row) && isRowSelected()"
+              color="primary"
+              [aria-label]="'Select ' + row.facultyName">
+            </mat-checkbox>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="index">
           <th mat-header-cell *matHeaderCellDef class="custom-header index">
             #
@@ -141,6 +220,25 @@
                 }">
                 <mat-icon>download</mat-icon>
                 <span>Download</span>
+              </button>
+            </span>
+
+            <span
+              [matTooltip]="
+                !element.is_enabled
+                  ? 'Faculty submission is closed; cannot notify'
+                  : 'Send email notification to this faculty'
+              ">
+              <button
+                mat-button
+                class="notify-button sec-ripple"
+                (click)="onNotifyFaculty(element)"
+                [disabled]="!element.is_enabled"
+                [ngClass]="{
+                  'disabled-button': !element.is_enabled
+                }">
+                <mat-icon>notifications</mat-icon>
+                <span>Notify</span>
               </button>
             </span>
           </td>

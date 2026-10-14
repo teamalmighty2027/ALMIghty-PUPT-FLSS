@@ -2,8 +2,11 @@
 
 // ── Host ─────────────────────────────────────────────────────
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  max-height: 85dvh;
+  min-height: 0;
   overflow: hidden;
   @include mixins.custom-spinner;
 }
@@ -26,13 +29,21 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
+  max-height: 85dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
 // ── Gradient header — identical to appeals dialog ─────────────
 .dialog-header {
+  flex-shrink: 0;
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, var(--primary-one) 0%, var(--primary-two) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-one) 0%,
+    var(--primary-two) 100%
+  );
 
   .dialog-title {
     margin: 0 0 2px;
@@ -57,6 +68,10 @@
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
   max-width: var(--dialog-base);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  @include mixins.custom-scrollbar;
 }
 
 // ── Main text block ───────────────────────────────────────────
@@ -158,8 +173,52 @@
   }
 }
 
+// ── Selected Faculty Summary (Batch Preferences) ─────
+.selected-faculty-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  width: 100%;
+
+  .field-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--primary-text);
+  }
+
+  .selected-faculty-scroll {
+    max-height: 120px;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    background-color: var(--neutral-fade);
+    border: 1px solid var(--neutral-fade);
+    border-radius: var(--border-radius-sm);
+    @include mixins.custom-scrollbar;
+
+    .selected-faculty-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background-color: var(--primary-fade);
+      color: var(--primary-text);
+      border-radius: var(--border-radius-xl);
+      font-size: var(--font-size-xs);
+
+      .faculty-code {
+        color: var(--secondary-text);
+        font-size: var(--font-size-xxs);
+      }
+    }
+  }
+}
+
 // ── Footer — identical to appeals dialog ─────────────────────
 .dialog-buttons {
+  flex-shrink: 0;
   @include mixins.flex-layout(
     $align: center,
     $justify: space-between,
@@ -167,6 +226,21 @@
   );
   padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-md);
   border-top: 1px solid var(--neutral-fade);
+
+  .reminder-button {
+    border-color: var(--primary-one);
+    color: var(--primary-one);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+
+    mat-icon {
+      font-size: var(--font-size-md);
+      width: var(--font-size-md);
+      height: var(--font-size-md);
+    }
+  }
 
   .action-button {
     @include mixins.gradient-primary(315deg);

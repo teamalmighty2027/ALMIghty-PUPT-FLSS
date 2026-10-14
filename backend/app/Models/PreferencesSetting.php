@@ -30,6 +30,7 @@ class PreferencesSetting extends Model
         'global_start_date',
         'individual_start_date',
         'has_request',
+        'last_injected_active_semester_id',
     ];
 
     /**
@@ -44,6 +45,7 @@ class PreferencesSetting extends Model
         'global_start_date' => 'datetime:Y-m-d H:i:s',
         'individual_start_date' => 'datetime:Y-m-d H:i:s',
         'has_request' => 'boolean',
+        'last_injected_active_semester_id' => 'integer',
     ];
 
     /**

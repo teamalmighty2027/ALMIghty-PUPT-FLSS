@@ -98,6 +98,8 @@
         <mat-icon [class.spinning]="isRefreshing">sync</mat-icon>
       </button>
     }
+
+    <ng-content></ng-content>
     
     @if (showExportByProgramButton) {
       <span class="tooltip-container" [matTooltip]="tooltipMessage" [matTooltipDisabled]="!buttonDisabled">
