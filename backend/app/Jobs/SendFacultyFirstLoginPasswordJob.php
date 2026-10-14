@@ -20,6 +20,7 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
     protected $faculty;
     protected $password;
     protected $dispatchedAt;
+    protected $dispatchLogId;
 
     public $tries = 3;
     public $timeout = 60;
@@ -29,13 +30,37 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      *
      * @param  $faculty  The faculty user instance
      * @param  string  $password  The generated password
+     * @param  int|null  $dispatchLogId  Optional pre-created dispatch log ID
      * @return void
      */
-    public function __construct($faculty, $password)
+    public function __construct($faculty, $password, $dispatchLogId = null)
     {
         $this->faculty      = $faculty;
         $this->password     = $password;
         $this->dispatchedAt = Carbon::now();
+
+        if ($dispatchLogId) {
+            $this->dispatchLogId = $dispatchLogId;
+        } else {
+            $facObj = (object) $faculty;
+            $email = $facObj->email ?? 'No email on file';
+            $name = trim(
+                ($facObj->first_name ?? '') . ' ' .
+                ($facObj->last_name ?? '')
+            );
+
+            $log = EmailDispatchLog::create([
+                'faculty_id'      => $facObj->id ?? null,
+                'recipient_email' => $email,
+                'recipient_name'  => $name ?: null,
+                'purpose'         => 'first_login_password',
+                'status'          => 'queued',
+                'dispatched_at'   => $this->dispatchedAt,
+                'triggered_by'    => auth()->id(),
+            ]);
+
+            $this->dispatchLogId = $log->id;
+        }
     }
 
     /**
@@ -58,6 +83,14 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                 "Skipping faculty first login password email: missing email"
             );
 
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: missing email address.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
             return;
         }
 
@@ -78,32 +111,49 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                 }
             );
 
-            // Record successful email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $faculty->id ?? null,
-                'recipient_email' => $email,
-                'recipient_name'  => $name ?: null,
-                'purpose'         => 'first_login_password',
-                'status'          => 'sent',
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'sent',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $faculty->id ?? null,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'purpose'         => 'first_login_password',
+                    'status'          => 'sent',
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::info(
                 "Faculty first login password email sent to: " . $email
             );
         } catch (\Exception $e) {
-            // Record failed email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $faculty->id ?? null,
-                'recipient_email' => $email,
-                'recipient_name'  => $name ?: null,
-                'purpose'         => 'first_login_password',
-                'status'          => 'failed',
-                'error_message'   => $e->getMessage(),
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'failed',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'error_message'   => $e->getMessage(),
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $faculty->id ?? null,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name ?: null,
+                    'purpose'         => 'first_login_password',
+                    'status'          => 'failed',
+                    'error_message'   => $e->getMessage(),
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::error(
                 "Failed to send faculty first login password email to: " .
@@ -122,6 +172,14 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
+        if ($this->dispatchLogId) {
+            EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                'status'        => 'failed',
+                'error_message' => $exception->getMessage(),
+                'processed_at'  => Carbon::now(),
+            ]);
+        }
+
         $code = is_object($this->faculty)
             ? ($this->faculty->code ?? 'Unknown')
             : ($this->faculty['code'] ?? 'Unknown');

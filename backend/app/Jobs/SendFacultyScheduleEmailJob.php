@@ -19,6 +19,7 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
 
     protected $faculty;
     protected $dispatchedAt;
+    protected $dispatchLogId;
 
     public $tries = 3;
     public $timeout = 60;
@@ -27,12 +28,48 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      * Create a new job instance.
      *
      * @param  $faculty  The faculty instance passed from the controller
+     * @param  int|null  $dispatchLogId  Optional pre-created dispatch log ID
      * @return void
      */
-    public function __construct($faculty)
+    public function __construct($faculty, $dispatchLogId = null)
     {
         $this->faculty      = $faculty;
         $this->dispatchedAt = Carbon::now();
+
+        if ($dispatchLogId) {
+            $this->dispatchLogId = $dispatchLogId;
+        } else {
+            $facultyModel = $faculty;
+
+            if (is_numeric($faculty)) {
+                $facultyModel = \App\Models\Faculty::with('user')
+                    ->find($faculty);
+            } else if (
+                $faculty instanceof \App\Models\Faculty &&
+                !$faculty->relationLoaded('user')
+            ) {
+                $facultyModel = \App\Models\Faculty::with('user')
+                    ->find($faculty->id);
+            }
+
+            $user = $facultyModel?->user ?? ($faculty?->user ?? null);
+            $email = $user?->email ?? 'No email on file';
+            $name = $user?->formatted_name
+                ?? ($user?->name ?? 'Faculty Member');
+            $facId = is_numeric($faculty) ? $faculty : ($faculty->id ?? null);
+
+            $log = EmailDispatchLog::create([
+                'faculty_id'      => $facId,
+                'recipient_email' => $email,
+                'recipient_name'  => $name,
+                'purpose'         => 'schedule_published',
+                'status'          => 'queued',
+                'dispatched_at'   => $this->dispatchedAt,
+                'triggered_by'    => auth()->id(),
+            ]);
+
+            $this->dispatchLogId = $log->id;
+        }
     }
 
     /**
@@ -66,6 +103,14 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
                 . ($this->faculty->id ?? 'unknown')
             );
 
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: missing email address.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
             return;
         }
 
@@ -86,32 +131,49 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
                 }
             );
 
-            // Record successful email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $this->faculty->id ?? null,
-                'recipient_email' => $email,
-                'recipient_name'  => $name,
-                'purpose'         => 'schedule_published',
-                'status'          => 'sent',
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'sent',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->faculty->id ?? null,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name,
+                    'purpose'         => 'schedule_published',
+                    'status'          => 'sent',
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::info(
                 "Official load & schedule email sent to: " . $email
             );
         } catch (\Exception $e) {
-            // Record failed email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $this->faculty->id ?? null,
-                'recipient_email' => $email,
-                'recipient_name'  => $name,
-                'purpose'         => 'schedule_published',
-                'status'          => 'failed',
-                'error_message'   => $e->getMessage(),
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'failed',
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name,
+                    'error_message'   => $e->getMessage(),
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->faculty->id ?? null,
+                    'recipient_email' => $email,
+                    'recipient_name'  => $name,
+                    'purpose'         => 'schedule_published',
+                    'status'          => 'failed',
+                    'error_message'   => $e->getMessage(),
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::error(
                 "Failed to send schedule email to faculty " . $email .
@@ -130,6 +192,14 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
      */
     public function failed(Exception $exception)
     {
+        if ($this->dispatchLogId) {
+            EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                'status'        => 'failed',
+                'error_message' => $exception->getMessage(),
+                'processed_at'  => Carbon::now(),
+            ]);
+        }
+
         $email = $this->faculty->user->email ?? 'Unknown Email';
         Log::error(
             'SendFacultyScheduleEmailJob failed for faculty ' . $email .

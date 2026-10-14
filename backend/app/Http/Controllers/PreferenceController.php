@@ -2184,6 +2184,34 @@ class PreferenceController extends Controller
 
         $facultyIds = $validated['faculty_ids'];
 
+        // If global deadline is set, ensure selected faculty have settings
+        $globalSample = PreferencesSetting::where('is_enabled', 1)
+            ->whereNotNull('global_deadline')
+            ->first();
+
+        if ($globalSample) {
+            $existingFacultyIds = PreferencesSetting::whereIn(
+                'faculty_id',
+                $facultyIds
+            )->pluck('faculty_id')->all();
+
+            $missingFacultyIds = array_diff(
+                $facultyIds,
+                $existingFacultyIds
+            );
+
+            foreach ($missingFacultyIds as $missingId) {
+                PreferencesSetting::create([
+                    'faculty_id'          => $missingId,
+                    'is_enabled'          => 1,
+                    'global_deadline'     => $globalSample->global_deadline,
+                    'global_start_date'   => $globalSample->global_start_date,
+                    'individual_deadline' => null,
+                    'has_request'         => 0,
+                ]);
+            }
+        }
+
         // Only notify faculty who currently have submission enabled
         $enabledSettings = PreferencesSetting::whereIn('faculty_id', $facultyIds)
             ->where('is_enabled', 1)

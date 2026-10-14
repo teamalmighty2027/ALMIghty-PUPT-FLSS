@@ -19,16 +19,45 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
 
     protected $faculty;
     protected $dispatchedAt;
+    protected $dispatchLogId;
 
     /**
      * Create a new job instance.
      *
      * @param Faculty $faculty
+     * @param int|null $dispatchLogId Optional pre-created dispatch log ID
      */
-    public function __construct(Faculty $faculty)
+    public function __construct(Faculty $faculty, $dispatchLogId = null)
     {
         $this->faculty      = $faculty;
         $this->dispatchedAt = Carbon::now();
+
+        if ($dispatchLogId) {
+            $this->dispatchLogId = $dispatchLogId;
+        } else {
+            $facultyUser = $faculty->user;
+            $facultyName = $facultyUser
+                ? $this->formatName(
+                    $facultyUser->last_name,
+                    $facultyUser->first_name,
+                    $facultyUser->middle_name,
+                    $facultyUser->suffix_name
+                )
+                : 'Faculty Member';
+            $email = $facultyUser?->email ?? 'No email on file';
+
+            $log = EmailDispatchLog::create([
+                'faculty_id'      => $faculty->id,
+                'recipient_email' => $email,
+                'recipient_name'  => $facultyName,
+                'purpose'         => 'deadline_warning',
+                'status'          => 'queued',
+                'dispatched_at'   => $this->dispatchedAt,
+                'triggered_by'    => auth()->id(),
+            ]);
+
+            $this->dispatchLogId = $log->id;
+        }
     }
 
     /**
@@ -43,6 +72,14 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
                 "Faculty email is missing for faculty ID: " .
                 "{$this->faculty->id}"
             );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: faculty email is missing.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
 
             return;
         }
@@ -75,33 +112,50 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
                 }
             );
 
-            // Record successful email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $this->faculty->id,
-                'recipient_email' => $facultyUser->email,
-                'recipient_name'  => $facultyName,
-                'purpose'         => 'deadline_warning',
-                'status'          => 'sent',
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'sent',
+                    'recipient_email' => $facultyUser->email,
+                    'recipient_name'  => $facultyName,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->faculty->id,
+                    'recipient_email' => $facultyUser->email,
+                    'recipient_name'  => $facultyName,
+                    'purpose'         => 'deadline_warning',
+                    'status'          => 'sent',
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::info(
                 "Email sent successfully to faculty ID: " .
                 "{$this->faculty->id}, Email: {$facultyUser->email}"
             );
         } catch (\Exception $e) {
-            // Record failed email dispatch
-            EmailDispatchLog::create([
-                'faculty_id'      => $this->faculty->id,
-                'recipient_email' => $facultyUser->email,
-                'recipient_name'  => $facultyName,
-                'purpose'         => 'deadline_warning',
-                'status'          => 'failed',
-                'error_message'   => $e->getMessage(),
-                'dispatched_at'   => $this->dispatchedAt,
-                'processed_at'    => Carbon::now(),
-            ]);
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'          => 'failed',
+                    'recipient_email' => $facultyUser->email,
+                    'recipient_name'  => $facultyName,
+                    'error_message'   => $e->getMessage(),
+                    'processed_at'    => Carbon::now(),
+                ]);
+            } else {
+                EmailDispatchLog::create([
+                    'faculty_id'      => $this->faculty->id,
+                    'recipient_email' => $facultyUser->email,
+                    'recipient_name'  => $facultyName,
+                    'purpose'         => 'deadline_warning',
+                    'status'          => 'failed',
+                    'error_message'   => $e->getMessage(),
+                    'dispatched_at'   => $this->dispatchedAt,
+                    'processed_at'    => Carbon::now(),
+                ]);
+            }
 
             Log::error(
                 "Failed to send email to faculty ID: " .
@@ -132,5 +186,19 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
         }
 
         return trim($name);
+    }
+
+    /**
+     * Handle job failure.
+     */
+    public function failed(\Exception $exception)
+    {
+        if ($this->dispatchLogId) {
+            EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                'status'        => 'failed',
+                'error_message' => $exception->getMessage(),
+                'processed_at'  => Carbon::now(),
+            ]);
+        }
     }
 }
