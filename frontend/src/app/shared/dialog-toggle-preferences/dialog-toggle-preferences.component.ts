@@ -251,6 +251,14 @@ export class DialogTogglePreferencesComponent {
     }
   }
 
+  // Checks if multiple faculties were already selected before opening dialog
+  get hasMultiplePreselected(): boolean {
+    return (
+      (this.data.preselectedFacultyIds?.length ?? 0) > 1 ||
+      this.data.type === 'batch_preferences'
+    );
+  }
+
   // Filters available faculties based on search query
   getFilteredFaculties(): AvailableFaculty[] {
     const list = this.data.availableFaculties || [];

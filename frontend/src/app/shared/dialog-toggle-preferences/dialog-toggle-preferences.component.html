@@ -78,13 +78,15 @@
         @if (applyMode === "selected") {
           <div class="faculty-checklist-container">
             <div class="checklist-header">
-              <mat-form-field appearance="fill" class="faculty-search-field">
-                <input
-                  matInput
-                  [(ngModel)]="facultySearchQuery"
-                  placeholder="Search faculty by name or code..."
-                />
-              </mat-form-field>
+              @if (!hasMultiplePreselected) {
+                <mat-form-field appearance="fill" class="faculty-search-field">
+                  <input
+                    matInput
+                    [(ngModel)]="facultySearchQuery"
+                    placeholder="Search faculty by name or code..."
+                  />
+                </mat-form-field>
+              }
 
               <mat-checkbox
                 [checked]="isAllFilteredSelected()"

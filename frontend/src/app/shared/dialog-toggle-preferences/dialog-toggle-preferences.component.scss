@@ -2,8 +2,11 @@
 
 // ── Host ─────────────────────────────────────────────────────
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  max-height: 85dvh;
+  min-height: 0;
   overflow: hidden;
   @include mixins.custom-spinner;
 }
@@ -26,13 +29,21 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
+  max-height: 85dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
 // ── Gradient header — identical to appeals dialog ─────────────
 .dialog-header {
+  flex-shrink: 0;
   padding: var(--spacing-md) var(--spacing-lg);
-  background: linear-gradient(135deg, var(--primary-one) 0%, var(--primary-two) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--primary-one) 0%,
+    var(--primary-two) 100%
+  );
 
   .dialog-title {
     margin: 0 0 2px;
@@ -57,6 +68,10 @@
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
   max-width: var(--dialog-base);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  @include mixins.custom-scrollbar;
 }
 
 // ── Main text block ───────────────────────────────────────────
@@ -223,12 +238,13 @@
     }
 
     .faculty-checklist-scroll {
-      max-height: 180px;
+      max-height: 140px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 2px;
       padding-right: 4px;
+      @include mixins.custom-scrollbar;
 
       .faculty-check-item {
         padding: 2px 4px;
@@ -281,6 +297,7 @@
 
 // ── Footer — identical to appeals dialog ─────────────────────
 .dialog-buttons {
+  flex-shrink: 0;
   @include mixins.flex-layout(
     $align: center,
     $justify: space-between,

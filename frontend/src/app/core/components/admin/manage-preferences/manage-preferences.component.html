@@ -18,6 +18,19 @@
       (exportByProgram)="onExportByProgram()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">
+      @if (showPreferenceToggleColumn) {
+      <button
+        mat-flat-button
+        type="button"
+        class="custom-mat-button choose-multiple-btn"
+        [class.active]="isMultiSelectMode"
+        (click)="toggleMultiSelectMode()">
+        <mat-icon>{{ isMultiSelectMode ? 'close' : 'checklist' }}</mat-icon>
+        <span>
+          {{ isMultiSelectMode ? 'Cancel Selection' : 'Choose Multiple' }}
+        </span>
+      </button>
+      }
     </app-reports-header>
   </div>
 
@@ -44,9 +57,8 @@
   
 
   <div class="faculty-pref-table-container" [@fadeAnimation]>
-    @if (showPreferenceToggleColumn) {
+    @if (showPreferenceToggleColumn && isMultiSelectMode) {
     <div class="multi-select-bar">
-      @if (isMultiSelectMode) {
       <div class="batch-actions-container">
         <span class="selected-count">
           {{ selection.selected.length }} selected
@@ -92,17 +104,6 @@
           <span>Done</span>
         </button>
       </div>
-      } @else {
-      <div class="multi-select-toggle-container">
-        <button
-          mat-button
-          class="select-multiple-btn sec-ripple"
-          (click)="toggleMultiSelectMode()">
-          <mat-icon>checklist</mat-icon>
-          <span>Select Multiple</span>
-        </button>
-      </div>
-      }
     </div>
     }
 
