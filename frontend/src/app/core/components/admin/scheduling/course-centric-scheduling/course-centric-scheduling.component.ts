@@ -1058,7 +1058,7 @@ export class CourseCentricSchedulingComponent
   }
 
   // Returns tooltip for row conflict or unsaved draft status
-  protected getRowStatusTooltip(offering: CourseOffering): string {
+  public getRowStatusTooltip(offering: CourseOffering): string {
     if (this.isDraftMode && this.isDraftConflict(offering)) {
       return 'Schedule Conflict: Overlapping time slot, professor, or room';
     }
