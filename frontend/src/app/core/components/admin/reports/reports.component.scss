@@ -55,6 +55,14 @@
         .table-button {
           color: var(--primary-text);
         }
+
+        tr.inactive-faculty-row {
+          background-color: rgba(255, 193, 7, 0.12) !important;
+
+          &:hover {
+            background-color: rgba(255, 193, 7, 0.22) !important;
+          }
+        }
       }
 
       .index {
@@ -94,6 +102,26 @@
 
         &.action {
           text-align: center;
+        }
+
+        .faculty-name-wrapper {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--spacing-xs);
+          justify-content: center;
+
+          .inactive-badge {
+            background-color: rgba(255, 193, 7, 0.3);
+            color: #8c6b00;
+            border: 1px solid rgba(255, 193, 7, 0.6);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 1px 6px;
+            border-radius: var(--border-radius-sm);
+            display: inline-flex;
+            align-items: center;
+            line-height: 1.2;
+          }
         }
 
         .prim-button {

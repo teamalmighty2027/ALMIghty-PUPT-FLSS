@@ -17,6 +17,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
@@ -105,6 +106,7 @@ interface DialogData {
     MatRippleModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     MatSymbolDirective,
     MatCheckboxModule,
   ],
@@ -882,5 +884,41 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   public getFacultyTypeClass(facultyType: string): Record<string, boolean> {
     return getFacultyTypeClass(facultyType);
+  }
+
+  // Checks if scheduling form is completely empty
+  public isFormEmpty(): boolean {
+    const v = this.scheduleForm?.value;
+    if (!v) {
+      return true;
+    }
+    return !v.day && !v.startTime && !v.endTime && !v.professor && !v.room;
+  }
+
+  // Checks if assign schedule button is disabled
+  public isAssignDisabled(): boolean {
+    return (
+      this.hasConflicts ||
+      this.isLoading ||
+      this.isValidating ||
+      this.scheduleForm.invalid
+    );
+  }
+
+  // Returns contextual explanation for disabled assign button
+  public getAssignDisabledReason(): string {
+    if (this.hasConflicts) {
+      return 'Resolve schedule conflict before assigning';
+    }
+    if (this.scheduleForm.invalid) {
+      return 'Please select valid day, times, professor, and room';
+    }
+    if (this.isValidating) {
+      return 'Validation in progress, please wait...';
+    }
+    if (this.isLoading) {
+      return 'Saving assignment...';
+    }
+    return '';
   }
 }

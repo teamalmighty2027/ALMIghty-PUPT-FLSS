@@ -207,13 +207,18 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
           if (f.schedules) {
             f.schedules = f.schedules.map((s: any) => ({
               ...s,
-              assignmentType: s.assignment_type || 'Regular'
+              assignmentType: s.assignment_type || 'Regular',
             }));
           }
-          return f;
+          return {
+            ...f,
+            status: f.status || 'Active',
+          };
         });
 
-        this.hasAnySchedules = facultyData.some((faculty: any) => faculty.schedules && faculty.schedules.length > 0);
+        this.hasAnySchedules = facultyData.some(
+          (faculty: any) => faculty.schedules && faculty.schedules.length > 0
+        );
         this.dataSource.data = facultyData;
         this.filteredData = [...facultyData];
         this.dataSource.paginator = this.paginator;
@@ -227,6 +232,11 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         this.isRefreshing = false;
       }
     });
+  }
+
+  // Checks if the given faculty member has an Inactive account status
+  isInactive(faculty: any): boolean {
+    return faculty?.status?.toLowerCase() === 'inactive';
   }
 
   getSemesterName(semester: number | string): string {

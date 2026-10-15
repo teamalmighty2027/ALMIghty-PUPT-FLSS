@@ -665,6 +665,11 @@
     cursor: pointer;
 
     &:hover { background-color: var(--neutral-option); }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
   }
 
   .button-group {
@@ -673,6 +678,10 @@
     gap: var(--spacing-xs);
 
     .cancel-button { color: var(--primary-text) !important; }
+
+    .assign-btn-wrapper {
+      display: inline-flex;
+    }
 
     .action-button {
       @include mixins.gradient-primary(315deg);
