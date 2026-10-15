@@ -46,6 +46,9 @@ import {
 import { 
   PermissionService 
 } from '../../../../services/permission/permission.service';
+import {
+  HasUnsavedScheduling
+} from '../../../../guards/scheduling-unsaved.guard';
 import { 
   Schedule, 
   AcademicYear, 
@@ -125,7 +128,8 @@ interface CourseGroup {
   styleUrls: ['./course-centric-scheduling.component.scss'],
   animations: [fadeAnimation, pageFloatUpAnimation]
 })
-export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
+export class CourseCentricSchedulingComponent
+  implements OnInit, OnDestroy, HasUnsavedScheduling {
   displayedColumns: string[] = [
     'section', 'day', 'time', 'professor', 'room', 'action'
   ];
@@ -1046,6 +1050,22 @@ export class CourseCentricSchedulingComponent implements OnInit, OnDestroy {
   protected isDraftConflict(offering: CourseOffering): boolean {
     if (!offering.schedule_id) return false;
     return !!this.draftStateService.get(offering.schedule_id)?.hasConflict;
+  }
+
+  // Checks whether unsaved draft modifications exist
+  public hasUnsavedChanges(): boolean {
+    return this.isDraftMode && this.draftStateService.hasDirtyEntries();
+  }
+
+  // Returns tooltip for row conflict or unsaved draft status
+  protected getRowStatusTooltip(offering: CourseOffering): string {
+    if (this.isDraftMode && this.isDraftConflict(offering)) {
+      return 'Schedule Conflict: Overlapping time slot, professor, or room';
+    }
+    if (this.isDraftMode && this.isDraftDirty(offering)) {
+      return 'Modified in draft (unsaved changes)';
+    }
+    return '';
   }
 
   // Triggers historical schedule fill dialog
