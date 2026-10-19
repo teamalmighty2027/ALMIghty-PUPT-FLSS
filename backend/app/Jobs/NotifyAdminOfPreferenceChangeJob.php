@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Faculty;
 use App\Models\User;
 use App\Models\EmailDispatchLog;
+use App\Services\EmailValidationService;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -82,6 +83,25 @@ class NotifyAdminOfPreferenceChangeJob implements ShouldQueue
                 EmailDispatchLog::where('id', $this->dispatchLogId)->update([
                     'status'        => 'failed',
                     'error_message' => 'Skipped: missing admin email address.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $validation = EmailValidationService::validate($adminEmail);
+
+        if (!$validation['valid']) {
+            Log::warning(
+                "Skipping admin preference change email: " .
+                $validation['reason']
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => $validation['reason'],
                     'processed_at'  => Carbon::now(),
                 ]);
             }
