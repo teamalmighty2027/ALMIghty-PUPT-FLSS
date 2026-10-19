@@ -22,10 +22,22 @@ import { DialogGenericComponent } from '../../../../shared/dialog-generic/dialog
 import { DialogInfoComponent } from '../../../../shared/dialog-info/dialog-info.component';
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 
-import { SchedulingService, CacheType } from '../../../services/admin/scheduling/scheduling.service';
-import { AcademicYearService } from '../../../services/admin/academic-year/academic-year.service';
-import { PermissionService } from '../../../services/permission/permission.service';
-import { DraftStateService } from '../../../services/admin/scheduling/draft-state.service';
+import {
+  SchedulingService,
+  CacheType
+} from '../../../services/admin/scheduling/scheduling.service';
+import {
+  AcademicYearService
+} from '../../../services/admin/academic-year/academic-year.service';
+import {
+  PermissionService
+} from '../../../services/permission/permission.service';
+import {
+  DraftStateService
+} from '../../../services/admin/scheduling/draft-state.service';
+import {
+  HasUnsavedScheduling
+} from '../../../guards/scheduling-unsaved.guard';
 
 import {
   Schedule,
@@ -59,7 +71,8 @@ import {
   styleUrls: ['./scheduling.component.scss'],
   animations: [fadeAnimation, pageFloatUpAnimation],
 })
-export class SchedulingComponent implements OnInit, OnDestroy {
+export class SchedulingComponent
+  implements OnInit, OnDestroy, HasUnsavedScheduling {
   schedules: Schedule[] = [];
   programOptions: ProgramOption[] = [];
   yearLevelOptions: YearLevelOption[] = [];
@@ -83,6 +96,7 @@ export class SchedulingComponent implements OnInit, OnDestroy {
   selectedYear: number = 1;
   selectedSection: string = '';
   selectedCurriculumId: number | null = null;
+  public headerSelectedValues: { [key: string]: any } = {};
 
   previousProgram: string = '';
   previousYear: number = 1;
@@ -838,6 +852,36 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     return this.copyConflicts.has(schedule.section_course_id);
   }
 
+  // Checks whether unsaved draft modifications exist
+  public hasUnsavedChanges(): boolean {
+    return this.isDraftMode && this.draftStateService.hasDirtyEntries();
+  }
+
+  // Returns tooltip explaining enter draft mode or why it is disabled
+  public get draftModeButtonTooltip(): string {
+    if (!this.selectedSection) {
+      return 'Select a program, year level, and section first';
+    }
+    if (this.isCreatingTemporaryCourse) {
+      return 'Please wait while course offering is being created';
+    }
+    return 'Enter draft mode to stage schedule changes before saving';
+  }
+
+  // Returns tooltip for row conflict or unsaved draft status
+  public getRowStatusTooltip(schedule: Schedule): string {
+    if (this.isDraftMode && this.isDraftConflict(schedule)) {
+      return 'Schedule Conflict: Overlapping time slot, professor, or room';
+    }
+    if (this.isDraftMode && this.isDraftDirty(schedule)) {
+      return 'Modified in draft (unsaved changes)';
+    }
+    if (!this.isDraftMode && this.hasCopyConflict(schedule)) {
+      return 'Course schedule conflict detected';
+    }
+    return '';
+  }
+
 
   /**
    * Rebuilds the draft schedules from the draft state service
@@ -1025,6 +1069,11 @@ export class SchedulingComponent implements OnInit, OnDestroy {
                 selectedSection.section_id
               ).subscribe({
                 next: () => {
+                  this.headerSelectedValues = {
+                    program: this.selectedProgram,
+                    yearLevel: this.selectedYear,
+                    section: this.selectedSection,
+                  };
                   observer.next();
                   observer.complete();
                 },
@@ -1051,10 +1100,56 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected onInputChange(values: { [key: string]: any }, forceRefresh: boolean = false): void {
+  // Handles dropdown input changes with confirmation if draft has changes
+  protected onInputChange(
+    values: { [key: string]: any },
+    forceRefresh: boolean = false
+  ): void {
+    if (
+      this.isDraftMode &&
+      this.draftStateService.hasDirtyEntries() &&
+      !forceRefresh
+    ) {
+      const dialogRef = this.dialog.open(DialogGenericComponent, {
+        data: {
+          title: 'Discard Unsaved Draft?',
+          content:
+            'You have unsaved changes in draft mode. ' +
+            'Switching sections will discard them.',
+          actionText: 'Discard & Switch',
+          cancelText: 'Stay in Draft',
+          action: 'confirm',
+        },
+      });
+
+      dialogRef.afterClosed().subscribe((result) => {
+        if (result === 'confirm') {
+          this.exitDraftInternal();
+          this.executeInputChange(values, forceRefresh);
+        } else {
+          this.headerSelectedValues = {
+            program: this.selectedProgram,
+            yearLevel: this.selectedYear,
+            section: this.selectedSection,
+          };
+          this.cdr.markForCheck();
+        }
+      });
+      return;
+    }
+
     if (this.isDraftMode) {
       this.exitDraftInternal();
     }
+
+    this.executeInputChange(values, forceRefresh);
+  }
+
+  // Executes the input changes and loads the selected section schedules
+  private executeInputChange(
+    values: { [key: string]: any },
+    forceRefresh: boolean = false
+  ): void {
 
     const selectedProgramDisplay = values['program'];
     const selectedYearLevel = values['yearLevel'];
@@ -1168,6 +1263,11 @@ export class SchedulingComponent implements OnInit, OnDestroy {
     });
 
     this.previousProgram = this.selectedProgram;
+    this.headerSelectedValues = {
+      program: this.selectedProgram,
+      yearLevel: this.selectedYear,
+      section: this.selectedSection,
+    };
   }
 
   /**
