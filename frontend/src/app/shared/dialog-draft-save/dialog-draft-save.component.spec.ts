@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { of } from 'rxjs';
 
 import { DialogDraftSaveComponent } from './dialog-draft-save.component';
 
@@ -8,7 +10,18 @@ describe('DialogDraftSaveComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogDraftSaveComponent]
+      imports: [DialogDraftSaveComponent],
+      providers: [
+        { provide: MatDialogRef, useValue: { close: () => {} } },
+        {
+          provide: MAT_DIALOG_DATA,
+          useValue: {
+            dirtyEntries: [],
+            skippedEntries: [],
+            saveStream$: of()
+          }
+        }
+      ]
     })
     .compileComponents();
 

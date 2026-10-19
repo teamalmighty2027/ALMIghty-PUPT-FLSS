@@ -6,6 +6,12 @@ use App\Services\GeminiService;
 use App\Models\Appeal;
 use App\Models\Room;
 use App\Models\Schedule;
+use App\Models\User;
+use App\Models\Faculty;
+use App\Notifications\FacultyAppealRequestNotification;
+use App\Notifications\FacultyAppealRequestCancelledNotification;
+use App\Notifications\AppealSubmittedNotification;
+use App\Notifications\AppealCancelledNotification;
 use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +21,125 @@ use App\Mail\AppealAccessApproved;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
 class RescheduleController extends Controller
 {
+    /**
+     * Scans an uploaded file for malicious content using Cloudmersive API.
+     *
+     * @param \Illuminate\Http\UploadedFile|string $file Uploaded file or path
+     * @param string $originalName Original file name for scan metadata
+     * @throws ValidationException If malicious content is detected
+     * @return JsonResponse|null Returns 503 response if service is unavailable
+     */
+    private function scanFileForViruses($file, string $originalName): ?JsonResponse
+    {
+        $apiKey = config('services.cloudmersive.api_key');
+        if (!$apiKey) {
+            return null;
+        }
+
+        $fileContents = is_string($file)
+            ? file_get_contents($file)
+            : file_get_contents($file->getRealPath());
+
+        try {
+            $scanResponse = Http::retry(2, 500)
+                ->timeout(15)
+                ->withHeaders(['Apikey' => $apiKey])
+                ->attach('inputFile', $fileContents, $originalName)
+                ->post('https://api.cloudmersive.com/virus/scan/file');
+
+            Log::info('Virus scan response: ' . $scanResponse->body());
+
+            if ($scanResponse->successful()) {
+                $scanResult = $scanResponse->json();
+
+                if (
+                    isset($scanResult['CleanResult']) &&
+                    $scanResult['CleanResult'] === false
+                ) {
+                    throw ValidationException::withMessages([
+                        'appealFile' => 'Security alert: Malicious content ' .
+                            'detected. Upload blocked.',
+                    ]);
+                }
+            } else {
+                return response()->json(
+                    ['message' => 'Security scan service unavailable. ' .
+                        'Try again later.'],
+                    503
+                );
+            }
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Virus scan exception: ' . $e->getMessage());
+
+            return response()->json(
+                ['message' => 'Security scan service unavailable. ' .
+                    'Try again later.'],
+                503
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Pre-scans an uploaded appeal document using Gemini AI.
+     * Stores the file temporarily and returns extracted fields + AI summary.
+     */
+    public function preScanAppealDocument(Request $request): JsonResponse
+    {
+        $request->validate([
+            'appealFile' => 'required|file|mimes:pdf|max:10240',
+        ]);
+
+        $file = $request->file('appealFile');
+
+        // Run virus scan before saving temp file or pre-scanning with AI
+        $scanError = $this->scanFileForViruses(
+            $file,
+            $file->getClientOriginalName()
+        );
+        if ($scanError) {
+            return $scanError;
+        }
+
+        $uuid = (string) Str::uuid();
+        $tempPath = $file->storeAs('tmp/appeal-prescan', "{$uuid}.pdf", 'public');
+        $absolutePath = storage_path('app/public/' . $tempPath);
+
+        $result = GeminiService::extractAndSummarizeDocument($absolutePath);
+
+        return response()->json([
+            'tempToken' => $uuid,
+            'extracted' => $result['extracted'],
+            'aiSummary' => $result['aiSummary'],
+        ]);
+    }
+
+    /**
+     * Cancels a pre-scan session by removing the temporary document.
+     */
+    public function cancelPreScan(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tempToken' => 'required|string',
+        ]);
+
+        $tempPath = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+        if (Storage::disk('public')->exists($tempPath)) {
+            Storage::disk('public')->delete($tempPath);
+        }
+
+        return response()->json(['message' => 'Pre-scan file cancelled.']);
+    }
+
     // ─────────────────────────────────────────────────────────
     //  FACULTY — Submit an appeal
     //  POST /api/rescheduling-appeals
@@ -29,24 +150,23 @@ class RescheduleController extends Controller
      *
      * @param Request $request Contains scheduleId, reason, day,
      *                          startTime, endTime, roomCode,
-     *                          and optional appealFile
+     *                          and optional appealFile or tempToken
      * @return JsonResponse Appeal confirmation or validation error
      */
     public function submitReschedulingAppeal(Request $request): JsonResponse
     {
-        while (ob_get_level() > 0) { @ob_end_clean(); }
-        @ini_set('display_errors', '0');
-        error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
-
         $validated = $request->validate([
-            'scheduleId' => 'required|integer|exists:schedules,schedule_id',
-            'reason'     => 'required|string',
-            'day'        => 'required|in:Monday,Tuesday,Wednesday,'
+            'scheduleId'  => 'required|integer|exists:schedules,schedule_id',
+            'reason'      => 'required|string',
+            'day'         => 'required|in:Monday,Tuesday,Wednesday,'
                             . 'Thursday,Friday,Saturday,Sunday',
-            'startTime'  => ['required', 'date_format:H:i'],
-            'endTime'    => ['required', 'date_format:H:i'],
-            'roomCode'   => 'nullable|string',
-            'appealFile' => 'nullable|file|mimes:pdf|max:5120',
+            'startTime'   => ['required', 'date_format:H:i'],
+            'endTime'     => ['required', 'date_format:H:i'],
+            'roomCode'    => 'nullable|string',
+            'appealFile'  => 'nullable|file|mimes:pdf|max:10240',
+            'tempToken'   => 'nullable|string',
+            'aiSummary'   => 'nullable|string',
+            'forceSubmit' => 'nullable|string',
         ]);
 
         if (strtotime($validated['endTime']) <= strtotime($validated['startTime'])) {
@@ -57,7 +177,19 @@ class RescheduleController extends Controller
         }
 
         $user = $request->user();
-        $faculty = DB::table('faculty')->where('user_id', $user->id)->first();
+        $schedule = Schedule::findOrFail($validated['scheduleId']);
+
+        $faculty = DB::table('faculty')
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$faculty || $user->role === 'admin') {
+            if ($schedule->faculty_id) {
+                $faculty = DB::table('faculty')
+                    ->where('id', $schedule->faculty_id)
+                    ->first();
+            }
+        }
 
         if (!$faculty) {
             return response()->json(
@@ -66,76 +198,11 @@ class RescheduleController extends Controller
             );
         }
 
-        $schedule = Schedule::findOrFail($validated['scheduleId']);
-        
-        if ($schedule->faculty_id !== $faculty->id) {
+        if ($schedule->faculty_id !== $faculty->id && $user->role !== 'admin') {
             return response()->json(
-                ['message' => 'Forbidden. You are not authorized to '
-                              . 'appeal this schedule.'],
+                ['message' => 'Forbidden. You are not authorized to appeal this schedule.'],
                 403
             );
-        }
-
-        $filePath = null;
-        $aiSummary = null;
-
-        if ($request->hasFile('appealFile')) {
-            $file = $request->file('appealFile');
-
-            // --- VIRUS SCAN START ---
-            $apiKey = config('services.cloudmersive.api_key');
-            
-            if ($apiKey) {
-                $scanResponse = Http::withHeaders(
-                    ['Apikey' => $apiKey]
-                )
-                    ->attach(
-                        'inputFile',
-                        file_get_contents($file->getRealPath()),
-                        $file->getClientOriginalName()
-                    )
-                    ->post('https://api.cloudmersive.com/virus/scan/file');
-
-                Log::info('Virus scan response: ' . $scanResponse->body());
-
-                if ($scanResponse->successful()) {
-                    $scanResult = $scanResponse->json();
-                    
-                    if (isset($scanResult['CleanResult'])
-                        && $scanResult['CleanResult'] === false) {
-                        throw ValidationException::withMessages([
-                            'appealFile' => 'Security alert: Malicious '
-                                          . 'content detected. Upload blocked.',
-                        ]);
-                    }
-                } else {
-                    return response()->json(
-                        ['message' => 'Security scan service unavailable. '
-                                    . 'Try again later.'],
-                        503
-                    );
-                }
-            }
-            // --- VIRUS SCAN END ---
-
-            // File is clean, proceed with storage
-            $filePath = $file->store('appeals', 'public');
-            $absolutePath = storage_path('app/public/' . $filePath);
-            $aiSummary = GeminiService::summarizeAppealDocument(
-                $absolutePath
-            );
-        }
-        
-        $roomId = null;
-        if (!empty($validated['roomCode'])) {
-            $room   = Room::where('room_code', $validated['roomCode'])->first();
-            $roomId = $room?->room_id;
-        }
-
-        $finalReasoning = $validated['reason'];
-        if ($aiSummary) {
-            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" . 
-              trim($aiSummary);
         }
 
         $existing = Appeal::where('schedule_id', $validated['scheduleId'])
@@ -143,10 +210,115 @@ class RescheduleController extends Controller
             ->first();
 
         if ($existing) {
+            if ($user->role === 'admin') {
+                $filePath = null;
+                if (!empty($validated['tempToken'])) {
+                    $tempRel = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+                    if (Storage::disk('public')->exists($tempRel)) {
+                        $targetRel = 'appeals/' . Str::uuid() . '.pdf';
+                        Storage::disk('public')->move($tempRel, $targetRel);
+                        $filePath = $targetRel;
+                    }
+                } elseif ($request->hasFile('appealFile')) {
+                    $file = $request->file('appealFile');
+                    $scanError = $this->scanFileForViruses(
+                        $file,
+                        $file->getClientOriginalName()
+                    );
+                    if ($scanError) {
+                        return $scanError;
+                    }
+                    $filePath = $file->store('appeals', 'public');
+                }
+
+                $existing->update([
+                    'appeal_day'        => $validated['day'],
+                    'appeal_start_time' => $validated['startTime'],
+                    'appeal_end_time'   => $validated['endTime'],
+                    'appeal_room'       => $validated['roomCode'] ?? null,
+                    'reasoning'         => $validated['reason'],
+                    'file_path'         => $filePath ?? $existing->file_path,
+                ]);
+
+                return response()->json([
+                    'message'   => 'Appeal submitted successfully.',
+                    'appeal_id' => $existing->appeal_id,
+                ], 200);
+            }
+
             return response()->json(
                 ['message' => 'You already have a pending appeal for this schedule.'],
                 422
             );
+        }
+
+        $roomId = null;
+        if (!empty($validated['roomCode'])) {
+            $room   = Room::where('room_code', $validated['roomCode'])->first();
+            $roomId = $room?->room_id;
+        }
+
+        // Validate conflicts before processing file uploads or AI summaries
+        $conflictResult = app(
+            \App\Services\AppealConflictService::class
+        )->check(
+            $validated['scheduleId'],
+            $validated['day'],
+            $validated['startTime'],
+            $validated['endTime'],
+            $roomId
+        );
+
+        if ($conflictResult['hasConflicts']) {
+            $conflictCount = count($conflictResult['messages']);
+            $forceSubmit = filter_var($request->input('forceSubmit'), FILTER_VALIDATE_BOOLEAN);
+
+            // Hard block if 3 or more conflicts exist, or if forceSubmit is not true
+            if ($conflictCount >= 3 || !$forceSubmit) {
+                return response()->json([
+                    'message' => $conflictCount >= 3 
+                        ? 'Proposed schedule has 3 or more conflicts and cannot be submitted.' 
+                        : 'Proposed schedule has conflicts.',
+                    'conflicts' => $conflictResult['messages'],
+                    'can_force' => $conflictCount < 3,
+                ], 409);
+            }
+        }
+
+        $filePath = null;
+        $aiSummary = $validated['aiSummary'] ?? null;
+
+        if (!empty($validated['tempToken'])) {
+            $tempRel = 'tmp/appeal-prescan/' . $validated['tempToken'] . '.pdf';
+            
+            if (Storage::disk('public')->exists($tempRel)) {
+                $targetRel = 'appeals/' . Str::uuid() . '.pdf';
+                Storage::disk('public')->move($tempRel, $targetRel);
+                $filePath = $targetRel;
+            }
+        } elseif ($request->hasFile('appealFile')) {
+            $file = $request->file('appealFile');
+            $scanError = $this->scanFileForViruses(
+                $file,
+                $file->getClientOriginalName()
+            );
+            if ($scanError) {
+                return $scanError;
+            }
+            $filePath = $file->store('appeals', 'public');
+        }
+
+        if (empty($aiSummary) && $filePath) {
+            $absolutePath = storage_path('app/public/' . $filePath);
+            $aiSummary = GeminiService::summarizeAppealDocument(
+                $absolutePath
+            );
+        }
+
+        $finalReasoning = $validated['reason'];
+        if (!empty($aiSummary)) {
+            $finalReasoning .= "\n\n--- AI DOCUMENT SUMMARY ---\n" .
+              trim($aiSummary);
         }
 
         $appeal = Appeal::create([
@@ -160,14 +332,28 @@ class RescheduleController extends Controller
             'end_time'            => $validated['endTime'],
             'room_id'             => $roomId,
             'file_path'           => $filePath,
-            'reasoning'           => $finalReasoning, 
+            'reasoning'           => $finalReasoning,
             'is_approved'         => null,
         ]);
 
-        return response()->json(
-            ['message' => 'Appeal submitted successfully.', 'appeal' => $appeal],
-            201
-        );
+        // Notify active admins of appeal submission
+        $facultyModel = Faculty::find($faculty->id);
+        if ($facultyModel) {
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
+
+            foreach ($admins as $admin) {
+                $admin->notify(
+                    new AppealSubmittedNotification($facultyModel)
+                );
+            }
+        }
+
+        return response()->json([
+            'message' => 'Appeal submitted successfully.',
+            'appeal' => $appeal,
+        ], 201);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -275,7 +461,23 @@ class RescheduleController extends Controller
 
         $appeal->delete();
 
-        return response()->json(['message' => 'Appeal cancelled successfully.']);
+        // Notify active admins of appeal cancellation
+        $facultyModel = Faculty::find($faculty->id);
+        if ($facultyModel) {
+            $admins = User::where('role', 'admin')
+                ->where('status', 'Active')
+                ->get();
+
+            foreach ($admins as $admin) {
+                $admin->notify(
+                    new AppealCancelledNotification($facultyModel)
+                );
+            }
+        }
+
+        return response()->json([
+            'message' => 'Appeal cancelled successfully.'
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -316,7 +518,10 @@ class RescheduleController extends Controller
                 DB::raw("CONCAT(u.last_name, ', ', u.first_name, ' ', "
                         . "COALESCE(u.middle_name, '')) AS faculty_name"),
                 'p.program_code',
+                'c.course_code',
                 'c.course_title',
+                'spy.year_level',
+                'spy.section_name',
                 's.day              AS original_day',
                 's.start_time       AS original_start_time',
                 's.end_time         AS original_end_time',
@@ -426,10 +631,120 @@ class RescheduleController extends Controller
                 'appeal'  => $appeal,
             ], 201);
         } catch (\Exception $e) {
-            Log::warning('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to approve appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to approve appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to approve appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * ADMIN — Approve an appeal as a mutual schedule swap
+     * POST /api/rescheduling-appeals/{id}/approve-swap
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function approveSwap(Request $request, int $id): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'swap_schedule_id' => 'required|integer|exists:schedules,schedule_id',
+                'day'              => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+                'start_time'       => ['required', 'date_format:H:i'],
+                'end_time'         => ['required', 'date_format:H:i'],
+                'room'             => 'nullable|string',
+                'admin_remarks'    => 'nullable|string',
+            ]);
+
+            if (strtotime($validated['end_time']) <= strtotime($validated['start_time'])) {
+                return response()->json(['message' => 'The end time must be after the start time.'], 422);
+            }
+
+            $appeal = Appeal::findOrFail($id);
+            $scheduleA = Schedule::findOrFail($appeal->schedule_id);
+            $scheduleB = Schedule::findOrFail($validated['swap_schedule_id']);
+
+            // Get target room_id for Schedule A's new slot
+            $targetRoomId = $appeal->room_id;
+            if (!empty($validated['room'])) {
+                $room = Room::where('room_code', $validated['room'])->first();
+                $targetRoomId = $room?->room_id ?? $targetRoomId;
+            }
+
+            // Get Schedule A's current effective slot (from internal_arrangements if exists, else schedules)
+            $arrA = \App\Models\InternalArrangement::where('schedule_id', $scheduleA->schedule_id)->first();
+            $slotA = [
+                'day'        => $arrA->day ?? $scheduleA->day,
+                'start_time' => $arrA->start_time ?? $scheduleA->start_time,
+                'end_time'   => $arrA->end_time ?? $scheduleA->end_time,
+                'room_id'    => $arrA->room_id ?? $scheduleA->room_id,
+            ];
+
+            DB::transaction(function () use ($appeal, $scheduleA, $scheduleB, $validated, $targetRoomId, $slotA) {
+                // 1. Update Appeal A
+                $appeal->update([
+                    'is_approved'   => 1,
+                    'admin_remarks' => $validated['admin_remarks'] ?? null,
+                    'day'           => $validated['day'],
+                    'start_time'    => $validated['start_time'],
+                    'end_time'      => $validated['end_time'],
+                    'room_id'       => $targetRoomId,
+                ]);
+
+                // 2. InternalArrangement for Schedule A (takes Slot B / target slot)
+                $arrangementA = \App\Models\InternalArrangement::updateOrCreate(
+                    ['schedule_id' => $scheduleA->schedule_id],
+                    [
+                        'appeal_id'  => $appeal->appeal_id,
+                        'day'        => $validated['day'],
+                        'start_time' => $validated['start_time'],
+                        'end_time'   => $validated['end_time'],
+                        'room_id'    => $targetRoomId,
+                    ]
+                );
+
+                // 3. InternalArrangement for Schedule B (takes Slot A / original slot of A)
+                $arrangementB = \App\Models\InternalArrangement::updateOrCreate(
+                    ['schedule_id' => $scheduleB->schedule_id],
+                    [
+                        'appeal_id'  => $appeal->appeal_id,
+                        'day'        => $slotA['day'],
+                        'start_time' => $slotA['start_time'],
+                        'end_time'   => $slotA['end_time'],
+                        'room_id'    => $slotA['room_id'],
+                    ]
+                );
+
+                AuditLogger::logUpdate(
+                    model: 'InternalArrangement',
+                    modelId: $arrangementA->arrangement_id,
+                    oldData: [],
+                    newData: $arrangementA->toArray(),
+                    description: "Approved appeal #{$appeal->appeal_id} (Swap A) for Schedule #{$scheduleA->schedule_id}"
+                );
+
+                AuditLogger::logUpdate(
+                    model: 'InternalArrangement',
+                    modelId: $arrangementB->arrangement_id,
+                    oldData: [],
+                    newData: $arrangementB->toArray(),
+                    description: "Schedule Swap B: Moved Schedule #{$scheduleB->schedule_id} to original slot of Schedule #{$scheduleA->schedule_id}"
+                );
+            });
+
+            return response()->json([
+                'message' => 'Schedule swap approved successfully.',
+                'appeal'  => $appeal
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to approve schedule swap: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json([
+                'message' => 'Failed to approve schedule swap. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -454,10 +769,10 @@ class RescheduleController extends Controller
 
             return response()->json(['message' => 'Appeal denied.', 'appeal' => $appeal->fresh()]);
         } catch (\Exception $e) {
-            Log::warning('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
+            Log::error('Failed to deny appeal: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json([
-                'message' => 'Failed to deny appeal: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to deny appeal. Please try again.',
+                'error'   => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }
     }
@@ -556,12 +871,23 @@ class RescheduleController extends Controller
 
         $isEnabled = $validated['is_enabled'];
 
-        DB::table('faculty')->update([
-            'is_appeal_enabled'  => $isEnabled,
-            'has_appeal_request' => $isEnabled ? 0 : DB::raw('has_appeal_request'),
-            'appeal_start_date'  => $isEnabled ? ($validated['start_date'] ?? null) : null,
-            'appeal_end_date'    => $isEnabled ? ($validated['end_date'] ?? null) : null,
-        ]);
+        $activeFacultyIds = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('users.status', 'Active')
+            ->pluck('faculty.id');
+
+        DB::table('faculty')
+            ->whereIn('id', $activeFacultyIds)
+            ->update([
+                'is_appeal_enabled'  => $isEnabled,
+                'has_appeal_request' => 0,
+                'appeal_start_date'  => $isEnabled 
+                    ? ($validated['start_date'] ?? null) 
+                    : null,
+                'appeal_end_date'    => $isEnabled 
+                    ? ($validated['end_date'] ?? null) 
+                    : null,
+            ]);
 
         // If toggled ON and admin checked the email box, send to everyone
         if ($isEnabled && !empty($validated['send_email'])) {
@@ -597,6 +923,17 @@ class RescheduleController extends Controller
 
         $faculty->update(['has_appeal_request' => 1]);
 
+        // Notify active admins of appeal access request
+        $admins = User::where('role', 'admin')
+            ->where('status', 'Active')
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(
+                new FacultyAppealRequestNotification($faculty)
+            );
+        }
+
         $fName = $user->first_name ?? 'Faculty';
         $lName = $user->last_name ?? '';
 
@@ -618,6 +955,17 @@ class RescheduleController extends Controller
         $faculty = \App\Models\Faculty::where('user_id', $user->id)->firstOrFail();
 
         $faculty->update(['has_appeal_request' => 0]);
+
+        // Notify active admins of cancelled appeal access request
+        $admins = User::where('role', 'admin')
+            ->where('status', 'Active')
+            ->get();
+
+        foreach ($admins as $admin) {
+            $admin->notify(
+                new FacultyAppealRequestCancelledNotification($faculty)
+            );
+        }
 
         return response()->json(['message' => 'Appeal request cancelled']);
     }

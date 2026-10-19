@@ -7,6 +7,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 interface TimeSlot {
   time: string;
@@ -33,7 +34,15 @@ interface ScheduleBlock {
   roomId?: number;
   combinedLabel?: string;
   combinedWithProgramId?: number | null;
+  isTimePlot?: boolean;
+  timePlotType?: 'night_service' | 'official_time' | 'advising_time';
 }
+
+interface TimePlotBlock extends ScheduleBlock {
+  isTimePlot: boolean;
+  timePlotType: 'night_service' | 'official_time' | 'advising_time';
+}
+
 
 type Day =
   | 'Monday'
@@ -46,13 +55,14 @@ type Day =
 
 @Component({
   selector: 'app-schedule-timeline',
-  imports: [CommonModule],
+  imports: [CommonModule, MatTooltipModule],
   templateUrl: './schedule-timeline.component.html',
   styleUrls: ['./schedule-timeline.component.scss'],
 })
 export class ScheduleTimelineComponent implements OnInit, OnChanges {
   @Input() scheduleData: any;
   @Input() entity!: string;
+  @Input() timePlots: any[] = [];
 
   days: Day[] = [
     'Monday',
@@ -72,22 +82,26 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
   ngOnInit() {
     this.generateTimeSlots();
     this.processScheduleData();
+    this.processTimePlots();
     this.detectCombinedSchedules();
   }
 
   // Handle input changes and reinitialize.
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['scheduleData']) {
+    if (changes['scheduleData'] || changes['timePlots']) {
       if (this.timeSlots.length === 0) {
         this.generateTimeSlots();
       }
       this.scheduleBlocks = [];
       this.processScheduleData();
+      this.processTimePlots();
       this.detectCombinedSchedules();
     }
   }
 
+
   private generateTimeSlots() {
+    this.timeSlots = [];
     const startTime = 7 * 60;
     const endTime = 21 * 60;
     const interval = 30;
@@ -97,6 +111,7 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
       this.timeSlots.push({ time: formattedTime, minutes: time });
     }
   }
+
 
   private processScheduleData() {
     if (Array.isArray(this.scheduleData) && this.scheduleData.length > 0) {
@@ -108,13 +123,11 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
           const endTime = this.convertTimeToMinutes(schedule.end_time);
           const startSlot = this.findTimeSlotIndex(startTime);
           const duration = Math.ceil((endTime - startTime) / 30);
-          const adjustedDuration =
-            (endTime - startTime) % 30 === 0 ? duration + 1 : duration;
 
           this.scheduleBlocks.push({
             day: schedule.day,
             startSlot: startSlot,
-            duration: adjustedDuration,
+            duration: duration,
             courseCode: schedule.course_details.course_code,
             courseTitle: schedule.course_details.course_title,
             roomCode: schedule.room_code,
@@ -220,17 +233,42 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
 
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
-    return block ? block.duration * 26 - 2 : 0;
+    return block ? block.duration * 28 : 0;
   }
+
+  isCompactBlock(day: string, slotIndex: number): boolean {
+  const block = this.getScheduleBlock(day, slotIndex);
+  return block ? block.duration <= 2 : false; // 1 hour or less
+}
 
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
-      const { backgroundColor, borderColor } = this.getBlockColors(day as Day);
+      let backgroundColor = '';
+      let borderColor = '';
+
+      if (block.isTimePlot) {
+        if (block.timePlotType === 'night_service') {
+          backgroundColor = '#e3f2fd';
+          borderColor = '#1565c0';
+        } else if (block.timePlotType === 'official_time') {
+          backgroundColor = '#fff3e0';
+          borderColor = '#e65100';
+        } else {
+          backgroundColor = '#f3f5fd';
+          borderColor = '#4a148c';
+        }
+      } else {
+        const colors = this.getBlockColors(day as Day);
+        backgroundColor = colors.backgroundColor;
+        borderColor = colors.borderColor;
+      }
+
       const baseStyle = {
         'background-color': backgroundColor,
         'border-left': `1px solid ${borderColor}`,
         'border-right': `1px solid ${borderColor}`,
+        'color': block.isTimePlot ? borderColor : 'inherit'
       };
 
       if (slotIndex === block.startSlot) {
@@ -242,6 +280,7 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
     }
     return {};
   }
+
 
   getDayClass(day: string): string {
     return `schedule-${day.toLowerCase()}`;
@@ -272,6 +311,33 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
       }
     }
     return '';
+  }
+
+  getTooltipText(day: string, slotIndex: number): string {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return '';
+
+    if (block.isTimePlot) {
+      return `${block.courseCode}\nTime: ${this.getFormattedTime(day, slotIndex)}`;
+    }
+
+    let tooltip = `${block.courseCode} - ${block.courseTitle}\n`;
+    
+    if (this.entity === 'faculty' || this.entity === 'room') {
+      const programLabel = block.combinedLabel || block.program;
+      tooltip += `Program: ${programLabel} (${block.yearLevel}-${block.section})\n`;
+    }
+    
+    if ((this.entity === 'program' || this.entity === 'room') && block.facultyName) {
+      tooltip += `Faculty: ${block.facultyName}\n`;
+    }
+    
+    if ((this.entity === 'faculty' || this.entity === 'program') && block.roomCode) {
+      tooltip += `Room: ${block.roomCode}\n`;
+    }
+    
+    tooltip += `Time: ${this.getFormattedTime(day, slotIndex)}`;
+    return tooltip;
   }
 
   private getBlockColors(day: Day) {
@@ -337,4 +403,50 @@ export class ScheduleTimelineComponent implements OnInit, OnChanges {
         slotIndex < b.startSlot + b.duration
     );
   }
+
+  private processTimePlots(): void {
+    if (this.timePlots && Array.isArray(this.timePlots)) {
+      this.timePlots.forEach(plot => {
+        if (plot.start_time && plot.end_time) {
+          const startTime = this.convertTimeToMinutes(
+            plot.start_time.substring(0, 5)
+          );
+          const endTime = this.convertTimeToMinutes(
+            plot.end_time.substring(0, 5)
+          );
+          const startSlot = this.findTimeSlotIndex(startTime);
+          const duration = Math.ceil((endTime - startTime) / 30);
+
+          let displayTitle = '';
+          if (plot.time_type === 'night_service') {
+            displayTitle = 'Night Service';
+          } else if (plot.time_type === 'official_time') {
+            displayTitle = 'Official Time';
+          } else {
+            displayTitle = 'Advising Time';
+          }
+
+          this.scheduleBlocks.push({
+            day: plot.day,
+            startSlot: startSlot,
+            duration: duration,
+            courseCode: displayTitle.toUpperCase(),
+            courseTitle: `${this.formatTimeTo12Hour(plot.start_time)} - ` +
+                         `${this.formatTimeTo12Hour(plot.end_time)}`,
+            roomCode: '',
+            facultyName: '',
+            program: '',
+            yearLevel: 0,
+            section: '',
+            offeringType: undefined,
+            startTimeStr: plot.start_time,
+            endTimeStr: plot.end_time,
+            isTimePlot: true,
+            timePlotType: plot.time_type
+          } as any);
+        }
+      });
+    }
+  }
 }
+

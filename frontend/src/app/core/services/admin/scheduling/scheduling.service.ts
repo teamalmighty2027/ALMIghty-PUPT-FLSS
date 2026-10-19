@@ -133,7 +133,9 @@ export class SchedulingService {
    */
   getActiveYearLevelsCurricula(): Observable<any[]> {
     return this.http
-      .get<any[]>(`${this.baseUrl}/active-year-levels-curricula`)
+      .get<any[]>(
+        `${this.baseUrl}/academic-years/active/year-levels-curricula`
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -148,7 +150,9 @@ export class SchedulingService {
 
     if (!this.schedulesCache$) {
       this.schedulesCache$ = this.http
-        .get<PopulateSchedulesResponse>(`${this.baseUrl}/populate-schedules`)
+        .get<PopulateSchedulesResponse>(
+          `${this.baseUrl}/schedules/populate`
+        )
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.schedulesCache$;
@@ -205,9 +209,10 @@ export class SchedulingService {
    * Retrieves courses for a program across all semesters in the active academic year.
    */
   getProgramCourses(programId: number): Observable<CourseCatalogItem[]> {
-    const params = new HttpParams().set('program_id', programId.toString());
     return this.http
-      .get<CourseCatalogItem[]>(`${this.baseUrl}/program-courses`, { params })
+      .get<CourseCatalogItem[]>(
+        `${this.baseUrl}/programs/${programId}/courses`
+      )
       .pipe(catchError(this.handleError));
   }
 
@@ -332,7 +337,7 @@ export class SchedulingService {
   getAllRooms(): Observable<{ rooms: Room[] }> {
     if (!this.roomsCache$) {
       this.roomsCache$ = this.http
-        .get<{ rooms: Room[] }>(`${this.baseUrl}/get-available-rooms`)
+        .get<{ rooms: Room[] }>(`${this.baseUrl}/rooms/available`)
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.roomsCache$;
@@ -345,7 +350,7 @@ export class SchedulingService {
   getFacultyDetails(): Observable<{ faculty: Faculty[] }> {
     if (!this.facultyCache$) {
       this.facultyCache$ = this.http
-        .get<{ faculty: Faculty[] }>(`${this.baseUrl}/get-active-faculty`)
+        .get<{ faculty: Faculty[] }>(`${this.baseUrl}/faculty/active`)
         .pipe(shareReplay(1), catchError(this.handleError));
     }
     return this.facultyCache$;
@@ -362,7 +367,7 @@ export class SchedulingService {
   ): Observable<SubmittedPrefResponse> {
     if (forceRefresh || !this.submittedPreferences$) {
       this.submittedPreferences$ = this.http
-        .get<SubmittedPrefResponse>(`${this.baseUrl}/get-all-preferences`)
+        .get<SubmittedPrefResponse>(`${this.baseUrl}/preferences`)
         .pipe(
           shareReplay(1),
           catchError((error) => {
@@ -387,7 +392,8 @@ export class SchedulingService {
     program_id: number,
     year_level: number,
     section_id: number,
-    elective_id: number | null = null
+    elective_id: number | null = null,
+    assignment_type_id: number | null = null
   ): Observable<any> {
     const payload = {
       schedule_id,
@@ -397,11 +403,19 @@ export class SchedulingService {
       start_time,
       end_time,
       elective_id,
+      assignment_type_id,
     };
-    return this.http.post<any>(`${this.baseUrl}/assign-schedule`, payload).pipe(
+    return this.http.post<any>(`${this.baseUrl}/schedules`, payload).pipe(
       tap(() => this.resetCaches([CacheType.Schedules])),
       catchError(this.handleError)
     );
+  }
+
+// Change the payload key to match the database column
+  updateAssignmentType(scheduleId: number, assignmentTypeId: number | null): Observable<any> {
+    return this.http.patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, {
+      assignment_type_id: assignmentTypeId
+    });
   }
 
   /**
@@ -409,9 +423,10 @@ export class SchedulingService {
    */
   duplicateCourse(element: Schedule): Observable<{ course: Schedule }> {
     return this.http
-      .post<{ course: Schedule }>(`${this.baseUrl}/duplicate-course`, {
-        section_course_id: element.section_course_id,
-      })
+      .post<{ course: Schedule }>(
+        `${this.baseUrl}/schedules/duplicate-course`,
+        { section_course_id: element.section_course_id }
+      )
       .pipe(
         tap(() => this.resetCaches([CacheType.Schedules])),
         catchError(this.handleError)
@@ -423,16 +438,32 @@ export class SchedulingService {
    */
   removeDuplicateCourse(section_course_id: number): Observable<any> {
     return this.http
-      .delete(`${this.baseUrl}/remove-duplicate-course`, {
-        body: { section_course_id },
-      })
+      .delete(
+        `${this.baseUrl}/schedules/duplicate-course/${section_course_id}`
+      )
       .pipe(catchError(this.handleError));
+  }
+  
+  // Fetch dynamic load types
+  getAssignmentTypes(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/assignment-types`);
+  }
+
+  // Add a new dynamic load type
+  addAssignmentType(name: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/assignment-types`, { name });
+  }
+
+  // Delete a load type
+  deleteAssignmentType(id: number): Observable<any> {
+    return this.http.delete<any>(`${this.baseUrl}/assignment-types/${id}`);
   }
 
   /**
    * Checks for schedule conflicts based on provided parameters.
    */
   checkForScheduleConflicts(
+    course_id: number,
     schedule_id: number,
     program_id: number,
     year_level: number,
@@ -441,14 +472,20 @@ export class SchedulingService {
     end_time: string,
     section_id: number,
     faculty_id: number | null,
-    room_id: number | null
-  ): Observable<{ hasConflicts: boolean; messages: string[] }> {
+    room_id: number | null,
+    hoursAlreadyAssigned?: number
+  ): Observable<{
+    hasConflicts: boolean;
+    messages: string[];
+    warnings: string[];
+  }> {
     return forkJoin([this.populateSchedules(), this.getAllRooms()]).pipe(
       map(([schedules, rooms]) => {
         return this.scheduleValidationService.validateScheduleConflicts(
           schedules,
           rooms,
           {
+            course_id,
             schedule_id,
             program_id,
             year_level,
@@ -458,6 +495,7 @@ export class SchedulingService {
             section_id,
             faculty_id,
             room_id,
+            hoursAlreadyAssigned,
           }
         );
       }),
@@ -518,7 +556,7 @@ export class SchedulingService {
     course_id: number
   ): Observable<any> {
     return this.http
-      .post<any>(`${this.baseUrl}/suggestion-heuristic`, { 
+      .post<any>(`${this.baseUrl}/schedules/suggestions`, { 
         program_id, 
         year_level, 
         section_id,
@@ -604,14 +642,27 @@ export class SchedulingService {
             ).pipe(
               map(ml => ({ ...c, ml }))
             );
-          }, 4), // Run up to 4 predictions in parallel
+          }, 1), // Run predictions sequentially to avoid WASM conflicts
+          tap((result: any) => {
+            if (result && result.ml) {
+              console.log(
+                `🤖 ML Candidate: ${result.faculty_name} | ${result.day} ` +
+                `| ${result.start_time} - ${result.end_time} | ` +
+                `Confidence: ${result.ml.confidence.toFixed(4)}`
+              );
+            }
+          }),
           reduce((best: any, current: any) => {
             const currentConfidence = current.ml?.confidence || 0;
             const bestConfidence = best?.ml?.confidence || 0;
             return currentConfidence > bestConfidence ? current : best;
           }, null),
           map(bestMatch => {
-            if (bestMatch && bestMatch.ml!.confidence >= 0.6) {
+            if (bestMatch && bestMatch.ml!.confidence >= 0.1) {
+              console.log(
+                `✅ ML Suggestion Accepted: ${bestMatch.faculty_name} ` +
+                `with confidence ${bestMatch.ml!.confidence.toFixed(4)}`
+              );
               return {
                 faculty_id: bestMatch.faculty_id,
                 faculty_name: bestMatch.faculty_name,
@@ -622,6 +673,19 @@ export class SchedulingService {
                 isMl: true,
                 success: true
               } as SmartSuggestion;
+            }
+
+            if (bestMatch) {
+              console.log(
+                `⚠️ ML Match Rejected (Confidence ` +
+                `${bestMatch.ml!.confidence.toFixed(4)} < 0.1). ` +
+                `Falling back to heuristics.`
+              );
+            } else {
+              console.log(
+                `⚠️ No ML candidates found for this course. ` +
+                `Falling back to heuristics.`
+              );
             }
 
             return null;

@@ -23,11 +23,7 @@
         [addButtonTooltip]="addButtonTooltip"
         [isLoading]="isCreatingTemporaryCourse"
         (inputChange)="onInputChange($event)"
-        [selectedValues]="{
-          program: selectedProgram,
-          yearLevel: selectedYear,
-          section: selectedSection,
-        }"
+        [selectedValues]="headerSelectedValues"
         [activeYear]="activeYear"
         [activeSemester]="activeSemesterLabel"
         [readOnlyBadge]="true"
@@ -40,14 +36,30 @@
       @if (!isDraftMode) {
         <div class="draft-toggle-container">
           <button
-            mat-flat-button
-            color="accent"
-            (click)="toggleDraftMode()"
-            [disabled]="!selectedSection || isCreatingTemporaryCourse"
+            mat-stroked-button
+            class="course-centric-btn"
+            (click)="goToCourseCentric()"
+            [disabled]="isCreatingTemporaryCourse"
+            matTooltip="Schedule General Education courses across all sections"
           >
-            <mat-icon>edit_note</mat-icon>
-            Enter Draft Mode
+            <mat-icon>list_alt</mat-icon>
+            GenEd Courses
           </button>
+
+          <span
+            class="draft-mode-btn-wrapper"
+            [matTooltip]="draftModeButtonTooltip"
+          >
+            <button
+              mat-flat-button
+              class="draft-mode-btn"
+              (click)="toggleDraftMode()"
+              [disabled]="!selectedSection || isCreatingTemporaryCourse"
+            >
+              <mat-icon>edit_note</mat-icon>
+              Enter Draft Mode
+            </button>
+          </span>
         </div>
       }
     </div>
@@ -71,6 +83,8 @@
             mat-stroked-button
             (click)="openHistoricalDialog()"
             [disabled]="isAiFilling || isHistoricalLoading"
+            matTooltip=
+              "Fill unassigned slots using patterns from past semesters"
           >
             @if (isHistoricalLoading) {
               <mat-spinner diameter="18"></mat-spinner>
@@ -84,6 +98,8 @@
             mat-stroked-button
             (click)="fillWithAI()"
             [disabled]="isAiFilling || isHistoricalLoading"
+            matTooltip=
+              "Automatically assign available faculty and rooms using AI"
           >
             @if (isAiFilling) {
               <div class="progress-info">
@@ -100,7 +116,13 @@
 
           <div class="divider"></div>
 
-          <button mat-flat-button color="warn" (click)="discardDraft()">
+          <button
+            mat-flat-button
+            color="warn"
+            (click)="discardDraft()"
+            matTooltip=
+              "Discard all uncommitted draft changes for this section"
+          >
             <mat-icon>delete_sweep</mat-icon>
             Discard
           </button>
@@ -111,6 +133,8 @@
             class="save-btn"
             (click)="saveDraft()"
             [disabled]="isAiFilling || isHistoricalLoading"
+            matTooltip=
+              "Permanently save all valid draft changes to the database"
           >
             <mat-icon>save</mat-icon>
             Save Draft
@@ -123,6 +147,7 @@
             [disabled]="
               !selectedSection || isCreatingTemporaryCourse || isAiFilling
             "
+            matTooltip="Exit draft mode and return to live schedule view"
           >
             <mat-icon>close</mat-icon>
             Exit Draft Mode
@@ -144,8 +169,22 @@
             <th mat-header-cell *matHeaderCellDef class="custom-header index">
               #
             </th>
-            <td mat-cell *matCellDef="let element; let i = index" class="index">
-              {{ i + 1 }}
+            <td
+              mat-cell
+              *matCellDef="let element; let i = index"
+              class="index"
+              [matTooltip]="getRowStatusTooltip(element)"
+            >
+              <div class="index-content">
+                <span>{{ i + 1 }}</span>
+                @if (isDraftMode && isDraftConflict(element)) {
+                  <mat-icon class="row-status-icon conflict">warning</mat-icon>
+                } @else if (isDraftMode && isDraftDirty(element)) {
+                  <mat-icon class="row-status-icon dirty">edit</mat-icon>
+                } @else if (!isDraftMode && hasCopyConflict(element)) {
+                  <mat-icon class="row-status-icon conflict">error</mat-icon>
+                }
+              </div>
             </td>
           </ng-container>
 
@@ -246,7 +285,12 @@
 
           <!-- Lec Hours Column -->
           <ng-container matColumnDef="lec_hours">
-            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              class="custom-header min"
+              matTooltip="Lecture hours per week"
+            >
               Lec
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -256,7 +300,12 @@
 
           <!-- Lab Hours Column -->
           <ng-container matColumnDef="lab_hours">
-            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              class="custom-header min"
+              matTooltip="Laboratory hours per week"
+            >
               Lab
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -266,7 +315,12 @@
 
           <!-- Units Column -->
           <ng-container matColumnDef="units">
-            <th mat-header-cell *matHeaderCellDef class="custom-header min">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              class="custom-header min"
+              matTooltip="Total credit units"
+            >
               Units
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -278,7 +332,14 @@
           <ng-container matColumnDef="day">
             <th mat-header-cell *matHeaderCellDef class="custom-header">Day</th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
-              <span [class.not-set-badge]="element.day === 'Not set'">
+              <span
+                [class.not-set-badge]="element.day === 'Not set'"
+                [matTooltip]="
+                  element.day === 'Not set'
+                    ? 'Click Edit to assign class day'
+                    : ''
+                "
+              >
                 {{ element.day }}
               </span>
             </td>
@@ -290,7 +351,14 @@
               Time
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
-              <span [class.not-set-badge]="element.time === 'Not set'">
+              <span
+                [class.not-set-badge]="element.time === 'Not set'"
+                [matTooltip]="
+                  element.time === 'Not set'
+                    ? 'Click Edit to assign class hours'
+                    : ''
+                "
+              >
                 {{ element.time }}
               </span>
             </td>
@@ -302,7 +370,14 @@
               Professor
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
-              <span [class.not-set-badge]="element.professor === 'Not set'">
+              <span
+                [class.not-set-badge]="element.professor === 'Not set'"
+                [matTooltip]="
+                  element.professor === 'Not set'
+                    ? 'Click Edit to assign a professor'
+                    : ''
+                "
+              >
                 {{ element.professor }}
               </span>
             </td>
@@ -314,7 +389,14 @@
               Room
             </th>
             <td mat-cell *matCellDef="let element" class="custom-cell">
-              <span [class.not-set-badge]="isRoomNotSet(element.room)">
+              <span
+                [class.not-set-badge]="isRoomNotSet(element.room)"
+                [matTooltip]="
+                  isRoomNotSet(element.room)
+                    ? 'Click Edit to assign a room'
+                    : ''
+                "
+              >
                 {{ formatRoomForDisplay(element.room) }}
               </span>
             </td>
@@ -345,6 +427,9 @@
                   class="edit-button sec-ripple"
                   (click)="openEditScheduleDialog(element)"
                   [disabled]="loadingScheduleId === element.schedule_id"
+                  [matTooltip]="
+                    'Edit schedule details for ' + element.course_code
+                  "
                 >
                   <div class="button-content">
                     @if (loadingScheduleId === element.schedule_id) {
@@ -370,6 +455,7 @@
             [class.last-copy]="isLastCopy(row, i)"
             [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
             [class.draft-conflict]="isDraftMode && isDraftConflict(row)"
+            [class.copy-conflict]="!isDraftMode && hasCopyConflict(row)"
             [@fadeAnimation]
           ></tr>
 

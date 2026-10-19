@@ -16,6 +16,11 @@
   }
 }
 
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 .dialog-login-container {
   @include mixins.flex-layout(
     $direction: column,

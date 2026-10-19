@@ -17,12 +17,14 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { SchedulingService } from '../../core/services/admin/scheduling/scheduling.service';
 import { ScheduleValidationService } from '../../core/services/admin/scheduling/schedule-validation.service';
 import { Faculty, Room, ConflictingScheduleDetail } from '../../core/models/scheduling.model';
 
 import { cardEntranceSide, cardSwipeAnimation } from '../../core/animations/animations';
+import { getFacultyTypeClass } from '../utils/faculty-type.utils';
 
 interface Preference {
   day: string;
@@ -42,6 +44,7 @@ interface SuggestedFaculty {
 interface ProfessorOption {
   id: number;
   name: string;
+  type?: string;
 }
 
 interface DialogData {
@@ -83,6 +86,9 @@ interface DialogData {
   bridging_course_id?: number | null;
   combined_with_program_id?: number | null;
   combined_with_program_code?: string | null;
+  hoursAlreadyAssigned?: number;
+  lec_hours?: number;
+  lab_hours?: number;
 }
 
 @Component({
@@ -100,6 +106,7 @@ interface DialogData {
     MatRippleModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
     MatSymbolDirective,
     MatCheckboxModule,
   ],
@@ -119,10 +126,13 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   originalDay: string = '';
 
   selectedFaculty: SuggestedFaculty | null = null;
-  historyCardSelected = false;
+  currentAssignmentSelected = false;
 
   hasConflicts = false;
   conflictMessage: string = '';
+  remainingHoursMessage: string = '';
+  facultyBreakMessage: string = '';
+  isValidating = false;
 
   pendingCombinedLabel: string | null = null;
   pendingMatchingProgramCode: string | null = null;
@@ -202,7 +212,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         }
 
         const facultyId = suggestion.faculty_id;
-        const name = suggestion.faculty_name;
+        const facultyDetails = this.data.facultyOptions.find(
+          (f) => f.faculty_id === facultyId
+        );
+        const name = facultyDetails ? facultyDetails.name : suggestion.faculty_name;
         
         const prefs: Preference[] = [];
         if (suggestion.day && suggestion.start_time && 
@@ -293,9 +306,10 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
 
   private setupAutocomplete(): void {
     const professorOptions: ProfessorOption[] =
-      this.data.options.professorOptions.map((name, index) => ({
+      this.data.facultyOptions.map((f, index) => ({
         id: index,
-        name: name,
+        name: f.name,
+        type: f.faculty_type,
       }));
 
     this.filteredProfessors$ = this.scheduleForm
@@ -459,6 +473,20 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   initiateConflictValidation(): Observable<void> {
     const formValues = this.scheduleForm.value;
     const { day, startTime, endTime, professor, room } = formValues;
+
+    if (!day || !startTime || !endTime) {
+      this.hasConflicts = false;
+      this.conflictMessage = '';
+      this.remainingHoursMessage = '';
+      this.facultyBreakMessage = '';
+      this.isValidating = false;
+      this.cdr.detectChanges();
+      return of(undefined);
+    }
+
+    this.isValidating = true;
+    this.cdr.detectChanges();
+
     const formattedStartTime = this.convertTimeToBackendFormat(startTime);
     const formattedEndTime = this.convertTimeToBackendFormat(endTime);
 
@@ -512,7 +540,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
             `${this.pendingMatchingProgramCode}. ` +
             `You must combine them to save.`
           : '';
-        this.cdr.markForCheck();
+        this.isValidating = false;
+        this.cdr.detectChanges();
       }
     } else if (this.data.isTemporaryCourse && this.populatedSchedules) {
       matchingResult =
@@ -542,6 +571,8 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         this.pendingMatchingProgramCode = null;
         this.pendingMatchingProgramId = null;
       }
+      this.isValidating = false;
+      this.cdr.detectChanges();
       return of(undefined);
     }
 
@@ -550,8 +581,14 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.pendingMatchingProgramCode = null;
     this.pendingMatchingProgramId = null;
 
+    const timeToMinutes = (timeStr: string): number => {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      return hours * 60 + minutes;
+    };
+
     return this.schedulingService
       .checkForScheduleConflicts(
+        this.data.course_id,
         this.data.schedule_id,
         this.data.program.id,
         this.data.academic.year_level,
@@ -560,21 +597,53 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
         formattedEndTime || '',
         this.data.academic.section_id,
         facultyId,
-        roomId
+        roomId,
+        this.data.hoursAlreadyAssigned
       )
       .pipe(
         tap((conflictResult) => {
+          this.isValidating = false;
           this.hasConflicts = conflictResult.hasConflicts;
           this.conflictMessage = this.hasConflicts
             ? conflictResult.messages[0]
             : '';
-          this.cdr.markForCheck();
+
+          this.facultyBreakMessage =
+            conflictResult.warnings && conflictResult.warnings.length > 0
+              ? conflictResult.warnings[0]
+              : '';
+
+          const lecHours = this.data.lec_hours || 0;
+          const labHours = this.data.lab_hours || 0;
+          const totalRequired = lecHours + labHours;
+          const assignedBefore = this.data.hoursAlreadyAssigned || 0;
+
+          if (formattedStartTime && formattedEndTime && totalRequired > 0) {
+            const startMins = timeToMinutes(formattedStartTime);
+            const endMins = timeToMinutes(formattedEndTime);
+            const proposedDuration = (endMins - startMins) / 60;
+            const remaining =
+              totalRequired - assignedBefore - proposedDuration;
+
+            if (remaining > 0) {
+              this.remainingHoursMessage =
+                `Note: There are still ${remaining.toFixed(1)} hours left ` +
+                `to be assigned for this course.`;
+            } else {
+              this.remainingHoursMessage = '';
+            }
+          } else {
+            this.remainingHoursMessage = '';
+          }
+
+          this.cdr.detectChanges();
         }),
         catchError(() => {
+          this.isValidating = false;
           this.conflictMessage =
             'An error occurred during validation. Please try again.';
           this.hasConflicts = true;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
           return of(undefined);
         }),
         map(() => undefined)
@@ -620,7 +689,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
       this.dialogRef.close({
         isDraft: true,
         faculty_id: selectedFaculty?.faculty_id ?? null,
-        faculty_name: formValues.professor || 'Not set',
+        faculty_name: selectedFaculty?.name || 'Not set',
         room_id: selectedRoomId,
         room_code: formValues.room || 'Not set',
         day: formValues.day ?? null,
@@ -699,7 +768,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     preference: Preference
   ): void {
     this.selectedFaculty = faculty;
-    this.historyCardSelected = false;
+    this.currentAssignmentSelected = false;
     const [startTime, endTime] = preference.time
       .split(' - ')
       .map((t) => t.trim());
@@ -716,12 +785,14 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  public selectHistoryEntry(): void {
+
+  // Pre-fills the form with the current schedule slot assignment values.
+  public selectCurrentAssignment(): void {
     const schedule = this.data.existingSchedule;
     if (!schedule || schedule.professor === 'Not set') return;
 
     this.selectedFaculty = null;
-    this.historyCardSelected = true;
+    this.currentAssignmentSelected = true;
 
     // Parse "8:00 AM - 9:00 AM" → startTime / endTime
     const parts = schedule.time?.split(' - ').map((t) => t.trim()) ?? [];
@@ -740,6 +811,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.scheduleForm.markAllAsTouched();
     this.cdr.markForCheck();
   }
+
 
   public showNextFacultyPreference(faculty: SuggestedFaculty): void {
     if (faculty.animating) return;
@@ -785,7 +857,7 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
     this.selectedDay = '';
     this.originalDay = '';
     this.selectedFaculty = null;
-    this.historyCardSelected = false;
+    this.currentAssignmentSelected = false;
     this.cdr.markForCheck();
   }
 
@@ -811,12 +883,42 @@ export class DialogSchedulingComponent implements OnInit, OnDestroy {
   }
 
   public getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
+  }
+
+  // Checks if scheduling form is completely empty
+  public isFormEmpty(): boolean {
+    const v = this.scheduleForm?.value;
+    if (!v) {
+      return true;
+    }
+    return !v.day && !v.startTime && !v.endTime && !v.professor && !v.room;
+  }
+
+  // Checks if assign schedule button is disabled
+  public isAssignDisabled(): boolean {
+    return (
+      this.hasConflicts ||
+      this.isLoading ||
+      this.isValidating ||
+      this.scheduleForm.invalid
+    );
+  }
+
+  // Returns contextual explanation for disabled assign button
+  public getAssignDisabledReason(): string {
+    if (this.hasConflicts) {
+      return 'Resolve schedule conflict before assigning';
+    }
+    if (this.scheduleForm.invalid) {
+      return 'Please select valid day, times, professor, and room';
+    }
+    if (this.isValidating) {
+      return 'Validation in progress, please wait...';
+    }
+    if (this.isLoading) {
+      return 'Saving assignment...';
+    }
+    return '';
   }
 }

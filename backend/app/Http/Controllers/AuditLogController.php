@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class AuditLogController extends Controller
 {
     /**
-     * Get all audit logs with filters
+     * Get all audit logs with filters (Paginated)
      * GET /api/audit-logs
      */
     public function index(Request $request): JsonResponse
@@ -45,12 +45,14 @@ class AuditLogController extends Controller
             $query->where('user_type', $request->user_type);
         }
         
-        // Get all logs
-        $logs = $query->get();
+        // Get the requested page size, default to 10 if not provided
+        $perPage = $request->input('per_page', 10);
+        
+        // Use paginate() instead of get()
+        $logs = $query->paginate($perPage);
         
         return response()->json($logs);
     }
-    
     /**
      * Get single audit log details
      * GET /api/audit-logs/{id}

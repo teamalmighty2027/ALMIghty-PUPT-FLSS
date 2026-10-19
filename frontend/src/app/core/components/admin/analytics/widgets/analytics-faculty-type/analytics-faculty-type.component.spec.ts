@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AnalyticsFacultyTypeComponent } from './analytics-faculty-type.component';
+import {
+  AnalyticsFacultyTypeComponent
+} from './analytics-faculty-type.component';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';

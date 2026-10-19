@@ -30,6 +30,19 @@ export interface User {
   fullName: string;
 }
 
+export interface AcademicRank {
+  id: number;
+  name: string;
+  is_active: boolean;
+}
+
+export interface Department {
+  program_id: number;
+  program_code: string;
+  program_title: string;
+  status: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -41,28 +54,66 @@ export class AdminService {
   // Fetch all admins
   getAdmins(): Observable<User[]> {
     return this.http
-      .get<User[]>(`${this.baseUrl}/getAdmins`)
+      .get<User[]>(`${this.baseUrl}/admins`)
       .pipe(map((admins) => admins.filter((admin) => admin.role === 'admin')));
   }
 
   // Fetch a specific admin by ID
   getAdminById(id: string): Observable<User> {
-    return this.http.get<User>(`${this.baseUrl}/getAdmins/${id}`);
+    return this.http.get<User>(`${this.baseUrl}/admins/${id}`);
   }
 
   // Add a new admin
   addAdmin(admin: User): Observable<User> {
-    return this.http.post<User>(`${this.baseUrl}/addAdmins`, admin);
+    return this.http.post<User>(`${this.baseUrl}/admins`, admin);
   }
 
   // Update an existing admin
   updateAdmin(id: string, updatedAdmin: User): Observable<User> {
     return this.http
       .put<{ message: string; updated_fields: string[]; admin: User }>(
-        `${this.baseUrl}/updateAdmins/${id}`,
+        `${this.baseUrl}/admins/${id}`,
         updatedAdmin
       )
       .pipe(map((response) => response.admin));
+  }
+
+  // ==========================================
+  // CONFIGURATION: ACADEMIC RANKS
+  // ==========================================
+  getAcademicRanks(): Observable<AcademicRank[]> {
+    return this.http.get<AcademicRank[]>(`${this.baseUrl}/admin/config/academic-ranks`);
+  }
+
+  addAcademicRank(name: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/admin/config/academic-ranks`, { name });
+  }
+
+  updateAcademicRank(id: number, name: string, is_active: boolean): Observable<any> {
+    return this.http.put(`${this.baseUrl}/admin/config/academic-ranks/${id}`, { name, is_active });
+  }
+
+  deleteAcademicRank(id: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/admin/config/academic-ranks/${id}`);
+  }
+
+  // ==========================================
+  // CONFIGURATION: DEPARTMENTS (PROGRAMS)
+  // ==========================================
+  getDepartments(): Observable<Department[]> {
+    return this.http.get<Department[]>(`${this.baseUrl}/admin/config/departments`);
+  }
+
+  addDepartment(program_code: string, program_title: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/admin/config/departments`, { program_code, program_title });
+  }
+
+  updateDepartment(id: number, program_code: string, program_title: string): Observable<any> {
+    return this.http.put(`${this.baseUrl}/admin/config/departments/${id}`, { program_code, program_title });
+  }
+
+  deleteDepartment(id: number): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/admin/config/departments/${id}`);
   }
 
   // Generate next admin code

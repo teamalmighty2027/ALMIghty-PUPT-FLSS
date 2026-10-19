@@ -319,7 +319,9 @@
                 <div class="action-note">
                     <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
                     <b>Email:</b> {{ $email }}<br>
-                    <b>Default Password:</b> puptfaculty123*
+                    <b>Identity Provider (IDP) Password:</b> PUPTfaculty123* <br>
+                      Can't access account? Use your backup account <br>
+                    <b> Backup Password: puptfaculty123* </b> 
                 </div>
 
                 <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
@@ -331,7 +333,9 @@
                 <div class="action-note">
                     <b>Note:</b> If this is your first time logging in, please use the credentials below:<br>
                     <b>Email:</b> {{ $email }}<br>
-                    <b>Default Password:</b> puptfaculty123*
+                    <b>Identity Provider (IDP) Password:</b> PUPTfaculty123* <br>
+                      Can't access account? Use your backup account <br>
+                    <b> Backup Password: puptfaculty123* </b> 
                 </div>
                 
                 <p style="margin-top: 30px;">To finalize your subject preferences click the button below to log in.</p>
@@ -346,7 +350,7 @@
                 <p style="margin-top: 0;">To better understand the system process, you can watch these videos:</p>
                 <ul class="video-list">
                     <li>
-                        <a href="https://youtu.be/IzAfVlUYY7s?si=-6z8Z3rJSbodNwfu" target="_blank">How to Login</a>
+                        <a href="https://youtu.be/vmWXIIPeS8s?si=TXJ0TgcA0NNGmgxM" target="_blank">How to Login</a>
                     </li>
                     <li>
                         <a href="https://youtu.be/2TPF8RWpOlc?si=1Jvukyua718bpF7f" target="_blank">How to Set Preferences</a>

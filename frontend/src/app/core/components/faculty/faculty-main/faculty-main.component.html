@@ -43,9 +43,17 @@
         <div class="account-email">{{ facultyEmail }}</div>
       </div>
       <div class="profile-dropdown">
-        <img [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'" alt="Profile Icon"
-          class="profile-icon" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings"
-          matTooltipPosition="below" />
+        <div class="profile-icon-wrapper">
+          <img [src]="facultyProfilePictureUrl || 'assets/images/default_faculty_icon.png'" alt="Profile Icon"
+            class="profile-icon" [matMenuTriggerFor]="desktopProfileMenu" matTooltip="Click to open settings"
+            matTooltipPosition="below" />
+          
+          <span *ngIf="authService.profileIncomplete$ | async" 
+                class="notification-badge desktop-badge" 
+                matTooltip="Please complete your profile details"
+                matTooltipPosition="left">
+          </span>
+        </div>
       </div>
     </div>
   </header>
@@ -61,6 +69,7 @@
     <button mat-menu-item (click)="onMenuAction('profile')">
       <span mat-symbol="account_circle"></span>
       My Profile
+      <span *ngIf="authService.profileIncomplete$ | async" class="menu-notification-badge"></span>
     </button>
 
     <button mat-menu-item (click)="onMenuAction('change-password')">
@@ -109,6 +118,8 @@
     <button class="bottom-nav-item" (click)="toggleDropdown($event)">
       <div class="icon-container">
         <span mat-symbol="person"></span>
+        <!-- Mobile notification badge -->
+        <span *ngIf="authService.profileIncomplete$ | async" class="notification-badge mobile-badge"></span>
       </div>
       <span class="bottom-nav-label">Account</span>
     </button>
@@ -129,6 +140,7 @@
       <button matRipple class="mobile-dropdown-item" (click)="navigateToProfile()">
         <span mat-symbol="account_circle"></span>
         My Profile
+        <span *ngIf="authService.profileIncomplete$ | async" class="menu-notification-badge"></span>
       </button>
       <button matRipple class="mobile-dropdown-item" (click)="openChangePasswordDialog()">
         <span mat-symbol="lock"></span>

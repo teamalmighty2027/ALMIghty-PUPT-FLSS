@@ -49,6 +49,13 @@ class PermissionSeeder extends Seeder
                 'description' => 'View faculty preferences (read-only)',
                 'category' => 'preferences',
             ],
+            [
+                'permission_key' => 'view_notification_center',
+                'display_name' => 'View Notification Center',
+                'description' => 'Access email logs, faculty requests, '
+                               . 'and notification history',
+                'category' => 'administration',
+            ],
         ];
 
         foreach ($permissions as $permission) {

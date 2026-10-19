@@ -21,6 +21,9 @@ class Faculty extends Authenticatable
         'idp_user_id',
         'is_appeal_enabled',
         'has_appeal_request',
+        'has_reactivation_request',
+        'appeal_start_date',
+        'appeal_end_date',
     ];
 
     protected $with = ['facultyType'];
@@ -70,6 +73,12 @@ class Faculty extends Authenticatable
         return $this->hasOne(PreferencesSetting::class);
     }
 
+    // Alias for preferenceSetting to maintain naming compatibility
+    public function preferencesSetting()
+    {
+        return $this->preferenceSetting();
+    }
+
     public function schedulePublications()
     {
         return $this->hasMany(FacultySchedulePublication::class, 'faculty_id', 'id');
@@ -82,5 +91,10 @@ class Faculty extends Authenticatable
             ->where('semester_id', $semesterId)
             ->where('is_published', true)
             ->exists();
+    }
+
+    public function timePlots()
+    {
+        return $this->hasMany(FacultyTimePlot::class, 'faculty_id', 'id');
     }
 }

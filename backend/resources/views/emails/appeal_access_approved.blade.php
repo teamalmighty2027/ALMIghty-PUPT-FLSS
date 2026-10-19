@@ -63,6 +63,32 @@
             text-align: justify;
         }
 
+        .button-container {
+            text-align: center;
+            margin: 35px 0;
+        }
+
+        .button {
+            background-color: #800000;
+            color: #ffffff !important;
+            text-decoration: none;
+            padding: 14px 32px;
+            border-radius: 9999px;
+            font-size: 16px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(128, 0, 0, 0.1);
+        }
+
+        .button:hover {
+            background-color: #660000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(128, 0, 0, 0.2);
+        }
+
         .important-note {
             font-size: 14px;
             color: #666666;
@@ -101,7 +127,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <img src="https://images.pupt-flss.com/pup_logo_white_bg.png" alt="PUP Logo" class="logo">
+            <img src="https://images.pupt-flss.com/pup_logo_white_bg.png"
+                alt="PUP Logo" class="logo">
             <h1>PUP Taguig</h1>
             <h1>Faculty Loading and Scheduling System</h1>
         </div>
@@ -109,13 +136,24 @@
         <div class="content">
             <p class="greeting"><b>Good Day, {{ $firstName }},</b></p>
 
-            <p>The administrator has granted your request to submit a schedule appeal for the active academic semester.</p>
+            <p>
+                The administrator has granted your request to submit a schedule
+                appeal for the active academic semester.
+            </p>
 
-            <p>Please log in to the PUPT-FLSS Faculty portal and navigate to the <strong>Load and Schedule</strong> module. You can now click the "Appeal" button on your Internal Arrangement blocks to submit your requested changes.</p>
+            <p>
+                Please log in to the PUPT-FLSS Faculty portal and navigate
+                to the <strong>Load and Schedule</strong> module. You can
+                now click the "Appeal" button on your Internal Arrangement
+                blocks to submit your requested changes.
+            </p>
 
             @if($startDate && $endDate)
-            <div style="background-color: #ffffff; border-left: 4px solid #800000; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                <p style="margin: 0 0 5px 0;"><strong>Submission Timeline:</strong></p>
+            <div style="background-color: #ffffff; border-left: 4px solid
+                #800000; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <p style="margin: 0 0 5px 0;">
+                    <strong>Submission Timeline:</strong>
+                </p>
                 <p style="margin: 0; color: #444;">
                     Opens: {{ \Carbon\Carbon::parse($startDate)->format('F j, Y') }}<br>
                     Closes: {{ \Carbon\Carbon::parse($endDate)->format('F j, Y \a\t 11:59 A\M') }}
@@ -123,13 +161,23 @@
             </div>
             @endif
 
-            <p class="important-note">Need help? Contact us at <a
-                    href="mailto:pupt.flss2027@gmail.com">pupt.flss2027@gmail.com</a></p>
+            <div class="button-container">
+                <a href="{{ url('/faculty/load-and-schedule') }}" class="button">
+                    View Load and Schedule
+                </a>
+            </div>
+
+            <p class="important-note">
+                Need help? Contact us at
+                <a href="mailto:pupt.flss2027@gmail.com">
+                    pupt.flss2027@gmail.com
+                </a>
+            </p>
         </div>
 
         <div class="footer">
             <p class="copyright">
-                © 2026 Polytechnic University of the Philippines - Taguig Branch<br>
+                © 2026 Polytechnic University of the Philippines - Taguig<br>
                 Faculty Loading and Scheduling System<br>
                 All rights reserved.
             </p>

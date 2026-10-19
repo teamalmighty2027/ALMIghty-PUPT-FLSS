@@ -109,6 +109,16 @@
             box-shadow: 0 4px 6px rgba(128, 0, 0, 0.2);
         }
 
+        .action-note {
+            background-color: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 14.5px;
+            color: #2a4365;
+        }
+
         .important-note {
             font-size: 14px;
             color: #666666;

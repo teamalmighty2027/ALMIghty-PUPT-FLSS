@@ -18,6 +18,8 @@ import {
   DialogConfig,
   DialogFieldConfig,
 } from '../../../../../shared/table-dialog/table-dialog.component';
+import { DialogEditAdminComponent } from '../../../../../shared/dialog-edit-admin/dialog-edit-admin.component';
+import { DialogAddAdminComponent } from '../../../../../shared/dialog-add-admin/dialog-add-admin.component';
 import {
   DialogAdminPermissionComponent,
 } from '../../../../../shared/dialog-admin-permission/dialog-admin-permission.component';
@@ -248,15 +250,17 @@ export class AdminComponent implements OnInit, OnDestroy {
           {
             label: 'Password',
             formControlName: 'password',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
             label: 'Confirm Password',
             formControlName: 'confirmPassword',
-            type: 'text',
+            type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
             confirmPassword: true,
           },
@@ -283,18 +287,17 @@ export class AdminComponent implements OnInit, OnDestroy {
   openAddAdminDialog() {
     this.adminService.getNextAdminCode().subscribe({
       next: (code) => {
-        const config = this.getDialogConfig();
-        config.initialValue = { ...config.initialValue, code };
-
-        const dialogRef = this.dialog.open(TableDialogComponent, {
-          data: config,
+        const dialogRef = this.dialog.open(DialogAddAdminComponent, {
+          data: { code },
           autoFocus: true,
+          width: 'min(92vw, 600px)',
+          maxWidth: '600px',
+          panelClass: 'edit-admin-dialog-panel',
         });
 
         dialogRef.afterClosed().subscribe((result) => {
           if (result) {
-            const { confirmPassword, ...adminData } = result;
-            const { name, ...rest } = adminData;
+            const { name, ...rest } = result;
 
             this.adminService.addAdmin({ ...rest, role: 'admin' }).subscribe({
               next: (newAdmin) => {
@@ -340,11 +343,12 @@ export class AdminComponent implements OnInit, OnDestroy {
    * @param admin The admin user to edit.
    */
   openEditAdminDialog(admin: User) {
-    const config = this.getDialogConfig(admin);
-
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: config,
+    const dialogRef = this.dialog.open(DialogEditAdminComponent, {
+      data: { admin },
       autoFocus: true,
+      width: 'min(92vw, 600px)',
+      maxWidth: '600px',
+      panelClass: 'edit-admin-dialog-panel',
     });
 
     dialogRef.afterClosed().subscribe((result) => {

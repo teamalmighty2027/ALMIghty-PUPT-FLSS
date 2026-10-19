@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialogRef } from '@angular/material/dialog';
 
 import { DialogBirthdateWarningComponent } from './dialog-birthdate-warning.component';
 
@@ -8,7 +9,10 @@ describe('DialogBirthdateWarningComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogBirthdateWarningComponent]
+      imports: [DialogBirthdateWarningComponent],
+      providers: [
+        { provide: MatDialogRef, useValue: { close: () => {} } }
+      ]
     })
     .compileComponents();
 

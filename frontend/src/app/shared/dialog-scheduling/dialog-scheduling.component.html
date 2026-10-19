@@ -2,7 +2,7 @@
 
   <!-- ═══════════════════════════════════════════════
        LEFT PANEL — Faculty Preferences, AI Suggestions,
-       and Course History
+       and Current Assignment
        ═══════════════════════════════════════════════ -->
   <section class="section suggested-faculty">
 
@@ -43,6 +43,7 @@
                       (click)="showPreviousFacultyPreference(faculty)"
                       matRipple
                       [matRippleColor]="'rgba(255,255,255,0.1)'"
+                      matTooltip="Previous preference"
                     >
                       <span mat-symbol="chevron_left"></span>
                     </button>
@@ -51,6 +52,7 @@
                       (click)="showNextFacultyPreference(faculty)"
                       matRipple
                       [matRippleColor]="'rgba(255,255,255,0.1)'"
+                      matTooltip="Next preference"
                     >
                       <span mat-symbol="chevron_right"></span>
                     </button>
@@ -142,25 +144,25 @@
       </div>
 
       <!-- ════════════════════════════════════════
-           COURSE HISTORY — Faculty who previously
-           handled this course
+           CURRENT ASSIGNMENT — Faculty currently
+           assigned to this course slot
            ════════════════════════════════════════ -->
-      <div class="course-history-block">
-        <div class="course-history-header">
-          <span mat-symbol="history_edu" class="history-header-icon"></span>
-          <span class="history-header-label">Course History</span>
-          <span class="history-header-sublabel">Faculty who previously handled this course</span>
+      <div class="current-assignment-block">
+        <div class="current-assignment-header">
+          <span mat-symbol="assignment" class="assignment-header-icon"></span>
+          <span class="assignment-header-label">Current Assignment</span>
+          <span class="assignment-header-sublabel">Faculty currently assigned to this course slot</span>
         </div>
 
         @if (data.existingSchedule?.professor && data.existingSchedule?.professor !== 'Not set') {
           <div
-            class="faculty-card history-card"
-            (click)="selectHistoryEntry()"
-            [class.selected-history]="historyCardSelected"
+            class="faculty-card assignment-card"
+            (click)="selectCurrentAssignment()"
+            [class.selected-assignment]="currentAssignmentSelected"
             matRipple
           >
             <div class="card-row-top">
-              <span class="faculty-type history-type">Previous</span>
+              <span class="faculty-type assignment-type">Current</span>
             </div>
             <div class="faculty-name">{{ data.existingSchedule?.professor }}</div>
             <div class="faculty-pref">
@@ -172,11 +174,11 @@
             </div>
           </div>
         } @else {
-          <p class="empty-state-text">No course history available for this slot.</p>
+          <p class="empty-state-text">No current assignment configured for this slot.</p>
         }
       </div>
 
-      <!-- COURSE HISTORY — end marker -->
+      <!-- CURRENT ASSIGNMENT — end marker -->
       <div class="formal-end-marker">
         <div class="end-marker-line"></div>
         <span class="end-marker-text">— Nothing Follows —</span>
@@ -213,10 +215,17 @@
             <div
               class="day-button"
               [class.selected]="day.name === selectedDay"
-              [class.original-day]="day.name === originalDay && day.name !== selectedDay"
+              [class.original-day]="
+                day.name === originalDay && day.name !== selectedDay
+              "
               (click)="selectDay(day.name)"
               matRipple
               [matRippleColor]="'rgba(255, 255, 255, 0.1)'"
+              [matTooltip]="
+                day.name === originalDay
+                  ? day.name + ' (Original day)'
+                  : day.name
+              "
             >
               {{ day.shortName }}
             </div>
@@ -258,8 +267,22 @@
           <mat-icon matPrefix>person</mat-icon>
           <input type="text" matInput formControlName="professor" [matAutocomplete]="professorAuto" />
           <mat-autocomplete #professorAuto="matAutocomplete">
-            @for (professor of filteredProfessors$ | async; track professor.id) {
-              <mat-option [value]="professor.name">{{ professor.name }}</mat-option>
+            @for (
+              professor of filteredProfessors$ | async; track professor.id
+            ) {
+              <mat-option [value]="professor.name" class="prof-option">
+                <span class="prof-name">{{ professor.name }}</span>
+                @if (professor.type) {
+                  <span
+                    class="faculty-badge"
+                    [ngClass]="
+                      professor.type.toLowerCase().replace(' ', '-')
+                    "
+                  >
+                    {{ professor.type }}
+                  </span>
+                }
+              </mat-option>
             }
           </mat-autocomplete>
           @if (scheduleForm.get('professor')?.hasError('invalidOption')) {
@@ -296,17 +319,31 @@
               Combine with {{ pendingMatchingProgramCode }}?
               (Will be listed as <strong>{{ pendingCombinedLabel }}</strong>)
             </mat-checkbox>
-            @if (!userConfirmedCombine) {
-              <div class="combine-warning-message">
+          @if (!userConfirmedCombine) {
+            <div class="combine-warning-message">
                 <span mat-symbol="warning"></span>
                 <span>You must confirm the combination to save this schedule.</span>
-              </div>
-            }
+            </div>
+          }
           </div>
         } @else if (conflictMessage) {
           <div class="validation-message conflict">
             <span mat-symbol="error"></span>
             <span>{{ conflictMessage }}</span>
+          </div>
+        }
+
+        @if (remainingHoursMessage) {
+          <div class="validation-message info">
+            <span mat-symbol="info"></span>
+            <span>{{ remainingHoursMessage }}</span>
+          </div>
+        }
+
+        @if (facultyBreakMessage) {
+          <div class="validation-message warning">
+            <span mat-symbol="warning"></span>
+            <span>{{ facultyBreakMessage }}</span>
           </div>
         }
       </div>
@@ -319,23 +356,37 @@
         (click)="resetForm()"
         matRipple
         [matRippleColor]="'rgba(134,134,134,0.1)'"
+        [disabled]="isFormEmpty()"
+        matTooltip="Reset schedule fields to blank"
       >
         Clear All
       </button>
       <div class="button-group">
-        <button class="cancel-button" mat-button (click)="cancelDialog()">Cancel</button>
         <button
-          class="action-button"
-          mat-flat-button
-          [disabled]="hasConflicts || isLoading || scheduleForm.invalid"
-          (click)="assignValidatedSchedule()"
+          class="cancel-button"
+          mat-button
+          (click)="cancelDialog()"
         >
-          @if (isLoading) {
-            <mat-spinner [diameter]="25" class="custom-spinner"></mat-spinner>
-          } @else {
-            Assign Schedule
-          }
+          Cancel
         </button>
+        <span
+          class="assign-btn-wrapper"
+          [matTooltip]="getAssignDisabledReason()"
+          [matTooltipDisabled]="!isAssignDisabled()"
+        >
+          <button
+            class="action-button"
+            mat-flat-button
+            [disabled]="isAssignDisabled()"
+            (click)="assignValidatedSchedule()"
+          >
+            @if (isLoading) {
+              <mat-spinner [diameter]="25" class="custom-spinner"></mat-spinner>
+            } @else {
+              Assign Schedule
+            }
+          </button>
+        </span>
       </div>
     </mat-dialog-actions>
 

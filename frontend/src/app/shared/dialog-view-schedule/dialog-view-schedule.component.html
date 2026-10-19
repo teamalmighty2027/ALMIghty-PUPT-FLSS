@@ -4,10 +4,41 @@
     <app-loading></app-loading>
   </div>
   } @else {
+  
   <div class="entity-info" [@fadeAnimation]>
-    <div class="schedule-title">
-      <h2 class="dialog-title">{{ title }}</h2>
-      <span class="dialog-subtitle">Official Schedule {{ subtitle }}</span>
+    <div class="schedule-title-wrapper">
+      <div class="schedule-title">
+        <h2 class="dialog-title">
+          {{ title }}
+          @if (data.entity === 'faculty' && dialogWarningsTooltip !== '') {
+            <mat-icon
+              class="warning-icon-pulse"
+              [matTooltip]="dialogWarningsTooltip"
+              matTooltipClass="custom-warning-tooltip"
+              >warning</mat-icon>
+          }
+        </h2>
+        <span class="dialog-subtitle">Official Schedule {{ subtitle }}</span>
+      </div>
+
+      @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+        @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+          @if (data.entity === 'faculty' && selectedView === 'table-view' && data.exportType !== 'all') {
+            <div class="faculty-metrics-row">
+              @for (badge of facultyLoadBadges; track badge.label) {
+                <div class="metric-pill" [ngClass]="badge.statusClass">
+                  <span class="metric-label">{{ badge.label }}:</span>
+                  <span class="metric-value">
+                    {{ badge.hours }} 
+                    @if (badge.max !== undefined) { / {{ badge.max }} }
+                    hrs
+                  </span>
+                </div>
+              }
+            </div>
+          }
+        }
+      }
     </div>
 
     @if (data.exportType !== 'all' && showViewToggle) {
@@ -15,8 +46,7 @@
       <mat-button-toggle-group
         name="viewOption"
         [(ngModel)]="selectedView"
-        (ngModelChange)="onViewChange($event)"
-        aria-label="Select view option">
+        (ngModelChange)="onViewChange($event)">
         <mat-button-toggle value="table-view">
           <mat-icon class="icon-spacing">table_chart</mat-icon>
           <span>Table view</span>
@@ -30,71 +60,369 @@
     }
   </div>
 
-  @if (selectedView === 'table-view' && data.exportType !== 'all') {
-    @if (scheduleGroups && scheduleGroups.length > 0) {
-    <div class="multiple-schedules-container">
-      @for (group of scheduleGroups; track group) {
-      <div class="schedule-group">
-        <h3 class="group-title">{{ group.title }}</h3>
-        <app-schedule-timeline
-          [scheduleData]="group.scheduleData"
-          [entity]="data.entity"
-          [@fadeAnimation]></app-schedule-timeline>
+  <div class="scrollable-modal-body">
+    
+    @if (data.entity === 'faculty' && selectedView === 'table-view') {
+      <div class="summary-table-container" [@fadeAnimation]>
+        <div class="summary-header-row">
+          <h3 class="summary-title">FACULTY LOAD ASSIGNMENT</h3>
+          <mat-button-toggle-group
+            name="summarySortOption"
+            [(ngModel)]="summarySort"
+            (ngModelChange)="applySummarySort()"
+            class="summary-sort-group">
+            <mat-button-toggle value="day">
+              <mat-icon>today</mat-icon>
+              <span>By Day</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="course">
+              <mat-icon>sort_by_alpha</mat-icon>
+              <span>By Course</span>
+            </mat-button-toggle>
+            <mat-button-toggle value="assignment">
+              <mat-icon>work_outline</mat-icon>
+              <span>By Load Type</span>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+
+        <div class="mobile-table-scroll">
+          <table mat-table [dataSource]="summaryDataSource" class="custom-table summary-table">
+          <ng-container matColumnDef="subjectCode">
+            <th mat-header-cell *matHeaderCellDef> Subject Code </th>
+            <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_code }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef> Description </th>
+            <td mat-cell *matCellDef="let element"> {{ element.course_details?.course_title }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="hrs">
+            <th mat-header-cell *matHeaderCellDef> Hours </th>
+            <td mat-cell *matCellDef="let element"> {{ calculateHours(element.start_time, element.end_time) }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="yearSection">
+            <th mat-header-cell *matHeaderCellDef> Year & Section </th>
+            <td mat-cell *matCellDef="let element"> {{ element.program_code }} {{ element.year_level }}-{{ element.section_name }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="day">
+            <th mat-header-cell *matHeaderCellDef> Day </th>
+            <td mat-cell *matCellDef="let element"> {{ element.day }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="time">
+            <th mat-header-cell *matHeaderCellDef> Time </th>
+            <td mat-cell *matCellDef="let element"> {{ formatTimeDisplay(element.start_time) }} - {{ formatTimeDisplay(element.end_time) }} </td>
+          </ng-container>
+
+          <ng-container matColumnDef="assignmentType">
+            <th mat-header-cell *matHeaderCellDef> Load Type </th>
+            <td mat-cell *matCellDef="let element" class="assignment-type-cell">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="dense-dropdown" [ngClass]="{'has-error': getRowWarning(element)}">
+                <mat-select 
+                  placeholder="Select Load Type"
+                  [(ngModel)]="element.assignment_type_id" 
+                  (selectionChange)="onAssignmentTypeChange(element, $event)">
+                  
+                  @for (type of dynamicLoadTypes; track type.id) {
+                    <mat-option [value]="type.id">{{ type.name }}</mat-option>
+                  }
+
+                  <mat-divider></mat-divider>
+                  
+                  <mat-option value="CONFIGURE" style="color: #800000; font-weight: 500;">
+                    <mat-icon style="color: #800000;">settings_applications</mat-icon> Configure Load Types
+                  </mat-option>
+                  
+                </mat-select>
+              </mat-form-field>
+
+              @if (getRowWarning(element)) {
+                <div class="row-warning-text" [@fadeAnimation]>
+                  <mat-icon class="tiny-error-icon">error</mat-icon>
+                  <span>{{ getRowWarning(element) }}</span>
+                </div>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="summaryColumns" class="summary-table-header"></tr>
+          <tr mat-row *matRowDef="let row; columns: summaryColumns;" class="summary-table-row"></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Faculty Time Plots Panel -->
+      @if (showTimePlotPanel) {
+        <div class="time-plots-card summary-table-container" [@fadeAnimation]>
+          <h3 class="summary-title" style="margin-top: 24px; margin-bottom: 16px;">
+            Faculty Time Assignments
+          </h3>
+          
+          <!-- Creation Form -->
+          <div class="time-plots-form" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px;">
+            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 150px;" subscriptSizing="dynamic">
+              <mat-label>Type</mat-label>
+              <mat-select [(ngModel)]="selectedType" (selectionChange)="onTypeChange($event.value)">
+                @for (type of eligibleTypes; track type) {
+                  <mat-option [value]="type">{{ getDisplayTypeName(type) }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 120px;" subscriptSizing="dynamic">
+              <mat-label>Day</mat-label>
+              <mat-select [(ngModel)]="selectedDay">
+                <mat-option value="Monday">Monday</mat-option>
+                <mat-option value="Tuesday">Tuesday</mat-option>
+                <mat-option value="Wednesday">Wednesday</mat-option>
+                <mat-option value="Thursday">Thursday</mat-option>
+                <mat-option value="Friday">Friday</mat-option>
+                <mat-option value="Saturday">Saturday</mat-option>
+                <mat-option value="Sunday">Sunday</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            @if (selectedType === 'night_service') {
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 200px;"
+                subscriptSizing="dynamic">
+                <mat-label>Time Slot</mat-label>
+                <mat-select
+                  [(ngModel)]="selectedNightSlot"
+                  (selectionChange)="onNightSlotChange($event.value)">
+                  @for (slot of NIGHT_SERVICE_SLOTS; track slot.start) {
+                    <mat-option [value]="slot.start">
+                      {{ slot.label }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 135px;"
+                subscriptSizing="dynamic">
+                <mat-label>Start Time</mat-label>
+                <mat-select
+                  [(ngModel)]="startTime"
+                  (selectionChange)="onStartTimeChange($event.value)">
+                  @for (opt of timeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field
+                appearance="outline"
+                class="form-field"
+                style="width: 135px;"
+                subscriptSizing="dynamic">
+                <mat-label>End Time</mat-label>
+                <mat-select [(ngModel)]="endTime" [disabled]="!startTime">
+                  @for (opt of endTimeOptions; track opt.value) {
+                    <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            }
+
+
+            <button mat-flat-button color="primary" class="add-button" (click)="onAddTimePlot()" [disabled]="isAddingTimePlot" style="height: 48px;">
+              <mat-icon>add</mat-icon> Add Time
+            </button>
+          </div>
+
+          <!-- Cap & Remaining Badges -->
+          <div class="remaining-hours-badges" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+            @for (type of eligibleTypes; track type) {
+              <div
+                class="badge"
+                [ngClass]="{
+                  'badge-complete': getRemainingHours(type) === 0 &&
+                    !(type === 'night_service' && getPlottedHours(type) > 15),
+                  'badge-exceeded': type === 'night_service' &&
+                    getPlottedHours(type) > 15
+                }"
+                style="padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.85rem; border: 1px solid #ccc; display: flex; align-items: center; gap: 8px;">
+                <span class="badge-label" style="opacity: 0.8;">{{ getDisplayTypeName(type) }}:</span>
+                <span class="badge-value" style="font-weight: 600;">
+                  {{ getPlottedHours(type) }}h plotted / {{ getRemainingHours(type) }}h remaining
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Table list of plots -->
+          <div class="table-responsive time-plots-table-wrapper">
+            <table class="custom-table time-plots-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th style="text-align: center; width: 100px;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (timePlots.length === 0) {
+                  <tr>
+                    <td colspan="4" class="no-data-cell">
+                      No time plots defined yet.
+                    </td>
+                  </tr>
+                } @else {
+                  @for (plot of timePlots; track plot.id) {
+                    <tr>
+                      <td>
+                        <span 
+                          class="type-badge" 
+                          [ngClass]="'badge-' + plot.time_type" 
+                          style="padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">
+                          {{ getDisplayTypeName(plot.time_type) }}
+                        </span>
+                      </td>
+                      <td>{{ plot.day }}</td>
+                      <td>
+                        {{ formatTimeDisplay(plot.start_time) }} - 
+                        {{ formatTimeDisplay(plot.end_time) }}
+                      </td>
+                      <td style="text-align: center;">
+                        <button 
+                          mat-icon-button 
+                          color="warn" 
+                          (click)="onDeleteTimePlot(plot.id)" 
+                          matTooltip="Delete slot">
+                          <mat-icon>delete</mat-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    }
+
+    @if (selectedView === 'table-view' && data.exportType !== 'all') {
+
+      @if (scheduleGroups && scheduleGroups.length > 0) {
+      <div class="multiple-schedules-container">
+        @for (group of scheduleGroups; track group) {
+        <div class="schedule-group">
+          <h3 class="group-title">{{ group.title }}</h3>
+          <div class="mobile-table-scroll schedule-scroll-wrapper">
+            <app-schedule-timeline
+              [scheduleData]="group.scheduleData"
+              [entity]="data.entity"
+              [@fadeAnimation]></app-schedule-timeline>
+          </div>
+        </div>
+        }
+      </div>
+      }
+
+      @if (!scheduleGroups) {
+      <div class="single-schedule-container">
+        <div class="mobile-table-scroll schedule-scroll-wrapper">
+          <app-schedule-timeline
+            [scheduleData]="scheduleDataCopy"
+            [entity]="data.entity"
+            [timePlots]="timePlots"
+            [@fadeAnimation]></app-schedule-timeline>
+        </div>
+      </div>
+      }
+
+      <div class="schedule-legend" [@fadeAnimation]>
+        <span class="legend-item"><span class="legend-dot legend-regular"></span>Regular</span>
+        <span class="legend-item"><span class="legend-dot legend-part-time"></span>Part-Time</span>
+        <span class="legend-item"><span class="legend-dot legend-temporary"></span>Temporary Substitution</span>
+        <span class="legend-item"><span class="legend-dot legend-tutorial"></span>Tutorial</span>
+      </div>
+    }
+
+    @if (selectedView === 'pdf-view' || data.exportType === 'all') {
+    <div class="dialog-pref-pdf-container">
+      @if (pdfBlobUrl) {
+      <div class="pdf-container">
+        <iframe [src]="pdfBlobUrl" class="pdf-iframe" style="background-color: #525659;"></iframe>
+      </div>
+      } @else {
+      <div class="pdf-container">
+        <span>No PDF available. Schedules are incomplete.</span>
       </div>
       }
     </div>
     }
-
-    @if (!scheduleGroups) {
-    <div class="single-schedule-container">
-      <app-schedule-timeline
-        [scheduleData]="scheduleDataCopy"
-        [entity]="data.entity"
-        [@fadeAnimation]></app-schedule-timeline>
-    </div>
-    }
-  }
-
-  @if (selectedView === 'pdf-view' || data.exportType === 'all') {
-  <div class="dialog-pref-pdf-container">
-    @if (pdfBlobUrl) {
-    <div class="pdf-container">
-      <iframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
-    </div>
-    } @else {
-    <div class="pdf-container">
-      <span>No PDF available. Schedules are incomplete.</span>
-    </div>
-    }
-  </div>
-  }
-
-  <div class="pdf-warning">
-    <span class="warning-icon" mat-symbol="error"></span>
-    <span class="warning-text">
-      PDF preview may not work on some devices. Click the download button to
-      view the PDF.
-    </span>
   </div>
 
+  <!-- 3. FOOTER ACTIONS (Pinned) -->
   <div class="dialog-actions" [@fadeAnimation]>
-    <button mat-button class="close-button" (click)="closeDialog()">
-      Close
-    </button>
-    
-    @if (selectedView === 'pdf-view' || data.exportType === 'all') {
-      @if (data.generateExcelFunction) {
-        <button mat-flat-button class="excel-button" (click)="downloadExcel()">
-          <mat-icon>table_chart</mat-icon>
-          Download Excel
+    <div class="pdf-warning" style="display: flex; align-items: center; gap: 8px; flex-grow: 1;">
+      <span class="warning-icon" mat-symbol="error" style="color: #666;"></span>
+      <span class="warning-text" style="color: #666; font-size: 0.9rem;">PDF preview may not work on some devices.</span>
+    </div>
+
+    <div class="action-buttons-wrapper" style="display: flex; gap: 8px; align-items: center;">
+      
+      <!-- NEW: Inline Unsaved Indicator -->
+      @if (hasChanges && data.entity === 'faculty' && selectedView === 'table-view') {
+        <span class="inline-unsaved-text" [@fadeAnimation]>* Unsaved changes</span>
+      }
+
+      <!-- NEW CLEAR AND SAVE BUTTONS -->
+      @if (data.entity === 'faculty' && selectedView === 'table-view') {
+        <button mat-stroked-button color="warn" (click)="clearAll()" [disabled]="isSaving">
+          Clear All
+        </button>
+        <button mat-flat-button color="primary" (click)="saveChanges()" [disabled]="!hasChanges || isSaving">
+          @if(isSaving) { Saving... } @else { Save Changes }
         </button>
       }
 
-      <button mat-flat-button (click)="downloadPdf()">
-        <mat-icon>print</mat-icon>
-        Download PDF
-      </button>
-    }
+      <button mat-button class="close-button" (click)="closeDialog()">Close</button>
+      
+      @if (selectedView === 'pdf-view' || data.exportType === 'all') {
+        @if (data.generateExcelFunction) {
+          <button mat-flat-button class="excel-button" style="background-color: #1d6f42; color: white;" (click)="downloadExcel()">
+            <mat-icon>table_chart</mat-icon> Download Excel
+          </button>
+        }
+        <button mat-flat-button color="primary" (click)="downloadPdf()">
+          <mat-icon>print</mat-icon> Download PDF
+        </button>
+      }
+    </div>
   </div>
+
+  <!-- UNSAVED CHANGES WARNING OVERLAY -->
+  @if (showUnsavedWarning) {
+    <div class="unsaved-warning-overlay" [@fadeAnimation]>
+      <div class="unsaved-warning-dialog">
+        <div class="warning-header">
+          <mat-icon class="warning-icon-large">warning</mat-icon>
+          <h3>Unsaved Changes</h3>
+        </div>
+        <div class="warning-body">
+          <p>You have unsaved changes in the faculty schedule. If you close now, all your modifications will be lost.</p>
+          <p>Are you sure you want to discard your changes and exit?</p>
+        </div>
+        <div class="warning-actions">
+          <button mat-button (click)="cancelClose()">Cancel</button>
+          <button mat-flat-button color="warn" (click)="confirmClose()">Discard & Exit</button>
+        </div>
+      </div>
+    </div>
   }
-</div>
+
+  }
+</div> 

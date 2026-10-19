@@ -126,6 +126,15 @@ return [
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
+
+        // Dedicated channel for system notices (bugs, alerts, reactivations)
+        'system_notice' => [
+            'driver' => 'daily',
+            'path'   => storage_path('logs/system-notices.log'),
+            'level'  => env('LOG_LEVEL', 'debug'),
+            'days'   => 30,
+            'replace_placeholders' => true,
+        ],
     ],
 
 ];

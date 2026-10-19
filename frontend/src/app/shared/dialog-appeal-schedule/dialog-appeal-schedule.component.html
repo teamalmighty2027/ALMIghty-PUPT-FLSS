@@ -1,7 +1,7 @@
 <div class="dialog-container">
   <div class="dialog-header">
     <h2 mat-dialog-title>{{ isEditMode ? 'Edit Schedule Details' : 'Appeal Schedule' }}</h2>
-    <button mat-icon-button (click)="onCancel()">
+    <button mat-icon-button (click)="onCancel()" [disabled]="isSubmitting">
       <mat-icon>close</mat-icon>
     </button>
   </div>
@@ -37,7 +37,9 @@
 
         <!-- File Upload -->
         <div class="file-upload-section">
-          <label class="file-label">Upload Appeal Document (PDF)<span class="required-asterisk">*</span></label>
+          <label class="file-label">
+            Upload Appeal Document (PDF)<span class="required-asterisk">*</span>
+          </label>
           <div class="file-input-wrapper">
             <input 
               type="file" 
@@ -48,16 +50,31 @@
             <button 
               mat-stroked-button 
               type="button"
+              [disabled]="isSubmitting"
               (click)="fileInput.click()">
               <mat-icon>upload_file</mat-icon>
               Choose File
             </button>
-            <span class="file-info" *ngIf="!selectedFileName">No file chosen</span>
-            <span class="file-info selected" *ngIf="selectedFileName">
+            <span class="file-info" *ngIf="!selectedFileName">
+              No file chosen
+            </span>
+            <span 
+              class="file-info selected" 
+              *ngIf="selectedFileName"
+              [class.disabled-info]="isSubmitting">
               {{ selectedFileName }}
-              <mat-icon class="remove-icon" (click)="removeFile()">close</mat-icon>
+              <mat-icon 
+                class="remove-icon" 
+                [class.disabled]="isSubmitting"
+                (click)="removeFile()">close</mat-icon>
             </span>
           </div>
+        </div>
+
+        <!-- AI Document Analyzing Status Indicator -->
+        <div class="ai-analyzing-status" *ngIf="isAnalyzing">
+          <mat-spinner diameter="16" strokeWidth="2"></mat-spinner>
+          <span>Analyzing document...</span>
         </div>
 
         <!-- Day Selection -->
@@ -114,6 +131,30 @@
         </mat-form-field>
       </div>
 
+      <!-- Conflict Details Box -->
+      <div class="validation-message conflict" *ngIf="conflictMessages.length > 0">
+        <div class="validation-message-header">
+          <mat-icon>report_problem</mat-icon>
+          <span *ngIf="conflictMessages.length >= 3; else warningTitle">
+            This schedule slot has 3 or more conflicts and cannot be submitted.
+          </span>
+          <ng-template #warningTitle>
+            <span>This schedule slot has conflicts. Review them below before submitting anyway.</span>
+          </ng-template>
+        </div>
+        <ul class="validation-message-list">
+          <li *ngFor="let message of conflictMessages">{{ message }}</li>
+        </ul>
+        <p class="conflict-retry-note" *ngIf="conflictMessages.length >= 3; else warningNote">
+          Please select a different day, time, or room. You may retry your appeal once a valid slot is available.
+        </p>
+        <ng-template #warningNote>
+          <p class="conflict-retry-note warning-note">
+            You can still submit this appeal by clicking "Submit Anyway" below, but it will require manual admin resolution.
+          </p>
+        </ng-template>
+      </div>
+
       <!-- Reason Section with Title -->
       <div class="reason-section" [class.with-spacing]="isEditMode">
         <div class="section-label reason-title">REASON FOR SCHEDULE CHANGE<span class="required-asterisk">*</span></div>
@@ -149,16 +190,34 @@
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">
-    <button mat-button (click)="onClearAll()" *ngIf="isEditMode" class="clear-btn">
+    <button 
+      mat-button 
+      (click)="onClearAll()" 
+      *ngIf="isEditMode" 
+      class="clear-btn" 
+      [disabled]="isSubmitting">
       Clear All
     </button>
-    <button mat-button (click)="onCancel()">Cancel</button>
+    <button 
+      mat-button 
+      (click)="onCancel()" 
+      [disabled]="isSubmitting">
+      Cancel
+    </button>
     <button 
       mat-flat-button 
       color="primary" 
-      (click)="onSubmit()" 
-      [disabled]="appealForm.invalid">
-      {{ isEditMode ? 'Submit Appeal' : 'Submit Appeal' }}
+      (click)="hasConflicts && conflictMessages.length < 3 ? onSubmit(true) : onSubmit(false)" 
+      [disabled]="appealForm.invalid || isSubmitting || (hasConflicts && conflictMessages.length >= 3)">
+      <ng-container *ngIf="isSubmitting; else submitText">
+        <span class="submitting-spinner-wrapper">
+          <mat-spinner diameter="18" strokeWidth="2.5" class="submit-spinner--accent"></mat-spinner>
+          <span>Submitting...</span>
+        </span>
+      </ng-container>
+      <ng-template #submitText>
+        <span>{{ hasConflicts && conflictMessages.length < 3 ? 'Submit Anyway' : 'Submit Appeal' }}</span>
+      </ng-template>
     </button>
   </mat-dialog-actions>
 </div>

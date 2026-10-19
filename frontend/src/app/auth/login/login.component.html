@@ -96,10 +96,16 @@
       <button
         mat-flat-button
         class="login-button faculty"
-        (click)="openFacultyLoginDialog()">
+        [disabled]="isFacultyLoading"
+        (click)="onFacultyLogin()">
         <span class="button-text">
-          <span mat-symbol="group"></span>
-          Faculty Login
+          <mat-spinner
+            *ngIf="isFacultyLoading"
+            diameter="20"
+            color="primary">
+          </mat-spinner>
+          <span *ngIf="!isFacultyLoading" mat-symbol="group"></span>
+          <span>Faculty Login</span>
         </span>
       </button>
 
@@ -107,12 +113,44 @@
       <button
         mat-flat-button
         class="login-button ter-ripple admin"
-        (click)="openAdminLoginDialog()">
+        [disabled]="isAdminLoading"
+        (click)="onAdminLogin()">
         <span class="button-text">
-          <span mat-symbol="admin_panel_settings"></span>
-          Admin Login
+          <mat-spinner
+            *ngIf="isAdminLoading"
+            diameter="20"
+            color="primary">
+          </mat-spinner>
+          <span
+            *ngIf="!isAdminLoading"
+            mat-symbol="admin_panel_settings">
+          </span>
+          <span>Admin Login</span>
         </span>
       </button>
+    </div>
+
+    <!-- Local Links Section -->
+    <div class="portal-links-section">
+      <a
+        class="local-login-link"
+        [matMenuTriggerFor]="localLoginMenu"
+        role="button"
+        tabindex="0">
+        <span mat-symbol="lock"></span>
+        <span>Can't access your account?</span>
+      </a>
+
+      <mat-menu #localLoginMenu="matMenu">
+        <button mat-menu-item (click)="openFacultyLoginDialog()">
+          <span mat-symbol="group"></span>
+          <span>Faculty Local Login</span>
+        </button>
+        <button mat-menu-item (click)="openAdminLoginDialog()">
+          <span mat-symbol="admin_panel_settings"></span>
+          <span>Admin Local Login</span>
+        </button>
+      </mat-menu>
     </div>
 
     <div id="privacyNotice">
@@ -125,6 +163,16 @@
 
     <!-- Toggle Theme Section -->
     <div class="toggle-theme-section">
+      <a
+        [href]="onePortalUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="portal-link">
+        <span mat-symbol="apps"></span>
+        <span>PUP OnePortal</span>
+        <span mat-symbol="open_in_new" class="external-icon"></span>
+      </a>
+
       <button
         mat-button
         class="toggle-button"

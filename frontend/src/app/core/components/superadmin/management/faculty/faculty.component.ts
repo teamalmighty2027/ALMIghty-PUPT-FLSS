@@ -7,6 +7,7 @@ import {
   ViewChild,
   TemplateRef,
   AfterViewInit,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -29,12 +30,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatRippleModule } from '@angular/material/core';
+import { MatIconModule } from '@angular/material/icon';
 
 import {
   TableDialogComponent,
   DialogConfig,
   DialogFieldConfig,
 } from '../../../../../shared/table-dialog/table-dialog.component';
+import { DialogEditFacultyComponent } from '../../../../../shared/dialog-edit-faculty/dialog-edit-faculty.component';
+import { DialogAddFacultyComponent } from '../../../../../shared/dialog-add-faculty/dialog-add-faculty.component';
+import { DialogGenericComponent, DialogData } from '../../../../../shared/dialog-generic/dialog-generic.component';
 import { TableGenericComponent } from '../../../../../shared/table-generic/table-generic.component';
 import {
   InputField,
@@ -50,8 +55,11 @@ import {
   FacultyTypeService,
   FacultyType,
 } from '../../../../services/superadmin/management/faculty/faculty-type.service';
+import { AuthService } from '../../../../services/auth/auth.service';
+import { CookieService } from 'ngx-cookie-service';
 
 import { fadeAnimation } from '../../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../../shared/utils/faculty-type.utils';
 
 interface Column {
   key: string;
@@ -73,6 +81,7 @@ interface Column {
     MatFormFieldModule,
     MatTooltipModule,
     MatRippleModule,
+    MatIconModule,
   ],
   templateUrl: './faculty.component.html',
   styleUrls: ['./faculty.component.scss'],
@@ -86,10 +95,14 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @ViewChild('facultyTypeTemplate') facultyTypeTemplate!: TemplateRef<any>;
   @ViewChild('facultyUnitsTemplate') facultyUnitsTemplate!: TemplateRef<any>;
+  @ViewChild('statusTemplate') statusTemplate!: TemplateRef<any>;
+  @ViewChild('mobileFilterTemplate') mobileFilterTemplate!: TemplateRef<any>;
 
   faculty: Faculty[] = [];
   filteredFaculty: Faculty[] = [];
   isLoading = true;
+  isSyncing = false;
+  isSuperAdmin = false;
 
   searchControl = new FormControl('');
   private activeFilters: { search: string; facultyType: string; status: string; sortBy: string } = {
@@ -103,6 +116,10 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
   filterStatus = '';
   filterFacultyType = '';
   sortBy = '';
+  isMobileView = false;
+  mobileFilterStatus = '';
+  mobileFilterFacultyType = '';
+  mobileSortBy = '';
 
   readonly statusOptions = ['Active', 'Inactive', 'Retired'];
   facultyTypeOptions: string[] = [];
@@ -155,16 +172,28 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     private snackBar: MatSnackBar,
     private facultyService: FacultyService,
     private router: Router,
-    private facultyTypeService: FacultyTypeService
+    private facultyTypeService: FacultyTypeService,
+    private authService: AuthService,
+    private cookieService: CookieService
   ) {}
 
   /**
    * Initializes the component by loading faculty types and data.
    */
   ngOnInit() {
+    this.checkSuperAdminRole();
+    this.updateViewMode();
     this.loadFacultyTypes();
     this.fetchFaculty();
     this.setupSearch();
+  }
+
+  /**
+   * Checks if the currently logged in user is a superadmin.
+   */
+  private checkSuperAdminRole(): void {
+    const user = this.authService.getUserData();
+    this.isSuperAdmin = user?.role === 'superadmin';
   }
 
   /**
@@ -195,6 +224,14 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       facultyUnitsColumn.template = this.facultyUnitsTemplate;
     }
 
+    const statusColumn = this.columns.find(
+      (col) => col.key === 'status'
+    );
+
+    if (statusColumn) {
+      statusColumn.template = this.statusTemplate;
+    }
+
     this.cdr.detectChanges();
   }
 
@@ -219,6 +256,72 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  @HostListener('window:resize')
+  onResize(): void {
+    this.updateViewMode();
+  }
+
+  private updateViewMode(): void {
+    this.isMobileView = window.innerWidth < 768;
+  }
+
+  private syncMobileFiltersFromState(): void {
+    this.mobileFilterStatus = this.filterStatus;
+    this.mobileFilterFacultyType = this.filterFacultyType;
+    this.mobileSortBy = this.sortBy;
+  }
+
+  openMobileFilterPanel(): void {
+    this.syncMobileFiltersFromState();
+    this.dialog.open(this.mobileFilterTemplate, {
+      width: '100%',
+      maxWidth: '100vw',
+      maxHeight: '90vh',
+      panelClass: 'faculty-mobile-filter-dialog',
+      autoFocus: false,
+      hasBackdrop: true,
+    });
+  }
+
+  closeMobileFilterPanel(): void {
+    this.dialog.closeAll();
+  }
+
+  toggleMobileStatus(status: string): void {
+    this.mobileFilterStatus = this.mobileFilterStatus === status ? '' : status;
+  }
+
+  toggleMobileFacultyType(type: string): void {
+    this.mobileFilterFacultyType = type === '' ? '' : (this.mobileFilterFacultyType === type ? '' : type);
+  }
+
+  applyMobileFilters(): void {
+    this.filterStatus = this.mobileFilterStatus;
+    this.filterFacultyType = this.mobileFilterFacultyType;
+    this.sortBy = this.mobileSortBy;
+    this.activeFilters.status = this.filterStatus;
+    this.activeFilters.facultyType = this.filterFacultyType;
+    this.activeFilters.sortBy = this.sortBy;
+    this.applyFiltersAndSort();
+    this.dialog.closeAll();
+    this.cdr.detectChanges();
+  }
+
+  clearMobileFilters(): void {
+    this.mobileFilterStatus = '';
+    this.mobileFilterFacultyType = '';
+    this.mobileSortBy = '';
+    this.filterStatus = '';
+    this.filterFacultyType = '';
+    this.sortBy = '';
+    this.activeFilters.status = '';
+    this.activeFilters.facultyType = '';
+    this.activeFilters.sortBy = '';
+    this.applyFiltersAndSort();
+    this.dialog.closeAll();
+    this.cdr.detectChanges();
+  }
+
   /** Toggle status filter chip */
   toggleStatus(status: string): void {
     this.filterStatus = this.filterStatus === status ? '' : status;
@@ -234,6 +337,13 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     this.applyFiltersAndSort();
   }
 
+  /** Handle faculty type dropdown change */
+  onFacultyTypeChange(value: string): void {
+    this.filterFacultyType = value;
+    this.activeFilters.facultyType = value;
+    this.applyFiltersAndSort();
+  }
+
   /** Handle sort dropdown change */
   onSortChange(value: string): void {
     this.sortBy = value;
@@ -246,12 +356,19 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
     this.filterStatus = '';
     this.filterFacultyType = '';
     this.sortBy = '';
+    this.mobileFilterStatus = '';
+    this.mobileFilterFacultyType = '';
+    this.mobileSortBy = '';
     this.activeFilters = { search: this.activeFilters.search, facultyType: '', status: '', sortBy: '' };
     this.applyFiltersAndSort();
   }
 
+  getActiveFilterCount(): number {
+    return [this.filterStatus, this.filterFacultyType, this.sortBy].filter(Boolean).length;
+  }
+
   get hasActiveFilters(): boolean {
-    return !!(this.filterStatus || this.filterFacultyType || this.sortBy);
+    return this.getActiveFilterCount() > 0;
   }
 
   /**
@@ -466,6 +583,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             formControlName: 'password',
             type: 'password',
             maxLength: 100,
+            minLength: 12,
             required: true,
           },
           {
@@ -474,6 +592,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
             type: 'password',
             maxLength: 100,
             required: true,
+            minLength: 12,
             confirmPassword: true,
           },
         ]
@@ -539,13 +658,17 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
       console.warn('Could not fetch suggested code', error);
     }
 
-    const config = this.getDialogConfig(undefined, suggestedCode);
-
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: config,
+    const dialogRef = this.dialog.open(DialogAddFacultyComponent, {
+      data: {
+        suggestedCode,
+        facultyTypes: this.facultyTypes,
+        facultyStatuses: this.facultyStatuses,
+        onConfigureTypes: () => {
+          this.router.navigate(['/superadmin/faculty/types']);
+        },
+      },
+      autoFocus: true,
     });
-
-    this.handleFacultyTypeConfig(dialogRef);
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result) {
@@ -587,18 +710,78 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   openEditFacultyDialog(faculty: Faculty) {
     this.selectedFacultyIndex = this.faculty.indexOf(faculty);
-    const config = this.getDialogConfig(faculty);
 
-    const dialogRef = this.dialog.open(TableDialogComponent, {
-      data: config,
+    const dialogRef = this.dialog.open(DialogEditFacultyComponent, {
+      data: {
+        faculty: {
+          id: faculty.id,
+          code: faculty.code,
+          last_name: faculty.last_name,
+          first_name: faculty.first_name,
+          middle_name: faculty.middle_name,
+          suffix_name: faculty.suffix_name,
+          email: faculty.email,
+          faculty_type_id: faculty.faculty?.faculty_type_id,
+          status: faculty.status,
+        },
+        facultyTypes: this.facultyTypes,
+        facultyStatuses: this.facultyStatuses,
+      },
       autoFocus: true,
     });
 
-    this.handleFacultyTypeConfig(dialogRef);
-
     dialogRef.afterClosed().subscribe((result) => {
       if (result && this.selectedFacultyIndex !== null) {
-        this.updateFaculty(result);
+        if (result.status !== faculty.status) {
+          this.confirmStatusChange(faculty, result);
+        } else {
+          this.updateFaculty(result);
+        }
+      }
+    });
+  }
+
+  /**
+   * Prompts admin with a confirmation dialog before changing faculty status.
+   */
+  private confirmStatusChange(faculty: Faculty, updatedFaculty: Faculty): void {
+    let dialogData: DialogData;
+
+    if (updatedFaculty.status === 'Inactive') {
+      dialogData = {
+        title: 'Set Faculty to Inactive',
+        content: `Are you sure you want to set ${faculty.name} to Inactive? ` +
+          'Profile details will be cleared while keeping basic reference data.',
+        actionText: 'Set Inactive',
+        cancelText: 'Cancel',
+        action: 'Confirm',
+      };
+    } else if (updatedFaculty.status === 'Retired') {
+      dialogData = {
+        title: 'WARNING: Set Faculty to Retired',
+        content: `WARNING: Retiring ${faculty.name} is permanent and irreversible. ` +
+          'All personal identifiable information (name, email, password, profile) ' +
+          'will be immediately and permanently scrubbed from the database.',
+        actionText: 'Permanently Scrub & Retire',
+        cancelText: 'Cancel',
+        action: 'Confirm',
+        actionTextColor: '#ffffff',
+        actionBgColor: '#dc2626',
+      };
+    } else {
+      this.updateFaculty(updatedFaculty);
+      return;
+    }
+
+    const confirmRef = this.dialog.open(DialogGenericComponent, {
+      data: dialogData,
+      autoFocus: true,
+      panelClass: 'dialog-base',
+    });
+
+    confirmRef.afterClosed().subscribe((res) => {
+      if (res === 'Confirm') {
+        this.updateFaculty(updatedFaculty);
       }
     });
   }
@@ -674,14 +857,7 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
    * @returns An object mapping class names to boolean values.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   /**
@@ -701,5 +877,89 @@ export class FacultyComponent implements OnInit, OnDestroy, AfterViewInit {
         duration: 3000,
       });
     }
+  }
+
+  /**
+   * Approves a pending reactivation request for an inactive faculty member.
+   */
+  approveReactivation(faculty: Faculty): void {
+    if (!faculty.id) return;
+
+    this.facultyService.approveReactivation(faculty.id).subscribe({
+      next: () => {
+        this.snackBar.open('Faculty account reactivated successfully.', 'Close', {
+          duration: 3000,
+        });
+        this.fetchFaculty();
+      },
+      error: (err) => {
+        console.error('Approve reactivation failed:', err);
+        this.snackBar.open('Failed to reactivate account.', 'Close', {
+          duration: 4000,
+        });
+      },
+    });
+  }
+
+  /**
+   * Syncs faculty IDP user UUIDs from external IDP system.
+   * Restricted strictly to superadmin users.
+   */
+  syncIdpUuids(): void {
+    if (!this.isSuperAdmin || this.isSyncing) {
+      return;
+    }
+
+    const token = this.cookieService.get('access_token') ||
+      this.getCookieByName('access_token');
+
+    if (!token) {
+      this.snackBar.open(
+        'IDP access token missing in cookies. Please log in via IDP first.',
+        'Close',
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    this.isSyncing = true;
+    this.cdr.markForCheck();
+
+    this.facultyService
+      .syncIdpUuids(token)
+      .pipe(
+        catchError((error) => {
+          console.error('Error syncing IDP UUIDs:', error);
+          const msg =
+            error.error?.message || 'Failed to sync IDP UUIDs.';
+          this.snackBar.open(msg, 'Close', { duration: 5000 });
+          this.isSyncing = false;
+          this.cdr.markForCheck();
+          return of(null);
+        }),
+        takeUntil(this.destroy$)
+      )
+      .subscribe((res) => {
+        this.isSyncing = false;
+        if (res) {
+          this.snackBar.open(
+            `IDP UUID Sync: ${res.matched} matched out of ${res.total_missing} missing.`,
+            'Close',
+            { duration: 5000 }
+          );
+          this.fetchFaculty();
+        }
+        this.cdr.markForCheck();
+      });
+  }
+
+  /**
+   * Helper to retrieve a document cookie by key name.
+   */
+  private getCookieByName(name: string): string {
+    const match = document.cookie.match(
+      new RegExp('(^| )' + name + '=([^;]+)')
+    );
+    return match ? decodeURIComponent(match[2]) : '';
   }
 }

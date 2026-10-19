@@ -59,27 +59,25 @@ export class ProgramsService {
 
   // Add a new program
   addProgram(program: AddProgramRequest): Observable<Program> {
-    return this.http.post<Program>(`${this.baseUrl}/addProgram`, program, {
+    return this.http.post<Program>(`${this.baseUrl}/programs`, program, {
       headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
     });
   }
 
-  // Update an existing program
   updateProgram(
     program_id: number,
     program: UpdateProgramRequest
   ): Observable<Program> {
-    const url = `${this.baseUrl}/updateProgram/${program_id}`;
+    const url = `${this.baseUrl}/programs/${program_id}`;
     return this.http.put<Program>(url, program, {
       headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
     });
   }
 
-  // Delete a program
   deleteProgram(
     program_id: number
   ): Observable<{ message: string; success: boolean }> {
-    const url = `${this.baseUrl}/deleteProgram/${program_id}`;
+    const url = `${this.baseUrl}/programs/${program_id}`;
     return this.http.delete<{ message: string; success: boolean }>(url);
   }
 

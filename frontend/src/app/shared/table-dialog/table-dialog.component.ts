@@ -104,6 +104,7 @@ export interface DialogFieldConfig {
     | 'date';
   options?: string[] | number[] | SelectOption[];
   maxLength?: number;
+  minLength?: number;
   required?: boolean;
   min?: number;
   max?: number;
@@ -163,6 +164,7 @@ export class TableDialogComponent {
   customExportOptions: { all: string; current: string } | null = null;
   filteredOptions: { [key: string]: (string | number | SelectOption)[] } = {};
   initialFormValues: any;
+  showPassword: { [key: string]: boolean } = {};
 
   @Output() startTimeChange = new EventEmitter<string>();
 
@@ -175,6 +177,12 @@ export class TableDialogComponent {
     @Inject(MAT_DIALOG_DATA) public data: DialogConfig
   ) {
     this.initializeComponent();
+  }
+
+  // Returns the lowercase title string safely for icon matching
+
+  get dialogTitleLower(): string {
+    return this.data?.title?.toLowerCase() || '';
   }
 
   private initializeComponent(): void {
@@ -416,8 +424,16 @@ export class TableDialogComponent {
       (field.formControlName === 'password' ||
         field.formControlName === 'confirmPassword')
     ) {
-      const control = this.fb.control(initialValue);
+      const control = this.fb.control(initialValue, {
+        validators: [Validators.minLength(12)],
+      });
       this.form.addControl(field.formControlName, control);
+      if (field.confirmPassword) {
+        control.setValidators([
+          Validators.minLength(12),
+          this.passwordMatchValidator.bind(this),
+        ]);
+      }
     } else {
       const control = this.fb.control(initialValue, { validators });
       this.form.addControl(field.formControlName, control);
@@ -495,7 +511,9 @@ export class TableDialogComponent {
 
     if (field.required) validators.push(Validators.required);
     if (field.maxLength) validators.push(Validators.maxLength(field.maxLength));
+    if (field.minLength) validators.push(Validators.minLength(field.minLength));
     if (field.type === 'text') validators.push(this.noWhitespaceValidator);
+    if (field.type === 'password') validators.push(Validators.minLength(12));
     if (field.type === 'number')
       validators.push(Validators.pattern(/^\d{1,2}$/));
     if (field.min !== undefined) validators.push(Validators.min(field.min));
@@ -560,10 +578,19 @@ export class TableDialogComponent {
       return `${label} cannot exceed ${
         control.getError('maxlength').requiredLength
       } characters.`;
-    if (control.hasError('minlength'))
+    if (control.hasError('minlength')) {
+      if (
+        formControlName === 'password' ||
+        formControlName === 'confirmPassword'
+      ) {
+        return `${label} must be at least ${
+          control.getError('minlength').requiredLength
+        } characters.`;
+      }
       return `${label} must be exactly ${
         control.getError('minlength').requiredLength
       } characters.`;
+    }
     if (control.hasError('pattern')) {
       return control.getError('pattern').requiredPattern === '/^\\d{4}$/'
         ? `${label} must be exactly 4 digits.`
@@ -675,5 +702,36 @@ export class TableDialogComponent {
     if (j == 2 && k != 12) return 'nd';
     if (j == 3 && k != 13) return 'rd';
     return 'th';
+  }
+
+  // Generate password and set values for password and confirmPassword controls
+  public onGeneratePassword(formControlName: string): void {
+    const pwd = this.generatePassword();
+
+    this.form.get(formControlName)?.setValue(pwd);
+
+    if (formControlName === 'password') {
+      const confirmCtrl = this.form.get('confirmPassword');
+
+      if (confirmCtrl) {
+        confirmCtrl.setValue(pwd);
+      }
+    }
+  }
+
+  /** 
+   * Helper method to generate a random password 
+   * @param length The desired length of the password (default is 12)
+  */
+  public generatePassword(length: number = 12): string {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ' +
+        '0123456789';
+    let password = '';
+
+    for (let i = 0; i < length; i++) {
+        password += chars[Math.floor(Math.random() * chars.length)];
+    }
+
+    return password;
   }
 }

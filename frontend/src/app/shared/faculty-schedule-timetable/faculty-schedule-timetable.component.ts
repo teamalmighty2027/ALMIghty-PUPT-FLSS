@@ -7,8 +7,8 @@ import {
   OnChanges, 
   SimpleChanges, 
   ViewChild, 
-  ElementRef, 
-  AfterViewInit, 
+  ElementRef,
+  OnDestroy,
   inject 
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -23,6 +23,9 @@ import { ReschedulingService } from '../../core/services/faculty/rescheduling/re
 
 import { fadeAnimation, fabAnimation } from '../../core/animations/animations';
 import { DialogExportComponent } from '../dialog-export/dialog-export.component';
+import {
+  FacultyScheduleMobileComponent
+} from '../faculty-schedule-mobile/faculty-schedule-mobile.component';
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -62,23 +65,35 @@ type Day = 'Monday' |
     MatIconModule,
     MatDialogModule,
     MatTooltipModule,
+    FacultyScheduleMobileComponent,
   ],
   templateUrl: './faculty-schedule-timetable.component.html',
   styleUrls: ['./faculty-schedule-timetable.component.scss'],
   animations: [fadeAnimation, fabAnimation],
 })
-export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, AfterViewInit {
-  @ViewChild('tableWrapper') tableWrapper!: ElementRef;
+export class FacultyScheduleTimetableComponent implements 
+  OnInit, OnChanges, OnDestroy {
+  private _tableWrapper?: ElementRef;
+
+  @ViewChild('tableWrapper') set tableWrapper(
+    content: ElementRef | undefined
+  ) {
+    if (content) {
+      this._tableWrapper = content;
+      this.attachScrollListener();
+    }
+  }
 
   isLabelVisible = true;
+  isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
   private lastScrollTop = 0;
   private readonly SCROLL_THRESHOLD = 25;
 
   @Input() facultySchedule: any;
-  @Input() showPreview: boolean = true;
-  
+  @Input() showPreview: boolean = false;
   @Input() isReadOnly: boolean = false;
   @Input() showAppealButtons: boolean = false;
+  @Input() showAppealHistory: boolean = true;
   @Input() exportMode: 'official' | 'internal' = 'official';
   @Output() appealClicked = new EventEmitter<any>();
   @Output() viewAppealsClicked = new EventEmitter<any>();
@@ -108,12 +123,31 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * Called once when the component is instantiated.
    */
   ngOnInit() {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', this.handleViewportResize);
+    }
+
     this.generateTimeSlots();
     this.processScheduleData();
     if (this.showAppealButtons) {
       this.loadMyAppeals();
     }
   }
+
+  // Cleanup resize listener on component destruction
+  ngOnDestroy() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', this.handleViewportResize);
+    }
+  }
+
+  // Listen to window resize events to update mobile view status
+  private handleViewportResize = (): void => {
+    this.isMobileView = typeof window !== 'undefined' &&
+      window.innerWidth <= 768;
+  };
 
   /**
    * Detects changes to @Input properties and re-processes data.
@@ -133,11 +167,17 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * After view init: attach scroll listener 
    * to the table wrapper to toggle label visibility.
    */
-  ngAfterViewInit() {
-    const tableWrapperElement = this.tableWrapper.nativeElement;
+  // Attach scroll listener to table wrapper
+  private attachScrollListener() {
+    if (!this._tableWrapper) {
+      return;
+    }
+
+    const tableWrapperElement = this._tableWrapper.nativeElement;
     tableWrapperElement.addEventListener('scroll', () => {
       const currentScrollTop = tableWrapperElement.scrollTop;
-      if (Math.abs(currentScrollTop - this.lastScrollTop) > this.SCROLL_THRESHOLD) {
+      const diff = Math.abs(currentScrollTop - this.lastScrollTop);
+      if (diff > this.SCROLL_THRESHOLD) {
         this.isLabelVisible = currentScrollTop <= this.lastScrollTop;
         this.lastScrollTop = currentScrollTop;
       }
@@ -169,8 +209,8 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    * @returns 'Approved' | 'Denied' | 'Pending'
    */
   private mapStatus(is_approved: any): string {
-    if (is_approved === true  || is_approved === 1)  return 'Approved';
-    if (is_approved === false || is_approved === 0)  return 'Denied';
+    if (is_approved === true || is_approved === 1 || is_approved === 'approved' || String(is_approved) === '1') return 'Approved';
+    if (is_approved === false || is_approved === 0 || is_approved === 'denied' || String(is_approved) === '0') return 'Denied';
     return 'Pending';
   }
 
@@ -245,8 +285,6 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
         const endTime   = this.convertTimeToMinutes(schedule.end_time);
         const startSlot = this.findTimeSlotIndex(startTime);
         const duration  = Math.ceil((endTime - startTime) / 30);
-        const adjustedDuration = (endTime - startTime) % 30 === 0 ? 
-          duration + 1 : duration;
 
         // Build program display
         let programDisplay: string;
@@ -261,17 +299,17 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
         }
 
         return {
-          scheduleId:     schedule.schedule_id,
-          day:            schedule.day,
+          scheduleId:      schedule.schedule_id,
+          day:             schedule.day,
           startSlot,
-          duration:       adjustedDuration,
-          courseCode:     schedule.course_details.course_code,
-          courseTitle:    schedule.course_details.course_title,
-          roomCode:       schedule.room_code,
-          program:        programDisplay,
-          yearLevel:      schedule.year_level,
-          section:        schedule.section_name,
-          isBridging:     schedule.course_details?.offering_type === 
+          duration:        duration,
+          courseCode:      schedule.course_details.course_code,
+          courseTitle:     schedule.course_details.course_title,
+          roomCode:        schedule.room_code,
+          program:         programDisplay,
+          yearLevel:       schedule.year_level,
+          section:         schedule.section_name,
+          isBridging:      schedule.course_details?.offering_type === 
             'bridging',
         };
       }).filter((block): block is ScheduleBlock => block !== null);
@@ -319,30 +357,51 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
    */
   getScheduleBlockHeight(day: string, slotIndex: number): number {
     const block = this.getScheduleBlock(day, slotIndex);
-    return block ? block.duration * 40 - 2 : 0;
+    return block ? block.duration * 48 : 0;
   }
 
   /**
-   * Build inline style object for a schedule block.
+   * Determine whether a block is short enough (1 hour or less, or 1.5
+   * hours when appeal buttons are shown) to require compact rendering.
    * @param day - Day of week.
    * @param slotIndex - Slot index.
-   * @returns Style object for the block element.
+   * @returns True if the block's duration falls within the compact threshold.
+   */
+  isCompactBlock(day: string, slotIndex: number): boolean {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return false;
+    // Appeal buttons need guaranteed room, so 1.5hr blocks (3 slots)
+    // go compact too on the Internal Arrangement tab. Without appeal
+    // buttons, only 1hr blocks (2 slots) need compact treatment.
+    const threshold = this.showAppealButtons ? 3 : 2;
+    return block.duration <= threshold;
+  }
+
+  /**
+   * Applies background and side borders directly to the TD cell.
+   * Strips internal bottom borders so consecutive slots merge visually.
    */
   getScheduleBlockStyle(day: string, slotIndex: number): any {
     const block = this.getScheduleBlock(day, slotIndex);
     if (block) {
       const { backgroundColor, borderColor } = this.getBlockColors(day as Day);
-      const baseStyle = {
+      
+      const style: any = {
         'background-color': backgroundColor,
-        'border-left':  `1px solid ${borderColor}`,
+        'border-left': `1px solid ${borderColor}`,
         'border-right': `1px solid ${borderColor}`,
+        'border-bottom': 'none', // Strips horizontal lines inside the block
       };
+
       if (slotIndex === block.startSlot) {
-        return { ...baseStyle, 'border-top': `1px solid ${borderColor}` };
-      } else if (slotIndex === block.startSlot + block.duration - 1) {
-        return { ...baseStyle, 'border-bottom': `1px solid ${borderColor}` };
+        style['border-top'] = `1px solid ${borderColor}`;
       }
-      return baseStyle;
+      
+      if (slotIndex === block.startSlot + block.duration - 1) {
+        style['border-bottom'] = `1px solid ${borderColor}`;
+      }
+
+      return style;
     }
     return {};
   }
@@ -384,6 +443,18 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
       }
     }
     return '';
+  }
+
+  /**
+   * Generates the multi-line tooltip content shown on hover.
+   */
+  getScheduleTooltip(day: string, slotIndex: number): string {
+    const block = this.getScheduleBlock(day, slotIndex);
+    if (!block) return '';
+    
+    const timeRange = this.getFormattedTime(day, slotIndex);
+    const room = (block.roomCode && block.roomCode !== 'null') ? block.roomCode : 'TBA';
+    return `Course: ${block.courseCode}\nTitle: ${block.courseTitle}\nProgram: ${block.program}\nRoom: ${room}\nTime: ${timeRange}`;
   }
 
   /**
@@ -554,7 +625,7 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
     const rowHeight = 8.5; 
 
     const chunks = [
-      { name: 'Morning (7:30 AM - 2:00 PM)', start: 450, end: 840 },
+      { name: 'Morning (7:00 AM - 2:00 PM)', start: 420, end: 840 },
       { name: 'Afternoon (2:00 PM - 9:00 PM)', start: 840, end: 1260 }
     ];
 
@@ -652,36 +723,22 @@ export class FacultyScheduleTimetableComponent implements OnInit, OnChanges, Aft
       chunkSlots.forEach((slot, index) => {
         const yPos = currentY + index * rowHeight;
         const isTopRow = index === 0;
-        const isThreeHourGap = slot.minutes >= 450 && (slot.minutes - 450) % 180 === 0;
 
-        if (isTopRow || isThreeHourGap) {
-          if (!isTopRow) {
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.5);
-            doc.line(margin, yPos, pageWidth - margin, yPos);
-          }
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
+        if (!isTopRow) {
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
         }
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(slot.time, margin + timeColWidth / 2, yPos + 5, { align: 'center' });
       });
 
       const finalY = currentY + chunkSlots.length * rowHeight;
-      const lastSlot = chunkSlots[chunkSlots.length - 1];
-      if (lastSlot) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(lastSlot.time, margin + timeColWidth / 2, finalY - rowHeight + 5, { align: 'center' });
-      } else {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(margin, finalY, pageWidth - margin, finalY);
-      }
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, finalY, pageWidth - margin, finalY);
 
       // Vertical grid lines
       doc.line(margin, currentY, margin, finalY);

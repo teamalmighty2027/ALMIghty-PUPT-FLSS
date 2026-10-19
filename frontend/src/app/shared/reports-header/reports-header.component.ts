@@ -53,6 +53,8 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   @Input() isLoading: boolean = false;
   @Input() selectedTermId: number | null = null;
   @Input() showTermFilter = true;
+  @Input() showRefreshButton = true;
+  @Input() isRefreshing = false;
 
   @Input() showExportByProgramButton = false;
   @Output() exportByProgram = new EventEmitter<void>();
@@ -65,6 +67,7 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   @Output() addAcademicYear = new EventEmitter<void>();
   @Output() termChange = new EventEmitter<number | null>();
   @Output() selectedTermIdChange = new EventEmitter<number | null>();
+  @Output() refresh = new EventEmitter<void>();
 
   form: FormGroup;
   isTermsLoading = true;
@@ -141,6 +144,13 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
 
   onExportByProgram(): void {
     this.exportByProgram.emit();
+  }
+
+  /**
+   * Emits manual refresh event when sync button is clicked.
+   */
+  onRefreshClick(): void {
+    this.refresh.emit();
   }
 
   onActiveYearSemClick(): void {

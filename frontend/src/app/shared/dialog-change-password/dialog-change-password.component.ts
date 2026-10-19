@@ -19,9 +19,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { AuthService } from '../../core/services/auth/auth.service';
+import {
+  passwordStrengthValidator,
+} from '../validators/password-strength.validator';
 
 @Component({
   selector: 'app-dialog-change-password',
@@ -33,7 +35,6 @@ import { AuthService } from '../../core/services/auth/auth.service';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatSymbolDirective,
     MatProgressSpinnerModule,
     MatSnackBarModule,
   ],
@@ -69,13 +70,20 @@ export class DialogChangePasswordComponent implements OnInit, OnDestroy {
 
   private initializeForm(): void {
     this.passwordForm = this.fb.group({
-      currentPassword: ['', [Validators.required]],
+      currentPassword: [
+        '',
+        [
+          Validators.required,
+          Validators.maxLength(128),
+        ],
+      ],
       newPassword: [
         '',
         [
           Validators.required,
-          Validators.minLength(8),
+          Validators.minLength(12),
           Validators.maxLength(128),
+          passwordStrengthValidator,
         ],
       ],
       confirmPassword: [

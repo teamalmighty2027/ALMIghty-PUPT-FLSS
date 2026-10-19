@@ -2,14 +2,16 @@ import { Component, OnInit, ViewChild, ChangeDetectorRef, OnDestroy } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
-import { BehaviorSubject, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription, firstValueFrom } from 'rxjs';
 import { filter, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
 
+import { SelectionModel } from '@angular/cdk/collections';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatSlideToggleModule, MatSlideToggleChange } from '@angular/material/slide-toggle';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { MatDialog } from '@angular/material/dialog';
@@ -20,6 +22,7 @@ import { ReportsHeaderComponent } from '../../../../shared/reports-header/report
 import { LoadingComponent } from '../../../../shared/loading/loading.component';
 import { DialogPrefComponent } from '../../../../shared/dialog-pref/dialog-pref.component';
 import { DialogExportComponent } from '../../../../shared/dialog-export/dialog-export.component';
+import { DialogGenericComponent } from '../../../../shared/dialog-generic/dialog-generic.component';
 import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '../../../../shared/dialog-toggle-preferences/dialog-toggle-preferences.component';
 
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
@@ -28,6 +31,7 @@ import { ReportsService } from '../../../services/admin/reports/reports.service'
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
+import { getFacultyTypeClass } from '../../../../shared/utils/faculty-type.utils';
 
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
@@ -61,6 +65,7 @@ interface ToggleState {
     FormsModule,
     MatTableModule,
     MatButtonModule,
+    MatCheckboxModule,
     MatIconModule,
     MatSlideToggleModule,
     MatPaginatorModule,
@@ -102,12 +107,16 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   isEnabled!: boolean;
   isGlobalStartDateSet = false;
   isIndividualStartDateSet = false;
+  isGlobalDeadlineSet = false;
+
+  isMultiSelectMode = false;
+  selection = new SelectionModel<Faculty>(true, []);
 
   isLoading = new BehaviorSubject<boolean>(true);
 
   selectedTermId: number | null = null;
   private activeTermId: number | null = null;
-  showPreferenceToggleColumn = true;
+  showPreferenceToggleColumn = false;
   exportButtonsDisabled = true;
   exportTooltipMessage = '';
   private prefsSub?: Subscription;
@@ -217,12 +226,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Recomputes the `displayedColumns` array based on whether the
-   * preference toggle column should be visible.
+   * preference toggle column and multi-select mode should be visible.
    */
   private updateDisplayedColumns(): void {
-    this.displayedColumns = this.showPreferenceToggleColumn
-      ? [...this.baseDisplayedColumns, 'toggle']
-      : [...this.baseDisplayedColumns];
+    const cols = [...this.baseDisplayedColumns];
+
+    if (this.showPreferenceToggleColumn) {
+      cols.unshift('select');
+      cols.push('toggle');
+    }
+
+    this.displayedColumns = cols;
   }
 
   /**
@@ -408,13 +422,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   checkToggleAllState(): void {
     const allEnabled = this.filteredData.every((faculty) => faculty.is_enabled);
-    const isGlobalDeadlineSet = this.allData.some((faculty) =>
+    this.isGlobalDeadlineSet = this.allData.some((faculty) =>
       faculty.active_semesters?.some(
         (semester) => semester.global_deadline !== null,
       ),
     );
 
-    this.isToggleAllChecked = allEnabled && isGlobalDeadlineSet;
+    this.isToggleAllChecked = allEnabled && this.isGlobalDeadlineSet;
 
     this.isAnyIndividualToggleOn = this.filteredData.some(
       (faculty) => faculty.is_enabled,
@@ -574,6 +588,17 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const hasIndividualDeadlines = this.hasIndividualDeadlines;
 
+    const availableFaculties = this.allData.map((f) => ({
+      faculty_id: f.faculty_id,
+      facultyName: f.facultyName,
+      facultyCode: f.facultyCode,
+      is_enabled: f.is_enabled,
+    }));
+
+    const preselectedFacultyIds = this.selection.selected.map(
+      (f) => f.faculty_id
+    );
+
     const dialogData: DialogTogglePreferencesData = {
       type: 'all_preferences',
       academicYear: activeSemester?.academic_year || '',
@@ -582,6 +607,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       global_deadline: existingDeadline,
       global_start_date: existingStartDate,
       hasIndividualDeadlines: hasIndividualDeadlines,
+      availableFaculties,
+      preselectedFacultyIds,
     };
 
     const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
@@ -591,6 +618,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((confirmed: boolean) => {
       if (confirmed) {
+        this.clearSelection();
         this.refreshPreferencesTable();
       }
     });
@@ -609,6 +637,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     event: MatSlideToggleChange | MouseEvent,
     isScheduledClick = false,
   ): void {
+    if (this.isGlobalDeadlineSet) {
+      if (!isScheduledClick && event instanceof MatSlideToggleChange) {
+        event.source.checked = faculty.is_enabled;
+      }
+      this.snackBar.open(
+        'Individual preference changes are disabled while a global deadline is set.',
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
     if (!isScheduledClick && event instanceof MatSlideToggleChange) {
       event.source.checked = faculty.is_enabled;
     }
@@ -665,6 +705,189 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     });
   }
 
+  // Toggles multi-select mode in the table and clears current selection
+  toggleMultiSelectMode(): void {
+    this.isMultiSelectMode = !this.isMultiSelectMode;
+    if (!this.isMultiSelectMode) {
+      this.selection.clear();
+    }
+    this.updateDisplayedColumns();
+  }
+
+  // Checks whether all currently filtered faculties are selected
+  isAllFilteredSelected(): boolean {
+    const numSelected = this.selection.selected.length;
+    const numRows = this.filteredData.length;
+    return numRows > 0 && numSelected >= numRows;
+  }
+
+  // Confirms whether row selection is active for the table
+  isRowSelected(): boolean {
+    return true;
+  }
+
+  // Clears all currently selected faculties from the selection model
+  clearSelection(): void {
+    this.selection.clear();
+  }
+
+  // Selects or clears all currently filtered faculties
+  masterToggle(): void {
+    if (this.isAllFilteredSelected()) {
+      this.selection.clear();
+      return;
+    }
+
+    this.filteredData.forEach((row) => this.selection.select(row));
+  }
+
+  // Returns array of currently selected faculty whose submission is enabled
+  getSelectedEnabledFaculties(): Faculty[] {
+    return this.selection.selected.filter((f) => f.is_enabled);
+  }
+
+  // Opens dialog to batch-toggle submission for the selected subset of faculty
+  onBatchToggleSelected(enable: boolean): void {
+    if (!this.selection.hasValue()) {
+      return;
+    }
+
+    const preselectedIds = this.selection.selected.map((f) => f.faculty_id);
+    const availableFaculties = this.allData.map((f) => ({
+      faculty_id: f.faculty_id,
+      facultyName: f.facultyName,
+      facultyCode: f.facultyCode,
+      is_enabled: f.is_enabled,
+    }));
+
+    const activeSemesterFaculty = this.allData.find(
+      (faculty) => faculty.active_semesters?.length
+    );
+    const activeSemester = activeSemesterFaculty?.active_semesters?.[0];
+
+    const dialogData: DialogTogglePreferencesData = {
+      type: 'batch_preferences',
+      batchAction: enable ? 'enable' : 'disable',
+      academicYear: activeSemester?.academic_year || '',
+      semester: activeSemester?.semester_label || '',
+      currentState: !enable,
+      preselectedFacultyIds: preselectedIds,
+      availableFaculties,
+    };
+
+    const dialogRef = this.dialog.open(DialogTogglePreferencesComponent, {
+      data: dialogData,
+      autoFocus: true,
+    });
+
+    dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+      if (confirmed) {
+        this.clearSelection();
+        this.refreshPreferencesTable();
+      }
+    });
+  }
+
+  // Prompts confirmation and dispatches reminder email to a single faculty
+  onNotifyFaculty(faculty: Faculty): void {
+    if (!faculty.is_enabled) {
+      return;
+    }
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Notify Faculty Member',
+        content:
+          `Send a preference submission reminder email to ` +
+          `${faculty.facultyName}? Existing deadline will be maintained.`,
+        actionText: 'Send Email',
+        cancelText: 'Cancel',
+        action: 'confirm',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((action) => {
+      if (action) {
+        this.preferencesService
+          .notifyFaculties([faculty.faculty_id])
+          .subscribe({
+            next: () => {
+              this.snackBar.open(
+                `Reminder email sent to ${faculty.facultyName}.`,
+                'Close',
+                { duration: 3000 }
+              );
+            },
+            error: (err) => {
+              console.error('Error sending reminder email:', err);
+              this.snackBar.open(
+                `Failed to send reminder email to ${faculty.facultyName}.`,
+                'Close',
+                { duration: 3000 }
+              );
+            },
+          });
+      }
+    });
+  }
+
+  // Prompts confirmation and dispatches reminder emails to enabled selected faculty
+  onBatchNotifySelected(): void {
+    const enabledFaculties = this.getSelectedEnabledFaculties();
+
+    if (!enabledFaculties.length) {
+      this.snackBar.open(
+        'No enabled faculty in current selection to notify.',
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    const totalSelected = this.selection.selected.length;
+    const skippedCount = totalSelected - enabledFaculties.length;
+    const skipNote =
+      skippedCount > 0
+        ? ` (${skippedCount} disabled faculty member(s) will be skipped)`
+        : '';
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Send Batch Notifications',
+        content:
+          `Send reminder emails to ${enabledFaculties.length} ` +
+          `faculty member(s)?${skipNote} Current deadlines will be maintained.`,
+        actionText: 'Send Emails',
+        cancelText: 'Cancel',
+        action: 'confirm',
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((action) => {
+      if (action) {
+        const ids = enabledFaculties.map((f) => f.faculty_id);
+        this.preferencesService.notifyFaculties(ids).subscribe({
+          next: (res) => {
+            const count = res?.notified_count ?? ids.length;
+            this.snackBar.open(
+              `Reminder emails dispatched to ${count} faculty member(s).`,
+              'Close',
+              { duration: 3000 }
+            );
+          },
+          error: (err) => {
+            console.error('Error sending batch reminder emails:', err);
+            this.snackBar.open(
+              'Failed to dispatch batch reminder emails.',
+              'Close',
+              { duration: 3000 }
+            );
+          },
+        });
+      }
+    });
+  }
+
   /**
    * Opens the preview dialog for the given faculty's preferences.
    * @param faculty Faculty to preview.
@@ -677,13 +900,14 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
     this.dialog.open(DialogPrefComponent, {
-      maxWidth: '70rem',
+      maxWidth: '90vw',
       width: '100%',
       data: {
         facultyName: faculty.facultyName,
         faculty_id: faculty.faculty_id,
         termId: this.selectedTermId,
         isAdmin: true,
+        hasSubmitted: this.hasSubmittedPreferences(faculty),
         generateExcelFunction: async () => {
           const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
@@ -739,7 +963,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * Opens the export dialog to generate program-grouped export files.
    * Validates grouped program data before allowing the export.
    */
-  onExportByProgram(): void {
+  async onExportByProgram(): Promise<void> {
     if (!this.allData.length) {
       this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
       return;
@@ -755,7 +979,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
-    const programsData = this.getGroupedProgramData();
+
+    // Fetch master list of programs to guarantee all courses are printed
+    let masterPrograms: any[] = [];
+    try {
+      const response = await firstValueFrom(this.preferencesService.getPrograms());
+      masterPrograms = response?.programs || [];
+    } catch (error) {
+      this.snackBar.open('Error fetching master programs list.', 'Close', { duration: 3000 });
+      return;
+    }
+
+    const programsData = this.getGroupedProgramData(masterPrograms);
 
     if (programsData.length === 0) {
       this.snackBar.open('No valid program data to export.', 'Close', { duration: 3000 });
@@ -834,9 +1069,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   /**
    * Groups faculty preference course data by program, year level and
    * section to produce a structure suitable for program-based exports.
+   * Includes empty courses from the master curriculum.
+   * @param masterPrograms List of all programs and courses from the backend.
    * @returns An array of program group objects prepared for export.
    */
-  private getGroupedProgramData(): any[] {
+  private getGroupedProgramData(masterPrograms: any[] = []): any[] {
     const programsMap = new Map<string, any>();
     
     // Dictionary to expand program titles if the backend only provided abbreviations
@@ -861,6 +1098,54 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       'BSENT': 'Bachelor of Science in Entrepreneurship',
     };
 
+    // 1. PRE-FILL WITH MASTER CURRICULUM
+    masterPrograms.forEach((prog: any) => {
+      const progCode = prog.program_code || 'UNKNOWN PROGRAM';
+      let progTitle = prog.program_title;
+      if (!progTitle || progTitle === progCode) {
+        progTitle = PROGRAM_NAMES[progCode.toUpperCase()] || progCode;
+      }
+
+      if (!programsMap.has(progCode)) {
+        programsMap.set(progCode, {
+          program_code: progCode,
+          program_title: progTitle,
+          year_levels: new Map<string, any>()
+        });
+      }
+      const currentProg = programsMap.get(progCode);
+
+      prog.year_levels?.forEach((yl: any) => {
+        const yearLevelStr = yl.year_level?.toString() || 'N/A';
+        if (!currentProg.year_levels.has(yearLevelStr)) {
+          currentProg.year_levels.set(yearLevelStr, { year_level: yearLevelStr, sections: new Map<string, any>() });
+        }
+        const currentYl = currentProg.year_levels.get(yearLevelStr);
+
+        yl.sections?.forEach((sec: any) => {
+          const secName = sec.section_name || 'N/A';
+          if (!currentYl.sections.has(secName)) {
+            currentYl.sections.set(secName, { section_name: secName, courses: new Map<string, any>() });
+          }
+          const currentSec = currentYl.sections.get(secName);
+
+          yl.semester?.courses?.forEach((c: any) => {
+            const courseCode = c.course_code;
+            if (!currentSec.courses.has(courseCode)) {
+              currentSec.courses.set(courseCode, {
+                subject_code: courseCode,
+                description: c.course_title || 'N/A',
+                lec: c.lec_hours || 0,
+                lab: c.lab_hours || 0,
+                teachers: new Map<string, any>() // Empty map by default
+              });
+            }
+          });
+        });
+      });
+    });
+
+    // 2. OVERLAY FACULTY PREFERENCES
     this.allData.forEach((faculty) => {
       const activeSemester = faculty.active_semesters?.[0];
       if (!activeSemester || !activeSemester.courses) return;
@@ -871,7 +1156,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         const progCode = course.course_details?.program_code || course.program_details?.program_code || 'UNKNOWN PROGRAM';
         let progTitle = course.course_details?.program_title || course.program_details?.program_title;
         
-        // Auto-expand program title if it's missing or matches the short code
         if (!progTitle || progTitle === progCode) {
             progTitle = PROGRAM_NAMES[progCode.toUpperCase()] || progCode;
         }
@@ -886,7 +1170,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           'Monday': 'M', 'Tuesday': 'TUE', 'Wednesday': 'W', 'Thursday': 'TH', 'Friday': 'F', 'Saturday': 'S', 'Sunday': 'SU'
         };
         
-        // Group the days by identical time blocks so they get their own rows instead of merging confusingly
         const timeGroups = new Map<string, string[]>();
         preferredDays.forEach((d: any) => {
             const start = this.formatTimeTo12Hour(d.start_time).replace(/\s+/g, '');
@@ -909,52 +1192,35 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             scheduleBlocks.push({ day: 'TBA', time: 'TBA' });
         }
 
-        const originalCode =
-          course.original_course_code ||
-          course.course_details?.original_course_code;
-
-        const courseCode = originalCode
-          ? `${course.course_details?.course_code} (${originalCode})`
-          : (course.course_details?.course_code || 'N/A');
-
+        const originalCode = course.original_course_code || course.course_details?.original_course_code;
+        const courseCode = originalCode ? `${course.course_details?.course_code} (${originalCode})` : (course.course_details?.course_code || 'N/A');
         const courseTitle = course.course_details?.course_title || 'N/A';
         const lec = course.lec_hours || 0;
         const lab = course.lab_hours || 0;
 
+        // Ensure program exists just in case a teacher has a preference outside the master list
         if (!programsMap.has(progCode)) {
-            programsMap.set(progCode, {
-                program_code: progCode,
-                program_title: progTitle,
-                year_levels: new Map<string, any>()
-            });
+            programsMap.set(progCode, { program_code: progCode, program_title: progTitle, year_levels: new Map<string, any>() });
         }
-
         const prog = programsMap.get(progCode);
-        if (!prog.year_levels.has(yearLevel)) {
-            prog.year_levels.set(yearLevel, {
-                year_level: yearLevel,
-                sections: new Map<string, any>()
-            });
-        }
 
-        const yl = prog.year_levels.get(yearLevel);
+        if (!prog.year_levels.has(yearLevel.toString())) {
+            prog.year_levels.set(yearLevel.toString(), { year_level: yearLevel.toString(), sections: new Map<string, any>() });
+        }
+        const yl = prog.year_levels.get(yearLevel.toString());
+
         if (!yl.sections.has(sectionName)) {
-            yl.sections.set(sectionName, {
-                section_name: sectionName,
-                courses: new Map<string, any>()
-            });
+            yl.sections.set(sectionName, { section_name: sectionName, courses: new Map<string, any>() });
         }
-
         const sec = yl.sections.get(sectionName);
 
-        // Group by course so that multiple teachers selecting the same course appear in the same section
         if (!sec.courses.has(courseCode)) {
              sec.courses.set(courseCode, {
                 subject_code: courseCode,
                 description: courseTitle,
                 lec: lec,
                 lab: lab,
-                teachers: new Map<string, any>() // Group by individual teacher next
+                teachers: new Map<string, any>()
              });
         }
         
@@ -963,7 +1229,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             c.teachers.set(teacherName, []);
         }
 
-        // Add all distinct day/time blocks for this specific teacher
         scheduleBlocks.forEach(block => {
             c.teachers.get(teacherName).push(block);
         });
@@ -979,7 +1244,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                     description: c.description,
                     lec: c.lec,
                     lab: c.lab,
-                    // Safe mapping over map entries without tuple destructuring
                     teachers: Array.from(c.teachers.entries()).map((entry: any) => ({
                         teacherName: entry[0],
                         blocks: entry[1]
@@ -1012,18 +1276,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const drawPageHeader = (programTitle: string): number => {
       let currentY = 15;
 
-      // Let service draw ONLY the logo + university name
       const subscription = this.reportHeaderService.addHeader(doc, '', currentY, '')
         .subscribe((newY: number) => {
           currentY = newY;
         });
       subscription.unsubscribe();
 
-      // Erase whatever line/text the service added below the logo
       doc.setFillColor(255, 255, 255);
       doc.rect(0, currentY - 8, pageWidth, 12, 'F');
 
-      // Program title — wrapped and centered
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
@@ -1031,14 +1292,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       doc.text(splitTitle, pageWidth / 2, currentY, { align: 'center' });
       currentY += splitTitle.length * 7;
 
-      // Subtitle
       const subtitle = `${semesterLabel.toUpperCase()} SY ${academicYear} | SECTION OFFERING`;
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       doc.text(subtitle, pageWidth / 2, currentY, { align: 'center' });
       currentY += 5;
 
-      // Horizontal rule
       doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
       doc.line(margin, currentY, pageWidth - margin, currentY);
@@ -1062,7 +1321,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
           let currentY = drawPageHeader(programTitle);
 
-          // --- YEAR + SECTION LABEL ---
           const yearStr = yl.year_level?.toString() ?? '';
           let yearDisplay = '';
 
@@ -1086,7 +1344,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           doc.text(`${yearDisplay}${secDisplay}`, margin, currentY);
           currentY += 5;
 
-          // --- TABLE BODY (unchanged) ---
           const tableBody: any[] = [];
 
           sec.courses.forEach((c: any) => {
@@ -1095,7 +1352,19 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
               totalCourseRows += t.blocks.length;
             });
 
-            if (totalCourseRows === 0) return;
+            // Render empty course if no teachers picked it
+            if (totalCourseRows === 0) {
+              tableBody.push([
+                { content: c.subject_code, styles: { valign: 'middle', halign: 'center' } },
+                { content: c.description, styles: { valign: 'middle' } },
+                { content: c.lec.toString(), styles: { valign: 'middle', halign: 'center' } },
+                { content: c.lab.toString(), styles: { valign: 'middle', halign: 'center' } },
+                { content: '', styles: { valign: 'middle' } },
+                { content: '', styles: { valign: 'middle' } },
+                { content: '', styles: { valign: 'middle' } }
+              ]);
+              return; 
+            }
 
             let isFirstCourseRow = true;
 
@@ -1167,9 +1436,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       });
     });
 
-    // Footer on the very last page
     this.reportHeaderService.addStandardFooter(doc);
-
     return doc.output('blob');
   }
 
@@ -1263,6 +1530,22 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           sec.courses.forEach((c: any) => {
             const courseStartRow = worksheet.rowCount + 1;
             let totalRows = 0;
+
+            // Render empty course if no teachers picked it
+            if (!c.teachers || c.teachers.length === 0) {
+              const row = worksheet.addRow([
+                c.subject_code, c.description, c.lec, c.lab, '', '', ''
+              ]);
+              row.eachCell((cell, colNum) => {
+                cell.alignment = { 
+                  vertical: 'middle', 
+                  horizontal: (colNum === 3 || colNum === 4 || colNum === 6 || colNum === 7) ? 'center' : 'left', 
+                  wrapText: true 
+                };
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+              });
+              return;
+            }
 
             c.teachers.forEach((t: any) => {
                 const teacherStartRow = worksheet.rowCount + 1;
@@ -1713,13 +1996,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * @returns Record of CSS class booleans.
    */
   getFacultyTypeClass(facultyType: string): Record<string, boolean> {
-    const type = facultyType.toLowerCase();
-    return {
-      'full-time': type.includes('full-time'),
-      designee: type.includes('designee'),
-      'part-time': type.includes('part-time'),
-      temporary: type.includes('temporary'),
-    };
+    return getFacultyTypeClass(facultyType);
   }
 
   /**
@@ -1747,13 +2024,12 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       };
     }
 
-    const isGlobalDisabled =
-      !this.isToggleAllChecked &&
-      ((this.hasIndividualDeadlines && this.isEnabled) ||
-        this.isIndividualStartDateSet);
+    const isGlobalDisabled = false;
 
     const isIndividualDisabled =
-      this.isToggleAllChecked || this.isGlobalStartDateSet;
+      this.isToggleAllChecked ||
+      this.isGlobalStartDateSet ||
+      this.isGlobalDeadlineSet;
 
     const isGloballyScheduled = this.isGloballyScheduled();
     const isIndividuallyScheduled = this.isIndividuallyScheduled(faculty);
@@ -1761,8 +2037,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const globalTooltip =
       isGloballyScheduled && !this.isToggleAllChecked
         ? 'Preferences submission is scheduled'
-        : this.hasIndividualDeadlines && !this.isToggleAllChecked
-        ? 'Global preferences toggle is disabled because individual preferences settings are set'
         : `${
             this.isToggleAllChecked ? 'Disable' : 'Enable'
           } preferences submission for ALL faculty`;
@@ -1770,6 +2044,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const individualTooltip =
       isIndividuallyScheduled && !faculty.is_enabled
         ? 'Preferences submission is scheduled'
+        : this.isGlobalDeadlineSet
+        ? 'Global preferences deadline is active – individual changes disabled'
         : this.isGlobalStartDateSet
         ? 'Global submission start date has been set – individual changes disabled'
         : this.isToggleAllChecked

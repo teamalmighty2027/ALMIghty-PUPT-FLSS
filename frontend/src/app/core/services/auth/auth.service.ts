@@ -7,7 +7,8 @@ import { map, tap, switchMap, finalize, catchError, shareReplay } from 'rxjs/ope
 import { CookieService } from 'ngx-cookie-service';
 
 import { environment } from '../../../../environments/environment.dev';
-import { environmentOAuth } from '../../../../environments/env.auth';
+import { SafeStorage } from '../../utils/safe-storage.utils';
+
 
 export interface LoginError {
   message: string;
@@ -42,10 +43,16 @@ export class AuthService {
   private requestedRole: string[] = [];
   private userDataCache: any = null;
   private sessionExpiryTimer: ReturnType<typeof setTimeout> | null = null;
-  private refreshLeewayMs = 30 * 60 * 1000;
+  private refreshLeewayMs = 15 * 60 * 1000;
   private refreshInFlight: Observable<RefreshResponse> | null = null;
   private profilePictureUrlSubject = new BehaviorSubject<string | null>(null);
   public profilePictureUrl$ = this.profilePictureUrlSubject.asObservable();
+
+  private profileIncompleteSubject = new BehaviorSubject<boolean>(false);
+  public profileIncomplete$ = this.profileIncompleteSubject.asObservable();
+
+  private userNameSubject = new BehaviorSubject<string | null>(null);
+  public userName$ = this.userNameSubject.asObservable();
 
   // Initialize AuthService dependencies.
   constructor(
@@ -55,33 +62,58 @@ export class AuthService {
   ) {}
 
   // ==============================
+  // Profile Completion State
+  // ==============================
+  updateProfileCompletionStatus(data: { department?: string; academic_rank?: string }, role: string): void {
+    // Admins/Superadmins are never flagged for missing faculty details
+    if (role === 'admin' || role === 'superadmin') {
+      this.profileIncompleteSubject.next(false);
+      return;
+    }
+    
+    // Incomplete if either field is missing, null, or empty string
+    const isIncomplete = !data?.department || !data?.academic_rank;
+    this.profileIncompleteSubject.next(isIncomplete);
+  }
+
+  // ==============================
   // IDP auth methods 
   // ==============================
 
-  // Check the IDP health endpoint.
-  checkIdpHealth(): Observable<boolean> {
-    return this.http.get(`${environmentOAuth.idpUrl}/auth/authorize`).pipe(
-      map((response: any) => response.error === 'no client id given'),
-      catchError((error) => {
-        console.error('Error checking IDP health:', error);
-        return of(false);
-      }),
+  // Check whether the IDP backend service is reachable.
+  checkIdpReachable(): Observable<boolean> {
+    const url = `${this.baseUrl}/auth/idp-login`;
+    return this.http.get<{ url: string }>(url).pipe(
+      map(() => true),
+      catchError(() => of(false)),
     );
   }
 
-  // Call the IDP's authorization endpoint to initiate login.
-  initiateIdpLogin(intendedRole: string[]): void {
-    const clientId = environmentOAuth.clientId;
+  // Fetch IDP authorization URL for the specified intended roles.
+  getIdpLoginUrl(intendedRole: string[]): Observable<{ url: string }> {
     this.cookieService.set(
       'intended_role',
       JSON.stringify(intendedRole),
       undefined,
       '/',
     );
-    window.location.href =
-      `${environmentOAuth.idpUrl}` +
-      `/api/v1/auth/authorize?client_id=${clientId}`;
+
+    const url = `${this.baseUrl}/auth/idp-login`;
+    return this.http.get<{ url: string }>(url);
   }
+
+  // Redirect to IDP login using URL retrieved from the backend.
+  initiateIdpLogin(intendedRole: string[]): void {
+    this.getIdpLoginUrl(intendedRole).subscribe({
+      next: (response) => {
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('Failed to initiate IDP login:', error);
+      },
+    });
+  }
+
 
   // Pass the IDP callback parameters to the backend for processing.
   handleIdpCallback(params: any): Observable<any> {
@@ -125,7 +157,7 @@ export class AuthService {
 
         // Store user data and Sanctum token for Authorization header.
         this.setUserData(response.data, expiresAt, 'idp');
-        localStorage.setItem('token', response.token?.token || '');
+        SafeStorage.setItem('token', response.token?.token || '');
         this.setIdpToken(token.access_token, token.refresh_token, expiresIn);
 
         return of(response);
@@ -190,7 +222,7 @@ export class AuthService {
   logout(): Observable<any> {
     return this.http.post(`${this.baseUrl}/logout`, {}).pipe(
       catchError(() => of(null)),
-      switchMap(() => this.logoutFromIdp()),
+      // switchMap(() => this.logoutFromIdp()),
       finalize(() => {
         this.clearCookies();
         this.router.navigate(['/login']);
@@ -245,6 +277,14 @@ export class AuthService {
     });
   }
 
+  // Submit account reactivation request for inactive faculty.
+  requestReactivation(email: string): Observable<any> {
+    return this.http.post(
+      `${this.baseUrl}/faculty/request-reactivation`,
+      { email }
+    );
+  }
+
   // ==============================
   // Helper methods
   // ==============================
@@ -262,7 +302,7 @@ export class AuthService {
   // ==============================
   // Read the local Sanctum token.
   getToken(): string {
-    return localStorage.getItem('token') || '';
+    return SafeStorage.getItem('token') || '';
   }
 
   // Store the IDP access and refresh tokens in cookies.
@@ -322,19 +362,19 @@ export class AuthService {
     });
 
     // Clear localStorage
-    localStorage.removeItem('oauth_state');
-    localStorage.removeItem('user_data');
-    localStorage.removeItem('token');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('termsAccepted');
-    localStorage.removeItem('scheduling_selected_program');
-    localStorage.removeItem('scheduling_selected_year');
-    localStorage.removeItem('scheduling_selected_section');
-    localStorage.removeItem('curriculum_selected_category');
-    localStorage.removeItem('curriculum_selected_program');
-    localStorage.removeItem('curriculum_selected_year');
-    localStorage.removeItem('curriculum_selected_semester');
+    SafeStorage.removeItem('oauth_state');
+    SafeStorage.removeItem('user_data');
+    SafeStorage.removeItem('token');
+    SafeStorage.removeItem('access_token');
+    SafeStorage.removeItem('refresh_token');
+    SafeStorage.removeItem('termsAccepted');
+    SafeStorage.removeItem('scheduling_selected_program');
+    SafeStorage.removeItem('scheduling_selected_year');
+    SafeStorage.removeItem('scheduling_selected_section');
+    SafeStorage.removeItem('curriculum_selected_category');
+    SafeStorage.removeItem('curriculum_selected_program');
+    SafeStorage.removeItem('curriculum_selected_year');
+    SafeStorage.removeItem('curriculum_selected_semester');
     this.userDataCache = null;
     this.clearExpiryTimer();
   }
@@ -351,7 +391,7 @@ export class AuthService {
       tap((response) => {
         if (response.user) {
           this.setUserData(response.user, response.expires_at, 'flss');
-          localStorage.setItem('token', response.token);
+          SafeStorage.setItem('token', response.token);
         }
       }),
       catchError((error) => {
@@ -428,8 +468,9 @@ export class AuthService {
 
     // Update the profile picture observable
     this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
+    this.userNameSubject.next(this.userDataCache.name);
     // Save to localStorage (not cookies) if needed for page reloads
-    localStorage.setItem('user_data', JSON.stringify(this.userDataCache));
+    SafeStorage.setItem('user_data', JSON.stringify(this.userDataCache));
     this.scheduleSessionExpiry(this.userDataCache.expires_at);
   }
 
@@ -443,9 +484,40 @@ export class AuthService {
       if (this.userDataCache?.profile_picture_url) {
         this.profilePictureUrlSubject.next(this.userDataCache.profile_picture_url);
       }
+
+      if (this.userDataCache?.name) {
+        this.userNameSubject.next(this.userDataCache.name);
+      }
     }
 
     return this.userDataCache;
+  }
+
+  /**
+   * Instantly update the cached user name and notify all headers/navbars
+   */
+  updateUserName(firstName: string, lastName: string, middleName?: string, suffixName?: string): void {
+    const userData = this.getUserData();
+    if (!userData) return;
+
+    // Format full name (e.g. First M. Last Suffix or First Last)
+    let fullName = `${firstName} ${lastName}`.trim();
+    if (middleName) {
+      const middleInitial = middleName.charAt(0).toUpperCase() + '.';
+      fullName = `${firstName} ${middleInitial} ${lastName}`.trim();
+    }
+    if (suffixName) {
+      fullName = `${fullName} ${suffixName}`.trim();
+    }
+
+    userData.name = fullName;
+    if (firstName) userData.first_name = firstName;
+    if (lastName) userData.last_name = lastName;
+    if (middleName) userData.middle_name = middleName;
+    if (suffixName) userData.suffix_name = suffixName;
+
+    SafeStorage.setItem('user_data', JSON.stringify(userData));
+    this.userNameSubject.next(fullName);
   }
 
   /**
@@ -455,7 +527,7 @@ export class AuthService {
     const userData = this.getUserData();
     if (userData) {
       userData.profile_picture_url = url;
-      localStorage.setItem('user_data', JSON.stringify(userData));
+      SafeStorage.setItem('user_data', JSON.stringify(userData));
     }
     this.profilePictureUrlSubject.next(url);
   }
@@ -561,7 +633,7 @@ export class AuthService {
 
   // Load user data from storage with parse guards.
   private loadUserDataFromStorage(): any {
-    const rawUserData = localStorage.getItem('user_data');
+    const rawUserData = SafeStorage.getItem('user_data');
     if (!rawUserData) {
       return {};
     }
@@ -571,7 +643,7 @@ export class AuthService {
       return parsed && typeof parsed === 'object' ? parsed : {};
     } catch (error) {
       console.error('Failed to parse user_data:', error);
-      localStorage.removeItem('user_data');
+      SafeStorage.removeItem('user_data');
       return {};
     }
   }

@@ -400,7 +400,7 @@ export class RoomsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- NEW: ExcelJS Logic ---
+  // ExcelJS Logic
   private async generateExcelBlob(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const allRooms = this.roomsSubject.getValue();

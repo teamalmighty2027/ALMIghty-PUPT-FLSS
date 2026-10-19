@@ -1,0 +1,81 @@
+<div class="dialog-edit-faculty" role="dialog" aria-labelledby="editFacultyTitle" aria-describedby="editFacultyDescription">
+  <div class="accent-bar"></div>
+
+  <div class="dialog-header">
+    <div class="avatar-shell" aria-hidden="true">
+      <!-- User Edit icon -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M19 8l-4.5 4.5L13 15l2.5-1.5L20 9l-1-1z"></path>
+      </svg>
+    </div>
+
+    <div class="code-panel">
+      <span class="code-label">Faculty Code</span>
+      <div class="code-pill">{{ data.faculty.code }}</div>
+    </div>
+  </div>
+
+  <div class="section-title" id="editFacultyTitle">Edit Faculty Details</div>
+  <p class="section-description" id="editFacultyDescription">Update the profile information for this faculty member.</p>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" class="faculty-form">
+    <div class="form-grid">
+
+      <div class="form-field full-width">
+        <label for="code">Faculty Code</label>
+        <input id="code" formControlName="code" type="text" placeholder="FAC001" />
+      </div>
+
+      <div class="form-field">
+        <label for="last_name">Last Name</label>
+        <input id="last_name" formControlName="last_name" type="text" placeholder="Dela Cruz" />
+      </div>
+
+      <div class="form-field">
+        <label for="first_name">First Name</label>
+        <input id="first_name" formControlName="first_name" type="text" placeholder="Juan" />
+      </div>
+
+      <div class="form-field">
+        <label for="middle_name">Middle Name</label>
+        <input id="middle_name" formControlName="middle_name" type="text" placeholder="S." />
+      </div>
+
+      <div class="form-field">
+        <label for="suffix_name">Suffix</label>
+        <input id="suffix_name" formControlName="suffix_name" type="text" placeholder="" />
+      </div>
+
+      <div class="form-field full-width">
+        <label for="email">Email</label>
+        <input id="email" formControlName="email" type="email" placeholder="juan.delacruz@example.com" />
+      </div>
+
+      <div class="form-field">
+        <label for="faculty_type_id">Type</label>
+        <select id="faculty_type_id" formControlName="faculty_type_id">
+          @for (type of data.facultyTypes; track type.faculty_type_id) {
+            <option [value]="type.faculty_type_id">{{ type.faculty_type }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-field">
+        <label for="status">Status</label>
+        <select id="status" formControlName="status">
+          @for (s of data.facultyStatuses; track s) {
+            <option [value]="s">{{ s }}</option>
+          }
+        </select>
+      </div>
+
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" class="cancel-btn" (click)="onCancel()">Cancel</button>
+      <button type="submit" class="update-btn" [disabled]="form.invalid">Update Faculty</button>
+    </div>
+  </form>
+</div>

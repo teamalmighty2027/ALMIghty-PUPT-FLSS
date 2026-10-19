@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
+import { SafeStorage } from '../../utils/safe-storage.utils';
 
 @Injectable({
   providedIn: 'root',
@@ -19,7 +20,7 @@ export class ThemeService {
   }
 
   public loadTheme() {
-    const savedTheme = localStorage.getItem('isDarkTheme');
+    const savedTheme = SafeStorage.getItem('isDarkTheme');
     if (savedTheme) {
       this.isDarkTheme.next(JSON.parse(savedTheme));
     }
@@ -27,7 +28,10 @@ export class ThemeService {
   }
 
   private saveTheme() {
-    localStorage.setItem('isDarkTheme', JSON.stringify(this.isDarkTheme.value));
+    SafeStorage.setItem(
+      'isDarkTheme',
+      JSON.stringify(this.isDarkTheme.value)
+    );
   }
 
   private updateTheme() {

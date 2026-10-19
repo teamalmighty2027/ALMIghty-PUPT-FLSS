@@ -1,6 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 
 import { AdminMainComponent } from './admin-main.component';
+import { AuthService } from '../../../services/auth/auth.service';
 
 describe('AdminMainComponent', () => {
   let component: AdminMainComponent;
@@ -8,7 +13,24 @@ describe('AdminMainComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AdminMainComponent],
+      imports: [
+        AdminMainComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ],
+      providers: [
+        provideRouter([]),
+        {
+          provide: AuthService,
+          useValue: {
+            getUserName: () => 'Test Admin',
+            getUserRole: () => 'admin',
+            getUserEmail: () => 'admin@test.com',
+            profilePictureUrl$: of(null),
+            hasPermission: () => true
+          }
+        }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(AdminMainComponent);

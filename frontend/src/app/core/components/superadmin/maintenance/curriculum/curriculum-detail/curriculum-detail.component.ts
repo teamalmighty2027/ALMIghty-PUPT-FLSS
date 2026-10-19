@@ -74,7 +74,7 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   public selectedProgram: string | number = 'All';
   public selectedYear: string | number = 'All';
   public selectedSemester: string | number = 'All';
-  public selectedCategory: 'Regular' | 'Bridging' = 'Regular';
+  public selectedCategory: 'Regular' | 'Bridging' | 'Electives' = 'Regular';
   public searchQuery: string = '';
   
   public renderGroups: any[] = []; 
@@ -233,7 +233,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   private loadSelectionCaches(): void {
     const cachedCategory =
       localStorage.getItem('curriculum_selected_category');
-    if (cachedCategory === 'Regular' || cachedCategory === 'Bridging') {
+    if (
+      cachedCategory === 'Regular' ||
+      cachedCategory === 'Bridging' ||
+      cachedCategory === 'Electives'
+    ) {
       this.selectedCategory = cachedCategory;
     }
 
@@ -336,7 +340,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       { type: 'text', label: 'Search Course', key: 'courseSearch', placeholder: 'Search by code or title' },
       { type: 'select', label: 'Category', key: 'category', options: [
         { key: 'Regular', label: 'Regular Courses' },
-        { key: 'Bridging', label: 'Bridging Courses' }
+        { key: 'Bridging', label: 'Bridging Courses' },
+        { key: 'Electives', label: 'Elective Courses' },
       ]},
       { type: 'select', label: 'Program', key: 'program', options: programOptions },
       { type: 'select', label: 'Year Level', key: 'yearLevel', options: yearLevelOptions },
@@ -351,10 +356,15 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       const selectedProg = this.curriculum?.programs.find(
         (p) => p.curricula_program_id === Number(this.selectedProgram)
       );
-      const catLabel = this.selectedCategory === 'Bridging' ? ' bridging' : '';
+      const catLabel =
+        this.selectedCategory === 'Bridging' ? ' bridging'
+        : this.selectedCategory === 'Electives' ? ' electives'
+        : '';
       currentLabel = `Export ${selectedProg?.name || 'Program'}${catLabel} curriculum`;
     } else if (this.selectedCategory === 'Bridging') {
       currentLabel = 'Export bridging courses (All Programs)';
+    } else if (this.selectedCategory === 'Electives') {
+      currentLabel = 'Export elective courses (All Programs)';
     }
 
     this.customExportOptions = {
@@ -369,6 +379,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     if (this.selectedCategory === 'Bridging') {
       this.updateBridgingRenderGroups();
+      return;
+    }
+
+    if (this.selectedCategory === 'Electives') {
+      this.updateElectivesRenderGroups();
       return;
     }
 
@@ -438,7 +453,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const searchLower = this.searchQuery.toLowerCase().trim();
     const programsToProcess = this.selectedProgram === 'All'
       ? this.curriculum.programs
-      : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram));
+      : this.curriculum.programs.filter(
+          p => p.curricula_program_id === Number(this.selectedProgram)
+        );
 
     // Handle empty case early
     if (programsToProcess.length === 0) {
@@ -448,22 +465,34 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     }
 
     this.isLoadingBridging = true;
-    this.renderGroups = []; 
+    this.renderGroups = [];
 
     const observables = programsToProcess.map(prog => {
-      // Find yearLevel and semester IDs if filtered
       let yearLevelId: number | undefined;
       let semesterId: number | undefined;
 
       if (this.selectedYear !== 'All') {
-        const yl = prog.year_levels.find(yl => yl.year === Number(this.selectedYear));
+        const yl = prog.year_levels.find(
+          y => y.year === Number(this.selectedYear)
+        );
         yearLevelId = yl?.year_level_id;
       }
 
-      if (this.selectedSemester !== 'All' && yearLevelId) {
-        const yl = prog.year_levels.find(y => y.year_level_id === yearLevelId);
-        const sem = yl?.semesters.find(s => s.semester === Number(this.selectedSemester));
-        semesterId = sem?.semester_id;
+      if (this.selectedSemester !== 'All') {
+        if (yearLevelId) {
+          const yl = prog.year_levels.find(
+            y => Number(y.year_level_id) === Number(yearLevelId)
+          );
+          const sem = yl?.semesters.find(
+            s => s.semester === Number(this.selectedSemester)
+          );
+          semesterId = sem?.semester_id;
+        } else {
+          const sem = prog.year_levels
+            .flatMap(y => y.semesters)
+            .find(s => s.semester === Number(this.selectedSemester));
+          semesterId = sem?.semester_id;
+        }
       }
 
       return this.curriculumService.getBridgingCourses(
@@ -472,7 +501,6 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         yearLevelId,
         semesterId
       ).pipe(
-        // Attach program context for grouping later
         switchMap(courses => of({ prog, courses }))
       );
     });
@@ -485,40 +513,65 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(results => {
       let groups: any[] = [];
+      let unmappedCount = 0;
 
       results.forEach(({ prog, courses }) => {
-        // Group these bridging courses by year and semester for this program
         const courseMap = new Map<string, any[]>();
 
         courses.forEach((course: BridgingCourse) => {
-          // Apply search filter
-          const codeMatch = course.course_code.toLowerCase().includes(searchLower);
-          const titleMatch = course.course_title.toLowerCase().includes(searchLower);
+          const codeMatch =
+            course.course_code.toLowerCase().includes(searchLower);
+          const titleMatch =
+            course.course_title.toLowerCase().includes(searchLower);
           if (searchLower && !codeMatch && !titleMatch) return;
 
-          const yearLevelData = prog.year_levels.find((yl: YearLevel) => yl.year_level_id === course.year_level_id);
-          const semesterData = yearLevelData?.semesters.find((sem: Semester) => sem.semester_id === course.semester_id);
-          
-          if (!yearLevelData || !semesterData) return;
+          const yearLevelData = prog.year_levels.find(
+            (yl: YearLevel) =>
+              Number(yl.year_level_id) === Number(course.year_level_id)
+          );
+          const semesterData = yearLevelData?.semesters.find(
+            (sem: Semester) =>
+              Number(sem.semester_id) === Number(course.semester_id)
+          );
 
-          // Manual filtering for cases where API returns more than requested (e.g. All Years + Specific Semester)
-          if (this.selectedYear !== 'All' && yearLevelData.year !== Number(this.selectedYear)) return;
-          if (this.selectedSemester !== 'All' && semesterData.semester !== Number(this.selectedSemester)) return;
+          if (!yearLevelData || !semesterData) {
+            unmappedCount++;
+            return;
+          }
 
-          const key = `${prog.program_id}-${yearLevelData.year}-${semesterData.semester}`;
+          if (
+            this.selectedYear !== 'All' &&
+            yearLevelData.year !== Number(this.selectedYear)
+          ) {
+            return;
+          }
+
+          if (
+            this.selectedSemester !== 'All' &&
+            semesterData.semester !== Number(this.selectedSemester)
+          ) {
+            return;
+          }
+
+          const key =
+            `${prog.program_id}-${yearLevelData.year}-${semesterData.semester}`;
           if (!courseMap.has(key)) {
             courseMap.set(key, []);
           }
 
-          // Format for generic table
-          const preReqCodes = course.prerequisites?.map((p: CourseRequirement) => p.course_code) || [];
-          const coReqCodes = course.corequisites?.map((c: CourseRequirement) => c.course_code) || [];
+          const preReqCodes =
+            course.prerequisites?.map(
+              (p: CourseRequirement) => p.course_code
+            ) || [];
+          const coReqCodes =
+            course.corequisites?.map(
+              (c: CourseRequirement) => c.course_code
+            ) || [];
 
           courseMap.get(key)!.push({
             ...course,
             pre_req: preReqCodes.length ? preReqCodes.join(', ') : 'None',
             co_req: coReqCodes.length ? coReqCodes.join(', ') : 'None',
-            // Field for action handling
             originalSemester: semesterData,
             program: prog,
             yearLevel: yearLevelData
@@ -527,10 +580,13 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
         courseMap.forEach((groupedCourses, key) => {
           const first = groupedCourses[0];
-          let heading = `Bridging Courses - ${this.getSemesterDisplay(first.originalSemester.semester)}`;
-          
+          const semDisp =
+            this.getSemesterDisplay(first.originalSemester.semester);
+          let heading = `Bridging Courses - ${semDisp}`;
+
           if (this.selectedProgram === 'All' || this.selectedYear === 'All') {
-             heading = `${first.program.name} - Year ${first.yearLevel.year} - ${heading}`;
+            heading =
+              `${first.program.name} - Year ${first.yearLevel.year} - ${heading}`;
           }
 
           groups.push({
@@ -545,15 +601,112 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         });
       });
 
-      // Sort groups by Program, Year, Semester
+      if (unmappedCount > 0) {
+        console.warn(
+          `[Bridging] ${unmappedCount} bridging course(s) could not be ` +
+          `mapped to curriculum structure.`
+        );
+        this.snackBar.open(
+          `Warning: ${unmappedCount} bridging course(s) could not be ` +
+          `mapped to curriculum structure.`,
+          'Close',
+          { duration: 4000 }
+        );
+      }
+
       this.renderGroups = groups.sort((a, b) => {
-        if (a.program.name !== b.program.name) return a.program.name.localeCompare(b.program.name);
-        if (a.yearLevel.year !== b.yearLevel.year) return a.yearLevel.year - b.yearLevel.year;
+        if (a.program.name !== b.program.name) {
+          return a.program.name.localeCompare(b.program.name);
+        }
+        if (a.yearLevel.year !== b.yearLevel.year) {
+          return a.yearLevel.year - b.yearLevel.year;
+        }
         return a.originalSemester.semester - b.originalSemester.semester;
       });
-      
+
       this.cdr.detectChanges();
     });
+  }
+
+  /**
+   * Updates the render groups for elective courses (ELEC codes).
+   */
+  updateElectivesRenderGroups() {
+    if (!this.curriculum) return;
+
+    const searchLower = this.searchQuery.toLowerCase().trim();
+    const programsToProcess = this.selectedProgram === 'All'
+      ? this.curriculum.programs
+      : this.curriculum.programs.filter(
+          (p) => p.curricula_program_id === Number(this.selectedProgram)
+        );
+
+    const groups: any[] = [];
+
+    for (const prog of programsToProcess) {
+      const yearsToProcess = this.selectedYear === 'All'
+        ? prog.year_levels
+        : prog.year_levels.filter(
+            (y) => y.year === Number(this.selectedYear)
+          );
+
+      for (const yl of yearsToProcess) {
+        const semsToProcess = this.selectedSemester === 'All'
+          ? yl.semesters
+          : yl.semesters.filter(
+              (s) => s.semester === Number(this.selectedSemester)
+            );
+
+        for (const sem of semsToProcess) {
+          const electiveCourses = sem.courses
+            .filter((c) => {
+              const isCodeElec = c.course_code.toUpperCase().includes('ELEC');
+              const isTitleElec =
+                c.course_title.toLowerCase().includes('elective');
+              return isCodeElec || isTitleElec;
+            })
+            .filter((c) => {
+              if (!searchLower) return true;
+              return (
+                c.course_code.toLowerCase().includes(searchLower) ||
+                c.course_title.toLowerCase().includes(searchLower)
+              );
+            })
+            .map((c) => ({
+              ...c,
+              pre_req:
+                c.prerequisites?.map((p) => p.course_code).join(', ') ||
+                'None',
+              co_req:
+                c.corequisites?.map((r) => r.course_code).join(', ') ||
+                'None',
+            }));
+
+          if (electiveCourses.length === 0) continue;
+
+          let heading = this.getSemesterDisplay(sem.semester);
+          if (
+            this.selectedProgram === 'All' ||
+            this.selectedYear === 'All'
+          ) {
+            heading = `${prog.name} - Year ${yl.year} - ${heading}`;
+          }
+
+          groups.push({
+            id: `elec-${prog.curricula_program_id}-${yl.year}-${sem.semester}`,
+            heading,
+            courses: electiveCourses,
+            originalSemester: sem,
+            program: prog,
+            yearLevel: yl,
+          });
+        }
+      }
+    }
+
+    this.renderGroups = groups;
+    this.updateElectiveSlots();
+    this.cdr.detectChanges();
   }
 
   // ===========================
@@ -697,6 +850,38 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Helper to locate the program, year level, and semester IDs for a slot.
+   */
+  private findContextForSlot(slotName: string): {
+    programId: number;
+    yearLevel: number;
+    semesterId: number;
+  } | null {
+    if (!this.curriculum) return null;
+
+    const trimmedSlot = slotName.trim().toLowerCase();
+
+    for (const prog of this.curriculum.programs) {
+      for (const yl of prog.year_levels) {
+        for (const sem of yl.semesters) {
+          const hasCourse = sem.courses.some(
+            c => c.course_title.trim().toLowerCase() === trimmedSlot ||
+                 c.course_code.toUpperCase().includes('ELEC')
+          );
+          if (hasCourse) {
+            return {
+              programId: prog.program_id,
+              yearLevel: yl.year,
+              semesterId: sem.semester_id,
+            };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Returns the active elective_id for a slot in the
    * specified academic year context, or null if none set.
    */
@@ -706,28 +891,54 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   ): number | null {
     if (!academicYearId) return null;
 
-    const program = this.getSelectedProgramData();
-    const yearLevelData = program
-      ? this.getSelectedYearLevelData(
-          program,
-          Number(this.selectedYear)
-        )
-      : null;
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(
-          yearLevelData,
-          Number(this.selectedSemester)
-        )
-      : null;
+    let programId: number | undefined;
+    let yearLevel: number | undefined;
+    let semesterId: number | undefined;
 
-    if (!program || !yearLevelData || !semesterData) {
+    if (
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    ) {
+      const program = this.getSelectedProgramData();
+      const ylData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : null;
+      const semData = ylData
+        ? this.getSelectedSemesterData(ylData, Number(this.selectedSemester))
+        : null;
+
+      if (program && ylData && semData) {
+        programId = program.program_id;
+        yearLevel = ylData.year;
+        semesterId = semData.semester_id;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const ctx = this.findContextForSlot(slotName);
+      if (ctx) {
+        programId = ctx.programId;
+        yearLevel = ctx.yearLevel;
+        semesterId = ctx.semesterId;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const keySuffix = `_${slotName}_${academicYearId}`;
+      const foundKey = Object.keys(this.activeElectiveMap).find(
+        k => k.endsWith(keySuffix)
+      );
+      if (foundKey) {
+        return this.activeElectiveMap[foundKey];
+      }
       return null;
     }
 
     const key = this.buildElectiveKey(
-      program.program_id,
-      yearLevelData.year,
-      semesterData.semester_id,
+      programId,
+      yearLevel,
+      semesterId,
       slotName,
       academicYearId
     );
@@ -746,26 +957,45 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   ): void {
     if (!this.curriculum || !academicYearId) return;
 
-    const program = this.getSelectedProgramData();
-    const yearLevelData = program
-      ? this.getSelectedYearLevelData(
-          program,
-          Number(this.selectedYear)
-        )
-      : null;
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(
-          yearLevelData,
-          Number(this.selectedSemester)
-        )
-      : null;
+    let programId: number | undefined;
+    let yearLevel: number | undefined;
+    let semesterId: number | undefined;
 
-    if (!program || !yearLevelData || !semesterData) return;
+    if (
+      this.selectedProgram !== 'All' &&
+      this.selectedYear !== 'All' &&
+      this.selectedSemester !== 'All'
+    ) {
+      const program = this.getSelectedProgramData();
+      const ylData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : null;
+      const semData = ylData
+        ? this.getSelectedSemesterData(ylData, Number(this.selectedSemester))
+        : null;
+
+      if (program && ylData && semData) {
+        programId = program.program_id;
+        yearLevel = ylData.year;
+        semesterId = semData.semester_id;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) {
+      const ctx = this.findContextForSlot(slotName);
+      if (ctx) {
+        programId = ctx.programId;
+        yearLevel = ctx.yearLevel;
+        semesterId = ctx.semesterId;
+      }
+    }
+
+    if (!programId || !yearLevel || !semesterId) return;
 
     const key = this.buildElectiveKey(
-      program.program_id,
-      yearLevelData.year,
-      semesterData.semester_id,
+      programId,
+      yearLevel,
+      semesterId,
       slotName,
       academicYearId
     );
@@ -776,9 +1006,9 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     this.curriculumService.saveCurriculumElective({
       curriculum_id: this.curriculum.curriculum_id,
-      program_id: program.program_id,
-      year_level: yearLevelData.year,
-      semester_id: semesterData.semester_id,
+      program_id: programId,
+      year_level: yearLevel,
+      semester_id: semesterId,
       elective_slot_name: slotName,
       selected_elective_id: electiveId,
       academic_year_id: academicYearId,
@@ -810,34 +1040,66 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Update the elective slots based on the current filters.
+   * Update the elective slots based on current filters and category.
    */
   private updateElectiveSlots(): void {
-    if (!this.curriculum || !this.canManageElectives) {
+    if (!this.curriculum) {
       this.electiveSlots = [];
       return;
     }
 
-    const program = this.getSelectedProgramData();
-    const yearLevel = Number(this.selectedYear);
-    const semesterValue = Number(this.selectedSemester);
-
-    if (!program) {
+    if (this.selectedCategory === 'Regular' && !this.canManageElectives) {
       this.electiveSlots = [];
       return;
     }
 
-    const yearLevelData = this.getSelectedYearLevelData(program, yearLevel);
-    const semesterData = yearLevelData
-      ? this.getSelectedSemesterData(yearLevelData, semesterValue)
-      : undefined;
+    let coursesToScan: Course[] = [];
 
-    if (!yearLevelData || !semesterData) {
+    if (this.canManageElectives) {
+      const program = this.getSelectedProgramData();
+      const yearLevelData = program
+        ? this.getSelectedYearLevelData(program, Number(this.selectedYear))
+        : undefined;
+      const semesterData = yearLevelData
+        ? this.getSelectedSemesterData(
+            yearLevelData,
+            Number(this.selectedSemester)
+          )
+        : undefined;
+
+      coursesToScan = semesterData ? semesterData.courses : [];
+    } else if (this.selectedCategory === 'Electives') {
+      const programsToProcess = this.selectedProgram === 'All'
+        ? this.curriculum.programs
+        : this.curriculum.programs.filter(
+            (p) => p.curricula_program_id === Number(this.selectedProgram)
+          );
+
+      for (const prog of programsToProcess) {
+        const yearsToProcess = this.selectedYear === 'All'
+          ? prog.year_levels
+          : prog.year_levels.filter(
+              (y) => y.year === Number(this.selectedYear)
+            );
+
+        for (const yl of yearsToProcess) {
+          const semsToProcess = this.selectedSemester === 'All'
+            ? yl.semesters
+            : yl.semesters.filter(
+                (s) => s.semester === Number(this.selectedSemester)
+              );
+
+          for (const sem of semsToProcess) {
+            coursesToScan.push(...(sem.courses || []));
+          }
+        }
+      }
+    } else {
       this.electiveSlots = [];
       return;
     }
 
-    const slotNames = this.getElectiveSlotsFromCourses(semesterData.courses);
+    const slotNames = this.getElectiveSlotsFromCourses(coursesToScan);
     const activeAY = this.academicYearsForCurriculum.find(
       (ay) => ay.is_active
     );
@@ -863,8 +1125,12 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     const slotNames = new Set<string>();
 
     courses.forEach((course) => {
-      if (course.course_title.toLowerCase().includes('elective') || course.course_code.toLowerCase().includes('elective')) {
-        slotNames.add(course.course_title.trim()); 
+      const isCodeElec = course.course_code.toUpperCase().includes('ELEC');
+      const isTitleElec =
+        course.course_title.toLowerCase().includes('elective');
+
+      if (isCodeElec || isTitleElec) {
+        slotNames.add(course.course_title.trim());
       }
     });
 
@@ -1034,6 +1300,8 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       if (this.selectedCategory === 'Bridging') {
         refreshBridging = true;
         this.electiveSlots = [];
+      } else if (this.selectedCategory === 'Electives') {
+        this.updateElectiveSlots();
       }
     }
 
@@ -1735,14 +2003,37 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
     return this.curriculumService.mapSemesterToEnum(semester);
   }
 
-  private programHasCourses(program: Program, filterYear: string | number, filterSemester: string | number): boolean {
+  private programHasCourses(
+    program: Program,
+    filterYear: string | number,
+    filterSemester: string | number
+  ): boolean {
     let yearLevels = program.year_levels;
-    if (filterYear !== 'All') yearLevels = yearLevels.filter(yl => yl.year === Number(filterYear));
+    if (filterYear !== 'All') {
+      yearLevels = yearLevels.filter(yl => yl.year === Number(filterYear));
+    }
 
     for (const yl of yearLevels) {
       let semesters = yl.semesters;
-      if (filterSemester !== 'All') semesters = semesters.filter(sem => sem.semester === Number(filterSemester));
-      if (semesters.some(sem => sem.courses && sem.courses.length > 0)) return true;
+      if (filterSemester !== 'All') {
+        semesters = semesters.filter(
+          sem => sem.semester === Number(filterSemester)
+        );
+      }
+
+      if (this.selectedCategory === 'Electives') {
+        const hasElec = semesters.some(sem =>
+          sem.courses && sem.courses.some(c =>
+            c.course_code.toUpperCase().includes('ELEC') ||
+            c.course_title.toLowerCase().includes('elective')
+          )
+        );
+        if (hasElec) return true;
+      } else {
+        if (semesters.some(sem => sem.courses && sem.courses.length > 0)) {
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -1759,35 +2050,49 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
   }
 
   openPdfPreviewDialog(exportAll: boolean): void {
+    const title = exportAll
+      ? 'All Programs Curriculum'
+      : (this.selectedCategory === 'Bridging'
+        ? 'Bridging Courses Curriculum'
+        : (this.selectedCategory === 'Electives'
+          ? 'Elective Courses Curriculum'
+          : 'Curriculum Export'));
+
     const dialogRef = this.dialog.open(DialogExportComponent, {
       data: {
         exportType: exportAll ? 'all' : 'single',
-        customTitle: exportAll ? 'All Programs Curriculum' : (this.selectedCategory === 'Bridging' ? 'Bridging Courses Curriculum' : 'Curriculum Export'),
+        customTitle: title,
         subtitle: `Curriculum Year ${this.curriculum?.curriculum_year}`,
-        generatePdfFunction: (showPreview: boolean) => this.generatePDF(showPreview, exportAll),
-        
+        generatePdfFunction: (showPreview: boolean) =>
+          this.generatePDF(showPreview, exportAll),
+
         generateFileNameFunction: () => {
           const base = exportAll ? 'All_Programs' : 'Curriculum';
-          const cat = this.selectedCategory === 'Bridging' ? '_Bridging' : '';
+          const cat = this.selectedCategory === 'Bridging'
+            ? '_Bridging'
+            : (this.selectedCategory === 'Electives' ? '_Electives' : '');
           return `${base}${cat}_${this.curriculum?.curriculum_year}.pdf`;
         },
 
         generateExcelFunction: async () => {
           const excelBlob = await this.generateExcel(exportAll);
           const base = exportAll ? 'All_Programs' : 'Curriculum';
-          const cat = this.selectedCategory === 'Bridging' ? '_Bridging' : '';
-          const fileName = `${base}${cat}_${this.curriculum?.curriculum_year}.xlsx`;
+          const cat = this.selectedCategory === 'Bridging'
+            ? '_Bridging'
+            : (this.selectedCategory === 'Electives' ? '_Electives' : '');
+          const fileName =
+            `${base}${cat}_${this.curriculum?.curriculum_year}.xlsx`;
           saveAs(excelBlob, fileName);
         },
-
       },
-      maxWidth: '70rem', width: '100%',
+      maxWidth: '70rem',
+      width: '100%',
       autoFocus: true,
     });
     dialogRef.afterClosed().subscribe(() => {});
   }
 
-  // --- NEW: EXCEL GENERATOR LOGIC ---
+  // EXCEL GENERATOR LOGIC
   private async generateExcel(exportAll: boolean): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const yearFilter = exportAll ? 'All' : this.selectedYear;
@@ -1873,6 +2178,11 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             if (this.selectedCategory === 'Bridging') {
               coursesToExport = bridgingData.get(program.program_id)
                 ?.filter(bc => bc.year_level_id === yearLevel.year_level_id && bc.semester_id === semester.semester_id) || [];
+            } else if (this.selectedCategory === 'Electives') {
+              coursesToExport = (semester.courses || []).filter(c =>
+                c.course_code.toUpperCase().includes('ELEC') ||
+                c.course_title.toLowerCase().includes('elective')
+              );
             } else {
               coursesToExport = semester.courses || [];
             }
@@ -1960,14 +2270,51 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
       });
     }
 
+    if (
+      this.selectedCategory === 'Electives' &&
+      this.electiveSlots.length > 0
+    ) {
+      const electivesSheet = workbook.addWorksheet('Elective Options');
+      electivesSheet.columns = [
+        { width: 30 },
+        { width: 60 }
+      ];
+
+      const header = electivesSheet.addRow([
+        'Elective Slot Name',
+        'Available Options'
+      ]);
+      header.font = { bold: true };
+      header.eachCell(cell => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FF800000' }
+        };
+        cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+      });
+
+      this.electiveSlots.forEach(slot => {
+        const optionsText = slot.options.length > 0
+          ? slot.options.map(
+              opt => `${opt.course_code} - ${opt.course_title}`
+            ).join('; ')
+          : 'No options available';
+        electivesSheet.addRow([slot.slotName, optionsText]);
+      });
+    }
+
     const buffer = await workbook.xlsx.writeBuffer();
-    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    return new Blob(
+      [buffer],
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    );
   }
 
   // --- PDF LOGIC ---
   async generatePDF(
     showPreview: boolean = false, exportAll: boolean = false
-  ): Promise<void | Blob> {
+  ): Promise<Blob> {
     const doc = new jsPDF('p', 'mm', 'letter') as any;
 
     if (this.curriculum) {
@@ -1978,16 +2325,28 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
         ? this.curriculum.programs 
         : (this.selectedProgram === 'All'
             ? this.curriculum.programs
-            : this.curriculum.programs.filter(p => p.curricula_program_id === Number(this.selectedProgram)));
+            : this.curriculum.programs.filter(
+                p => p.curricula_program_id === Number(this.selectedProgram)
+              ));
 
       // Fetch bridging data if needed
       let bridgingData: Map<number, BridgingCourse[]> = new Map();
       if (this.selectedCategory === 'Bridging') {
         const observables = programsToExport.map(p => 
-          this.curriculumService.getBridgingCourses(this.curriculum!.curriculum_id, p.program_id, 
-            yearFilter !== 'All' ? p.year_levels.find(yl => yl.year === Number(yearFilter))?.year_level_id : undefined,
+          this.curriculumService.getBridgingCourses(
+            this.curriculum!.curriculum_id,
+            p.program_id, 
+            yearFilter !== 'All'
+              ? p.year_levels.find(
+                  yl => yl.year === Number(yearFilter)
+                )?.year_level_id
+              : undefined,
             undefined
-          ).pipe(switchMap(courses => of({ programId: p.program_id, courses })))
+          ).pipe(
+            switchMap(
+              courses => of({ programId: p.program_id, courses })
+            )
+          )
         );
         const results = await firstValueFrom(forkJoin(observables));
         results.forEach(r => bridgingData.set(r.programId, r.courses));
@@ -2015,20 +2374,83 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
             bridgingData.get(program.program_id)
           );
         }
+
+        if (
+          this.selectedCategory === 'Electives' &&
+          this.electiveSlots.length > 0
+        ) {
+          await this.addElectivesSummaryToPDF(doc);
+        }
       }
 
       this.reportHeaderService.addStandardFooter(doc); 
-
-      const pdfBlob = doc.output('blob');
-      
-      if (showPreview) {
-        return pdfBlob;
-      } else {
-        doc.save('curriculum_report.pdf');
-      }
+      return doc.output('blob');
     }
+
+    return new Blob();
   }
 
+  /**
+   * Appends an Elective Options summary section to the PDF report.
+   */
+  private async addElectivesSummaryToPDF(doc: any): Promise<void> {
+    doc.addPage();
+    let currentY = 15;
+
+    currentY = await firstValueFrom(
+      this.reportHeaderService.addHeader(
+        doc,
+        `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+        currentY
+      )
+    );
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('Elective Options Summary', 10, currentY);
+    currentY += 10;
+
+    const tableData = this.electiveSlots.map((slot) => {
+      const optionsText = slot.options.length > 0
+        ? slot.options.map(
+            (opt) => `${opt.course_code} - ${opt.course_title}`
+          ).join('\n')
+        : 'No options added';
+      return [slot.slotName, optionsText];
+    });
+
+    doc.autoTable({
+      startY: currentY,
+      head: [['Elective Slot', 'Available Options']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [128, 0, 0],
+        textColor: [255, 255, 255],
+        fontSize: 10,
+        halign: 'center',
+        cellPadding: 2,
+      },
+      bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
+      styles: { lineWidth: 0.1, overflow: 'linebreak', cellPadding: 2 },
+      columnStyles: {
+        0: { cellWidth: 60, fontStyle: 'bold' },
+        1: { cellWidth: 130 },
+      },
+      margin: { left: 10, right: 10 },
+    });
+  }
+
+  /**
+   * Adds a program's curriculum courses and headers to the PDF document.
+   * @param doc - jsPDF instance.
+   * @param program - Program object.
+   * @param isFirstProgram - True if first program on document.
+   * @param filterYear - Filter year string/number.
+   * @param filterSemester - Filter semester string/number.
+   * @param exportAll - True if exporting all programs.
+   * @param bridgingCourses - Optional bridging courses.
+   */
   private async addProgramToPDF(
     doc: any,
     program: Program,
@@ -2050,137 +2472,182 @@ export class CurriculumDetailComponent implements OnInit, OnDestroy {
 
     let currentY = topMargin;
 
-    return new Promise((resolve) => {
+    currentY = await firstValueFrom(
       this.reportHeaderService.addHeader(
         doc, 
-        `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, currentY
+        `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+        currentY
       )
-        .subscribe((newY) => {
-          currentY = newY;
+    );
 
-          let sortedYearLevels = program.year_levels.sort((a, b) => a.year - b.year);
-          
-          if (filterYear !== 'All') {
-            sortedYearLevels = sortedYearLevels.filter(yl => yl.year === Number(filterYear));
-          }
+    let sortedYearLevels = program.year_levels.sort(
+      (a, b) => a.year - b.year
+    );
+    
+    if (filterYear !== 'All') {
+      sortedYearLevels = sortedYearLevels.filter(
+        yl => yl.year === Number(filterYear)
+      );
+    }
 
-          for (const yearLevel of sortedYearLevels) {
-            
-            let sortedSemesters = yearLevel.semesters.sort((a, b) => a.semester - b.semester);
-            
-            if (filterSemester !== 'All') {
-              sortedSemesters = sortedSemesters.filter(sem => sem.semester === Number(filterSemester));
-            }
+    for (const yearLevel of sortedYearLevels) {
+      let sortedSemesters = yearLevel.semesters.sort(
+        (a, b) => a.semester - b.semester
+      );
+      
+      if (filterSemester !== 'All') {
+        sortedSemesters = sortedSemesters.filter(
+          sem => sem.semester === Number(filterSemester)
+        );
+      }
 
-              for (const semester of sortedSemesters) {
-                let coursesToExport: any[] = [];
-                if (this.selectedCategory === 'Bridging' && bridgingCourses) {
-                  coursesToExport = bridgingCourses.filter(bc => bc.year_level_id === yearLevel.year_level_id && bc.semester_id === semester.semester_id);
-                } else {
-                  coursesToExport = semester.courses || [];
-                }
+      for (const semester of sortedSemesters) {
+        let coursesToExport: any[] = [];
+        if (this.selectedCategory === 'Bridging' && bridgingCourses) {
+          coursesToExport = bridgingCourses.filter(
+            bc => bc.year_level_id === yearLevel.year_level_id &&
+                  bc.semester_id === semester.semester_id
+          );
+        } else if (this.selectedCategory === 'Electives') {
+          coursesToExport = (semester.courses || []).filter(
+            c => c.course_code.toUpperCase().includes('ELEC') ||
+                 c.course_title.toLowerCase().includes('elective')
+          );
+        } else {
+          coursesToExport = semester.courses || [];
+        }
 
-                // Apply Search Filter for "Current View" export
-                if (!exportAll && this.searchQuery) {
-                  const searchLower = this.searchQuery.toLowerCase().trim();
-                  coursesToExport = coursesToExport.filter(c => 
-                    c.course_code.toLowerCase().includes(searchLower) || 
-                    c.course_title.toLowerCase().includes(searchLower)
-                  );
-                }
+        // Apply Search Filter for "Current View" export
+        if (!exportAll && this.searchQuery) {
+          const searchLower = this.searchQuery.toLowerCase().trim();
+          coursesToExport = coursesToExport.filter(
+            c => c.course_code.toLowerCase().includes(searchLower) || 
+                 c.course_title.toLowerCase().includes(searchLower)
+          );
+        }
 
-                if (coursesToExport.length === 0) continue;
+        if (coursesToExport.length === 0) continue;
 
-              if (currentY + 20 > pageHeight - bottomMargin) {
-                this.reportHeaderService.addStandardFooter(doc); 
-                doc.addPage();
-                this.reportHeaderService.addHeader(
-                  doc, 
-                  `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
-                )
-                  .subscribe((newPageY) => currentY = newPageY);
+        if (currentY + 20 > pageHeight - bottomMargin) {
+          this.reportHeaderService.addStandardFooter(doc); 
+          doc.addPage();
+          currentY = await firstValueFrom(
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+              topMargin
+            )
+          );
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(15);
+        const mainTitle = this.selectedCategory === 'Bridging'
+          ? `${program.name} - Bridging Courses`
+          : `${program.name} - Year ${yearLevel.year}`;
+        doc.text(mainTitle, margin, currentY);
+        currentY += 10;
+
+        if (currentY + 40 > pageHeight - bottomMargin) {
+          this.reportHeaderService.addStandardFooter(doc); 
+          doc.addPage();
+          currentY = await firstValueFrom(
+            this.reportHeaderService.addHeader(
+              doc, 
+              `Curriculum Year ${this.curriculum?.curriculum_year || ''}`,
+              topMargin
+            )
+          );
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(15);
+          doc.text(`${mainTitle} (continued)`, margin, currentY);
+          currentY += 10;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        const semDisp = this.getSemesterDisplay(semester.semester);
+        doc.text(
+          `Year ${yearLevel.year} - ${semDisp}`,
+          margin,
+          currentY
+        );
+        currentY += 6;
+
+        const tableData: (string | TableCell)[][] = coursesToExport.map((course) => {
+          const processedCourse = this.selectedCategory === 'Bridging'
+            ? {
+                ...course,
+                pre_req: course.prerequisites?.map((p: any) => p.course_code) || [],
+                co_req: course.corequisites?.map((c: any) => c.course_code) || [],
               }
+            : this.populateCourseRequisites(course);
 
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(15);
-              const mainTitle = this.selectedCategory === 'Bridging' ? `${program.name} - Bridging Courses` : `${program.name} - Year ${yearLevel.year}`;
-              doc.text(mainTitle, margin, currentY);
-              currentY += 10;
-
-              if (currentY + 40 > pageHeight - bottomMargin) {
-                this.reportHeaderService.addStandardFooter(doc); 
-                doc.addPage();
-                this.reportHeaderService.addHeader(
-                  doc, 
-                  `Curriculum Year ${this.curriculum?.curriculum_year || ''}`, topMargin
-                )
-                  .subscribe((newPageY) => currentY = newPageY);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(15);
-                doc.text(`${mainTitle} (continued)`, margin, currentY);
-                currentY += 10;
-              }
-
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(13);
-              doc.text(`Year ${yearLevel.year} - ${this.getSemesterDisplay(semester.semester)}`, margin, currentY);
-              currentY += 6;
-
-              const tableData: (string | TableCell)[][] = coursesToExport.map((course) => {
-                const processedCourse = this.selectedCategory === 'Bridging'
-                  ? {
-                      ...course,
-                      pre_req: course.prerequisites?.map((p: any) => p.course_code) || [],
-                      co_req: course.corequisites?.map((c: any) => c.course_code) || [],
-                    }
-                  : this.populateCourseRequisites(course);
-
-                return [
-                  processedCourse.course_code || 'N/A',
-                  Array.isArray(processedCourse.pre_req) ? processedCourse.pre_req.join(', ') : 'None',
-                  Array.isArray(processedCourse.co_req) ? processedCourse.co_req.join(', ') : 'None',
-                  processedCourse.course_title || 'N/A',
-                  processedCourse.lec_hours?.toString() || '0',
-                  processedCourse.lab_hours?.toString() || '0',
-                  processedCourse.units?.toString() || '0',
-                  processedCourse.tuition_hours?.toString() || '0',
-                ];
-              });
-
-              const totalUnits = coursesToExport.reduce((sum, course) => sum + (course.units || 0), 0);
-              const totalTuition = coursesToExport.reduce((sum, course) => sum + (course.tuition_hours || 0), 0);
-
-              tableData.push([
-                { content: 'TOTAL: ', colSpan: 6, styles: { halign: 'left' } } as TableCell,
-                { content: totalUnits.toString(), styles: { halign: 'center' } } as TableCell,
-                { content: totalTuition.toString(), styles: { halign: 'center' } } as TableCell,
-              ]);
-
-              doc.autoTable({
-                startY: currentY,
-                head: [['Code', 'Pre-req', 'Co-req', 'Title', 'Lec', 'Lab', 'Units', 'Tuition']],
-                body: tableData as Array<(string | TableCell)[]>,
-                theme: 'grid',
-                headStyles: { fillColor: [128, 0, 0], textColor: [255, 255, 255], fontSize: 10, halign: 'center', cellPadding: 1 },
-                bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
-                styles: { lineWidth: 0.1, overflow: 'linebreak', cellPadding: 0.5 },
-                columnStyles: { 4: { halign: 'center' }, 5: { halign: 'center' }, 6: { halign: 'center' }, 7: { halign: 'center' } },
-                
-                didParseCell: function (data: any) {
-                  if (data.row.index === tableData.length - 1) {
-                    data.cell.styles.fontStyle = 'bold';
-                    data.cell.styles.lineWidth = 0.5;
-                  }
-                },
-                margin: { left: 10, right: 10 },
-              });
-              currentY = (doc as any).lastAutoTable.finalY + 8;
-            }
-            currentY += 5;
-          }
-          resolve();
+          return [
+            processedCourse.course_code || 'N/A',
+            Array.isArray(processedCourse.pre_req)
+              ? processedCourse.pre_req.join(', ')
+              : 'None',
+            Array.isArray(processedCourse.co_req)
+              ? processedCourse.co_req.join(', ')
+              : 'None',
+            processedCourse.course_title || 'N/A',
+            processedCourse.lec_hours?.toString() || '0',
+            processedCourse.lab_hours?.toString() || '0',
+            processedCourse.units?.toString() || '0',
+            processedCourse.tuition_hours?.toString() || '0',
+          ];
         });
-    });
+
+        const totalUnits = coursesToExport.reduce(
+          (sum, course) => sum + (course.units || 0), 0
+        );
+        const totalTuition = coursesToExport.reduce(
+          (sum, course) => sum + (course.tuition_hours || 0), 0
+        );
+
+        tableData.push([
+          { content: 'TOTAL: ', colSpan: 6, styles: { halign: 'left' } } as TableCell,
+          { content: totalUnits.toString(), styles: { halign: 'center' } } as TableCell,
+          { content: totalTuition.toString(), styles: { halign: 'center' } } as TableCell,
+        ]);
+
+        doc.autoTable({
+          startY: currentY,
+          head: [['Code', 'Pre-req', 'Co-req', 'Title', 'Lec', 'Lab', 'Units', 'Tuition']],
+          body: tableData as Array<(string | TableCell)[]>,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [128, 0, 0],
+            textColor: [255, 255, 255],
+            fontSize: 10,
+            halign: 'center',
+            cellPadding: 1
+          },
+          bodyStyles: { fontSize: 9, textColor: [0, 0, 0] },
+          styles: {
+            lineWidth: 0.1,
+            overflow: 'linebreak',
+            cellPadding: 0.5
+          },
+          columnStyles: {
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+            6: { halign: 'center' },
+            7: { halign: 'center' }
+          },
+          didParseCell: function (data: any) {
+            if (data.row.index === tableData.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.lineWidth = 0.5;
+            }
+          },
+          margin: { left: 10, right: 10 },
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 8;
+      }
+      currentY += 5;
+    }
   }
 
   cancelPreview(): void {

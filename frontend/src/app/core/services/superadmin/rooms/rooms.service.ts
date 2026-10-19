@@ -50,7 +50,7 @@ export class RoomService {
   addRoom(room: Partial<Room>): Observable<Room> {
     return this.http
       .post<{ success: boolean; message: string; data: Room }>(
-        `${this.baseUrl}/addRoom`,
+        `${this.baseUrl}/rooms`,
         room
       )
       .pipe(map((response) => response.data));

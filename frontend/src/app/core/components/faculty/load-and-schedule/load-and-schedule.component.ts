@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
@@ -65,10 +65,11 @@ export interface ScheduleBlock {
   styleUrl: './load-and-schedule.component.scss',
   animations: [fadeAnimation],
 })
-export class LoadAndScheduleComponent implements OnInit {
+export class LoadAndScheduleComponent implements OnInit, OnDestroy {
   @ViewChild(FacultyScheduleTimetableComponent) timetableComponent!: FacultyScheduleTimetableComponent;
 
   facultySchedule: any;
+  isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
   myAppeals: any[] = []; 
   isLoading = true;
   isPublished = false;
@@ -87,8 +88,18 @@ export class LoadAndScheduleComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
+    window.addEventListener('resize', this.handleViewportResize);
     this.loadFacultySchedule();
   }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('resize', this.handleViewportResize);
+  }
+
+  private handleViewportResize = (): void => {
+    this.isMobileView = typeof window !== 'undefined' && window.innerWidth <= 768;
+  };
 
   loadFacultySchedule() {
     const facultyId = this.authService.getUserFacultyId();
@@ -128,13 +139,15 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openScheduleHistory(): void {
     this.dialog.open(DialogScheduleHistoryComponent, {
-      maxWidth: '90vw', width: '100%', autoFocus: true,
+      maxWidth: '90vw',
+      width: this.isMobileView ? '94vw' : '100%',
+      autoFocus: true,
     });
   }
 
   openRescheduleTutorial(): void {
     this.dialog.open(DialogVideoTutorialComponent, {
-      width: '640px',
+      width: this.isMobileView ? '94vw' : '640px',
       maxWidth: '95vw',
       panelClass: 'dialog-base',
       autoFocus: false,
@@ -184,6 +197,22 @@ export class LoadAndScheduleComponent implements OnInit {
     });
   }
 
+  downloadTemplate(): void {
+    const fileUrl = 'assets/docs/LETTER RESCHEDULE TEMPLATE.docx';
+    const fileName = 'LETTER RESCHEDULE TEMPLATE.docx';
+
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    this.snackBar.open('Word template downloaded successfully.', 'Close', { duration: 3000 });
+  }
+
   openAppealDialog(block: any): void {
     if (!this.isPublished) {
       this.snackBar.open('No official schedule published yet.', 'Close', { duration: 3000 });
@@ -203,8 +232,11 @@ export class LoadAndScheduleComponent implements OnInit {
     );
 
     const dialogRef = this.dialog.open(DialogAppealScheduleComponent, {
-      width: '520px', maxWidth: '95vw', maxHeight: '90vh',
+      width: '520px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
       autoFocus: true,
+      disableClose: true,
       data: {
         isEditMode: true,
         facultyName: this.facultySchedule?.faculty_name ?? '',
@@ -260,7 +292,9 @@ export class LoadAndScheduleComponent implements OnInit {
 
   openMyAppealsDialog(block: any): void {
     this.dialog.open(DialogMyAppealsComponent, {
-      width: '620px', maxWidth: '95vw', maxHeight: '90vh',
+      width: this.isMobileView ? '94vw' : '620px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
       autoFocus: true,
       data: { scheduleId: block.schedule_id },
     });
@@ -284,7 +318,9 @@ export class LoadAndScheduleComponent implements OnInit {
     if (!this.facultySchedule) return null;
     
     const clone = JSON.parse(JSON.stringify(this.facultySchedule));
-    const approvedAppeals = this.myAppeals?.filter(a => a.is_approved === 1 || a.is_approved === true) || [];
+    const approvedAppeals = this.myAppeals?.filter(
+      a => a.is_approved === 1 || a.is_approved === true || a.is_approved === 'approved' || String(a.is_approved) === '1'
+    ) || [];
 
     if (Array.isArray(clone.schedules)) {
       clone.schedules = clone.schedules.map((sched: any) => {

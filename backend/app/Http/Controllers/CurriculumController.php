@@ -89,8 +89,13 @@ class CurriculumController extends Controller
         ]);
     }
 
-    public function deleteCurriculum(Request $request)
+    // Deletes a curriculum by curriculum year path parameter
+    public function deleteCurriculum(Request $request, $curriculumYear = null)
     {
+        if ($curriculumYear !== null) {
+            $request->merge(['curriculum_year' => $curriculumYear]);
+        }
+
         $request->validate([
             'curriculum_year' => 'required|integer|exists:curricula,curriculum_year',
         ], [
@@ -375,8 +380,19 @@ class CurriculumController extends Controller
     }
 
     //For Manage Program (curriculum year):
-    public function removeProgramFromCurriculum(Request $request)
-    {
+    // Removes a program from curriculum using path parameters
+    public function removeProgramFromCurriculum(
+        Request $request,
+        $curriculumYear = null,
+        $programId = null
+    ) {
+        if ($curriculumYear !== null) {
+            $request->merge(['curriculum_year' => $curriculumYear]);
+        }
+        if ($programId !== null) {
+            $request->merge(['program_id' => $programId]);
+        }
+
         $request->validate([
             'curriculum_year' => 'required|string|exists:curricula,curriculum_year',
             'program_id' => 'required|integer|exists:programs,program_id',
@@ -446,8 +462,11 @@ class CurriculumController extends Controller
         return response()->json($programs);
     }
 
-    public function addProgramToCurriculum(Request $request)
+    public function addProgramToCurriculum(Request $request, $curriculumYear = null)
     {
+        if ($curriculumYear !== null) {
+            $request->merge(['curriculum_year' => $curriculumYear]);
+        }
         $request->validate([
             'curriculum_year' => 'required|string|exists:curricula,curriculum_year',
             'program_id' => 'required|integer|exists:programs,program_id',

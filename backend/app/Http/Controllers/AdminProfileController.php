@@ -19,6 +19,7 @@ class AdminProfileController extends Controller
 
             $profileArray = [
                 'department' => '',
+                'academic_rank' => '',
                 'birthdate' => null,
                 'sex' => '',
                 'house_num' => '',
@@ -70,7 +71,7 @@ class AdminProfileController extends Controller
             $profileData = $request->only([
                 'house_num', 'street', 'barangay', 'city', 
                 'province', 'country', 'zipcode', 'department',
-                'birthdate', 'sex'
+                'birthdate', 'sex', 'academic_rank'
             ]);
 
             if ($request->hasFile('profile_picture')) {

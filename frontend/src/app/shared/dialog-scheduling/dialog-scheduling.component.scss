@@ -10,9 +10,8 @@
 .scheduling-dialog-container {
   display: flex;
   align-items: stretch;
-  min-height: 560px;
   max-height: 88vh;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 // ─── Shared section base ────────────────────────────────────────────────────
@@ -67,7 +66,7 @@
 .suggested-faculty {
   flex: 4;
   background-color: var(--neutral-extra);
-  border-right: 1px solid var(--neutral-base);
+  border-right: 1px solid var(--neutral-border);
 
   .content.faculty-list {
     @include mixins.hide-scrollbar;
@@ -77,8 +76,7 @@
     overflow-y: auto;
     flex: 1;
     padding-bottom: var(--spacing-xl);
-    // Subtract title height so the list fills the remaining space
-    max-height: calc(88vh - 80px);
+    min-height: 0;
   }
 }
 
@@ -220,7 +218,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: var(--neutral-base);
+    background: var(--neutral-border);
     opacity: 0.5;
   }
 
@@ -277,7 +275,7 @@
   }
 
   &.selected-faculty,
-  &.selected-history {
+  &.selected-assignment {
     border-color: var(--green-primary);
     background-color: var(--green-fade-lighter);
   }
@@ -353,7 +351,7 @@
   .end-marker-line {
     flex: 1;
     height: 1px;
-    background: var(--neutral-base);
+    background: var(--neutral-border);
     opacity: 0.3;
   }
 
@@ -367,8 +365,8 @@
   }
 }
 
-// ── Course History block ──────────────────────────────────────────────────────
-.course-history-block {
+// ── Current Assignment block ──────────────────────────────────────────────────
+.current-assignment-block {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-xs);
@@ -381,26 +379,26 @@
   padding: var(--spacing-sm) var(--spacing-md);
 
   // Header mirrors .ai-block-header exactly
-  .course-history-header {
+  .current-assignment-header {
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
     margin-bottom: var(--spacing-sm);
     flex-wrap: wrap;
 
-    .history-header-icon {
+    .assignment-header-icon {
       font-size: 18px;
       color: var(--primary-text);
       flex-shrink: 0;
     }
 
-    .history-header-label {
+    .assignment-header-label {
       font-size: var(--font-size-sm);
       font-weight: 700;
       color: var(--primary-text);
     }
 
-    .history-header-sublabel {
+    .assignment-header-sublabel {
       font-size: var(--font-size-xs);
       color: var(--secondary-text);
       opacity: 0.75;
@@ -408,15 +406,15 @@
   }
 }
 
-// History card matches AI suggestion card — font bump only, no forced colors
-.history-card {
+// Assignment card matches AI suggestion card — font bump only, no forced colors
+.assignment-card {
   .faculty-name {
     font-size: var(--font-size-md) !important;
   }
 }
 
-// "Previous" badge — uses the same neutral fallback as any untyped card
-.history-type {
+// "Current" badge — uses the same neutral fallback as any untyped card
+.assignment-type {
   background-color: var(--neutral-fade) !important;
   color: var(--neutral-base) !important;
 }
@@ -507,7 +505,7 @@
     margin-bottom: var(--spacing-mdx);
     background: var(--neutral-light);
     border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
-    border-bottom: 1px solid var(--neutral-base);
+    border-bottom: 1px solid var(--neutral-border);
 
     .day-button {
       display: flex;
@@ -591,7 +589,7 @@
     gap: var(--spacing-xxs);
     padding: var(--spacing-sm);
     background-color: var(--neutral-light);
-    border: 1px solid var(--neutral-base);
+    border: 1px solid var(--neutral-border);
     border-radius: var(--border-radius-sm);
     width: 100%;
 
@@ -618,7 +616,7 @@
     gap: var(--spacing-xs);
     padding: var(--spacing-xs);
     border-radius: var(--border-radius-sm);
-    width: fit-content;
+    width: 100%;
 
     &.no-conflict {
       background-color: var(--secondary-fade);
@@ -629,6 +627,18 @@
       background-color: var(--primary-fade);
       color: var(--primary-text);
     }
+
+    &.warning {
+      background-color: rgba(230, 162, 60, 0.1);
+      color: var(--primary-warning);
+      margin-top: var(--spacing-xs);
+    }
+
+    &.info {
+      background-color: rgba(64, 158, 255, 0.1);
+      color: #409eff;
+      margin-top: var(--spacing-xs);
+    }
   }
 }
 
@@ -638,7 +648,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-lg) 0;
+  padding: var(--spacing-sm) 0;
   flex-shrink: 0;
   user-select: none;
 
@@ -655,6 +665,11 @@
     cursor: pointer;
 
     &:hover { background-color: var(--neutral-option); }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
   }
 
   .button-group {
@@ -663,6 +678,10 @@
     gap: var(--spacing-xs);
 
     .cancel-button { color: var(--primary-text) !important; }
+
+    .assign-btn-wrapper {
+      display: inline-flex;
+    }
 
     .action-button {
       @include mixins.gradient-primary(315deg);
@@ -675,3 +694,109 @@
     }
   }
 }
+
+.prof-option {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  .prof-name {
+    flex-grow: 1;
+  }
+
+  .faculty-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--border-radius-xl);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: var(--spacing-sm);
+
+    &.full-time {
+      background-color: var(--blue-fade-lighter);
+      color: var(--blue-primary);
+    }
+
+    &.part-time {
+      background-color: var(--purple-fade-lighter);
+      color: var(--purple-primary);
+    }
+
+    &.designee {
+      background-color: var(--pink-fade-lighter);
+      color: var(--pink-primary);
+    }
+
+    &.temporary {
+      background-color: var(--aqua-fade-lighter);
+      color: var(--aqua-primary);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .scheduling-dialog-container {
+    flex-direction: column !important;
+    min-height: auto !important;
+    max-height: 90vh !important;
+    height: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .suggested-faculty {
+    flex: none !important;
+    border-right: none !important;
+    border-bottom: 1.5px solid var(--neutral-border) !important;
+    padding: 0 var(--spacing-md) var(--spacing-md) !important;
+
+    .title {
+      padding: var(--spacing-md) 0 var(--spacing-xs) !important;
+    }
+
+    .content.faculty-list {
+      max-height: none !important;
+      overflow-y: visible !important;
+      padding-bottom: var(--spacing-sm) !important;
+    }
+  }
+
+  .edit-schedule-details {
+    flex: none !important;
+    padding: 0 var(--spacing-md) var(--spacing-md) !important;
+
+    .title {
+      padding: var(--spacing-md) 0 var(--spacing-xs) !important;
+    }
+
+    .content.forms-list {
+      max-height: none !important;
+      overflow-y: visible !important;
+    }
+  }
+
+  // Ensure day picker doesn't break and is neat
+  .day-buttons-container {
+    margin-bottom: var(--spacing-md) !important;
+    gap: 4px !important;
+    justify-content: space-around !important;
+    
+    .day-button {
+      width: 32px !important;
+      height: 32px !important;
+      padding: 0 !important;
+      font-size: var(--font-size-xs) !important;
+      aspect-ratio: 1 / 1 !important;
+    }
+  }
+
+  // Spacing for date fields
+  .date-fields {
+    flex-direction: row !important;
+    gap: var(--spacing-sm) !important;
+  }
+}
+

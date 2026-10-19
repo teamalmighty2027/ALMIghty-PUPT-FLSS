@@ -44,6 +44,13 @@ export const SUPERADMIN_ROUTES: Routes = [
               ).then((m) => m.FacultyTypesComponent),
             data: { pageTitle: 'Faculty Types' },
           },
+          {
+            path: 'designee-roles',
+            loadComponent: () => import(
+              './management/faculty/designee-roles/designee-roles.component'
+            ).then((m) => m.DesigneeRolesComponent),
+            data: { pageTitle: 'Designee Roles' },
+          },
         ],
       },
       {
@@ -53,6 +60,14 @@ export const SUPERADMIN_ROUTES: Routes = [
             (m) => m.ProgramsComponent,
           ),
         data: { pageTitle: 'Programs' },
+      },
+      {
+        path: 'academic-ranks',
+        loadComponent: () =>
+          import('../../../pages/superadmin/maintenance/academic-ranks/academic-ranks.component').then(
+            (m) => m.AcademicRanksComponent,
+          ),
+        data: { pageTitle: 'Academic Ranks' },
       },
       {
         path: 'curriculum',
@@ -119,6 +134,14 @@ export const SUPERADMIN_ROUTES: Routes = [
             (m) => m.AuditLogComponent,
           ),
         data: { pageTitle: 'Audit Log' },
+      },
+      {
+        path: 'system-notices',
+        loadComponent: () =>
+          import('./maintenance/system-notices/system-notices.component').then(
+            (m) => m.SystemNoticesComponent,
+          ),
+        data: { pageTitle: 'System Alerts' },
       },
       { path: '**', redirectTo: 'admin' },
     ],

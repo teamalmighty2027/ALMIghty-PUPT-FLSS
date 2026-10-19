@@ -8,6 +8,17 @@
   height: 100%;
 }
 
+.navigation-actions {
+  margin-bottom: 20px;
+  padding: 0 10px;
+
+  .designee-roles-link {
+    text-decoration: none;
+    color: #1976d2;
+    font-weight: 500;
+  }
+}
+
 .faculty-types-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;

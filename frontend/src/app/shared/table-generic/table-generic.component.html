@@ -16,6 +16,38 @@
 
 <div class="table-container">
   <table mat-table [dataSource]="dataSource" class="custom-table">
+
+    <!-- Checkbox column: only rendered when showCheckbox is true -->
+    @if (showCheckbox) {
+    <ng-container matColumnDef="select">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        class="custom-header common select-header"
+        [ngClass]="{
+          sticky: isHeaderSticky,
+          'top-left-radius': true
+        }"
+      >
+        <mat-checkbox
+          [checked]="isAllSelected()"
+          [indeterminate]="
+            selection.hasValue() && !isAllSelected()
+          "
+          (change)="toggleAllRows()"
+          aria-label="Select all rows"
+        ></mat-checkbox>
+      </th>
+      <td mat-cell *matCellDef="let row" class="custom-cell select-cell">
+        <mat-checkbox
+          [checked]="selection.isSelected(row)"
+          (change)="toggleRow(row)"
+          [aria-label]="'Select row'"
+        ></mat-checkbox>
+      </td>
+    </ng-container>
+    }
+
     @for (column of columns; track column.key) {
     <ng-container [matColumnDef]="column.key">
       <th
@@ -32,6 +64,11 @@
       <td mat-cell *matCellDef="let element; let i = index" class="custom-cell">
         @if (column.key === 'index') {
           {{ getIndex(i) }}
+        } @else if (column.template) {
+          <ng-container
+            [ngTemplateOutlet]="column.template"
+            [ngTemplateOutletContext]="{ $implicit: element }"
+          ></ng-container>
         } @else if (column.key === 'status') {
           <span
             class="status-badge"
@@ -60,12 +97,6 @@
           >
             {{ element[column.key] }}
           </span>
-        }
-        @else if (column.template) {
-          <ng-container
-            [ngTemplateOutlet]="column.template"
-            [ngTemplateOutletContext]="{ $implicit: element }"
-          ></ng-container>
         } @else {
           {{ element[column.key] }}
         }
@@ -109,14 +140,16 @@
           }
 
           @for (customAction of customActions; track customAction.action) {
-          <button
-            mat-button
-            class="sec-ripple custom-action-button"
-            (click)="onCustomAction(customAction.action, element)"
-          >
-            <mat-icon>{{ customAction.icon }}</mat-icon>
-            <span>{{ customAction.label }}</span>
-          </button>
+            @if (!customAction.showIf || customAction.showIf(element)) {
+            <button
+              mat-button
+              class="sec-ripple custom-action-button"
+              (click)="onCustomAction(customAction.action, element)"
+            >
+              <mat-icon>{{ customAction.icon }}</mat-icon>
+              <span>{{ customAction.label }}</span>
+            </button>
+            }
           }
 
           @if (showDeleteButton) {
@@ -146,11 +179,13 @@
   <div class="paginator-container">
     <mat-paginator
       class="custom-table-paginator"
-      [length]="data.length"
-      [pageSize]="25"
-      [pageSizeOptions]="[5, 10, 25, 50]"
+      [length]="totalItems || data.length"
+      [pageSize]="pageSize"
+      
+      [pageIndex]="pageIndex" [pageSizeOptions]="[5, 10, 25, 50]"
       [showFirstLastButtons]="showFirstLastButtons"
+      (page)="onPageChange($event)"
     ></mat-paginator>
   </div>
   }
-</div>
+</div>

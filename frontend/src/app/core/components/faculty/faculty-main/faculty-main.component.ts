@@ -19,6 +19,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 
 import { slideUpDown } from '../../../animations/animations';
 import { DialogTermsConditionsComponent } from '../../../../shared/dialog-terms-conditions/dialog-terms-conditions.component';
+import { SafeStorage } from '../../../utils/safe-storage.utils';
 import { FacultyService } from '../../../services/superadmin/management/faculty/faculty.service';
 
 @Component({
@@ -67,7 +68,7 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderer: Renderer2,
     private router: Router,
     private ngZone: NgZone,
-    private authService: AuthService,
+    public authService: AuthService,
     private dialog: MatDialog,
     private facultyService: FacultyService
   ) {}
@@ -84,10 +85,22 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(url => this.facultyProfilePictureUrl = url);
 
-    if (localStorage.getItem('termsAccepted') !== 'true') {
+    // Listen for real-time name updates!
+    this.authService.userName$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(name => {
+        if (name) {
+          this.facultyName = name;
+        } else {
+          this.facultyName = this.authService.getUserName();
+        }
+      });
+
+    if (SafeStorage.getItem('termsAccepted') !== 'true') {
       this.dialog.open(DialogTermsConditionsComponent, {
         disableClose: true,
         autoFocus: true,
+        panelClass: 'terms-dialog-panel',
       });
     }
   }
@@ -112,9 +125,12 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
     this.facultyName = this.authService.getUserName();
     this.facultyEmail = this.authService.getUserEmail();
 
-    // Fetch the profile data on initial load to ensure the picture populates
+    // Fetch the profile data on initial load
     this.facultyService.getProfile().subscribe({
-      next: (profile) => {
+      next: (profile: any) => {
+        // Evaluate profile completion instantly on load!
+        this.authService.updateProfileCompletionStatus(profile, this.authService.getUserRole());
+
         if (profile && profile.profile_picture_url) {
           // Set the local variable for the navbar
           this.facultyProfilePictureUrl = profile.profile_picture_url;
@@ -303,7 +319,6 @@ export class FacultyMainComponent implements OnInit, AfterViewInit, OnDestroy {
         this.authService.logout().subscribe({
           next: () => {
             loadingDialogRef.close();
-            this.router.navigate(['/login']);
           },
           error: () => {
             loadingDialogRef.close();

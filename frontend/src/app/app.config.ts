@@ -1,4 +1,4 @@
-import { ApplicationConfig, provideZoneChangeDetection, isDevMode } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection, isDevMode, ErrorHandler } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -14,6 +14,7 @@ import { routes } from './app.routes';
 import { AuthGuard } from './core/guards/auth.guard';
 import { Title } from '@angular/platform-browser';
 import { provideServiceWorker } from '@angular/service-worker';
+import { GlobalErrorHandler } from './core/handlers/global-error.handler';
 
 /** Global Material Ripple Configuration */
 const globalRippleConfig: RippleGlobalOptions = {
@@ -44,13 +45,14 @@ export const appConfig: ApplicationConfig = {
     CookieService,
     Title,
     provideCharts(withDefaultRegisterables()),
+    { provide: ErrorHandler, useClass: GlobalErrorHandler },
 
     /** Angular Material Configurations */
     { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
     { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, 
     provideServiceWorker('ngsw-worker.js', {
         enabled: !isDevMode(),
-        registrationStrategy: 'registerWhenStable:30000'
+        registrationStrategy: 'registerImmediately'
     }),
   ],
 };

@@ -1,5 +1,5 @@
-import { Component, OnInit, ViewChild, ChangeDetectorRef, AfterViewInit } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { Component, OnInit, ViewChild, ChangeDetectorRef, AfterViewInit, OnDestroy } from '@angular/core';
+import { DatePipe, CommonModule } from '@angular/common';
 import { MatDialog } from '@angular/material/dialog';
 
 import { forkJoin } from 'rxjs';
@@ -47,15 +47,27 @@ interface CourseSchedule {
 
 @Component({
   selector: 'app-home',
-  imports: [MatSymbolDirective, LoadingComponent, FullCalendarModule, DatePipe],
+  imports: [MatSymbolDirective, LoadingComponent, FullCalendarModule, DatePipe, CommonModule],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   animations: [fadeAnimation, cardEntranceSide],
 })
-export class HomeComponent implements OnInit, AfterViewInit {
+export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('calendar') calendarComponent!: FullCalendarComponent;
 
   isLoading = true;
+  currentView: 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' = 'dayGridMonth';
+  calendarTitle = '';
+  private readonly desktopToolbar = {
+    left: 'prev,next today',
+    center: 'title',
+    right: 'dayGridMonth,timeGridWeek,timeGridDay',
+  };
+  readonly mobileViewOptions = [
+    { key: 'dayGridMonth', label: 'Month' },
+    { key: 'timeGridWeek', label: 'Week' },
+    { key: 'timeGridDay', label: 'Day' },
+  ];
   calendarOptions: CalendarOptions = {};
   events: EventInput[] = [];
 
@@ -65,6 +77,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
   facultyType: string | null = '';
   facultyEmail: string | null = '';
 
+  appealDeadlineDisplay: string | null = null;
+
   academicYear = '';
   semester = '';
   facultyStatus = {
@@ -72,6 +86,8 @@ export class HomeComponent implements OnInit, AfterViewInit {
     schedule_published: false,
     preferences_deadline: null as string | null,
     preferences_start: null as string | null,
+    appeal_enabled: false,
+    appeal_end_date: null as string | null,
   };
 
   private readonly scheduleColors: ScheduleColor[] = [
@@ -152,6 +168,13 @@ export class HomeComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.resizeCalendar();
+    this.configureCalendarForViewport();
+    window.addEventListener('resize', this.handleViewportResize);
+    this.changeDetectorRef.detectChanges();
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('resize', this.handleViewportResize);
   }
 
   /**
@@ -173,11 +196,7 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.calendarOptions = {
       plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
       initialView: 'dayGridMonth',
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay',
-      },
+      headerToolbar: this.isMobileView() ? false : this.desktopToolbar,
       editable: false,
       selectable: true,
       selectMirror: true,
@@ -190,6 +209,10 @@ export class HomeComponent implements OnInit, AfterViewInit {
         meridiem: 'short',
       },
       moreLinkText: (n) => `+${n} more`,
+      datesSet: (info) => {
+        this.currentView = info.view.type as 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+        this.calendarTitle = info.view.title;
+      },
       eventClick: (info) => {
         const schedule = this.findScheduleForEvent(info.event);
         if (schedule) {
@@ -230,6 +253,30 @@ export class HomeComponent implements OnInit, AfterViewInit {
         this.academicYear = response.notifications.academic_year;
         this.semester = response.notifications.semester;
         this.facultyStatus = response.notifications.faculty_status;
+
+        console.log('Faculty Notification Response:', response.notifications);
+        console.log('Raw appeal_end_date from API:', this.facultyStatus?.appeal_end_date);
+
+        if (this.facultyStatus?.appeal_end_date) {
+          const dateStr = String(this.facultyStatus.appeal_end_date).replace(' ', 'T');
+          const parsedDate = new Date(dateStr);
+          if (!isNaN(parsedDate.getTime())) {
+            const months = [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            const monthName = months[parsedDate.getMonth()];
+            const day = parsedDate.getDate();
+            const year = parsedDate.getFullYear();
+            this.appealDeadlineDisplay = `${monthName} ${day}, ${year}`;
+          } else {
+            this.appealDeadlineDisplay = null;
+          }
+        } else {
+          this.appealDeadlineDisplay = null;
+        }
+
+        console.log('Parsed Appeal Deadline:', this.appealDeadlineDisplay);
 
         // Update loading state and trigger change detection
         this.isLoading = false;
@@ -282,6 +329,51 @@ export class HomeComponent implements OnInit, AfterViewInit {
       const calendarApi = this.calendarComponent.getApi();
       calendarApi.updateSize();
     }
+  }
+
+  isMobileView(): boolean {
+    return typeof window !== 'undefined' && window.innerWidth <= 768;
+  }
+
+  private handleViewportResize = (): void => {
+    this.configureCalendarForViewport();
+  };
+
+  private configureCalendarForViewport(): void {
+    if (!this.isCalendarApiAvailable()) {
+      return;
+    }
+
+    const calendarApi = this.calendarComponent.getApi();
+    const isMobile = this.isMobileView();
+
+    calendarApi.setOption('headerToolbar', isMobile ? false : this.desktopToolbar);
+    this.currentView = calendarApi.view.type as 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+    this.calendarTitle = calendarApi.view.title;
+
+    setTimeout(() => this.resizeCalendar(), 0);
+  }
+
+  goToPrevious(): void {
+    this.calendarComponent?.getApi()?.prev();
+  }
+
+  goToNext(): void {
+    this.calendarComponent?.getApi()?.next();
+  }
+
+  goToToday(): void {
+    this.calendarComponent?.getApi()?.today();
+  }
+
+  changeView(view: string): void {
+    const allowed = view as 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+    this.currentView = allowed;
+    this.calendarComponent?.getApi()?.changeView(allowed);
+  }
+
+  trackByViewKey(_: number, view: { key: string; label: string }): string {
+    return view.key;
   }
 
   private assignColorsToSchedules(schedules: CourseSchedule[]): void {

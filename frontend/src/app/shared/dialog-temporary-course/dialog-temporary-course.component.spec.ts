@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { DialogTemporaryCourseComponent } from './dialog-temporary-course.component';
 
@@ -30,7 +31,7 @@ describe('DialogTemporaryCourseComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DialogTemporaryCourseComponent],
+      imports: [DialogTemporaryCourseComponent, NoopAnimationsModule],
       providers: [
         { provide: MatDialogRef, useValue: { close: () => {} } },
         { provide: MAT_DIALOG_DATA, useValue: mockDialogData },

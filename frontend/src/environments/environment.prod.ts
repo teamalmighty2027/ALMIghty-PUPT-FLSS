@@ -5,4 +5,5 @@ export const environment = {
   
   // AZURE FRONTEND URL
   appUrl: 'https://test-flss.alquatrilixbsit2027.com/', 
+  useLocalLogin: false,
 };

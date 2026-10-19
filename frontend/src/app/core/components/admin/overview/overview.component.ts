@@ -428,7 +428,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
             : undefined;
 
           const formattedEnd = result.endDate 
-            ? formatDate(result.endDate, 'yyyy-MM-dd 23:59:59', 'en-US') 
+            ? formatDate(result.endDate, 'yyyy-MM-dd', 'en-US') + ' 23:59:59' 
             : undefined;
 
           this.reschedulingService.toggleFacultyAppealAccess(

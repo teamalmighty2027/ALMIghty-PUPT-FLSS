@@ -49,7 +49,7 @@ export const routes: Routes = [
     data: { animation: 'callback' },
   },
   {
-    path: 'redirect',
+    path: 'auth/redirect',
     loadComponent: () =>
       import('./auth/redirect/redirect.component').then(
         (m) => m.RedirectComponent,

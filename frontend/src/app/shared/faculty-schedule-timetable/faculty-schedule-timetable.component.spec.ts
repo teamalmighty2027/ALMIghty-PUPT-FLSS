@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 import { FacultyScheduleTimetableComponent } from './faculty-schedule-timetable.component';
 
@@ -8,7 +10,11 @@ describe('FacultyScheduleTimetableComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [FacultyScheduleTimetableComponent]
+      imports: [
+        FacultyScheduleTimetableComponent,
+        HttpClientTestingModule,
+        NoopAnimationsModule
+      ]
     })
     .compileComponents();
 

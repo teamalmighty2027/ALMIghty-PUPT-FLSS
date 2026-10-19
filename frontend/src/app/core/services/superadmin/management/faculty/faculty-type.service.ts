@@ -3,11 +3,22 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../../environments/environment.dev';
 
+export interface DesigneeRole {
+  designee_role_id: number;
+  role_name: string;
+  regular_units: number;
+  additional_units: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FacultyType {
   faculty_type_id: number;
   faculty_type: string;
   regular_units: number;
   additional_units: number;
+  designee_role_id: number | null;
+  designee_role: DesigneeRole | null;
   created_at: string;
   updated_at: string;
 }

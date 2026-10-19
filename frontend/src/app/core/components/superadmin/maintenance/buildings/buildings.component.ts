@@ -281,7 +281,7 @@ export class BuildingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- NEW: ExcelJS Logic ---
+  // ExcelJS Logic
   private async generateExcelBlob(): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Buildings');

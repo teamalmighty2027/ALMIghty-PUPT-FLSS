@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Hash;
 use Exception;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ActiveSemester;
+use App\Models\Preference;
+use App\Models\PreferencesSetting;
+use App\Jobs\AutoSubmitPreviousPreferencesJob;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -23,40 +28,50 @@ class AuthController extends Controller
         $loginUserData = $request->validate([
             'email'         => 'required|string|email|max:254',
             'password'      => 'required|string|min:8|max:128',
-            'allowed_roles' => 'required|array',
+            'allowed_roles' => 'required|array|min:1|max:3',
+            'allowed_roles.*' => 'required|string|distinct|in:faculty,admin,superadmin',
         ]);
 
-        // Check if the user exists and the password is correct
-        // Eager load permissions and allowed programs to avoid N+1 queries
+        $allowedRoles = array_values(array_unique($loginUserData['allowed_roles']));
+
         $user = User::with(['faculty.facultyType', 'permissions', 'allowedPrograms'])
             ->where('email', $loginUserData['email'])
-            ->whereIn('role', $loginUserData['allowed_roles'])
+            ->whereIn('role', $allowedRoles)
             ->first();
 
-        if (! $user || ! Hash::check($loginUserData['password'], $user->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials. Check your email and password.',
-            ], 401);
+        if (! $user) {
+            // Keep failed-login timing closer to existing-user checks.
+            Hash::check($loginUserData['password'], '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/AT0jNhLx2fX2.');
+            return $this->invalidLoginResponse();
+        }
+
+        if (! Hash::check($loginUserData['password'], $user->password)) {
+            return $this->invalidLoginResponse();
         }
 
         // Check if user has allowed role
-        if (! in_array($user->role, $loginUserData['allowed_roles'])) {
-            return response()->json([
-                'message' => 'Access forbidden. You are not authorized as ' . 
-                implode(' or ', $loginUserData['allowed_roles']) . '.',
-            ], 403);
+        if (! in_array($user->role, $allowedRoles, true)) {
+            return $this->invalidLoginResponse();
         }
 
-        // Check if admin/superadmin is active
-        if (($user->role === 'admin' || $user->role === 'superadmin') && $user->status === 'Inactive') {
+        // Block logins for inactive or retired accounts
+        if ($user->status === 'Inactive' || $user->status === 'Retired') {
+            AuditLogger::logFailedLogin(
+                $loginUserData['email'],
+                "Standard credentials login attempted for {$user->status} account",
+                $user
+            );
+
             return response()->json([
-                'message' => 'Your account is currently inactive. Please contact the system administrator.',
+                'message' => 'Your account is currently ' . strtolower($user->status) . '. Please contact the system administrator.',
+                'status'  => $user->status,
+                'email'   => $user->email,
             ], 403);
         }
 
         $tokenResult = $user->createToken('user-token');
         $token       = $tokenResult->plainTextToken;
-        $expiration  = Carbon::now()->addHours(24);
+        $expiration  = Carbon::now()->addHour();
 
         $tokenResult->accessToken->expires_at = $expiration;
         $tokenResult->accessToken->save();
@@ -87,9 +102,11 @@ class AuthController extends Controller
             ] : null,
         ]);
 
-        // Store the token and user info in cookies
-        Cookie::queue(Cookie::make('user_token', $token, 1440, null, null, true, true));
-        Cookie::queue(Cookie::make('user_info', $userData, 1440));
+        // Store the token and user info in cookies (60 minutes lifetime)
+        Cookie::queue(
+            Cookie::make('user_token', $token, 60, null, null, true, true)
+        );
+        Cookie::queue(Cookie::make('user_info', $userData, 60));
 
         // AuditLogger automatically grabs their Name, Role, and ID
         Auth::setUser($user);
@@ -99,6 +116,10 @@ class AuthController extends Controller
         // ══════════════════════════════════════════════════════════
         AuditLogger::logLogin($loginUserData['email']);
 
+        if ($faculty) {
+            $this->checkAndTriggerFacultyPreferencesAutoSubmit($faculty->id);
+        }
+
         return response()->json([
             'message'    => 'Login successful.',
             'expires_at' => $expiration,
@@ -106,6 +127,16 @@ class AuthController extends Controller
             'user'       => json_decode($userData, true),
         ])
         ->cookie('token', $token, 1440, null, null, true, true);
+    }
+
+    /**
+     * Return a generic failed login response.
+     */
+    private function invalidLoginResponse()
+    {
+        return response()->json([
+            'message' => 'Invalid credentials.',
+        ], 401);
     }
 
     /**
@@ -158,7 +189,7 @@ class AuthController extends Controller
 
         $tokenResult = $user->createToken('user-token');
         $token = $tokenResult->plainTextToken;
-        $expiration = Carbon::now()->addHours(24);
+        $expiration = Carbon::now()->addHour();
 
         $tokenResult->accessToken->expires_at = $expiration;
         $tokenResult->accessToken->save();
@@ -168,7 +199,7 @@ class AuthController extends Controller
             'expires_at' => $expiration,
             'token' => $token,
         ])
-        ->cookie('token', $token, 1440, null, null, true, true);
+        ->cookie('token', $token, 60, null, null, true, true);
     }
 
     /**
@@ -177,8 +208,17 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         $request->validate([
-            'current_password' => 'required|string|min:8|max:128',
-            'password'         => 'required|string|min:8|max:128|confirmed|different:current_password',
+            'current_password' => 'required|string|max:128',
+            'password'         => [
+                'required',
+                'string',
+                'confirmed',
+                'different:current_password',
+                Password::min(12)
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols(),
+            ],
         ]);
 
         $user = $request->user();
@@ -303,16 +343,43 @@ class AuthController extends Controller
             $middleName = $userData['middle_name'] ?? '';
             $lastName = $userData['last_name'] ?? '';
 
-            // Query user by email
-            $user = User::where('email', $email)
-              ->whereIn('role', $requestedRole)
-              ->first();
+            // Query user by IDP UUID first, then fall back to email
+            $user = null;
+
+            if ($id) {
+                $user = User::whereHas('faculty', function ($query) use ($id) {
+                    $query->where('idp_user_id', $id);
+                })
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
+
+            if (! $user) {
+                $user = User::where('email', $email)
+                    ->whereIn('role', $requestedRole)
+                    ->first();
+            }
 
             if (!$user) {
                 return response()->json([
                     'message' => 'User not found in system.',
                     'error'   => true
                 ], 401);
+            }
+
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "IDP login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'message' => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the system administrator.',
+                    'error'   => true
+                ], 403);
             }
 
             // Persist the IDP user ID on the faculty record only if it has changed
@@ -522,15 +589,32 @@ class AuthController extends Controller
             $email     = $idpData['email'];
             $idpUserId = $idpData['id'] ?? null;
 
-            // --- Find all FLSS users matching this email across roles ---
-            $users = User::with([
-                'faculty.facultyType',
-                'permissions',
-                'allowedPrograms',
-            ])
-                ->where('email', $email)
-                ->whereIn('role', ['faculty', 'admin', 'superadmin'])
-                ->get();
+            // --- Find all FLSS users matching by IDP UUID first, then email ---
+            $users = collect();
+
+            if ($idpUserId) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->whereHas('faculty', function ($query) use ($idpUserId) {
+                        $query->where('idp_user_id', $idpUserId);
+                    })
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
+
+            if ($users->isEmpty()) {
+                $users = User::with([
+                    'faculty.facultyType',
+                    'permissions',
+                    'allowedPrograms',
+                ])
+                    ->where('email', $email)
+                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                    ->get();
+            }
 
             if ($users->isEmpty()) {
                 return response()->json([
@@ -558,6 +642,22 @@ class AuthController extends Controller
 
             // --- Single role: issue a Sanctum token and return ---
             $user = $users->first();
+
+            if ($user->status === 'Inactive' || $user->status === 'Retired') {
+                AuditLogger::logFailedLogin(
+                    $email,
+                    "OnePortal login attempted for {$user->status} account",
+                    $user
+                );
+
+                return response()->json([
+                    'session'     => false,
+                    'message'     => 'Your account is currently ' . 
+                        strtolower($user->status) . 
+                        '. Please contact the administrator.',
+                    'redirect_to' => '/login',
+                ], 403);
+            }
 
             // Persist IDP user ID on the faculty record if changed
             if (
@@ -627,6 +727,12 @@ class AuthController extends Controller
             Auth::setUser($user);
             AuditLogger::logLogin($email);
 
+            if ($user->faculty) {
+                $this->checkAndTriggerFacultyPreferencesAutoSubmit(
+                    $user->faculty->id
+                );
+            }
+
             return response()->json([
                 'session'                 => true,
                 'requires_role_selection' => false,
@@ -652,5 +758,157 @@ class AuthController extends Controller
             ]);
         }
     }
-}
 
+    /**
+     * Generates and returns the IDP authorization redirect URL after health
+     * verification.
+     */
+    public function getIdpLoginUrl()
+    {
+        $baseUrl = config('services.idp.base_url');
+        $clientId = config('services.idp.client_id');
+
+        if (!$baseUrl || !$clientId) {
+            Log::error(
+                'IDP configuration missing for generating authorization URL'
+            );
+            return response()->json([
+                'message' => 'Authentication configuration error.',
+            ], 500);
+        }
+
+        $url = rtrim($baseUrl, '/') . '/api/v1/auth/authorize?client_id='
+            . $clientId;
+        $healthUrl = rtrim($baseUrl, '/') . '/api/v1/health';
+
+        try {
+            $probeResponse = Http::timeout(3)
+                ->withoutVerifying()
+                ->get($healthUrl);
+
+            if ($probeResponse->status() === 429) {
+                Log::warning("IDP rate limit exceeded for client {$clientId}");
+                return response()->json([
+                    'message' => 'Identity Provider rate limit exceeded.'
+                        . ' Please try local login.',
+                    'error'   => 'rate_limit_exceeded',
+                ], 429);
+            }
+
+            if (!$probeResponse->successful()) {
+                Log::warning(
+                    "IDP health status code {$probeResponse->status()}"
+                    . " for client {$clientId}"
+                );
+                return response()->json([
+                    'message' => 'Identity Provider service unavailable.',
+                    'error'   => 'idp_server_error',
+                ], 503);
+            }
+
+            $healthData = $probeResponse->json();
+            $status = $healthData['status'] ?? null;
+
+            if ($status !== 'healthy') {
+                Log::warning(
+                    "IDP health status '{$status}' for client {$clientId}"
+                );
+                return response()->json([
+                    'message' => 'Identity Provider system is currently'
+                        . ' degraded.',
+                    'error'   => 'idp_degraded',
+                ], 503);
+            }
+        } catch (Exception $e) {
+            Log::warning(
+                "IDP health check failed for client {$clientId}: "
+                . $e->getMessage()
+            );
+            return response()->json([
+                'message' => 'Identity Provider is currently unreachable.',
+                'error'   => 'idp_unreachable',
+            ], 503);
+        }
+
+        return response()->json([
+            'url' => $url,
+        ]);
+    }
+
+    /**
+     * Checks eligibility and triggers historical preferences auto-submission
+     * when a faculty member logs in during an open submission period.
+     *
+     * @param int $facultyId
+     * @return void
+     */
+    private function checkAndTriggerFacultyPreferencesAutoSubmit(
+        int $facultyId
+    ): void {
+        try {
+            $activeSem = ActiveSemester::where('is_active', 1)->first();
+            if (!$activeSem) {
+                return;
+            }
+
+            $setting = PreferencesSetting::where(
+                'faculty_id',
+                $facultyId
+            )->first();
+
+            if (!$setting || !$setting->is_enabled) {
+                return;
+            }
+
+            $now = Carbon::now('Asia/Manila');
+
+            // Verify start date has been reached
+            $startDate = $setting->individual_start_date
+                ?? $setting->global_start_date;
+            if (
+                $startDate &&
+                $now->lessThan(Carbon::parse($startDate)->startOfDay())
+            ) {
+                return;
+            }
+
+            // Verify deadline has not passed
+            $deadline = $setting->individual_deadline
+                ?? $setting->global_deadline;
+            if (
+                $deadline &&
+                $now->greaterThan(Carbon::parse($deadline)->endOfDay())
+            ) {
+                return;
+            }
+
+            // Verify not already evaluated/injected this semester
+            if (
+                $setting->last_injected_active_semester_id ==
+                $activeSem->active_semester_id
+            ) {
+                return;
+            }
+
+            // Verify faculty does not already have preferences in active sem
+            $hasPreferences = Preference::where('faculty_id', $facultyId)
+                ->where('active_semester_id', $activeSem->active_semester_id)
+                ->where(function ($query) {
+                    $query->whereNotNull('course_assignment_id')
+                          ->orWhereNotNull('temporary_course_offering_id');
+                })
+                ->exists();
+
+            if ($hasPreferences) {
+                return;
+            }
+
+            AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
+        } catch (Exception $e) {
+            Log::error(
+                'Error in checkAndTriggerFacultyPreferencesAutoSubmit: ' .
+                $e->getMessage()
+            );
+        }
+    }
+}

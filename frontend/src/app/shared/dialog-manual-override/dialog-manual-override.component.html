@@ -1,0 +1,179 @@
+<div class="dialog-container">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>Manual Schedule Override</h2>
+    <button mat-icon-button (click)="onCancel()" [disabled]="isSubmitting">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <!-- Original Schedule Summary -->
+    <div class="schedule-summary">
+      <div class="section-label">CURRENT SCHEDULE</div>
+      <div class="info-row">
+        <span class="label">Course:</span>
+        <span class="value">
+          {{ data.original.courseCode }} - {{ data.original.courseTitle }}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">Faculty:</span>
+        <span class="value">{{ data.facultyName }}</span>
+      </div>
+      <div class="info-row">
+        <span class="label">Section:</span>
+        <span class="value">
+          {{ data.original.program }}
+          {{ data.original.yearLevel }}-{{ data.original.section }}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">Time:</span>
+        <span class="value">
+          {{ data.original.day }} | {{ data.original.timeRange }}
+        </span>
+      </div>
+      <div class="info-row">
+        <span class="label">Room:</span>
+        <span class="value">{{ data.original.roomCode }}</span>
+      </div>
+    </div>
+
+    <form [formGroup]="overrideForm" class="appeal-form">
+      <div class="edit-mode-section">
+        <div class="section-label suggested-label">
+          <span>PROPOSED OVERRIDE SCHEDULE</span>
+        </div>
+
+        <!-- File Upload for Record Keeping -->
+        <div class="file-upload-section">
+          <label class="file-label">
+            Upload Document for Record Keeping (PDF)
+          </label>
+          <div class="file-input-wrapper">
+            <input
+              type="file"
+              #fileInput
+              accept=".pdf"
+              (change)="onFileSelected($event)"
+              style="display: none">
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="isSubmitting"
+              (click)="fileInput.click()">
+              <mat-icon>upload_file</mat-icon>
+              Choose File
+            </button>
+            <span class="file-info" *ngIf="!selectedFileName">
+              No file chosen
+            </span>
+            <span
+              class="file-info selected"
+              *ngIf="selectedFileName"
+              [class.disabled-info]="isSubmitting">
+              {{ selectedFileName }}
+              <mat-icon
+                class="remove-icon"
+                [class.disabled]="isSubmitting"
+                (click)="removeFile()">close</mat-icon>
+            </span>
+          </div>
+        </div>
+
+        <!-- Day Selection -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Day</mat-label>
+          <mat-select formControlName="day">
+            <mat-option *ngFor="let day of days" [value]="day">
+              {{ day }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="overrideForm.get('day')?.hasError('required')">
+            Day is required.
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Time Selection -->
+        <div class="time-row">
+          <mat-form-field appearance="outline" class="time-field">
+            <mat-label>Start Time</mat-label>
+            <mat-select formControlName="startTime">
+              <mat-option
+                *ngFor="let time of data.options.timeOptions"
+                [value]="time">
+                {{ time }}
+              </mat-option>
+            </mat-select>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <mat-error
+              *ngIf="overrideForm.get('startTime')?.hasError('required')">
+              Start time is required.
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="time-field">
+            <mat-label>End Time</mat-label>
+            <mat-select formControlName="endTime">
+              <mat-option
+                *ngFor="let time of endTimeOptions"
+                [value]="time">
+                {{ time }}
+              </mat-option>
+            </mat-select>
+            <mat-icon matPrefix>schedule</mat-icon>
+            <mat-error
+              *ngIf="overrideForm.get('endTime')?.hasError('required')">
+              End time is required.
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Room Input -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Room</mat-label>
+          <mat-select formControlName="room">
+            <mat-option *ngFor="let room of roomOptions" [value]="room">
+              {{ room }}
+            </mat-option>
+          </mat-select>
+          <mat-icon matPrefix>meeting_room</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <!-- Conflict Details Box -->
+      <div
+        class="validation-message conflict"
+        *ngIf="conflictMessages.length > 0">
+        <div class="validation-message-header">
+          <mat-icon>report_problem</mat-icon>
+          <span>Schedule conflicts detected for this slot.</span>
+        </div>
+        <ul class="validation-message-list">
+          <li *ngFor="let message of conflictMessages">{{ message }}</li>
+        </ul>
+      </div>
+    </form>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onCancel()" [disabled]="isSubmitting">
+      Cancel
+    </button>
+    <button
+      mat-flat-button
+      color="primary"
+      (click)="onSubmit()"
+      [disabled]="overrideForm.invalid || isSubmitting || hasConflicts">
+      <ng-container *ngIf="isSubmitting; else submitText">
+        <span class="submitting-spinner-wrapper">
+          <mat-spinner diameter="18" strokeWidth="2.5"></mat-spinner>
+          <span>Saving...</span>
+        </span>
+      </ng-container>
+      <ng-template #submitText>
+        <span>Save Changes</span>
+      </ng-template>
+    </button>
+  </mat-dialog-actions>
+</div>

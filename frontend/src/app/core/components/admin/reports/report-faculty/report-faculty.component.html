@@ -13,6 +13,9 @@
       [inputFields]="inputFields"
       [showExportButton]="true"
       [showAddButton]="false"
+      [showRefreshButton]="true"
+      [isRefreshing]="isRefreshing"
+      (refresh)="onManualRefresh()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)"
       [buttonDisabled]="!hasAnySchedules"
@@ -49,7 +52,17 @@
             *matCellDef="let element"
             class="custom-cell max-cell"
           >
-            {{ element.facultyName }}
+            <div class="faculty-name-wrapper">
+              <span>{{ element.facultyName }}</span>
+              @if (isInactive(element)) {
+                <span
+                  class="inactive-badge"
+                  matTooltip="Faculty account is Inactive in the system"
+                >
+                  Inactive
+                </span>
+              }
+            </div>
           </td>
         </ng-container>
 
@@ -82,10 +95,24 @@
         <ng-container matColumnDef="facultyUnits">
           <th mat-header-cell *matHeaderCellDef class="custom-header">
             Load<br />
-            (Units)
+            (Hours)
           </th>
           <td mat-cell *matCellDef="let element" class="custom-cell">
             {{ element.facultyUnits }}
+          </td>
+        </ng-container>
+
+        <!-- Max Load Column -->
+        <ng-container matColumnDef="maxLoad">
+          <th mat-header-cell *matHeaderCellDef class="custom-header">
+            Max Load<br />
+            (Hours)
+          </th>
+          <td mat-cell *matCellDef="let element" class="custom-cell">
+            {{ element.regularUnits }} Reg
+            @if (element.additionalUnits > 0) {
+              / {{ element.additionalUnits }} PT
+            }
           </td>
         </ng-container>
 
@@ -173,7 +200,11 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          [class.inactive-faculty-row]="isInactive(row)"
+        ></tr>
 
         <!-- No Data Row -->
         <tr *matNoDataRow>

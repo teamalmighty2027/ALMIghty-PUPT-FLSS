@@ -19,7 +19,13 @@ class Preference extends Model
         'course_assignment_id',
         'temporary_course_offering_id',
         'sections_per_program_year_id',
-        'is_ignored'
+        'is_ignored',
+        'is_auto_submitted',
+    ];
+
+    protected $casts = [
+        'is_ignored' => 'boolean',
+        'is_auto_submitted' => 'boolean',
     ];
 
     public function faculty()

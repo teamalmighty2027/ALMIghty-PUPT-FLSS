@@ -6,6 +6,14 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  background-color: var(--main-bg);
+  color: var(--neutral-base);
+  border-radius: 20px;
+  overflow: hidden;
+
+  h2 {
+    color: var(--primary-text) !important;
+  }
 }
 
 .dialog-header {
@@ -29,6 +37,7 @@ mat-dialog-content {
   gap: var(--spacing-md);
   overflow-y: auto;
   flex: 1;
+  color: var(--neutral-base) !important;
 }
 
 .schedule-summary {
@@ -152,6 +161,10 @@ mat-dialog-content {
         gap: var(--spacing-xs);
         font-weight: 500;
 
+        &.disabled-info {
+          opacity: 0.6;
+        }
+
         .remove-icon {
           font-size: 18px;
           width: 18px;
@@ -163,10 +176,40 @@ mat-dialog-content {
           &:hover {
             opacity: 0.7;
           }
+
+          &.disabled {
+            cursor: not-allowed;
+            opacity: 0.3;
+            pointer-events: none;
+          }
         }
       }
     }
   }
+}
+
+.submitting-spinner-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.submit-spinner--accent {
+  ::ng-deep circle {
+    stroke: currentColor !important;
+  }
+}
+
+// AI Document Analyzing Status Indicator
+.ai-analyzing-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--secondary-text);
+  font-style: italic;
+  margin-top: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
 }
 
 .time-row {
@@ -207,6 +250,11 @@ mat-dialog-content {
 
   mat-form-field {
     margin-bottom: 0;
+
+    textarea::placeholder {
+      color: var(--secondary-text, #757575) !important;
+      opacity: 0.55 !important;
+    }
   }
 }
 
@@ -227,5 +275,50 @@ mat-dialog-actions {
   mat-icon[matPrefix] {
     margin-right: var(--spacing-xs);
     color: var(--secondary-text);
+  }
+}
+
+.validation-message {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xxs);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--neutral-fade);
+  margin-top: var(--spacing-xs);
+  width: 100%;
+
+  &.conflict {
+    background-color: var(--primary-fade);
+    color: var(--primary-text);
+    border-color: var(--primary-one-fade, var(--neutral-fade));
+  }
+
+  .validation-message-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-weight: 600;
+    
+    mat-icon {
+      font-size: var(--font-size-md);
+      height: var(--font-size-md);
+      width: var(--font-size-md);
+    }
+  }
+
+  .validation-message-list {
+    margin: 0;
+    padding-left: 1.125rem;
+    font-size: var(--font-size-sm);
+  }
+
+  .conflict-retry-note {
+    margin: var(--spacing-xxs) 0 0 0;
+    font-size: var(--font-size-sm);
+    font-style: italic;
+    opacity: 0.9;
   }
 }

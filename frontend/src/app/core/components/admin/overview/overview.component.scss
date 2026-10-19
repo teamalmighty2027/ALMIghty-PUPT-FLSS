@@ -135,20 +135,34 @@
       flex: 0;
 
       & .stats {
-        @include mixins.flex-layout($align: stretch);
+        @include mixins.flex-layout($align: center);
         flex: 1;
-        padding: 0;
+        padding: var(--spacing-md);
+        gap: var(--spacing-md);
 
         .stats-icon {
           @include mixins.reset-styles;
-          width: var(--font-size-4xl);
-          height: auto;
+          @include mixins.flex-layout($align: center, $justify: center);
+          font-family: 'Material Symbols Rounded';
+          font-size: 24px;
+          width: 24px;
+          height: 24px;
+          color: var(--primary-text);
+          opacity: 0.75;
           user-select: none;
+          flex-shrink: 0;
         }
 
         .stats-info {
           flex: 1;
-          padding: var(--spacing-sm);
+          padding: 0;
+        }
+
+        
+        span {
+          font-size: var(--font-size-sm);
+          color: var(--neutral-base);
+          opacity: 0.8;
         }
       }
     }
@@ -400,26 +414,38 @@
           @include mixins.flex-layout(
             $direction: column,
             $align: center,
-            $justify: center
+            $justify: center,
+            $gap: var(--spacing-md)
           );
-          opacity: var(--opacity-semi-opaque);
+          height: 100%;
+          opacity: 0.65;
 
           .no-img {
-            width: auto;
-            height: auto;
-            max-width: 15rem;
+            font-family: 'Material Symbols Rounded';
+            font-size: 4rem;
+            color: var(--primary-text);
+            user-select: none;
           }
 
           .no-text {
             @include mixins.flex-layout(
+              $direction: column,
               $align: center,
               $justify: center,
               $gap: var(--spacing-xxs)
             );
-            font-size: var(--font-size-sm);
+            text-align: center;
 
-            span[mat-symbol] {
+            strong {
+              font-size: var(--font-size-md);
+              font-weight: 500;
+              color: var(--neutral-base);
+            }
+
+            span {
               font-size: var(--font-size-sm);
+              color: var(--neutral-base);
+              opacity: 0.8;
             }
           }
         }
@@ -456,6 +482,14 @@
           padding: var(--spacing-sm);
           box-shadow: var(--shadow-level-0);
           flex-shrink: 0;
+
+          .request-content {
+            @include mixins.flex-layout(
+              $direction: column,
+              $align: stretch,
+              $gap: var(--spacing-xs)
+            );
+          }
 
           .faculty-name {
             font-weight: 500;
@@ -542,6 +576,25 @@
     .main-cluster-two {
       height: auto;
       min-height: 0;
+      flex: none;
+    }
+
+    // Kill the fixed height on requests content once stacked
+    .main-cluster-two .requests {
+      height: auto;
+      flex: none;
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow-y: visible;
+        }
+      }
     }
   }
 }
@@ -558,6 +611,15 @@
 }
 
 @media screen and (max-width: bp.$breakpoint-md) {
+  // Break the height: 100% / height: inherit chain on mobile
+  .overview-container {
+    height: auto;
+  }
+
+  .overview-main-container {
+    height: auto;
+  }
+
   .overview-main-container .main-cluster-one {
     @include mixins.flex-layout(
       $direction: column,
@@ -582,32 +644,114 @@
         $align: stretch,
         $gap: var(--spacing-md)
       );
-    }
-  }
 
-  .overview-main-container .main-cluster-two {
-    .requests {
-      margin-bottom: var(--spacing-md);
-    }
-  }
-}
+      /* Shrink progress circles on mobile */
+      .academic-overview .overview-group .overview-item .progress-container {
+        width: 9vh;
+        height: 9vh;
+      }
 
-@media screen and (max-width: bp.$breakpoint-sm) {
-  .overview-main-container .main-cluster-one {
-    .academic-and-action {
-      .academic-overview .overview-group {
-        @include mixins.flex-layout(
-          $direction: column,
-          $align: stretch,
-          $gap: var(--spacing-sm)
-        );
+      /* Action center: release fixed heights on mobile, keep 2x2 grid */
+      .action-center {
+        height: auto;
+        flex: none;
+
+        .action-items {
+          height: auto;
+          flex: none;
+
+          .item-group {
+            flex: none;
+            height: auto;
+
+            &.one,
+            &.two {
+              height: auto;
+            }
+          }
+        }
       }
     }
   }
 
   .overview-main-container .main-cluster-two {
     .requests {
+      height: auto;
+      flex: none;
       margin-bottom: var(--spacing-md);
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow-y: visible;
+        }
+      }
+    }
+  }
+}
+
+@media screen and (max-width: bp.$breakpoint-sm) {
+  .overview-main-container .main-cluster-two {
+    .requests {
+      margin-bottom: var(--spacing-md);
+
+      .requests-content {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+
+        .requests-list {
+          height: auto;
+          max-height: none;
+          overflow: visible;
+        }
+      }
+    }
+  }
+}
+
+// Touch devices: :hover doesn't fire reliably, use :active for gradient effect
+@media (hover: none) and (pointer: coarse) {
+  .overview-main-container .main-cluster-one .academic-and-action .action-center {
+    .action-items .item-group .item {
+      &:active {
+        transform: scale(0.98);
+
+        &::before {
+          opacity: 1;
+        }
+
+        span[mat-symbol] {
+          background: none;
+          -webkit-text-fill-color: white;
+        }
+
+        .desc {
+          color: white;
+        }
+      }
+
+      &.disabled-action:active {
+        transform: none;
+
+        &::before {
+          opacity: 0.2;
+        }
+
+        span[mat-symbol] {
+          background: inherit;
+          -webkit-text-fill-color: inherit;
+        }
+
+        .desc {
+          color: inherit;
+        }
+      }
     }
   }
 }

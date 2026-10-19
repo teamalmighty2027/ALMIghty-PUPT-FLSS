@@ -17,6 +17,7 @@ import { MatRippleModule } from '@angular/material/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSymbolDirective } from '../../core/imports/mat-symbol.directive';
 
 import { DialogFacultyLoginComponent } from
@@ -26,6 +27,9 @@ import { DialogAdminLoginComponent } from
 import { SlideshowComponent } from '../../shared/slideshow/slideshow.component';
 
 import { ThemeService } from '../../core/services/theme/theme.service';
+import { AuthService } from '../../core/services/auth/auth.service';
+import { environment } from '../../../environments/environment.dev';
+import { environmentOAuth } from '../../../environments/env.auth';
 
 @Component({
   selector: 'app-login',
@@ -37,6 +41,7 @@ import { ThemeService } from '../../core/services/theme/theme.service';
     MatSymbolDirective,
     MatIconModule,
     MatButtonModule,
+    MatMenuModule,
     MatProgressSpinnerModule,
     MatRippleModule,
     MatTooltipModule,
@@ -47,6 +52,13 @@ export class LoginComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private isAdminDialogOpen = false;
   private isFacultyDialogOpen = false;
+
+  isFacultyLoading = false;
+  isAdminLoading = false;
+  isIdpAvailable = true;
+
+  readonly onePortalUrl = environmentOAuth.onePortalUrl || 
+    "https://one-portal.isaxbsit2027.com/portal";
 
   readonly slideshowImages = [
     'assets/images/pupt_img_1.webp',
@@ -64,6 +76,7 @@ export class LoginComponent implements OnInit, OnDestroy {
    */
   constructor(
     private themeService: ThemeService,
+    private authService: AuthService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private route: ActivatedRoute,
@@ -73,11 +86,32 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Return true if the Local Login button should be displayed.
+   */
+  get showLocalLoginButton(): boolean {
+    return this.isLocalLoginForced() || !this.isIdpAvailable;
+  }
+
+  /**
    * Initialize the login view state.
    */
   ngOnInit() {
     this.currentBackgroundImage = `url(${this.slideshowImages[0]})`;
     this.showSessionExpiredNotice();
+    this.checkIdpAvailability();
+  }
+
+  /**
+   * Probe IDP service status on page load.
+   */
+  private checkIdpAvailability(): void {
+    if (this.isLocalLoginForced()) {
+      return;
+    }
+
+    this.authService.checkIdpReachable().subscribe((isReachable) => {
+      this.isIdpAvailable = isReachable;
+    });
   }
 
   /**
@@ -93,6 +127,90 @@ export class LoginComponent implements OnInit, OnDestroy {
    */
   onSlideChange(index: number) {
     this.currentBackgroundImage = `url(${this.slideshowImages[index]})`;
+  }
+
+  /**
+   * Check if local login should be forced directly.
+   */
+  private isLocalLoginForced(): boolean {
+    const useLocal = (environment as any).useLocalLogin ||
+      (environmentOAuth as any).useLocalLogin;
+
+    return !!useLocal;
+  }
+
+  /**
+   * Handle faculty login attempt via IDP with fallback to local dialog.
+   */
+  onFacultyLogin(): void {
+    if (this.isLocalLoginForced()) {
+      this.openFacultyLoginDialog();
+      return;
+    }
+
+    if (this.isFacultyLoading || this.isFacultyDialogOpen) return;
+
+    this.isFacultyLoading = true;
+    this.authService.getIdpLoginUrl(['faculty']).subscribe({
+      next: (response) => {
+        this.isFacultyLoading = false;
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('IDP login error:', error);
+        this.isFacultyLoading = false;
+        this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
+        this.snackBar.open(
+          msg,
+          'Close',
+          {
+            duration: 5000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+          },
+        );
+        this.openFacultyLoginDialog();
+      },
+    });
+  }
+
+  /**
+   * Handle admin login attempt via IDP with fallback to local dialog.
+   */
+  onAdminLogin(): void {
+    if (this.isLocalLoginForced()) {
+      this.openAdminLoginDialog();
+      return;
+    }
+
+    if (this.isAdminLoading || this.isAdminDialogOpen) return;
+
+    this.isAdminLoading = true;
+    this.authService.getIdpLoginUrl(['admin', 'superadmin']).subscribe({
+      next: (response) => {
+        this.isAdminLoading = false;
+        window.location.href = response.url;
+      },
+      error: (error) => {
+        console.error('IDP login error:', error);
+        this.isAdminLoading = false;
+        this.isIdpAvailable = false;
+        const msg = error.error?.message ||
+          'IDP login service unavailable. Opening local login.';
+        this.snackBar.open(
+          msg,
+          'Close',
+          {
+            duration: 5000,
+            horizontalPosition: 'center',
+            verticalPosition: 'bottom',
+          },
+        );
+        this.openAdminLoginDialog();
+      },
+    });
   }
 
   /**

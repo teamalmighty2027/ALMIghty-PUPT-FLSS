@@ -22,16 +22,30 @@ class ActiveSemester extends Model
 
     public function academicYear()
     {
-        return $this->belongsTo(AcademicYear::class, 'academic_year_id', 'academic_year_id');
+        return $this->belongsTo(
+            AcademicYear::class, 'academic_year_id', 'academic_year_id'
+        );
     }
 
     public function semester()
     {
-        return $this->belongsTo(Semester::class, 'semester_id', 'semester_id');
+        return $this->belongsTo(
+            Semester::class, 'semester_id', 'semester_id'
+        );
     }
 
     public function preferences()
     {
-        return $this->hasMany(Preference::class, 'active_semester_id', 'active_semester_id');
+        return $this->hasMany(
+            Preference::class, 'active_semester_id', 'active_semester_id'
+        );
+    }
+
+    public function timePlots()
+    {
+        return $this->hasMany(
+            FacultyTimePlot::class, 'active_semester_id', 'active_semester_id'
+        );
     }
 }
+

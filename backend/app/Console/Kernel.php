@@ -33,7 +33,17 @@ class Kernel extends ConsoleKernel
             ->dailyAt('02:00')
             ->timezone('Asia/Manila');
 
-        // ---> NEW: Auto-disable appeals when the deadline passes <---
+        // Clean up temporary appeal prescan files older than 24 hours
+        $schedule->command('appeals:cleanup-temp')
+            ->dailyAt('03:00')
+            ->timezone('Asia/Manila');
+
+        // Prune expired Sanctum tokens older than 24 hours
+        $schedule->command('sanctum:prune-expired --hours=24')
+            ->dailyAt('03:30')
+            ->timezone('Asia/Manila');
+
+        // Auto-disable appeals when the deadline passes
         $schedule->call(function () {
             DB::table('faculty')
                 ->where('is_appeal_enabled', 1)

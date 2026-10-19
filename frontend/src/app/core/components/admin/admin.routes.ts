@@ -1,4 +1,7 @@
 import { Routes } from '@angular/router';
+import {
+  schedulingUnsavedGuard
+} from '../../guards/scheduling-unsaved.guard';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -33,13 +36,37 @@ export const ADMIN_ROUTES: Routes = [
         },
       },
       {
+        path: 'emails',
+        loadComponent: () =>
+          import('./emails/emails.component').then(
+            (m) => m.EmailsComponent
+          ),
+        data: {
+          pageTitle: 'Emails and Notifications',
+          requirePermission: 'view_notification_center',
+        },
+      },
+      {
         path: 'scheduling',
+        canDeactivate: [schedulingUnsavedGuard],
         loadComponent: () =>
           import('./scheduling/scheduling.component').then(
             (m) => m.SchedulingComponent
           ),
         data: { 
           pageTitle: 'Scheduling',
+          requirePermission: 'assign_schedules'
+        },
+      },
+      {
+        path: 'scheduling/course-centric',
+        canDeactivate: [schedulingUnsavedGuard],
+        loadComponent: () =>
+          import(
+            './scheduling/course-centric-scheduling/course-centric-scheduling.component'
+          ).then((m) => m.CourseCentricSchedulingComponent),
+        data: { 
+          pageTitle: 'Course-Centric Scheduling',
           requirePermission: 'assign_schedules'
         },
       },

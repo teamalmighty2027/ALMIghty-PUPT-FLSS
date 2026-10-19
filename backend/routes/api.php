@@ -8,10 +8,12 @@ use App\Http\Controllers\BridgingCourseController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\CurriculumController;
 use App\Http\Controllers\CurriculumDetailsController;
+use App\Http\Controllers\DesigneeRoleController;
 use App\Http\Controllers\ElectiveController;
 use App\Http\Controllers\EmailController;
 use App\Http\Controllers\External\v1\ExternalController;
 use App\Http\Controllers\FacultyController;
+use App\Http\Controllers\FacultyTimePlotController;
 use App\Http\Controllers\FacultyProfileController;
 use App\Http\Controllers\AdminProfileController;
 use App\Http\Controllers\FacultyNotificationController;
@@ -33,6 +35,11 @@ use App\Http\Controllers\YearLevelController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuditLogController;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Controllers\AssignmentTypeController;
+use App\Http\Controllers\SystemNoticeController;
+use App\Http\Controllers\AdminConfigurationController;
+use App\Http\Controllers\EmailMonitoringController;
+use App\Http\Controllers\AdminNotificationController;
 
 /*
 |----------------------------
@@ -43,7 +50,16 @@ Route::middleware('custom.ratelimit:login')->group(function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
 });
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::post('/faculty/request-reactivation', [
+    FacultyController::class,
+    'requestReactivation'
+]);
+
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/auth/refresh', [AuthController::class, 'refreshToken']);
@@ -53,15 +69,33 @@ Route::middleware('auth:sanctum')->group(function () {
  * (Identity ) IDP Routes
  */
 Route::prefix('auth')->group(function () {
-    Route::post('/callback' , [AuthController::class, 'handleIdpCallback']);
+    // Exchange OAuth code for a login token
+    Route::post('/callback', [AuthController::class, 'handleIdpCallback']);
+
+    // Log out proxy session on IDP
     Route::post('/session', [AuthController::class, 'logoutIdpProxy']);
+
+    // Handle token verify redirect
     Route::get('/redirect', [AuthController::class, 'handleOnePortalRedirect']);
+
+    // Get the login redirect URL containing client ID (securely server-side)
+    Route::get('/idp-login', [AuthController::class, 'getIdpLoginUrl']);
 });
 
 
-Route::post('/password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
-Route::post('/password/reset', [PasswordResetController::class, 'reset']);
-Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+// Password reset routes — throttled to prevent email flooding/enumeration
+Route::middleware('throttle:10,1')->group(function () {
+    Route::post('/password/email', [
+        PasswordResetController::class, 'sendResetLinkEmail'
+    ]);
+    Route::post('/password/reset', [
+        PasswordResetController::class, 'reset'
+    ]);
+    Route::post('/password/verify-token', [
+        PasswordResetController::class, 'verifyToken'
+    ]);
+});
 
 // Fallback route for Philippine Addresses (Publicly accessible)
 Route::get('/addresses/fallback/{file}', function ($file) {
@@ -77,21 +111,28 @@ Route::get('/addresses/fallback/{file}', function ($file) {
 | Super Admin Protected Routes
 |-----------------------------
  */
-Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
-    Route::get('/showAccounts', [AccountController::class, 'index']);
-    Route::post('/addAccount', [AccountController::class, 'store']);
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'super_admin',
+    'throttle:api',
+])->group(function () {
+    Route::get('/accounts', [AccountController::class, 'index']);
+    Route::post('/accounts', [AccountController::class, 'store']);
     Route::get('/accounts/{user}', [AccountController::class, 'show']);
-    Route::put('/updateAccount/{user}', [AccountController::class, 'update']);
-    Route::delete('/deleteAccount/{user}', [AccountController::class, 'destroy']);
+    Route::put('/accounts/{user}', [AccountController::class, 'update']);
+    Route::delete('/accounts/{user}', [AccountController::class, 'destroy']);
 
-    Route::get('/getAdmins', [AccountController::class, 'indexAdmins']);
-    Route::post('/addAdmins', [AccountController::class, 'storeAdmin']);
-    Route::put('/updateAdmins/{admin}', [AccountController::class, 'updateAdmin']);
-    Route::delete('/deleteAdmins/{admin}', [AccountController::class, 'destroyAdmin']);
+    Route::get('/admins', [AccountController::class, 'indexAdmins']);
+    Route::post('/admins', [AccountController::class, 'storeAdmin']);
+    Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
+    Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
 
     Route::get('/audit-logs', [AuditLogController::class, 'index']);
 
-    Route::post('/programs/sync', [ProgramSyncController::class, 'syncProgramsManual']);
+    Route::post('/programs/sync', [
+      ProgramSyncController::class, 'syncProgramsManual'
+    ]);
 
     /*
     |----------------------------------
@@ -99,8 +140,12 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     |----------------------------------
      */
     Route::get('/permissions', [AccountController::class, 'getPermissions']);
-    Route::get('/admins/{admin}/permissions', [AccountController::class, 'getAdminPermissions']);
-    Route::post('/admins/{admin}/permissions', [AccountController::class, 'updateAdminPermissions']);
+    Route::get('/admins/{admin}/permissions', [
+      AccountController::class, 'getAdminPermissions'
+    ]);    
+    Route::post('/admins/{admin}/permissions', [
+      AccountController::class, 'updateAdminPermissions'
+    ]);
     Route::get('/programs', [ProgramController::class, 'index']);
 
     /*
@@ -108,13 +153,47 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
     | Bridging Courses Management Routes
     |----------------------------------
     */
-    Route::post('/bridging-courses', [BridgingCourseController::class, 'store']);
-    Route::put('/bridging-courses/{id}', [BridgingCourseController::class, 'update']);
-    Route::delete('/bridging-courses/{id}', [BridgingCourseController::class, 'destroy']);
-    Route::patch(
-        '/bridging-courses/{id}/combine',
-        [BridgingCourseController::class, 'combine']
-    );
+    Route::post('/bridging-courses', [
+      BridgingCourseController::class, 'store'
+    ]);
+    Route::put('/bridging-courses/{id}', [
+      BridgingCourseController::class, 'update'
+    ]);
+    Route::delete('/bridging-courses/{id}', [
+      BridgingCourseController::class, 'destroy'
+    ]);
+    Route::patch('/bridging-courses/{id}/combine',[
+      BridgingCourseController::class, 'combine'
+    ]);
+
+    /*
+    |----------------------------------
+    | System Notices Management Routes
+    |----------------------------------
+     */
+    Route::prefix('system-notices')->group(function () {
+        Route::get('/', [SystemNoticeController::class, 'index']);
+        Route::post('/', [SystemNoticeController::class, 'store']);
+        Route::get('/unresolved-count',
+            [SystemNoticeController::class, 'unresolvedCount']
+        );
+
+        Route::patch(
+            '/bulk-resolve',
+            [SystemNoticeController::class, 'bulkResolve']
+        );
+
+        Route::get('/{id}', [SystemNoticeController::class, 'show']);
+        Route::patch(
+            '/{id}/resolve',
+            [SystemNoticeController::class, 'resolve']
+        );
+    });
+
+    Route::post('/faculty/{user}/approve-reactivation', [
+        FacultyController::class,
+        'approveReactivation'
+    ]);
 });
 
 /*
@@ -122,33 +201,132 @@ Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
 | General Protected Routes
 |--------------------------
  */
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([
+    'auth:sanctum',
+    'token.expiration',
+    'throttle:api',
+])->group(function () {
+    /**
+     * Report a system notice from the frontend
+     */
+    Route::post(
+      '/system-notices/report', [
+        SystemNoticeController::class, 'storeFromFrontend'
+    ]);
 
     /**
      * Academic Year
      */
-    Route::get('/get-academic-years', [AcademicYearController::class, 'getAcademicYears']);
-    Route::post('/add-academic-year', [AcademicYearController::class, 'addAcademicYear']);
-    Route::delete('/delete-academic-year', [AcademicYearController::class, 'deleteAcademicYear']);
-    Route::put('/update-academic-year', [AcademicYearController::class, 'updateAcademicYear']);
-    Route::get('/get-active-year-semester', [AcademicYearController::class, 'getActiveAcademicYearAndSemester']);
-    Route::post('/set-active-year-semester', [AcademicYearController::class, 'setActiveAcademicYearAndSemester']);
-    Route::post('/set-faculty-view-semester', [AcademicYearController::class, 'setFacultyViewSemester']);
-    Route::post('/fetch-ay-prog-details', [AcademicYearController::class, 'getProgramDetailsByAcademicYear']);
-    Route::get('/active-year-levels-curricula', [AcademicYearController::class, 'getActiveYearLevelsCurricula']);
-    Route::post('/update-yr-lvl-curricula', [AcademicYearController::class, 'updateYearLevelCurricula']);
-    Route::post('/update-sections', [AcademicYearController::class, 'updateSections']);
-    Route::delete('/remove-program', [AcademicYearController::class, 'removeProgramFromAcademicYear']);
-    Route::get('/offered-courses-sem', [AcademicYearController::class, 'getOfferedCoursesBySem']);
-    Route::get('/program-courses', [AcademicYearController::class, 'getProgramCourses']);
+    Route::get('/academic-years', [
+        AcademicYearController::class, 'getAcademicYears'
+    ]);
+    Route::post('/academic-years', [
+        AcademicYearController::class, 'addAcademicYear'
+    ]);
+    Route::get('/academic-years/active-semester', [
+        AcademicYearController::class, 'getActiveAcademicYearAndSemester'
+    ]);
+    Route::put('/academic-years/active-semester', [
+        AcademicYearController::class, 'setActiveAcademicYearAndSemester'
+    ]);
+    Route::put('/academic-years/faculty-view-semester', [
+        AcademicYearController::class, 'setFacultyViewSemester'
+    ]);
+    Route::get('/academic-years/active/year-levels-curricula', [
+        AcademicYearController::class, 'getActiveYearLevelsCurricula'
+    ]);
+    Route::get('/academic-years/active/offered-courses', [
+        AcademicYearController::class, 'getOfferedCoursesBySem'
+    ]);
+    Route::delete('/academic-years/{id}', [
+        AcademicYearController::class, 'deleteAcademicYear'
+    ]);
+    Route::put('/academic-years/{id}', [
+        AcademicYearController::class, 'updateAcademicYear'
+    ]);
+    Route::get('/academic-years/{id}/program-details', [
+        AcademicYearController::class, 'getProgramDetailsByAcademicYear'
+    ]);
+    Route::put('/academic-years/{id}/year-level-curricula', [
+        AcademicYearController::class, 'updateYearLevelCurricula'
+    ]);
+    Route::put('/academic-years/{id}/sections', [
+        AcademicYearController::class, 'updateSections'
+    ]);
+    Route::delete('/academic-years/{ayId}/programs/{progId}', [
+        AcademicYearController::class, 'removeProgramFromAcademicYear'
+    ]);
+    Route::get('/programs/{id}/courses', [
+        AcademicYearController::class, 'getProgramCourses'
+    ]);
 
-    /**
-     * Admin
-     */
-    Route::get('/admins', [AccountController::class, 'indexAdmins']);
-    Route::post('/admins', [AccountController::class, 'storeAdmin']);
-    Route::put('/admins/{admin}', [AccountController::class, 'updateAdmin']);
-    Route::delete('/admins/{admin}', [AccountController::class, 'destroyAdmin']);
+
+    Route::get('/admin/notifications', [
+        AdminNotificationController::class, 'index'
+    ]);
+    Route::post('/admin/notifications/{id}/read', [
+        AdminNotificationController::class, 'markAsRead'
+    ]);
+    Route::post('/admin/notifications/read-all', [
+        AdminNotificationController::class, 'markAllAsRead'
+    ]);
+    Route::delete('/admin/notifications/clear-all', [
+        AdminNotificationController::class, 'clearAll'
+    ]);
+    Route::delete('/admin/notifications/clear-read', [
+        AdminNotificationController::class, 'clearRead'
+    ]);
+    Route::delete('/admin/notifications/{id}', [
+        AdminNotificationController::class, 'destroy'
+    ]);
+    Route::post('/admin/notifications/bulk-read', [
+        AdminNotificationController::class, 'bulkRead'
+    ]);
+    Route::post('/admin/notifications/bulk-delete', [
+        AdminNotificationController::class, 'bulkDelete'
+    ]);
+
+    // Email Monitoring (Dispatch Logs & Metrics)
+    Route::prefix('emails')->group(function () {
+        Route::get('/email-logs', [
+          EmailMonitoringController::class, 'getEmailLogs'
+        ]);
+        Route::get('/email-metrics', [
+          EmailMonitoringController::class, 'getEmailMetrics'
+        ]);
+    });
+
+    Route::prefix('admin/config')->group(function () {
+        
+        // Academic Ranks Endpoints
+        Route::get('/academic-ranks', [
+          AdminConfigurationController::class, 'getAcademicRanks'
+        ]);
+        Route::post('/academic-ranks', [
+          AdminConfigurationController::class, 'addAcademicRank'
+        ]);
+        Route::put('/academic-ranks/{id}', [
+          AdminConfigurationController::class, 'updateAcademicRank'
+        ]);
+        Route::delete('/academic-ranks/{id}', [
+          AdminConfigurationController::class, 'deleteAcademicRank'
+        ]);
+
+        // Departments Endpoints
+        Route::get('/departments', [
+          AdminConfigurationController::class, 'getDepartments'
+        ]);
+        Route::post('/departments', [
+          AdminConfigurationController::class, 'addDepartment'
+        ]);
+        Route::put('/departments/{id}', [
+          AdminConfigurationController::class, 'updateDepartment'
+        ]);
+        Route::delete('/departments/{id}', [
+          AdminConfigurationController::class, 'deleteDepartment'
+        ]);
+        
+    });
 
     /**
      * Buildings
@@ -159,51 +337,84 @@ Route::middleware('auth:sanctum')->group(function () {
      * Course
      */
     Route::get('/courses', [CourseController::class, 'index']);
-    Route::post('/addCourse', [CourseController::class, 'addCourse']);
+    Route::post('/courses', [CourseController::class, 'addCourse']);
     Route::put('/courses/{id}', [CourseController::class, 'updateCourse']);
     Route::delete('/courses/{id}', [CourseController::class, 'deleteCourse']);
 
     /**
      * Bridging Courses
      */
-    Route::get('/bridging-courses', [BridgingCourseController::class, 'index']);
+    Route::get('/bridging-courses', [
+        BridgingCourseController::class, 'index'
+    ]);
 
     /**
      * Curriculum & Curriculum Details
      */
     Route::get('/curricula', [CurriculumController::class, 'index']);
     Route::get('/curricula/{id}', [CurriculumController::class, 'show']);
-    Route::post('/addCurriculum', [CurriculumController::class, 'addCurriculum']);
-    Route::post('/deleteCurriculum', [CurriculumController::class, 'deleteCurriculum']);
-    Route::post('/copyCurriculum', [CurriculumController::class, 'copyCurriculum']);
-    Route::put('/updateCurriculum/{id}', [CurriculumController::class, 'update']);
+    Route::post('/curricula', [
+        CurriculumController::class, 'addCurriculum'
+    ]);
+    Route::delete('/curricula/{id}', [
+        CurriculumController::class, 'deleteCurriculum'
+    ]);
+    Route::post('/curricula/{id}/copy', [
+        CurriculumController::class, 'copyCurriculum'
+    ]);
+    Route::put('/curricula/{id}', [CurriculumController::class, 'update']);
 
-    Route::post('/removeProgramFromCurriculum', [CurriculumController::class, 'removeProgramFromCurriculum']);
-    Route::get('/programs-by-curriculum-year/{curriculumYear}', [CurriculumController::class, 'getProgramsByCurriculumYear']);
-    Route::post('/addProgramToCurriculum', [CurriculumController::class, 'addProgramToCurriculum']);
+    Route::delete(
+        '/curricula/{curriculumYear}/programs/{programId}',
+        [CurriculumController::class, 'removeProgramFromCurriculum']
+    );
+    Route::get('/curricula/{curriculumYear}/programs', [
+        CurriculumController::class, 'getProgramsByCurriculumYear'
+    ]);
+    Route::post('/curricula/{curriculumYear}/programs', [
+        CurriculumController::class, 'addProgramToCurriculum'
+    ]);
 
-    Route::get('/curricula-details/{curriculumYear}/', [CurriculumDetailsController::class, 'getCurriculumDetails']);
+    Route::get('/curricula/{curriculumYear}/details', [
+        CurriculumDetailsController::class, 'getCurriculumDetails'
+    ]);
 
     /**
      * Electives
      */
     Route::get('/electives', [ElectiveController::class, 'index']);
-    Route::post('/electives', [ElectiveController::class, 'storeElective']);           
-    Route::put('/electives/{id}', [ElectiveController::class, 'updateElective']);
-    Route::delete('/electives/{id}', [ElectiveController::class, 'destroyElective']);  
-    Route::get('/electives/{slotName}', [ElectiveController::class, 'showBySlot']);
-    Route::post('/curriculum-electives', [ElectiveController::class, 'storeCurriculumElective']);
-    Route::put('/curriculum-electives/{id}', [ElectiveController::class, 'updateCurriculumElective']);
-    Route::get('/curriculum/{curriculumYear}/electives', [ElectiveController::class, 'getCurriculumElectives']);
-
-    
+    Route::post('/electives', [ElectiveController::class, 'storeElective']);
+    Route::put('/electives/{id}', [
+      ElectiveController::class, 'updateElective'
+    ]);
+    Route::delete('/electives/{id}', [
+      ElectiveController::class, 'destroyElective'
+    ]);  
+    Route::get('/electives/{slotName}', [
+      ElectiveController::class, 'showBySlot'
+    ]);
+    Route::post('/curriculum-electives', [
+      ElectiveController::class, 'storeCurriculumElective'
+    ]);
+    Route::put('/curriculum-electives/{id}', [
+      ElectiveController::class, 'updateCurriculumElective'
+    ]);
+    Route::get('/curriculum/{curriculumYear}/electives', [
+      ElectiveController::class, 'getCurriculumElectives'
+    ]);
 
     /**
      * Email
      */
-    Route::post('/email-all-faculty-pref-submitted', [EmailController::class, 'emailPrefSubmitted']);
-    Route::post('/email-all-faculty-schedule', [EmailController::class, 'emailAllFacultySchedule']);
-    Route::post('/email-single-faculty-schedule', [EmailController::class, 'emailSingleFacultySchedule']);
+    Route::post('/emails/preference-submitted', [
+        EmailController::class, 'emailPrefSubmitted'
+    ]);
+    Route::post('/emails/faculty-schedules', [
+        EmailController::class, 'emailAllFacultySchedule'
+    ]);
+    Route::post('/emails/faculty-schedule', [
+        EmailController::class, 'emailSingleFacultySchedule'
+    ]);
 
     /**
      * Faculty
@@ -211,26 +422,45 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/faculty', [FacultyController::class, 'index']);
     Route::get('/faculty/suggest-code', [FacultyController::class, 'suggestCode']);
     Route::post('/faculty', [FacultyController::class, 'store']);
+    Route::post('/faculty/sync-idp-uuids', [FacultyController::class, 'syncIdpUuids']);
     Route::get('/faculty/profile', [FacultyProfileController::class, 'show']);
     Route::put('/faculty/profile', [FacultyProfileController::class, 'update']);
     Route::get('/admin/profile', [AdminProfileController::class, 'show']);
     Route::put('/admin/profile', [AdminProfileController::class, 'update']);
+
+    // Faculty Time Plots
+    Route::get('/faculty/{faculty_id}/time-plots',[FacultyTimePlotController::class, 'index']);
+    Route::post('/faculty/time-plots',[FacultyTimePlotController::class, 'store']);
+    Route::delete('/faculty/time-plots/{id}',[FacultyTimePlotController::class, 'destroy']);
+
     Route::put('/faculty/{user}', [FacultyController::class, 'update']);
     Route::delete('/faculty/{user}', [FacultyController::class, 'destroy']);
+
 
     /**
      * Faculty Notification
      */
-    Route::get('/faculty-notifications', [FacultyNotificationController::class, 'getFacultyNotifications']);
-    Route::get('/request-notifications', [FacultyNotificationController::class, 'getRequestNotifications']);
-    Route::get('/notify-faculty-deadlines-single', [EmailController::class, 'notifyFacultyBeforeDeadlineSingle']);
-    Route::post('/test-faculty-notification', [EmailController::class, 'singleDeadlineNotification']);
-    Route::get('/notify-global-deadline', [EmailController::class, 'notifyGlobalFacultyDeadline']);
+    Route::get('/faculty/notifications', [
+        FacultyNotificationController::class, 'getFacultyNotifications'
+    ]);
+    Route::get('/notifications/requests', [
+        FacultyNotificationController::class, 'getRequestNotifications'
+    ]);
+    Route::post('/notifications/deadline-single', [
+        EmailController::class, 'notifyFacultyBeforeDeadlineSingle'
+    ]);
+    Route::post('/notifications/deadline-test', [
+        EmailController::class, 'singleDeadlineNotification'
+    ]);
+    Route::post('/notifications/deadline-global', [
+        EmailController::class, 'notifyGlobalFacultyDeadline'
+    ]);
 
     /**
      * Faculty Type
      */
     Route::apiResource('faculty-types', FacultyTypeController::class);
+    Route::apiResource('designee-roles', DesigneeRoleController::class);
 
     /**
      * Logos
@@ -247,45 +477,71 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Preferences
      */
-    Route::post('/submit-preferences', [PreferenceController::class, 'submitPreferences']);
-    Route::get('/get-unique-preferences', [PreferenceController::class, 'getUniqueFacultyPreferences']);
-    Route::get('/get-all-preferences', [PreferenceController::class, 'getAllFacultyPreferences']);
-    Route::get('/get-preferences/{faculty_id}', [PreferenceController::class, 'getFacultyPreferencesById']);
-    Route::get('/get-preferences-history/{faculty_id}', [PreferenceController::class, 'getPreferencesHistoryByFacultyId']);
-    Route::delete('/delete-preferences/{preference_id}', [PreferenceController::class, 'deletePreferences']);
-    Route::delete('/delete-all-preferences', [PreferenceController::class, 'deleteAllPreferences']);
-    Route::post('/toggle-all-preferences', [PreferenceController::class, 'toggleAllPreferences']);
-    Route::post('/toggle-single-preferences', [PreferenceController::class, 'toggleSinglePreferences']);
-    Route::post('/request-access', [PreferenceController::class, 'requestAccess']);
-    Route::post('/cancel-request-access', [PreferenceController::class, 'cancelRequestAccess']);
-    Route::patch('/preferences/{preference_id}/toggle-ignore', [PreferenceController::class, 'toggleIgnorePreference']);
+    Route::post('/preferences', [
+        PreferenceController::class, 'submitPreferences'
+    ]);
+    Route::get('/preferences/unique', [
+        PreferenceController::class, 'getUniqueFacultyPreferences'
+    ]);
+    Route::get('/preferences', [
+        PreferenceController::class, 'getAllFacultyPreferences'
+    ]);
+    Route::get('/faculty/{faculty_id}/preferences', [
+        PreferenceController::class, 'getFacultyPreferencesById'
+    ]);
+    Route::get('/faculty/{faculty_id}/preferences/history', [
+        PreferenceController::class, 'getPreferencesHistoryByFacultyId'
+    ]);
+    Route::post('/preferences/access-requests', [
+        PreferenceController::class, 'requestAccess'
+    ]);
+    Route::delete('/preferences/access-requests', [
+        PreferenceController::class, 'cancelRequestAccess'
+    ]);
+    Route::delete('/preferences/{preference_id}', [
+        PreferenceController::class, 'deletePreferences'
+    ]);
+    Route::delete('/preferences', [
+        PreferenceController::class, 'deleteAllPreferences'
+    ]);
+    Route::patch('/preferences/toggle', [
+        PreferenceController::class, 'toggleAllPreferences'
+    ]);
+    Route::patch('/preferences/batch-toggle', [
+        PreferenceController::class, 'toggleBatchPreferences'
+    ]);
+    Route::post('/preferences/notify', [
+        PreferenceController::class, 'notifyFacultyPreferences'
+    ]);
+    Route::patch('/preferences/{faculty_id}/toggle', [
+        PreferenceController::class, 'toggleSinglePreferences'
+    ]);
+    Route::patch('/preferences/{preference_id}/toggle-ignore', [
+        PreferenceController::class, 'toggleIgnorePreference'
+    ]);
 
     /**
      * Rescheduling Appeals
      */
     // ── FACULTY (Submit & Manage) ──
+    Route::post('/rescheduling-appeals/pre-scan',       [RescheduleController::class, 'preScanAppealDocument']);
+    Route::delete('/rescheduling-appeals/pre-scan',     [RescheduleController::class, 'cancelPreScan']);
     Route::post('/rescheduling-appeals',                [RescheduleController::class, 'submitReschedulingAppeal']);
     Route::get('/my-appeals',                           [RescheduleController::class, 'getMyAppeals']);
     Route::delete('/my-appeals/{id}',                   [RescheduleController::class, 'cancelAppeal']);
 
-    // In routes/api.php
     Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
     Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
     Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
     Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
-
     Route::post('/rescheduling-appeals/reject-access', [RescheduleController::class, 'rejectAppealAccessRequest']);
-    Route::post('/rescheduling-appeals/toggle-access', [RescheduleController::class, 'toggleFacultyAppealAccess']);
-    Route::post('/rescheduling-appeals/toggle-all-access', [RescheduleController::class, 'toggleAllFacultyAppealAccess']);
-    Route::post('/rescheduling-appeals/request-access', [RescheduleController::class, 'requestAppealAccess']);
-    Route::post('/rescheduling-appeals/cancel-request', [RescheduleController::class, 'cancelAppealAccessRequest']);
-
-    Route::get('/rescheduling-appeals/{id}/download', [App\Http\Controllers\RescheduleController::class, 'downloadAppealDocument']);
+    Route::get('/rescheduling-appeals/{id}/download', [RescheduleController::class, 'downloadAppealDocument']);
 
     // ── ADMIN (View & Evaluate) ──
     Route::middleware('permission:rescheduling')->group(function () {
         Route::get('/rescheduling-appeals',                 [RescheduleController::class, 'getAllAppeals']);
         Route::post('/rescheduling-appeals/{id}/approve',   [RescheduleController::class, 'approveAppeal']);
+        Route::post('/rescheduling-appeals/{id}/approve-swap', [RescheduleController::class, 'approveSwap']);
         Route::post('/rescheduling-appeals/{id}/deny',      [RescheduleController::class, 'denyAppeal']);
     });
 
@@ -293,27 +549,50 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Programs
      */
-    Route::get('/programs/active', [ProgramController::class, 'getActivePrograms']);
+    Route::get('/programs/active', [
+        ProgramController::class, 'getActivePrograms'
+    ]);
     Route::get('/programs', [ProgramController::class, 'getPrograms']);
-    Route::post('/addProgram', [ProgramController::class, 'addProgram']);
-    Route::get('/programs/{id}', [ProgramController::class, 'getProgramDetails']);
-    Route::put('/updateProgram/{id}', [ProgramController::class, 'updateProgram']);
-    Route::delete('/deleteProgram/{id}', [ProgramController::class, 'deleteProgram']);
+    Route::post('/programs', [ProgramController::class, 'addProgram']);
+    Route::get('/programs/{id}', [
+        ProgramController::class, 'getProgramDetails'
+    ]);
+    Route::put('/programs/{id}', [ProgramController::class, 'updateProgram']);
+    Route::delete('/programs/{id}', [
+        ProgramController::class, 'deleteProgram'
+    ]);
 
     /**
      * Reports
      */
-    Route::get('/reports/terms', [ReportsController::class, 'getAllTermsForDropdown']);
-    Route::get('/faculty-schedules-report', [ReportsController::class, 'getFacultySchedulesReport']);
-    Route::get('/room-schedules-report', [ReportsController::class, 'getRoomSchedulesReport']);
-    Route::get('/program-schedules-report', [ReportsController::class, 'getProgramSchedulesReport']);
-    Route::get('/single-faculty-schedule/{faculty_id}', [ReportsController::class, 'getSingleFacultySchedule']);
-    Route::get('/faculty-schedule-history/{faculty_id}', [ReportsController::class, 'getFacultyScheduleHistory']);
-    Route::get('/faculty-academic-years-history/{faculty_id}', [ReportsController::class, 'getFacultyAcademicYearsHistory']);
-    Route::get('/overview-details', [ReportsController::class, 'getOverviewDetails']);
+    Route::get('/reports/terms', [
+        ReportsController::class, 'getAllTermsForDropdown'
+    ]);
+    Route::get('/reports/faculty-schedules', [
+        ReportsController::class, 'getFacultySchedulesReport'
+    ]);
+    Route::get('/reports/room-schedules', [
+        ReportsController::class, 'getRoomSchedulesReport'
+    ]);
+    Route::get('/reports/program-schedules', [
+        ReportsController::class, 'getProgramSchedulesReport'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/schedule', [
+        ReportsController::class, 'getSingleFacultySchedule'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/schedule-history', [
+        ReportsController::class, 'getFacultyScheduleHistory'
+    ]);
+    Route::get('/reports/faculty/{faculty_id}/academic-years', [
+        ReportsController::class, 'getFacultyAcademicYearsHistory'
+    ]);
+    Route::get('/reports/overview', [
+        ReportsController::class, 'getOverviewDetails'
+    ]);
 
     /**
      * Analytics
+
      */
     Route::prefix('analytics')->middleware('permission:view_reports')->group(function () {
         Route::get('/heatmap', [AnalyticsController::class, 'getScheduleHeatmap']);
@@ -334,7 +613,7 @@ Route::middleware('auth:sanctum')->group(function () {
      * Rooms
      */
     Route::get('/rooms', [RoomController::class, 'getRooms']);
-    Route::post('/addRoom', [RoomController::class, 'addRoom']);
+    Route::post('/rooms', [RoomController::class, 'addRoom']);
     Route::put('/rooms/{room_id}', [RoomController::class, 'updateRoom']);
     Route::delete('/rooms/{room_id}', [RoomController::class, 'deleteRoom']);
 
@@ -350,14 +629,35 @@ Route::middleware('auth:sanctum')->group(function () {
     /**
      * Scheduling
      */
-    Route::get('/populate-schedules', [ScheduleController::class, 'populateSchedules']);
-    Route::post('/assign-schedule', [ScheduleController::class, 'assignSchedule']);
-    Route::post('/duplicate-course', [ScheduleController::class, 'duplicateCourse']);
-    Route::delete('/remove-duplicate-course', [ScheduleController::class, 'removeDuplicateCourse']);
-    Route::get('/get-active-faculty', [FacultyController::class, 'getFacultyDetails']);
-    Route::get('/get-available-rooms', [RoomController::class, 'getAllRooms']);
-    Route::post('/toggle-all-schedule', [ScheduleController::class, 'toggleAllSchedules']);
-    Route::post('/toggle-single-schedule', [ScheduleController::class, 'toggleSingleSchedule']);
+    Route::get('/schedules/populate', [
+        ScheduleController::class, 'populateSchedules'
+    ]);
+    Route::post('/schedules', [ScheduleController::class, 'assignSchedule']);
+    Route::post('/schedules/duplicate-course', [
+        ScheduleController::class, 'duplicateCourse'
+    ]);
+    Route::delete('/schedules/duplicate-course/{id}', [
+        ScheduleController::class, 'removeDuplicateCourse'
+    ]);
+    Route::get('/faculty/active', [
+        FacultyController::class, 'getFacultyDetails'
+    ]);
+    Route::get('/rooms/available', [RoomController::class, 'getAllRooms']);
+    Route::patch('/schedules/publish', [
+        ScheduleController::class, 'toggleAllSchedules'
+    ]);
+    Route::patch('/schedules/{id}/publish', [
+        ScheduleController::class, 'toggleSingleSchedule'
+    ]);
+    Route::patch('/schedules/{schedule}/assignment-type', [
+        ScheduleController::class, 'updateAssignmentType'
+    ]);
+    
+    // Dynamic Load Types Configuration
+    Route::get('/assignment-types', [AssignmentTypeController::class, 'index']);
+    Route::post('/assignment-types', [AssignmentTypeController::class, 'store']);
+    Route::put('/assignment-types/{id}', [AssignmentTypeController::class, 'update']);
+    Route::delete('/assignment-types/{id}', [AssignmentTypeController::class, 'destroy']);
 
     /**
      * Temporary Course Offerings
@@ -370,25 +670,29 @@ Route::middleware('auth:sanctum')->group(function () {
      * Semester
      */
     Route::get('/semesters', [SemesterController::class, 'index']);
-    Route::post('/addSemester', [SemesterController::class, 'store']);
+    Route::post('/semesters', [SemesterController::class, 'store']);
     Route::get('/semesters/{id}', [SemesterController::class, 'show']);
-    Route::put('/updateSemester/{id}', [SemesterController::class, 'update']);
-    Route::delete('/deleteSemester/{id}', [SemesterController::class, 'destroy']);
+    Route::put('/semesters/{id}', [SemesterController::class, 'update']);
+    Route::delete('/semesters/{id}', [SemesterController::class, 'destroy']);
 
     /**
      * AI Assisted Scheduling
      */
-    Route::post('/suggestion-heuristic', [ScheduleController::class, 'getHeuristicSchedulingSuggestion']);
-    Route::get('/schedules/historical', [ScheduleController::class, 'getHistoricalSchedules']);
+    Route::post('/schedules/suggestions', [
+        ScheduleController::class, 'getHeuristicSchedulingSuggestion'
+    ]);
+    Route::get('/schedules/historical', [
+        ScheduleController::class, 'getHistoricalSchedules'
+    ]);
 
     /**
      * Year Level
      */
-    Route::get('/year_levels', [YearLevelController::class, 'index']);
-    Route::post('/addYearLevel', [YearLevelController::class, 'store']);
-    Route::get('/year_levels/{id}', [YearLevelController::class, 'show']);
-    Route::put('/updateYearLevel/{id}', [YearLevelController::class, 'update']);
-    Route::delete('/deleteYearLevel/{id}', [YearLevelController::class, 'destroy']);
+    Route::get('/year-levels', [YearLevelController::class, 'index']);
+    Route::post('/year-levels', [YearLevelController::class, 'store']);
+    Route::get('/year-levels/{id}', [YearLevelController::class, 'show']);
+    Route::put('/year-levels/{id}', [YearLevelController::class, 'update']);
+    Route::delete('/year-levels/{id}', [YearLevelController::class, 'destroy']);
 });
 
 /*
@@ -407,7 +711,7 @@ Route::prefix('v1')->group(function () {
      * Faculty List Endpoint
      * General Faculty Data
      */
-    Route::middleware(['check.hmac:orr,frrs,puptweb'])->group(function () {
+    Route::middleware(['check.hmac:orr,frrs,puptweb,ojtims'])->group(function () {
         Route::get('/faculties', [ExternalController::class, 'facultyList']);
     });
 

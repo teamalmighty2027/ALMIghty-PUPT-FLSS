@@ -46,10 +46,13 @@ export class DialogPreferencesTutorialComponent {
       stepNumber: 1,
       title: 'Welcome to Faculty Preferences',
       description:
-        'This page is where you submit your faculty preferences while the submission period is active. ' +
-        'Your preferences from the previous academic year are automatically loaded so you can review and adjust them.',
+        'This page is where you submit your faculty preferences while the ' +
+        'submission period is active. You can review, adjust, and submit ' +
+        'your preferences for the upcoming semester.',
       icon: 'school',
-      highlight: 'Submission period is currently open.',
+      highlight:
+        'Note: Previous preferences found (from the matching semester of the ' +
+        'latest academic year) have been automatically loaded.',
     },
     {
       stepNumber: 2,
