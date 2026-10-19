@@ -68,40 +68,73 @@ class CheckPreferencesDeadline extends Command
         $tomorrow = Carbon::now('Asia/Manila')->addDay()->startOfDay();
 
         $faculties = PreferencesSetting::with('faculty.user')
+            ->where('is_enabled', true)
+            ->whereHas('faculty.user', function ($q) {
+                $q->where('status', 'Active');
+            })
             ->whereNotNull('individual_deadline')
             ->whereDate('individual_deadline', $tomorrow)
             ->get();
 
         if ($faculties->isEmpty()) {
-            $this->info('No faculty members have deadlines in the next 24 hours.');
+            $this->info(
+                'No active faculty members with enabled preferences have ' .
+                'deadlines in the next 24 hours.'
+            );
         } else {
             foreach ($faculties as $preference) {
                 if ($preference->faculty && $preference->faculty->user) {
-                    NotifyFacultyDeadlineSingleJob::dispatch($preference->faculty);
-                    Log::info("Notification dispatched for faculty ID: {$preference->faculty->id}");
+                    NotifyFacultyDeadlineSingleJob::dispatch(
+                        $preference->faculty
+                    );
+                    Log::info(
+                        "Notification dispatched for faculty ID: " .
+                        "{$preference->faculty->id}"
+                    );
                 }
             }
-            $this->info('✅ Faculty deadline notifications dispatched successfully.');
+            $this->info(
+                '✅ Faculty deadline notifications dispatched successfully.'
+            );
         }
 
         // Check for global deadline
-        $globalSettings = PreferencesSetting::whereNotNull('global_deadline')
-            ->whereDate('global_deadline', $today->copy()->addDay()->startOfDay())
+        $globalSettings = PreferencesSetting::with('faculty.user')
+            ->where('is_enabled', true)
+            ->whereHas('faculty.user', function ($q) {
+                $q->where('status', 'Active');
+            })
+            ->whereNotNull('global_deadline')
+            ->whereDate(
+                'global_deadline',
+                $today->copy()->addDay()->startOfDay()
+            )
             ->get();
 
         if ($globalSettings->isEmpty()) {
-            Log::info('✅ No faculties have global deadlines in the next 24 hours.');
-            $this->info('✅ No faculties have global deadlines in the next 24 hours.');
+            Log::info(
+                '✅ No active faculties with enabled preferences have ' .
+                'global deadlines in the next 24 hours.'
+            );
+            $this->info(
+                '✅ No active faculties with enabled preferences have ' .
+                'global deadlines in the next 24 hours.'
+            );
             return;
         }
 
         foreach ($globalSettings as $setting) {
             if ($setting->faculty && $setting->faculty->user) {
                 NotifyGlobalFacultyDeadlineJob::dispatch($setting->faculty);
-                Log::info("✅ Global notification dispatched for faculty ID: {$setting->faculty->id}");
+                Log::info(
+                    "✅ Global notification dispatched for faculty ID: " .
+                    "{$setting->faculty->id}"
+                );
             }
         }
 
-        $this->info('✅ Global faculty deadline notifications dispatched successfully.');
+        $this->info(
+            '✅ Global faculty deadline notifications dispatched successfully.'
+        );
     }
 }
