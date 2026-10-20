@@ -47,7 +47,7 @@ export class SchedulingService {
   private submittedPreferences$?: Observable<SubmittedPrefResponse>;
 
   // Minimum ML confidence required to accept suggestion over heuristics
-  public static readonly MIN_ML_CONFIDENCE_THRESHOLD = 0.40;
+  public static readonly MIN_ML_CONFIDENCE_THRESHOLD = 0.30;
 
   constructor(
     private http: HttpClient,

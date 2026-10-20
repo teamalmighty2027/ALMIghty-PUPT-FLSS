@@ -43,7 +43,7 @@ def train_model(X_train, y_train, X_test, y_test):
 
 
 # Evaluate model across regression metrics and threshold sweeps
-def evaluate_model(model, X_test, y_test, operational_threshold=0.40):
+def evaluate_model(model, X_test, y_test, operational_threshold=0.30):
     """
     Evaluates regression accuracy and thresholded classification metrics.
     """
@@ -89,7 +89,7 @@ def evaluate_model(model, X_test, y_test, operational_threshold=0.40):
         marker = " 🎯 (Operational)" if abs(t - operational_threshold) < 1e-4 else ""
         print(f"{t:<12.2f}{p:<12.4f}{r:<12.4f}{f:<12.4f}{marker}")
 
-    # 3. Confusion Matrix at Operational Threshold (0.40)
+    # 3. Confusion Matrix at Operational Threshold (0.30)
     y_pred_op = (preds >= operational_threshold).astype(int)
     y_true_op = (y_test >= operational_threshold).astype(int)
     cm = confusion_matrix(y_true_op, y_pred_op)
@@ -157,8 +157,8 @@ def main():
     parser.add_argument(
         '--threshold',
         type=float,
-        default=0.40,
-        help='Operational acceptance threshold (default: 0.40)'
+        default=0.30,
+        help='Operational acceptance threshold (default: 0.30)'
     )
 
     args = parser.parse_args()

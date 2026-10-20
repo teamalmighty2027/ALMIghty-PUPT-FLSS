@@ -3,7 +3,7 @@
 **Model Type:** XGBoost Regression  
 **Training Platforms:** Local CLI (`python ml/scripts/train.py`) or Google Colab (`train_schedule_model.ipynb`)  
 **Output:** `model.onnx` + `encoders.json`  
-**Operational Acceptance Threshold:** `0.40`  
+**Operational Acceptance Threshold:** `0.30`  
 **Retraining Cadence:** Once per semester, after schedule publishing
 
 ---
@@ -47,7 +47,7 @@ The script will:
 3. Train XGBoost Regressor.
 4. Output regression metrics (RMSE, MAE, R²).
 5. Output threshold sweep (`[0.20, 0.30, 0.40, 0.50, 0.60]`).
-6. Display confusion matrix at the operational threshold (`0.40`).
+6. Display confusion matrix at the operational threshold (`0.30`).
 7. Convert model to ONNX format.
 8. Automatically save `model.onnx` and `encoders.json` directly into `frontend/src/assets/ml/`.
 
@@ -155,10 +155,10 @@ model.fit(
 print("✅ Training complete!")
 ```
 
-### Step 8: Multi-Metric Evaluation (Threshold 0.40)
+### Step 8: Multi-Metric Evaluation (Threshold 0.30)
 
 ```python
-# Cell 6: Multi-Metric Model Evaluation (Centered at 0.40 Threshold)
+# Cell 6: Multi-Metric Model Evaluation (Centered at 0.30 Threshold)
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import (
@@ -180,7 +180,7 @@ print(f"  MAE  (lower is better)   : {mae:.4f}")
 print(f"  R² Score (1.0 = perfect) : {r2:.4f}")
 print("=" * 50)
 
-# 2. Threshold Sweep around 0.40
+# 2. Threshold Sweep around 0.30
 thresholds = [0.20, 0.30, 0.40, 0.50, 0.60]
 print("\n📊 Classification Performance Across Thresholds:")
 print(f"{'Threshold':<12}{'Precision':<12}{'Recall':<12}{'F1-Score':<12}")
@@ -192,11 +192,11 @@ for t in thresholds:
     p = precision_score(y_true_bin, y_pred_bin, zero_division=0)
     r = recall_score(y_true_bin, y_pred_bin, zero_division=0)
     f = f1_score(y_true_bin, y_pred_bin, zero_division=0)
-    marker = " 🎯 (Operational)" if t == 0.40 else ""
+    marker = " 🎯 (Operational)" if t == 0.30 else ""
     print(f"{t:<12.2f}{p:<12.4f}{r:<12.4f}{f:<12.4f}{marker}")
 
-# 3. Confusion Matrix at 0.40 Operational Threshold
-OP_THRESHOLD = 0.40
+# 3. Confusion Matrix at 0.30 Operational Threshold
+OP_THRESHOLD = 0.30
 y_pred_op = (preds >= OP_THRESHOLD).astype(int)
 y_true_op = (y_test >= OP_THRESHOLD).astype(int)
 
@@ -222,7 +222,7 @@ import numpy as np
 # Clip regression outputs to [0, 1] as probabilities/confidence scores
 preds_clipped = np.clip(preds, 0.0, 1.0)
 
-y_true_op = (y_test >= 0.40).astype(int)
+y_true_op = (y_test >= 0.30).astype(int)
 n_bins = min(5, len(np.unique(np.round(preds_clipped, 1))))
 prob_true, prob_pred = calibration_curve(y_true_op, preds_clipped, n_bins=n_bins)
 
@@ -231,7 +231,7 @@ plt.plot(prob_pred, prob_true, 's-', label='Model Calibration')
 plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
 plt.xlabel('Mean Predicted Score')
 plt.ylabel('Fraction of Positive Matches')
-plt.title('Calibration Curve (@ 0.40 threshold)')
+plt.title('Calibration Curve (@ 0.30 threshold)')
 plt.legend()
 plt.tight_layout()
 plt.show()
@@ -276,7 +276,7 @@ Run this checklist at the **end of every semester**, after schedules are finaliz
 ```
 [ ] 1. Run: php artisan ml:export-dataset --all
 [ ] 2. Run local script: python ml/scripts/train.py (or run Colab notebook)
-[ ] 3. Review RMSE (< 0.25) and F1 @ 0.40 (> 0.70)
+[ ] 3. Review RMSE (< 0.25) and F1 @ 0.30 (> 0.80)
 [ ] 4. Confirm frontend/src/assets/ml/model.onnx and encoders.json are updated
 [ ] 5. Run: ng build --configuration production
 [ ] 6. Test suggestion button in scheduling UI
