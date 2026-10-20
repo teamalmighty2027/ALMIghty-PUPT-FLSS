@@ -1,10 +1,13 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, from, of, firstValueFrom } from 'rxjs';
-import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { catchError, map, switchMap } from 'rxjs/operators';
 
 import * as ort from 'onnxruntime-web';
-import { EncoderMetadata, MlSuggestion } from '../../../models/ml-suggestion.model';
+import {
+  EncoderMetadata,
+  MlSuggestion
+} from '../../../models/ml-suggestion.model';
 
 @Injectable({
   providedIn: 'root'
@@ -50,7 +53,9 @@ export class ScheduleSuggestionService {
         this.encoders = encodersJson;
 
         // Load model.onnx
-        this.session = await ort.InferenceSession.create('assets/ml/model.onnx');
+        this.session = await ort.InferenceSession.create(
+          'assets/ml/model.onnx'
+        );
         
         this.isModelReadySubject.next(true);
       } catch (error) {
@@ -74,7 +79,12 @@ export class ScheduleSuggestionService {
     active_semester_id: number,
     course_assignment_id: number,
     sections_per_program_year_id: number,
+    course_code: string,
+    lec_hours: number,
+    lab_hours: number,
+    tuition_hours: number,
     is_ignored: boolean,
+    is_auto_submitted: boolean,
     day: string,
     start_time_min: number,
     end_time_min: number
@@ -92,7 +102,12 @@ export class ScheduleSuggestionService {
           active_semester_id,
           course_assignment_id,
           sections_per_program_year_id,
+          course_code,
+          lec_hours,
+          lab_hours,
+          tuition_hours,
           is_ignored,
+          is_auto_submitted,
           day,
           start_time_min,
           end_time_min
@@ -117,6 +132,14 @@ export class ScheduleSuggestionService {
               confidence: Math.max(0, Math.min(1, score)),
               modelVersion: this.encoders?.model_version || 'unknown'
             };
+          }),
+          catchError(runErr => {
+            console.warn(
+              'ONNX inference failed (possible model schema mismatch). ' +
+              'Falling back to heuristics.',
+              runErr
+            );
+            return of(null);
           })
         );
       }),
@@ -137,14 +160,21 @@ export class ScheduleSuggestionService {
     active_semester_id: number,
     course_assignment_id: number,
     sections_per_program_year_id: number,
+    course_code: string,
+    lec_hours: number,
+    lab_hours: number,
+    tuition_hours: number,
     is_ignored: boolean,
+    is_auto_submitted: boolean,
     day: string,
     start_time_min: number,
     end_time_min: number
   ): Float32Array {
     if (!this.encoders) return new Float32Array(0);
 
-    // Pull encoding directly from encoders.json
+    // Pull encoding directly from encoders.json; unknown defaults to 0
+    const courseCodeMap = this.encoders.course_code_encoding || {};
+    const courseCodeEncoded = courseCodeMap[course_code] ?? 0;
     const dayEncoded = this.encoders.day_encoding[day] ?? -1;
     const duration = Math.max(0, end_time_min - start_time_min);
 
@@ -159,7 +189,12 @@ export class ScheduleSuggestionService {
       'active_semester_id': active_semester_id,
       'course_assignment_id': course_assignment_id,
       'sections_per_program_year_id': sections_per_program_year_id,
+      'course_code_encoded': courseCodeEncoded,
+      'lec_hours': lec_hours,
+      'lab_hours': lab_hours,
+      'tuition_hours': tuition_hours,
       'is_ignored': is_ignored ? 1 : 0,
+      'is_auto_submitted': is_auto_submitted ? 1 : 0,
       'preferred_day_encoded': dayEncoded,
       'preferred_start_min': start_time_min,
       'preferred_end_min': end_time_min,
@@ -167,7 +202,7 @@ export class ScheduleSuggestionService {
     };
 
     /**
-     * ! CRITICAL: Build the array based on the ORDER defined in the JSON schema.
+     * ! CRITICAL: Build array based on ORDER defined in JSON schema.
      * This ensures parity between Python training and Angular inference.
      */
     const data = this.encoders.schema
