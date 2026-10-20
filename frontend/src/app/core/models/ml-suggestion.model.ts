@@ -6,6 +6,7 @@ export interface EncoderMetadata {
   average_match_score: number;
   training_years: string[];
   training_semesters: number[];
+  course_code_encoding: Record<string, number>;
   day_encoding: Record<string, number>;
   schema: string[];
 }

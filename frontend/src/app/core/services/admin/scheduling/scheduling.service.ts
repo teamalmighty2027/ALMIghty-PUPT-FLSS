@@ -46,6 +46,9 @@ export class SchedulingService {
   private schedulesCache$?: Observable<PopulateSchedulesResponse>;
   private submittedPreferences$?: Observable<SubmittedPrefResponse>;
 
+  // Minimum ML confidence required to accept suggestion over heuristics
+  public static readonly MIN_ML_CONFIDENCE_THRESHOLD = 0.30;
+
   constructor(
     private http: HttpClient,
     private scheduleValidationService: ScheduleValidationService,
@@ -566,6 +569,7 @@ export class SchedulingService {
         catchError(this.handleError)
       );
   }
+
   /**
    * Orchestrates the suggestion process: ML first, then backend fallback.
    * @param courseId The ID of the course to find a suggestion for.
@@ -604,7 +608,12 @@ export class SchedulingService {
                   faculty_id: pref.faculty_id,
                   faculty_name: pref.faculty_name,
                   course_assignment_id: coursePref.course_assignment_id,
+                  course_code: coursePref.course_details?.course_code ?? '',
+                  lec_hours: coursePref.lec_hours ?? 0,
+                  lab_hours: coursePref.lab_hours ?? 0,
+                  tuition_hours: coursePref.tuition_hours ?? 0,
                   is_ignored: !!coursePref.is_ignored,
+                  is_auto_submitted: !!coursePref.is_auto_submitted,
                   day: dayPref.day,
                   start_time: dayPref.start_time,
                   end_time: dayPref.end_time
@@ -635,7 +644,12 @@ export class SchedulingService {
               activeSemesterId,
               c.course_assignment_id,
               0,
+              c.course_code,
+              c.lec_hours,
+              c.lab_hours,
+              c.tuition_hours,
               c.is_ignored,
+              c.is_auto_submitted,
               c.day,
               startMin,
               endMin
@@ -658,7 +672,9 @@ export class SchedulingService {
             return currentConfidence > bestConfidence ? current : best;
           }, null),
           map(bestMatch => {
-            if (bestMatch && bestMatch.ml!.confidence >= 0.1) {
+            const minThreshold = SchedulingService.MIN_ML_CONFIDENCE_THRESHOLD;
+
+            if (bestMatch && bestMatch.ml!.confidence >= minThreshold) {
               console.log(
                 `✅ ML Suggestion Accepted: ${bestMatch.faculty_name} ` +
                 `with confidence ${bestMatch.ml!.confidence.toFixed(4)}`
@@ -678,7 +694,7 @@ export class SchedulingService {
             if (bestMatch) {
               console.log(
                 `⚠️ ML Match Rejected (Confidence ` +
-                `${bestMatch.ml!.confidence.toFixed(4)} < 0.1). ` +
+                `${bestMatch.ml!.confidence.toFixed(4)} < ${minThreshold}). ` +
                 `Falling back to heuristics.`
               );
             } else {

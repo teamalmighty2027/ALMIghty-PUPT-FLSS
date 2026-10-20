@@ -1,69 +1,81 @@
-# PUPT-FLSS: Model Training & Retraining Guide
+# PUPT-FLSS: Model Training & Retraining Guide (v3)
 
 **Model Type:** XGBoost Regression  
-**Training Platform:** Google Colab (or Kaggle Kernels)  
+**Training Platforms:** Local CLI (`python ml/scripts/train.py`) or Google Colab (`train_schedule_model.ipynb`)  
 **Output:** `model.onnx` + `encoders.json`  
+**Operational Acceptance Threshold:** `0.30`  
 **Retraining Cadence:** Once per semester, after schedule publishing
 
 ---
 
 > [!IMPORTANT]
-> This guide is self-contained. Follow it top-to-bottom for first-time
-> training. For retraining, jump to the
-> [Retraining Checklist](#retraining-checklist) at the bottom.
+> This guide is self-contained. Follow it top-to-bottom for training.
+> For retraining, jump to the [Retraining Checklist](#retraining-checklist)
+> at the bottom.
 
 ---
 
 ## Prerequisites
 
-Before opening Google Colab, you must have:
+Before training, generate the latest dataset from your database:
 
-1. **Laravel export command run successfully:**
-   ```bash
-   php artisan ml:export-dataset --all
-   ```
-2. **Two files available** in `backend/public/storage/ml/`:
-   - `scheduling_dataset.csv` — the training dataset
-   - `encoders.json` — the feature schema and encoding map
-3. **A Google or Kaggle account** for cloud training.
+```bash
+php artisan ml:export-dataset --all
+```
+
+This generates two files in `backend/public/storage/ml/`:
+- `scheduling_dataset.csv` — the training dataset (17 columns)
+- `encoders.json` — feature schema, day map, and course code map (`<UNKNOWN>` reserved at index `0`)
 
 ---
 
-## Step 1: Upload Files to Google Drive
+## Option A: Fast Local Training (Recommended)
+
+If you have Python installed locally with dependencies, you can train and deploy the model in a single command:
+
+```bash
+# 1. Install dependencies (one-time)
+pip install onnxruntime onnxmltools skl2onnx xgboost scikit-learn pandas numpy
+
+# 2. Run training script
+python ml/scripts/train.py
+```
+
+The script will:
+1. Load `backend/public/storage/ml/scheduling_dataset.csv` and `encoders.json`.
+2. Split dataset (80% train / 20% test).
+3. Train XGBoost Regressor.
+4. Output regression metrics (RMSE, MAE, R²).
+5. Output threshold sweep (`[0.20, 0.30, 0.40, 0.50, 0.60]`).
+6. Display confusion matrix at the operational threshold (`0.30`).
+7. Convert model to ONNX format.
+8. Automatically save `model.onnx` and `encoders.json` directly into `frontend/src/assets/ml/`.
+
+---
+
+## Option B: Google Colab Training
+
+### Step 1: Upload Files to Google Drive
 
 1. Open [Google Drive](https://drive.google.com).
-2. Create a folder: `My Drive/ml/`.
-3. Upload both files into that folder:
-   - `scheduling_dataset.csv`
-   - `encoders.json`
+2. Create folder: `My Drive/FLSS_ML/`.
+3. Upload:
+   - `backend/public/storage/ml/scheduling_dataset.csv`
+   - `backend/public/storage/ml/encoders.json`
 
----
+### Step 2: Open Google Colab
 
-## Step 2: Open Google Colab
+1. Open [colab.research.google.com](https://colab.research.google.com).
+2. Upload and open `ml/notebooks/train_schedule_model.ipynb`.
 
-1. Go to [colab.research.google.com](https://colab.research.google.com).
-2. Create a **New Notebook**.
-3. Rename it: `train_schedule_model.ipynb`.
-
-> [!TIP]
-> Commit this notebook to the repo under `ml-notebooks/` so the
-> training process is version-controlled and reproducible each semester.
-
----
-
-## Step 3: Install Dependencies
-
-Run this in the **first cell**. Colab does not include ONNX tools
-by default.
+### Step 3: Install Dependencies
 
 ```python
 # Cell 1: Install dependencies
 !pip install onnxruntime onnxmltools skl2onnx xgboost scikit-learn
 ```
 
----
-
-## Step 4: Mount Drive and Load Data
+### Step 4: Mount Drive and Load Data
 
 ```python
 # Cell 2: Mount Google Drive and load data
@@ -73,50 +85,29 @@ import json
 
 drive.mount('/content/drive')
 
-# --- Update these paths if your folder structure is different ---
-CSV_PATH = '/content/drive/MyDrive/ml/scheduling_dataset.csv'
-JSON_PATH = '/content/drive/MyDrive/ml/encoders.json'
-# ---------------------------------------------------------------
+CSV_PATH = '/content/drive/MyDrive/FLSS_ML/scheduling_dataset.csv'
+JSON_PATH = '/content/drive/MyDrive/FLSS_ML/encoders.json'
 
 df = pd.read_csv(CSV_PATH)
 
-# Load encoders to get the exact column schema and day encoding
 with open(JSON_PATH, 'r') as f:
     encoders = json.load(f)
 
 schema = encoders['schema']
 day_encoding = encoders['day_encoding']
+course_code_encoding = encoders.get('course_code_encoding', {})
 
 print(f"✅ Loaded {len(df)} rows")
-print(f"📋 Schema: {schema}")
-print(f"📅 Day encoding: {day_encoding}")
+print(f"📋 Schema ({len(schema)} columns): {schema}")
+print(f"📚 Course code count: {len(course_code_encoding)}")
 ```
 
-**Expected output:**
-```
-✅ Loaded 1719 rows
-📋 Schema: ['faculty_id', 'academic_year_id', 'semester_id', ...]
-📅 Day encoding: {'Monday': 0, 'Tuesday': 1, ...}
-```
-
----
-
-## Step 5: Prepare Features and Target
-
-> [!NOTE]
-> We use **Regression** (not Classification) so the model predicts
-> a continuous confidence score between 0.0 and 1.0, not just Yes/No.
-> This lets the Angular UI display "82% Match Confidence" directly
-> from the model output.
+### Step 5: Prepare Features and Target
 
 ```python
 # Cell 3: Prepare features (X) and target (y)
-
-# Target: the continuous match score (0.0 to 1.0)
 y = df['match_score']
 
-# Features: all columns EXCEPT the target, in the same order as the schema
-# This ordering is critical — Angular must send features in this exact order
 features_list = [col for col in schema if col != 'match_score']
 X = df[features_list]
 
@@ -125,49 +116,21 @@ print(f"✅ Target distribution:")
 print(y.describe())
 ```
 
----
-
-## Step 6: Validation Split
-
-We split by **Academic Year** because scheduling patterns are most
-consistent when comparing one full year to the next.
-
-> [!IMPORTANT]
-> **Why Academic Year Split?**
-> Semesters (Sem 1 vs Sem 2) often have completely different course
-> offerings and faculty loads. Splitting by Semester often results in
-> a **Negative R²** because the model can't generalize between them.
-> Splitting by Year is the "Gold Standard" for this model.
+### Step 6: Validation Split
 
 ```python
-# Cell 4: Temporal split by Academic Year
-# Train on the earlier year, test on the latest year
-unique_years = sorted(df['academic_year_id'].unique())
+# Cell 4: Train / test split (80/20 split)
+from sklearn.model_selection import train_test_split
 
-if len(unique_years) > 1:
-    train_year = unique_years[-2]
-    test_year  = unique_years[-1]
-    
-    train_mask = df['academic_year_id'] <= train_year
-    test_mask  = df['academic_year_id'] == test_year
-    
-    print(f"✅ Splitting by Year: Training on <= {train_year}, Testing on {test_year}")
-else:
-    # Fallback if you only have ONE year of data
-    print("⚠️ Only one year found. Falling back to Semester Split (S1 -> S2)")
-    train_mask = df['semester_id'] == 1
-    test_mask  = df['semester_id'] == 2
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
-X_train, y_train = X[train_mask], y[train_mask]
-X_test,  y_test  = X[test_mask],  y[test_mask]
-
-print(f"🎓 Training rows  : {len(X_train)}")
-print(f"🧪 Test rows      : {len(X_test)}")
+print(f"🎓 Training rows : {len(X_train)}")
+print(f"🧪 Test rows     : {len(X_test)}")
 ```
 
----
-
-## Step 7: Train the Model
+### Step 7: Train the Model
 
 ```python
 # Cell 5: Train XGBoost Regressor
@@ -177,7 +140,7 @@ model = XGBRegressor(
     n_estimators=100,
     max_depth=5,
     learning_rate=0.1,
-    objective='reg:squarederror',  # Continuous output (0.0–1.0)
+    objective='reg:squarederror',
     subsample=0.8,
     colsample_bytree=0.8,
     random_state=42
@@ -186,94 +149,104 @@ model = XGBRegressor(
 model.fit(
     X_train, y_train,
     eval_set=[(X_test, y_test)],
-    verbose=20           # Print progress every 20 rounds
+    verbose=20
 )
 
 print("✅ Training complete!")
 ```
 
----
-
-## Step 8: Evaluate the Model
+### Step 8: Multi-Metric Evaluation (Threshold 0.30)
 
 ```python
-# Cell 6: Evaluate model quality
-from sklearn.metrics import mean_squared_error, r2_score
+# Cell 6: Multi-Metric Model Evaluation (Centered at 0.30 Threshold)
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    mean_squared_error, mean_absolute_error, r2_score,
+    precision_score, recall_score, f1_score,
+    confusion_matrix, ConfusionMatrixDisplay
+)
 
 preds = model.predict(X_test)
 
+# 1. Regression Metrics
 rmse = np.sqrt(mean_squared_error(y_test, preds))
+mae  = mean_absolute_error(y_test, preds)
 r2   = r2_score(y_test, preds)
 
-print("=" * 40)
-print(f"  RMSE (lower is better)  : {rmse:.4f}")
-print(f"  R² Score (1.0 = perfect): {r2:.4f}")
-print("=" * 40)
+print("=" * 50)
+print(f"  RMSE (lower is better)   : {rmse:.4f}")
+print(f"  MAE  (lower is better)   : {mae:.4f}")
+print(f"  R² Score (1.0 = perfect) : {r2:.4f}")
+print("=" * 50)
 
-# Flag prediction range issues
-clipped = ((preds < 0) | (preds > 1)).sum()
-print(f"  Out-of-range predictions: {clipped} rows "
-      f"(Angular will clip these to 0–1)")
-```
+# 2. Threshold Sweep around 0.30
+thresholds = [0.20, 0.30, 0.40, 0.50, 0.60]
+print("\n📊 Classification Performance Across Thresholds:")
+print(f"{'Threshold':<12}{'Precision':<12}{'Recall':<12}{'F1-Score':<12}")
+print("-" * 48)
 
-**Interpreting results:**
+for t in thresholds:
+    y_pred_bin = (preds >= t).astype(int)
+    y_true_bin = (y_test >= t).astype(int)
+    p = precision_score(y_true_bin, y_pred_bin, zero_division=0)
+    r = recall_score(y_true_bin, y_pred_bin, zero_division=0)
+    f = f1_score(y_true_bin, y_pred_bin, zero_division=0)
+    marker = " 🎯 (Operational)" if t == 0.30 else ""
+    print(f"{t:<12.2f}{p:<12.4f}{r:<12.4f}{f:<12.4f}{marker}")
 
-| RMSE | Assessment |
-|---|---|
-| < 0.15 | ✅ Excellent — safe to deploy |
-| 0.15 – 0.25 | ⚠️ Acceptable — monitor after deploy |
-| > 0.25 | ❌ Poor — review data quality before deploying |
+# 3. Confusion Matrix at 0.30 Operational Threshold
+OP_THRESHOLD = 0.30
+y_pred_op = (preds >= OP_THRESHOLD).astype(int)
+y_true_op = (y_test >= OP_THRESHOLD).astype(int)
 
-> [!CAUTION]
-> **Red Flag:** If the model predicts nearly identical values for
-> every row (e.g., all ~0.27), it has overfit to the mean.
-> Check that your feature columns are not all zero or identical.
-
----
-
-## Step 9: Feature Importance (Optional but Useful)
-
-```python
-# Cell 7: Feature importance — understand which features the model uses
-import matplotlib.pyplot as plt
-
-importances = model.feature_importances_
-feat_df = pd.DataFrame({
-    'Feature': features_list,
-    'Importance': importances
-}).sort_values('Importance', ascending=True)
-
-feat_df.plot(
-    kind='barh', x='Feature', y='Importance',
-    title='Feature Importance', figsize=(8, 5), legend=False
+cm = confusion_matrix(y_true_op, y_pred_op)
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm,
+    display_labels=[f'< {OP_THRESHOLD} (Fallback)', f'>= {OP_THRESHOLD} (Accept ML)']
 )
+disp.plot(cmap='Blues')
+plt.title(f'Confusion Matrix @ Operational Threshold ({OP_THRESHOLD})')
 plt.tight_layout()
 plt.show()
 ```
 
-> [!TIP]
-> If `preferred_day_encoded` and `preferred_start_min` are not near
-> the top, your features may not be encoding correctly. Cross-check
-> the `day_encoding` map in `encoders.json`.
-
----
-
-## Step 10: Convert to ONNX
+### Step 9: Calibration Curve
 
 ```python
-# Cell 8: Convert to ONNX for Angular/ONNX Runtime Web
+# Cell 7: Calibration Curve
+from sklearn.calibration import calibration_curve
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Clip regression outputs to [0, 1] as probabilities/confidence scores
+preds_clipped = np.clip(preds, 0.0, 1.0)
+
+y_true_op = (y_test >= 0.30).astype(int)
+n_bins = min(5, len(np.unique(np.round(preds_clipped, 1))))
+prob_true, prob_pred = calibration_curve(y_true_op, preds_clipped, n_bins=n_bins)
+
+plt.figure(figsize=(6, 4))
+plt.plot(prob_pred, prob_true, 's-', label='Model Calibration')
+plt.plot([0, 1], [0, 1], 'k--', label='Perfect Calibration')
+plt.xlabel('Mean Predicted Score')
+plt.ylabel('Fraction of Positive Matches')
+plt.title('Calibration Curve (@ 0.30 threshold)')
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+### Step 10: Convert to ONNX
+
+```python
+# Cell 8: Export to ONNX
 import onnxmltools
 from onnxmltools.convert.common.data_types import FloatTensorType
 
-# Rename model's internal feature names to f0, f1, ...
-# This aligns with onnxmltools's expectation for XGBoost feature names.
-# It's important that the order of these renamed features matches the
-# order of features in `features_list` and during model training.
 feature_names_for_onnx = [f'f{i}' for i in range(len(features_list))]
 model.get_booster().feature_names = feature_names_for_onnx
 
-# Number of input features must match Angular's Float32Array size
 n_features = len(features_list)
 initial_type = [('float_input', FloatTensorType([None, n_features]))]
 
@@ -281,84 +254,34 @@ onnx_model = onnxmltools.convert_xgboost(
     model, initial_types=initial_type
 )
 
-# Define the path where the ONNX model will be saved
-# You can change this to a specific folder in your Drive
-ONNX_SAVE_PATH = '/content/model.onnx' 
+ONNX_SAVE_PATH = '/content/model.onnx'
 
 with open(ONNX_SAVE_PATH, "wb") as f:
     f.write(onnx_model.SerializeToString())
 
 print(f"✅ model.onnx saved to {ONNX_SAVE_PATH}! (Input shape: [batch, {n_features}])")
-print(f"📋 Feature order Angular must follow: {features_list}")
 ```
 
----
-
-## Step 11: Download Output Files
-
-After running all cells:
-
-1. In the Colab **Files panel** (left sidebar → folder icon).
-2. Right-click `model.onnx` → **Download**.
-3. Place the downloaded file at:
-   ```
-   frontend/src/assets/ml/model.onnx
-   ```
-4. The `encoders.json` file from Laravel is already correct — commit
-   it alongside `model.onnx`.
-
----
-
-## Step 12: Validation Checklist (Run Before Committing)
-
-### Layer 1 — Label Audit (Pre-Training)
-- [ ] Open `scheduling_dataset.csv` in Excel/Google Sheets
-- [ ] Randomly pick 50 rows
-- [ ] For each row, manually check: does the `match_score` feel
-      right given the `preferred_day` vs `actual_day`?
-- [ ] **Pass condition:** ≥ 90% of rows have scores that match
-      your intuition of "was this preference satisfied?"
-
-### Layer 2 — Held-out Academic Year Test (Post-Training)
-- [ ] RMSE < 0.25 on the test year
-- [ ] R² > 0.40 on the test year
-- [ ] Feature importance shows `preferred_day_encoded` and
-      `preferred_start_min` in the top 5 features
-- [ ] No "collapse" (all predictions stuck near one value)
-
-### Layer 3 — Ghost Schedule Test (Post-Angular Integration)
-- [ ] In Angular, enter **Draft Mode** on a fully scheduled section
-- [ ] Manually clear 5 slots (set Day to "Not set")
-- [ ] Click the **Suggest** button on each cleared slot
-- [ ] Compare the ML suggestion to what was actually scheduled
-- [ ] **Pass condition:** ≥ 80% of suggestions match the historical
-      outcome for that faculty + course combination
+### Step 11: Deploy Output Files
+1. Download `model.onnx` from Colab files panel.
+2. Place at: `frontend/src/assets/ml/model.onnx`
+3. Copy `encoders.json` from `backend/public/storage/ml/encoders.json` to: `frontend/src/assets/ml/encoders.json`.
 
 ---
 
 ## Retraining Checklist
 
-Run this checklist at the **end of every semester**, after schedules
-are finalized and published.
+Run this checklist at the **end of every semester**, after schedules are finalized and published:
 
 ```
-[ ] 1. Run:  php artisan ml:export-dataset --all
-[ ] 2. Verify row count has increased vs last training
-[ ] 3. Upload new scheduling_dataset.csv + encoders.json to Drive
-[ ] 4. Open train_schedule_model.ipynb in Colab
-[ ] 5. Run all cells top to bottom
-[ ] 6. Check RMSE and R² — compare vs previous run's metrics
-[ ] 7. Run Feature Importance cell — confirm top features unchanged
-[ ] 8. Download new model.onnx
-[ ] 9. Replace frontend/src/assets/ml/model.onnx
-[ ] 10. Commit: git commit -m "feat(ml): retrain model for [semester]"
-[ ] 11. Run Ghost Schedule Test to confirm quality
+[ ] 1. Run: php artisan ml:export-dataset --all
+[ ] 2. Run local script: python ml/scripts/train.py (or run Colab notebook)
+[ ] 3. Review RMSE (< 0.25) and F1 @ 0.30 (> 0.80)
+[ ] 4. Confirm frontend/src/assets/ml/model.onnx and encoders.json are updated
+[ ] 5. Run: ng build --configuration production
+[ ] 6. Test suggestion button in scheduling UI
+[ ] 7. Commit: git commit -m "feat(ml): retrain schedule suggestion model v3"
 ```
-
-> [!IMPORTANT]
-> Keep a record of your metrics each time you retrain.
-> If RMSE gets **worse** with more data, it may indicate the label
-> formula needs to be tuned or that data quality has degraded.
 
 ---
 
@@ -369,9 +292,11 @@ Update this table each time you retrain:
 | Date | Train Rows | Test Rows | Split | RMSE | R² | Notes |
 |---|---|---|---|---|---|---|
 | 2026-05-04 | 1,021 | 698 | S1→S2 | 0.3063 | -0.2610 | Fallback split used; negative R² found |
-| 2026-06-30 | 1572  | 393 | Random Split | 0.1797 | 0.4817 | 20% data split 
-| 2026-07-10 | 1713  | 429 | Random Split | 0.2063 | 0.4713 | 20% data split 
-Out-of-range predictions: 27 rows (Angular will clip these to 0–1)
+| 2026-06-30 | 1572  | 393 | Random Split | 0.1797 | 0.4817 | 20% data split |
+| 2026-07-10 | 1713  | 429 | Random Split | 0.2063 | 0.4713 | 20% data split |
+| *Upcoming* | 1320  | 330 | Random 80/20 | TBD | TBD | v3 schema (17 cols, 1650 total rows) |
+
+Out-of-range predictions: 27 rows (Angular clips these to 0–1)
 
 > [!WARNING]
 > **Interpreting a Negative R² Score:**
@@ -385,5 +310,4 @@ Out-of-range predictions: 27 rows (Angular will clip these to 0–1)
 > **Action:** Continue with integration to test the UI, but do not
 > rely on these suggestions for critical decisions until R² becomes
 > positive (≥ 0.20).
-
 
