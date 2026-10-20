@@ -81,6 +81,17 @@ class ExportMlDataset extends Command
 
         $this->info("✅ {$count} rows fetched.");
 
+        // Build course_code label encoder with index 0 reserved for unknown
+        $courseCodeEncoder = ['<UNKNOWN>' => 0];
+        $codeIndex = 1;
+
+        foreach ($rows as $row) {
+            $code = $row->course_code ?? '<UNKNOWN>';
+            if (!isset($courseCodeEncoder[$code])) {
+                $courseCodeEncoder[$code] = $codeIndex++;
+            }
+        }
+
         $processedRows = [];
         $totalScore = 0;
         $buckets = ['0.0' => 0, '0.4' => 0, '0.7+' => 0, '1.0' => 0];
@@ -97,7 +108,11 @@ class ExportMlDataset extends Command
             elseif ($score >= 0.4) $buckets['0.4']++;
             else $buckets['0.0']++;
 
-            $processedRows[] = $this->encodeRow($row, $score);
+            $processedRows[] = $this->encodeRow(
+                $row, 
+                $score, 
+                $courseCodeEncoder
+            );
         }
 
         $avgScore = $totalScore / $count;
@@ -115,7 +130,13 @@ class ExportMlDataset extends Command
             str_replace('scheduling_dataset', 'encoders', $outputPath)
         );
 
-        $this->writeEncoders($processedRows, $avgScore, $encoderPath, $rows);
+        $this->writeEncoders(
+            $processedRows, 
+            $avgScore, 
+            $encoderPath, 
+            $rows, 
+            $courseCodeEncoder
+        );
 
         $this->displaySummary(
             $count, 
@@ -250,22 +271,33 @@ class ExportMlDataset extends Command
      * 
      * @param object $row
      * @param float $score
+     * @param array $courseCodeEncoder
      * @return array
      */
-    private function encodeRow($row, $score)
+    private function encodeRow($row, $score, array $courseCodeEncoder)
     {
         $startMin = $this->timeToMinutes($row->preferred_start_time);
         $endMin = $this->timeToMinutes($row->preferred_end_time);
+        $code = $row->course_code ?? '<UNKNOWN>';
 
         return [
             'faculty_id' => $row->faculty_id,
             'academic_year_id' => $row->academic_year_id,
             'semester_id' => $row->semester_id,
             'active_semester_id' => $row->active_semester_id,
-            'course_assignment_id' => $row->course_assignment_id,
-            'sections_per_program_year_id' => $row->sections_per_program_year_id,
+            'course_assignment_id' => (int) ($row->course_assignment_id ?? 0),
+            'sections_per_program_year_id' => (int) (
+                $row->sections_per_program_year_id ?? 0
+            ),
+            'course_code_encoded' => $courseCodeEncoder[$code] ?? 0,
+            'lec_hours' => (int) ($row->lec_hours ?? 0),
+            'lab_hours' => (int) ($row->lab_hours ?? 0),
+            'tuition_hours' => (int) ($row->tuition_hours ?? 0),
             'is_ignored' => (int) $row->is_ignored,
-            'preferred_day_encoded' => $this->dayEncoding[$row->preferred_day] ?? -1,
+            'is_auto_submitted' => (int) ($row->is_auto_submitted ?? 0),
+            'preferred_day_encoded' => (
+                $this->dayEncoding[$row->preferred_day] ?? -1
+            ),
             'preferred_start_min' => $startMin,
             'preferred_end_min' => $endMin,
             'duration_min' => max(0, $endMin - $startMin),
@@ -322,10 +354,16 @@ class ExportMlDataset extends Command
      * @param float $avgScore
      * @param string $path
      * @param mixed $rawRows
+     * @param array $courseCodeEncoder
      * @return void
      */
-    private function writeEncoders($rows, $avgScore, $path, $rawRows)
-    {
+    private function writeEncoders(
+        $rows, 
+        $avgScore, 
+        $path, 
+        $rawRows, 
+        array $courseCodeEncoder
+    ) {
         $yearLabels = collect($rawRows)
             ->map(fn($r) => "{$r->year_start}-{$r->year_end}")
             ->unique()
@@ -341,12 +379,13 @@ class ExportMlDataset extends Command
             ->all();
 
         $metadata = [
-            'model_version' => '2026-S1',
+            'model_version' => '2026-v2',
             'exported_at' => now()->toIso8601String(),
             'total_rows' => count($rows),
             'average_match_score' => round($avgScore, 4),
             'training_years' => $yearLabels,
             'training_semesters' => $semesters,
+            'course_code_encoding' => $courseCodeEncoder,
             'day_encoding' => $this->dayEncoding,
             'schema' => array_keys($rows[0])
         ];
@@ -373,6 +412,11 @@ class ExportMlDataset extends Command
                 'p.course_assignment_id',
                 'p.sections_per_program_year_id',
                 'p.is_ignored',
+                'p.is_auto_submitted',
+                'c.course_code',
+                'c.lec_hours',
+                'c.lab_hours',
+                'c.tuition_hours',
                 'pd.preferred_day',
                 'pd.preferred_start_time',
                 'pd.preferred_end_time',
@@ -400,13 +444,35 @@ class ExportMlDataset extends Command
                 '=', 
                 'pd.preference_id'
             )
+            ->leftJoin(
+                'course_assignments as ca', 
+                'p.course_assignment_id', 
+                '=', 
+                'ca.course_assignment_id'
+            )
+            ->leftJoin(
+                'temporary_course_offerings as tco', 
+                'p.temporary_course_offering_id', 
+                '=', 
+                'tco.temporary_course_offering_id'
+            )
+            ->leftJoin('courses as c', function($join) {
+                $join->on(
+                    'c.course_id', 
+                    '=', 
+                    DB::raw('COALESCE(ca.course_id, tco.course_id)')
+                );
+            })
             ->leftJoin('section_courses as sc', function($join) {
-                $join->on('p.course_assignment_id', '=', 'sc.course_assignment_id')
-                     ->on(
-                        'p.sections_per_program_year_id', 
-                        '=', 
-                        'sc.sections_per_program_year_id'
-                    );
+                $join->on(
+                    'p.course_assignment_id', 
+                    '=', 
+                    'sc.course_assignment_id'
+                )->on(
+                    'p.sections_per_program_year_id', 
+                    '=', 
+                    'sc.sections_per_program_year_id'
+                );
             })
             ->leftJoin('schedules as s', function($join) {
                 $join->on('sc.section_course_id', '=', 's.section_course_id')

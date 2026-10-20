@@ -322,6 +322,7 @@ class PreferenceController extends Controller
                     'co.course_title',
                     'co.lec_hours',
                     'co.lab_hours',
+                    'co.tuition_hours',
                     'co.units',
                     'p.program_code'
                 )
@@ -379,8 +380,10 @@ class PreferenceController extends Controller
                         ],
                         'lec_hours'            => is_numeric($preference->lec_hours) ? (int) $preference->lec_hours : 0,
                         'lab_hours'            => is_numeric($preference->lab_hours) ? (int) $preference->lab_hours : 0,
+                        'tuition_hours'        => is_numeric($preference->tuition_hours) ? (int) $preference->tuition_hours : 0,
                         'units'                => $preference->units ?? 0,
                         'preferred_days'       => $preferenceDays,
+                        'is_auto_submitted'    => (bool) ($preference->is_auto_submitted ?? false),
                         'is_temporary'          => false,
                         'temporary_type'        => null,
                         'temporary_status'      => null,
@@ -428,8 +431,10 @@ class PreferenceController extends Controller
                         ],
                         'lec_hours'            => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'            => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
+                        'tuition_hours'        => is_numeric($temporaryOffering->tuition_hours) ? (int) $temporaryOffering->tuition_hours : 0,
                         'units'                => $temporaryOffering->units ?? 0,
                         'preferred_days'       => $preferenceDays,
+                        'is_auto_submitted'    => (bool) ($preference->is_auto_submitted ?? false),
                         'is_temporary'          => true,
                         'temporary_type'        => $temporaryOffering->type ?? null,
                         'temporary_status'      => $temporaryOffering->status ?? null,
@@ -585,6 +590,7 @@ class PreferenceController extends Controller
                     'co.course_title',
                     'co.lec_hours',
                     'co.lab_hours',
+                    'co.tuition_hours',
                     'co.units',
                     'p.program_code'
                 )
@@ -658,10 +664,14 @@ class PreferenceController extends Controller
                             ],
                             'lec_hours'      => is_numeric($submittedCourse->lec_hours) ? (int) $submittedCourse->lec_hours : 0,
                             'lab_hours'      => is_numeric($submittedCourse->lab_hours) ? (int) $submittedCourse->lab_hours : 0,
+                            'tuition_hours'  => is_numeric($submittedCourse->tuition_hours) ? (int) $submittedCourse->tuition_hours : 0,
                             'units'          => $submittedCourse->units ?? 0,
                             'preferred_days' => $preferenceDays,
                             'preferences_id' => $preference->preferences_id,
                             'is_ignored'     => (bool) $preference->is_ignored,
+                            'is_auto_submitted' => (bool) (
+                                $preference->is_auto_submitted ?? false
+                            ),
                             'is_temporary'          => false,
                             'temporary_type'        => null,
                             'temporary_status'      => null,
@@ -710,10 +720,14 @@ class PreferenceController extends Controller
                         ],
                         'lec_hours'      => is_numeric($temporaryOffering->lec_hours) ? (int) $temporaryOffering->lec_hours : 0,
                         'lab_hours'      => is_numeric($temporaryOffering->lab_hours) ? (int) $temporaryOffering->lab_hours : 0,
+                        'tuition_hours'  => is_numeric($temporaryOffering->tuition_hours) ? (int) $temporaryOffering->tuition_hours : 0,
                         'units'          => $temporaryOffering->units ?? 0,
                         'preferred_days' => $preferenceDays,
                         'preferences_id' => $preference->preferences_id,
                         'is_ignored'     => (bool) $preference->is_ignored,
+                        'is_auto_submitted' => (bool) (
+                            $preference->is_auto_submitted ?? false
+                        ),
                         'is_temporary'          => true,
                         'temporary_type'        => $temporaryOffering->type ?? null,
                         'temporary_status'      => $temporaryOffering->status ?? null,
