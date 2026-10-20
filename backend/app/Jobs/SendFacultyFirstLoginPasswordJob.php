@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\EmailDispatchLog;
+use App\Services\EmailValidationService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
@@ -87,6 +88,25 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                 EmailDispatchLog::where('id', $this->dispatchLogId)->update([
                     'status'        => 'failed',
                     'error_message' => 'Skipped: missing email address.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $validation = EmailValidationService::validate($email);
+
+        if (!$validation['valid']) {
+            Log::warning(
+                "Skipping faculty first login password email: " .
+                $validation['reason']
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => $validation['reason'],
                     'processed_at'  => Carbon::now(),
                 ]);
             }

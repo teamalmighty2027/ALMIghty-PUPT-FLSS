@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Faculty;
 use App\Models\EmailDispatchLog;
+use App\Services\EmailValidationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -77,6 +78,63 @@ class NotifyFacultyDeadlineSingleJob implements ShouldQueue
                 EmailDispatchLog::where('id', $this->dispatchLogId)->update([
                     'status'        => 'failed',
                     'error_message' => 'Skipped: faculty email is missing.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        if ($facultyUser->status !== 'Active') {
+            Log::warning(
+                "Skipping deadline email for faculty ID: {$this->faculty->id}" .
+                " because faculty member is not active."
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: Faculty member is inactive ' .
+                        'or retired.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $preferenceSetting = $this->faculty->preferenceSetting;
+
+        if (!$preferenceSetting || !$preferenceSetting->is_enabled) {
+            Log::warning(
+                "Skipping deadline email for faculty ID: {$this->faculty->id}" .
+                " because preference submission is disabled."
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => 'Skipped: Preference submission is ' .
+                        'disabled.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $validation = EmailValidationService::validate($facultyUser->email);
+
+        if (!$validation['valid']) {
+            Log::warning(
+                "Skipping deadline email for faculty ID: {$this->faculty->id}" .
+                " - {$validation['reason']}"
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => $validation['reason'],
                     'processed_at'  => Carbon::now(),
                 ]);
             }

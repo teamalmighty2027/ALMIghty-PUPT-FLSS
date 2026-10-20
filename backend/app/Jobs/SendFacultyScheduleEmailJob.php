@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\EmailDispatchLog;
+use App\Services\EmailValidationService;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Bus\Queueable;
@@ -107,6 +108,25 @@ class SendFacultyScheduleEmailJob implements ShouldQueue
                 EmailDispatchLog::where('id', $this->dispatchLogId)->update([
                     'status'        => 'failed',
                     'error_message' => 'Skipped: missing email address.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $validation = EmailValidationService::validate($email);
+
+        if (!$validation['valid']) {
+            Log::warning(
+                "Skipping schedule email: invalid email for faculty ID " .
+                ($this->faculty->id ?? 'unknown') . " - {$validation['reason']}"
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => $validation['reason'],
                     'processed_at'  => Carbon::now(),
                 ]);
             }
