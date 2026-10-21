@@ -50,9 +50,33 @@ class FacultyTimePlotController extends Controller
             $caps[$config->time_type] = $config->weekly_hours_cap;
         }
 
+        $faculty = Faculty::with(['facultyType', 'profile'])
+            ->find($faculty_id);
+        $academicRank = $faculty?->profile?->academic_rank;
+        $isAssociateOrUp = $this->isAssociateOrHigher($academicRank);
+
+        $facultyType = $faculty?->facultyType;
+        $facultyTypeName = $facultyType?->faculty_type ?? '';
+        $isDesignee = !is_null($facultyType?->designee_role_id) ||
+            str_contains(strtolower($facultyTypeName), 'designee');
+        $isPartTime = str_contains(strtolower($facultyTypeName), 'part-time') ||
+            str_contains(strtolower($facultyTypeName), 'part time');
+
+        $eligibleTypes = [];
+
+        if (!$isPartTime) {
+            if ($isDesignee) {
+                $eligibleTypes = ['night_service', 'official_time'];
+            } else if ($isAssociateOrUp) {
+                $eligibleTypes = ['advising_time'];
+            }
+        }
+
         return response()->json([
             'time_plots' => $timePlots,
             'caps' => $caps,
+            'academic_rank' => $academicRank,
+            'eligible_types' => $eligibleTypes,
         ]);
     }
 
@@ -88,7 +112,7 @@ class FacultyTimePlotController extends Controller
         $endTime = $request->input('end_time');
 
         // Retrieve faculty with relation
-        $faculty = Faculty::with('facultyType')->find($facultyId);
+        $faculty = Faculty::with(['facultyType', 'profile'])->find($facultyId);
         $facultyType = $faculty->facultyType;
 
         if (!$facultyType) {
@@ -120,6 +144,17 @@ class FacultyTimePlotController extends Controller
                 ], 422);
             }
         } else {
+            $academicRank = $faculty->profile?->academic_rank;
+            $isAssociateOrUp = $this->isAssociateOrHigher($academicRank);
+
+            if (!$isAssociateOrUp) {
+                return response()->json([
+                    'message' => 'Advising Time is only available for'
+                        . ' faculty with academic rank Associate Professor'
+                        . ' or higher.'
+                ], 422);
+            }
+
             if ($timeType !== 'advising_time') {
                 return response()->json([
                     'message' => 'Regular and Temporary faculty are'
@@ -291,5 +326,31 @@ class FacultyTimePlotController extends Controller
         $minutes = (int) $parts[1];
 
         return ($hours * 60) + $minutes;
+    }
+
+    /**
+     * Determines whether an academic rank is Associate Professor or higher.
+     *
+     * @param string|null $rank The academic rank string
+     * @return bool True if Associate Professor or Professor
+     */
+    private function isAssociateOrHigher(?string $rank): bool
+    {
+        if (!$rank) {
+            return false;
+        }
+
+        $lower = strtolower(trim($rank));
+
+        if (str_contains($lower, 'associate professor')) {
+            return true;
+        }
+
+        if (str_contains($lower, 'professor') && 
+            !str_contains($lower, 'assistant')) {
+            return true;
+        }
+
+        return false;
     }
 }
