@@ -321,6 +321,9 @@ export class ReportFacultyAssignmentComponent implements OnInit, AfterViewInit, 
         academicYear: this.academicYearLabel, 
         semester: this.semesterLabel,
         showViewToggle: false,
+        facultyId: currentFaculty.faculty_id,
+        facultyType: currentFaculty.faculty_type,
+        academicRank: currentFaculty.academic_rank,
         showAssignmentSummary: true, 
         generatePdfFunction: (preview: boolean, currentDialogData?: any[]) => {
           // Always re-fetch latest faculty at generation time too

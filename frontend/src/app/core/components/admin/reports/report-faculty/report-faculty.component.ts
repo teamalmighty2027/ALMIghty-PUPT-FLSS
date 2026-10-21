@@ -40,6 +40,7 @@ interface Faculty {
   facultyName: string;
   facultyCode: string;
   facultyType: string;
+  academicRank?: string;
   facultyUnits: number;
   regularUnits?: number;
   additionalUnits?: number;
@@ -269,6 +270,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
             facultyName: faculty.faculty_name,
             facultyCode: faculty.faculty_code,
             facultyType: faculty.faculty_type,
+            academicRank: faculty.academic_rank,
             status: faculty.status || 'Active',
             facultyUnits: faculty.assigned_units,
             regularUnits: faculty.regular_units,
@@ -395,6 +397,7 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
         facultyId: faculty.facultyId,
         termId: this.selectedTermId,
         facultyType: faculty.facultyType,
+        academicRank: faculty.academicRank,
         isAdmin: true
       },
     });

@@ -206,6 +206,12 @@ class ReportsController extends Controller
                 '=',
                 'faculty_type.faculty_type_id'
             )
+            ->leftJoin(
+                'user_profile',
+                'users.id',
+                '=',
+                'user_profile.user_id'
+            )
             ->leftJoinSub(
                 $schedulesSub,
                 'current_schedules',
@@ -329,6 +335,7 @@ class ReportsController extends Controller
                 'users.id as user_id',
                 'users.code as faculty_code',
                 'users.status as status',
+                'user_profile.academic_rank',
                 'faculty_type.faculty_type',
                 'faculty_type.regular_units',
                 'faculty_type.additional_units',
@@ -404,6 +411,7 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'academic_rank' => $schedule->academic_rank,
                     'status' => $schedule->status ?? (
                         $users[$schedule->user_id]->status ?? 'Active'
                     ),
@@ -1015,7 +1023,7 @@ class ReportsController extends Controller
         }
 
         // Step 3: Get faculty basic info
-        $faculty = Faculty::with(['user', 'facultyType'])
+        $faculty = Faculty::with(['user', 'facultyType', 'profile'])
             ->where('id', $faculty_id)
             ->first();
 
@@ -1028,7 +1036,9 @@ class ReportsController extends Controller
             'user_id' => $faculty->user->id,
             'faculty_code' => $faculty->user->code,
             'faculty_type' => $faculty->facultyType->faculty_type,
-            'faculty_name' => "{$faculty->user->last_name}, {$faculty->user->first_name}",
+            'academic_rank' => $faculty->profile?->academic_rank,
+            'faculty_name' => 
+                "{$faculty->user->last_name}, {$faculty->user->first_name}",
         ];
 
         // Step 4: Prepare the base response
@@ -1047,6 +1057,7 @@ class ReportsController extends Controller
                 'faculty_name' => 'N/A',
                 'faculty_code' => $faculty->user->code,
                 'faculty_type' => $faculty->facultyType->faculty_type,
+                'academic_rank' => $faculty->profile?->academic_rank,
                 'assigned_units' => 0,
                 'total_hours' => 0,
                 'is_published' => 0,
