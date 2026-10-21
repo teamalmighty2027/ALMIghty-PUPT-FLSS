@@ -26,7 +26,12 @@
         https://test-flss.alquatrilixbsit2027.com
         https://flss.alquatrilixbsit2027.com;
       frame-ancestors 'self';
-      object-src 'none';
+      frame-src 'self' blob:
+        https://www.youtube-nocookie.com
+        https://www.youtube.com;
+      object-src 'self' blob:;
+      child-src 'self' blob:;
+      worker-src 'self' blob:;
       base-uri 'self';" />
 
   <!-- Favicon and App Icons -->
