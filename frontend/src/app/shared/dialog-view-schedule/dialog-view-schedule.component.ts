@@ -49,6 +49,7 @@ interface ViewScheduleDialogData {
   facultyId?: number;
   termId?: number;
   facultyType?: string;
+  academicRank?: string;
   isAdmin?: boolean;
   regularUnits?: number;
   additionalUnits?: number;
@@ -141,7 +142,7 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       s => s.assignment_type_id !== s.originalAssignmentTypeId
     );
     const hasTimePlotChanges = this.pendingAdditions.length > 0 ||
-                               this.pendingDeletions.length > 0;
+                                this.pendingDeletions.length > 0;
     return hasLoadTypeChanges || hasTimePlotChanges;
   }
 
@@ -538,6 +539,21 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
 
 
   /**
+   * Determines if an academic rank is Associate Professor or higher.
+   */
+  isAssociateOrHigher(rank?: string | null): boolean {
+    if (!rank) return false;
+    const lower = rank.toLowerCase();
+    if (lower.includes('associate professor')) {
+      return true;
+    }
+    if (lower.includes('professor') && !lower.includes('assistant')) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Identifies eligible time types based on faculty role/type.
    */
   getEligibleTypes(): void {
@@ -545,12 +561,18 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
     if (type.includes('Designee') || type.startsWith('Designee')) {
       this.eligibleTypes = ['night_service', 'official_time'];
     } else if (type === 'Full-Time' || type === 'Temporary') {
-      this.eligibleTypes = ['advising_time'];
+      if (this.isAssociateOrHigher(this.data.academicRank)) {
+        this.eligibleTypes = ['advising_time'];
+      } else {
+        this.eligibleTypes = [];
+      }
     } else {
       this.eligibleTypes = [];
     }
     if (this.eligibleTypes.length > 0) {
       this.selectedType = this.eligibleTypes[0];
+    } else {
+      this.selectedType = '';
     }
   }
 
@@ -640,6 +662,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
         next: (res) => {
           this.originalTimePlots = res.time_plots || [];
           this.timePlotCaps = res.caps || {};
+          if (res.academic_rank && !this.data.academicRank) {
+            this.data.academicRank = res.academic_rank;
+          }
+          if (res.eligible_types) {
+            this.eligibleTypes = res.eligible_types;
+            if (!this.eligibleTypes.includes(this.selectedType)) {
+              this.selectedType = this.eligibleTypes[0] || '';
+            }
+          }
           this.syncLocalTimePlotsState();
         },
         error: (err) => console.error('Failed to load time plots', err)
@@ -725,6 +756,15 @@ export class DialogViewScheduleComponent implements OnInit, OnDestroy {
       this.snackBar.open('Please fill out all fields.', 'Close', {
         duration: 3000
       });
+      return;
+    }
+
+    if (!this.eligibleTypes.includes(this.selectedType)) {
+      this.snackBar.open(
+        'Selected time plot type is not eligible for this faculty member.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 

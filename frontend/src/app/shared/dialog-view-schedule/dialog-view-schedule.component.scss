@@ -71,7 +71,7 @@
     $justify: flex-start,
     $gap: var(--spacing-xl)
   );
-  flex-shrink: 0;
+  flex-shrink: 0; 
   height: auto;
 
   .schedule-group {
@@ -96,7 +96,7 @@
     $align: stretch,
     $justify: flex-start
   );
-  flex-shrink: 0;
+  flex-shrink: 0; 
   height: auto;
 }
 
@@ -107,6 +107,28 @@
   padding-top: var(--spacing-sm);
   border-top: 1px solid rgba(0,0,0,0.05);
   
+  .pdf-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-grow: 1;
+
+    .warning-icon {
+      color: #666;
+    }
+
+    .warning-text {
+      color: #666;
+      font-size: 0.9rem;
+    }
+  }
+
+  .action-buttons-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
   .close-button {
     color: var(--primary-text);
   }
@@ -327,6 +349,15 @@
     line-height: 1.35;
   }
 
+  .configure-load-types-option {
+    color: #800000 !important;
+    font-weight: 500;
+
+    .configure-icon {
+      color: #800000;
+    }
+  }
+
   .assignment-type-cell {
     vertical-align: middle;
     padding-top: 6px;
@@ -404,27 +435,81 @@
   height: 100%;
   border: none;
   display: block;
+  background-color: #525659;
 }
 
 // --- Faculty Time Plots Styles ---
+.time-plots-card {
+  .summary-title {
+    margin-top: 24px;
+    margin-bottom: 16px;
+  }
+}
+
 .time-plots-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 20px;
+
   .form-field {
     ::ng-deep .mat-mdc-form-field-subscript-wrapper {
       display: none !important;
+    }
+
+    &.field-type {
+      flex: 1;
+      min-width: 150px;
+    }
+
+    &.field-day {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    &.field-night-slot {
+      width: 200px;
+    }
+
+    &.field-time {
+      width: 135px;
     }
   }
 
   .add-button {
     background-color: var(--primary-color, #800000) !important;
     color: white !important;
+    height: 48px;
   }
 }
 
 .remaining-hours-badges {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+
   .badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    border: 1px solid #ccc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background-color: var(--neutral-space);
     border-color: var(--neutral-border) !important;
     color: var(--neutral-base);
+
+    .badge-label {
+      opacity: 0.8;
+    }
+
+    .badge-value {
+      font-weight: 600;
+    }
 
     &.badge-complete {
       background-color: var(--green-fade-lighter);
@@ -437,6 +522,25 @@
       border-color: var(--primary-warning) !important;
       color: var(--primary-warning);
     }
+  }
+}
+
+.time-plots-ineligible-notice {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background-color: var(--neutral-space, #f8f9fa);
+  border: 1px solid var(--neutral-border, #e9ecef);
+  border-radius: 8px;
+  color: var(--secondary-text, #6c757d);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .notice-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
   }
 }
 
@@ -461,6 +565,11 @@
     font-weight: bold;
     padding: 12px 16px;
     color: var(--neutral-base);
+
+    &.action-col {
+      text-align: center;
+      width: 100px;
+    }
   }
 
   tbody tr {
@@ -470,6 +579,10 @@
   td {
     color: var(--neutral-base);
     padding: 12px 16px;
+
+    &.action-cell {
+      text-align: center;
+    }
   }
 
   .no-data-cell {
@@ -482,6 +595,11 @@
 .type-badge {
   display: inline-block;
   white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  text-transform: uppercase;
 
   &.badge-night_service {
     background-color: var(--blue-fade-lighter);

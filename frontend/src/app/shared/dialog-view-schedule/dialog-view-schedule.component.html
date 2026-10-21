@@ -133,8 +133,13 @@
 
                   <mat-divider></mat-divider>
                   
-                  <mat-option value="CONFIGURE" style="color: #800000; font-weight: 500;">
-                    <mat-icon style="color: #800000;">settings_applications</mat-icon> Configure Load Types
+                  <mat-option
+                    value="CONFIGURE"
+                    class="configure-load-types-option">
+                    <mat-icon class="configure-icon">
+                      settings_applications
+                    </mat-icon>
+                    Configure Load Types
                   </mat-option>
                   
                 </mat-select>
@@ -158,22 +163,33 @@
       <!-- Faculty Time Plots Panel -->
       @if (showTimePlotPanel) {
         <div class="time-plots-card summary-table-container" [@fadeAnimation]>
-          <h3 class="summary-title" style="margin-top: 24px; margin-bottom: 16px;">
+          <h3 class="summary-title">
             Faculty Time Assignments
           </h3>
           
+          @if (eligibleTypes.length > 0) {
           <!-- Creation Form -->
-          <div class="time-plots-form" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 20px;">
-            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 150px;" subscriptSizing="dynamic">
+          <div class="time-plots-form">
+            <mat-form-field
+              appearance="outline"
+              class="form-field field-type"
+              subscriptSizing="dynamic">
               <mat-label>Type</mat-label>
-              <mat-select [(ngModel)]="selectedType" (selectionChange)="onTypeChange($event.value)">
+              <mat-select
+                [(ngModel)]="selectedType"
+                (selectionChange)="onTypeChange($event.value)">
                 @for (type of eligibleTypes; track type) {
-                  <mat-option [value]="type">{{ getDisplayTypeName(type) }}</mat-option>
+                  <mat-option [value]="type">
+                    {{ getDisplayTypeName(type) }}
+                  </mat-option>
                 }
               </mat-select>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="form-field" style="flex: 1; min-width: 120px;" subscriptSizing="dynamic">
+            <mat-form-field
+              appearance="outline"
+              class="form-field field-day"
+              subscriptSizing="dynamic">
               <mat-label>Day</mat-label>
               <mat-select [(ngModel)]="selectedDay">
                 <mat-option value="Monday">Monday</mat-option>
@@ -189,8 +205,7 @@
             @if (selectedType === 'night_service') {
               <mat-form-field
                 appearance="outline"
-                class="form-field"
-                style="width: 200px;"
+                class="form-field field-night-slot"
                 subscriptSizing="dynamic">
                 <mat-label>Time Slot</mat-label>
                 <mat-select
@@ -206,8 +221,7 @@
             } @else {
               <mat-form-field
                 appearance="outline"
-                class="form-field"
-                style="width: 135px;"
+                class="form-field field-time"
                 subscriptSizing="dynamic">
                 <mat-label>Start Time</mat-label>
                 <mat-select
@@ -221,8 +235,7 @@
 
               <mat-form-field
                 appearance="outline"
-                class="form-field"
-                style="width: 135px;"
+                class="form-field field-time"
                 subscriptSizing="dynamic">
                 <mat-label>End Time</mat-label>
                 <mat-select [(ngModel)]="endTime" [disabled]="!startTime">
@@ -234,13 +247,18 @@
             }
 
 
-            <button mat-flat-button color="primary" class="add-button" (click)="onAddTimePlot()" [disabled]="isAddingTimePlot" style="height: 48px;">
+            <button
+              mat-flat-button
+              color="primary"
+              class="add-button"
+              (click)="onAddTimePlot()"
+              [disabled]="isAddingTimePlot">
               <mat-icon>add</mat-icon> Add Time
             </button>
           </div>
 
           <!-- Cap & Remaining Badges -->
-          <div class="remaining-hours-badges" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+          <div class="remaining-hours-badges">
             @for (type of eligibleTypes; track type) {
               <div
                 class="badge"
@@ -249,15 +267,25 @@
                     !(type === 'night_service' && getPlottedHours(type) > 15),
                   'badge-exceeded': type === 'night_service' &&
                     getPlottedHours(type) > 15
-                }"
-                style="padding: 8px 16px; border-radius: 20px; font-weight: 500; font-size: 0.85rem; border: 1px solid #ccc; display: flex; align-items: center; gap: 8px;">
-                <span class="badge-label" style="opacity: 0.8;">{{ getDisplayTypeName(type) }}:</span>
-                <span class="badge-value" style="font-weight: 600;">
-                  {{ getPlottedHours(type) }}h plotted / {{ getRemainingHours(type) }}h remaining
+                }">
+                <span class="badge-label">{{ getDisplayTypeName(type) }}:</span>
+                <span class="badge-value">
+                  {{ getPlottedHours(type) }}h plotted /
+                  {{ getRemainingHours(type) }}h remaining
                 </span>
               </div>
             }
           </div>
+
+          } @else {
+            <div class="time-plots-ineligible-notice">
+              <mat-icon class="notice-icon">info</mat-icon>
+              <span>
+                Advising Time is only available for faculty with academic rank
+                Associate Professor or higher.
+              </span>
+            </div>
+          }
 
           <!-- Table list of plots -->
           <div class="table-responsive time-plots-table-wrapper">
@@ -267,7 +295,7 @@
                   <th>Type</th>
                   <th>Day</th>
                   <th>Time</th>
-                  <th style="text-align: center; width: 100px;">Action</th>
+                  <th class="action-col">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -283,8 +311,7 @@
                       <td>
                         <span 
                           class="type-badge" 
-                          [ngClass]="'badge-' + plot.time_type" 
-                          style="padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">
+                          [ngClass]="'badge-' + plot.time_type">
                           {{ getDisplayTypeName(plot.time_type) }}
                         </span>
                       </td>
@@ -293,7 +320,7 @@
                         {{ formatTimeDisplay(plot.start_time) }} - 
                         {{ formatTimeDisplay(plot.end_time) }}
                       </td>
-                      <td style="text-align: center;">
+                      <td class="action-cell">
                         <button 
                           mat-icon-button 
                           color="warn" 
@@ -354,7 +381,7 @@
     <div class="dialog-pref-pdf-container">
       @if (pdfBlobUrl) {
       <div class="pdf-container">
-        <iframe [src]="pdfBlobUrl" class="pdf-iframe" style="background-color: #525659;"></iframe>
+        <iframe [src]="pdfBlobUrl" class="pdf-iframe"></iframe>
       </div>
       } @else {
       <div class="pdf-container">
@@ -367,12 +394,14 @@
 
   <!-- 3. FOOTER ACTIONS (Pinned) -->
   <div class="dialog-actions" [@fadeAnimation]>
-    <div class="pdf-warning" style="display: flex; align-items: center; gap: 8px; flex-grow: 1;">
-      <span class="warning-icon" mat-symbol="error" style="color: #666;"></span>
-      <span class="warning-text" style="color: #666; font-size: 0.9rem;">PDF preview may not work on some devices.</span>
+    <div class="pdf-warning">
+      <span class="warning-icon" mat-symbol="error"></span>
+      <span class="warning-text">
+        PDF preview may not work on some devices.
+      </span>
     </div>
 
-    <div class="action-buttons-wrapper" style="display: flex; gap: 8px; align-items: center;">
+    <div class="action-buttons-wrapper">
       
       <!-- NEW: Inline Unsaved Indicator -->
       @if (hasChanges && data.entity === 'faculty' && selectedView === 'table-view') {
@@ -393,7 +422,7 @@
       
       @if (selectedView === 'pdf-view' || data.exportType === 'all') {
         @if (data.generateExcelFunction) {
-          <button mat-flat-button class="excel-button" style="background-color: #1d6f42; color: white;" (click)="downloadExcel()">
+          <button mat-flat-button class="excel-button" (click)="downloadExcel()">
             <mat-icon>table_chart</mat-icon> Download Excel
           </button>
         }
