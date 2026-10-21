@@ -248,6 +248,21 @@ class FacultyController extends Controller
 
             if ($oldData['email'] != $user->email) {
                 $changes[] = "Email: {$oldData['email']} → {$user->email}";
+
+                $idpToken = $request->cookie('access_token')
+                    ?? $request->bearerToken()
+                    ?? $request->input('idp_access_token');
+
+                $idpSyncService = app(IdpSyncService::class);
+
+                $idpSyncService->syncUserToIdp(
+                    $user,
+                    [
+                        'email'     => $user->email,
+                        'old_email' => $oldData['email'],
+                        'token'     => $idpToken,
+                    ]
+                );
             }
 
             if ($oldData['status'] != $user->status) {
