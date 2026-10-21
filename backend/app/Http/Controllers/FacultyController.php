@@ -135,8 +135,16 @@ class FacultyController extends Controller
             DB::commit();
 
             // Background jobs for external services
-            SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
-            RegisterUserToIdpJob::dispatch($user, $validatedData['password']);
+            $user->setRelation('faculty', $faculty);
+
+            SendFacultyFirstLoginPasswordJob::dispatch(
+                $user,
+                $validatedData['password']
+            );
+            RegisterUserToIdpJob::dispatch(
+                $user,
+                $validatedData['password']
+            );
 
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {

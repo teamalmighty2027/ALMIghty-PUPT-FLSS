@@ -95,7 +95,7 @@ class UpdateUserEmailIdpJob implements ShouldQueue
         $baseUrl = config('services.idp.base_url');
 
         $endpoint = rtrim($baseUrl, '/') .
-            "/api/v1/admin/user/{$this->uuid}/email";
+            "/api/v1/admin/users/{$this->uuid}/email";
 
         $requestHttp = Http::withoutVerifying()
             ->asJson()
@@ -116,7 +116,11 @@ class UpdateUserEmailIdpJob implements ShouldQueue
             ?? env('IDP_ACCESS_TOKEN');
 
         if (!empty($token)) {
-            $requestHttp = $requestHttp->withToken($token);
+            $requestHttp = $requestHttp
+                ->withToken($token)
+                ->withHeaders([
+                    'Cookie' => "access_token={$token}",
+                ]);
 
             $domain = parse_url($baseUrl, PHP_URL_HOST);
 
