@@ -47,6 +47,26 @@
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
+  # Strip server information headers
+  Header always unset X-Powered-By
+  Header always unset Server
+
+  # Content Security Policy
+  Header always set Content-Security-Policy "\
+default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; \
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+font-src 'self' https://fonts.gstatic.com; \
+img-src 'self' data: blob: https://test-flss.alquatrilixbsit2027.com; \
+connect-src 'self' https://test-flss.alquatrilixbsit2027.com https://flss.alquatrilixbsit2027.com; \
+frame-ancestors 'self'; \
+object-src 'none'; \
+base-uri 'self';"
+
+  # Non-blocking Cross-Origin Isolation headers
+  Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+  Header always set Cross-Origin-Embedder-Policy "unsafe-none"
+
   # CORS Headers
   SetEnvIf Origin "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" AccessControlAllowOrigin=$0
   Header always set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
