@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\EmailDispatchLog;
+use App\Models\Faculty;
+use App\Models\User;
 use App\Services\EmailValidationService;
 use Carbon\Carbon;
 use Exception;
@@ -25,6 +27,41 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
 
     public $tries = 3;
     public $timeout = 60;
+
+    /**
+     * Resolve the faculty ID for the foreign key reference in dispatch logs.
+     *
+     * @param mixed $faculty
+     * @return int|null
+     */
+    protected function resolveFacultyId($faculty): ?int
+    {
+        if ($faculty instanceof Faculty) {
+            return $faculty->id;
+        }
+
+        if ($faculty instanceof User) {
+            return $faculty->faculty?->id
+                ?? Faculty::where('user_id', $faculty->id)->value('id');
+        }
+
+        if (is_object($faculty)) {
+            if (!empty($faculty->faculty_id)) {
+                return (int) $faculty->faculty_id;
+            }
+
+            if (!empty($faculty->faculty?->id)) {
+                return (int) $faculty->faculty?->id;
+            }
+
+            if (!empty($faculty->id) &&
+                Faculty::where('id', $faculty->id)->exists()) {
+                return (int) $faculty->id;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Create a new job instance.
@@ -50,8 +87,10 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                 ($facObj->last_name ?? '')
             );
 
+            $facultyId = $this->resolveFacultyId($faculty);
+
             $log = EmailDispatchLog::create([
-                'faculty_id'      => $facObj->id ?? null,
+                'faculty_id'      => $facultyId,
                 'recipient_email' => $email,
                 'recipient_name'  => $name ?: null,
                 'purpose'         => 'first_login_password',
@@ -139,8 +178,10 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                     'processed_at'    => Carbon::now(),
                 ]);
             } else {
+                $facId = $this->resolveFacultyId($this->faculty);
+
                 EmailDispatchLog::create([
-                    'faculty_id'      => $faculty->id ?? null,
+                    'faculty_id'      => $facId,
                     'recipient_email' => $email,
                     'recipient_name'  => $name ?: null,
                     'purpose'         => 'first_login_password',
@@ -163,8 +204,10 @@ class SendFacultyFirstLoginPasswordJob implements ShouldQueue
                     'processed_at'    => Carbon::now(),
                 ]);
             } else {
+                $facId = $this->resolveFacultyId($this->faculty);
+
                 EmailDispatchLog::create([
-                    'faculty_id'      => $faculty->id ?? null,
+                    'faculty_id'      => $facId,
                     'recipient_email' => $email,
                     'recipient_name'  => $name ?: null,
                     'purpose'         => 'first_login_password',
