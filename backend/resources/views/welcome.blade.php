@@ -129,6 +129,6 @@
                 </div>
             </div>
         </div>
-        @include('components.sienna')
+        @include('sienna')
     </body>
 </html>

@@ -1906,7 +1906,7 @@ class PreferenceController extends Controller
         $faculty_id = null
     ) {
         if ($faculty_id !== null) {
-            $request->merge(['faculty_id' => $faculty_id]);
+            $request->merge(['faculty_id' => intval($faculty_id)]);
         }
 
         // Step 1: Validate the input

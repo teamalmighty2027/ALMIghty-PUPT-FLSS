@@ -1436,8 +1436,10 @@ class ScheduleController extends Controller
             'is_published' => 'required|boolean',
         ]);
 
+        $isPublished = (bool) $validated['is_published'];
+
         try {
-            return DB::transaction(function () use ($validated) {
+            return DB::transaction(function () use ($validated, $isPublished) {
                 // Step 2: Get the active semester and academic year
                 $activeSemester = DB::table('active_semesters')
                     ->where('is_active', 1)
@@ -1475,7 +1477,7 @@ class ScheduleController extends Controller
                             'semester_id' => $activeSemester->semester_id,
                         ],
                         [
-                            'is_published' => $validated['is_published'],
+                            'is_published' => $isPublished,
                             'updated_at' => now(),
                         ]
                     );
@@ -1499,14 +1501,14 @@ class ScheduleController extends Controller
                     action: 'update',
                     description: sprintf(
                         "%s all faculty schedules (%d faculty) for %s",
-                        $validated['is_published'] ? 'Published' : 'Unpublished',
+                        $isPublished ? 'Published' : 'Unpublished',
                         $facultiesWithSchedules->count(),
                         "Academic Year {$activeSemester->academic_year_id}, Semester {$activeSemester->semester_id}"
                     ),
                     model: 'FacultySchedulePublication',
                     metadata: [
                         'faculty_count' => $facultiesWithSchedules->count(),
-                        'is_published' => $validated['is_published'],
+                        'is_published' => $isPublished,
                         'academic_year_id' => $activeSemester->academic_year_id,
                         'semester_id' => $activeSemester->semester_id
                     ]
@@ -1515,7 +1517,7 @@ class ScheduleController extends Controller
                 return response()->json([
                     'message' => 'Faculty schedule publications updated successfully',
                     'updated_count' => $facultiesWithSchedules->count(),
-                    'is_published' => $validated['is_published'],
+                    'is_published' => $isPublished,
                     'active_semester_id' => $activeSemester->active_semester_id,
                     'academic_year_id' => $activeSemester->academic_year_id,
                     'semester_id' => $activeSemester->semester_id,
@@ -1546,8 +1548,10 @@ class ScheduleController extends Controller
             'is_published' => 'required|boolean',
         ]);
 
+        $isPublished = (bool) $validated['is_published'];
+
         try {
-            return DB::transaction(function () use ($validated) {
+            return DB::transaction(function () use ($validated, $isPublished) {
                 $activeSemester = DB::table('active_semesters')
                     ->where('is_active', 1)
                     ->first();
@@ -1582,7 +1586,7 @@ class ScheduleController extends Controller
                         'semester_id' => $activeSemester->semester_id,
                     ],
                     [
-                        'is_published' => $validated['is_published'],
+                        'is_published' => $isPublished,
                         'updated_at' => now(),
                     ]
                 );
@@ -1614,21 +1618,21 @@ class ScheduleController extends Controller
                     action: 'update',
                     description: sprintf(
                         "%s schedule for %s",
-                        $validated['is_published'] ? 'Published' : 'Unpublished',
+                        $isPublished ? 'Published' : 'Unpublished',
                         $facultyName
                     ),
                     model: 'FacultySchedulePublication',
                     modelId: $validated['faculty_id'],
                     metadata: [
                         'faculty_id' => $validated['faculty_id'],
-                        'is_published' => $validated['is_published']
+                        'is_published' => $isPublished
                     ]
                 );
 
                 return response()->json([
                     'message' => 'Publication status updated successfully for the faculty',
                     'faculty_id' => $validated['faculty_id'],
-                    'is_published' => $validated['is_published'],
+                    'is_published' => $isPublished,
                 ]);
             });
         } catch (\Exception $e) {

@@ -109,7 +109,12 @@ export class DialogExportComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         this.currentRawBlobUrl = URL.createObjectURL(pdfBlob);
-        this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.currentRawBlobUrl); 
+        // Guard: only bypass security for verified internal blob URLs
+        if (this.currentRawBlobUrl?.startsWith('blob:')) {
+          this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.currentRawBlobUrl
+          );
+        }
     
         if (this.pdfIframe?.nativeElement) {
           this.pdfIframe.nativeElement.src = this.currentRawBlobUrl; 

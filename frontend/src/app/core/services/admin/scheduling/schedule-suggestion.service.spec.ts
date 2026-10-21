@@ -14,6 +14,7 @@ describe('ScheduleSuggestionService', () => {
     average_match_score: 0.5,
     training_years: ['2025-2026'],
     training_semesters: [1, 2],
+    course_code_encoding: { 'CS101': 0 },
     day_encoding: { 'Monday': 0, 'Tuesday': 1 },
     schema: ['faculty_id', 'preferred_day_encoded', 'preferred_start_min', 'match_score']
   };
