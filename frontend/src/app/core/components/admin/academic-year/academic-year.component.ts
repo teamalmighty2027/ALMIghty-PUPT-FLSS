@@ -70,7 +70,18 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
   facultyViewSemester = '';
 
   private destroy$ = new Subject<void>();
+
+  // Full-page initial loading state
   isLoading = true;
+
+  // Table-level loading state during academic year switches
+  isTableLoading = false;
+
+  // Minimum duration (ms) for loading state to prevent UI flicker
+  private readonly MIN_LOADING_TIME_MS = 300;
+
+  // Active timer reference for loading transition
+  private loadingTimer: ReturnType<typeof setTimeout> | null = null;
 
   headerInputFields: InputField[] = [
     {
@@ -104,6 +115,9 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    if (this.loadingTimer) {
+      clearTimeout(this.loadingTimer);
+    }
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -119,13 +133,15 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
       activeYearData: this.academicYearService.getActiveYearAndSemester(),
     })
       .pipe(takeUntil(this.destroy$))
-      .subscribe(
-        ({ academicYears, activeYearData }) => {
+      .subscribe({
+        next: ({ academicYears, activeYearData }) => {
           // Map academic years for dropdown
-          this.academicYearOptions = academicYears.map((ay: AcademicYear) => ({
-            academic_year_id: ay.academic_year_id,
-            academic_year: ay.academic_year,
-          }));
+          this.academicYearOptions = academicYears.map(
+            (ay: AcademicYear) => ({
+              academic_year_id: ay.academic_year_id,
+              academic_year: ay.academic_year,
+            })
+          );
 
           this.headerInputFields[0].options = this.academicYearOptions.map(
             (ay) => ay.academic_year
@@ -133,12 +149,15 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
           this.activeYear = activeYearData.activeYear;
           this.activeSemester = activeYearData.activeSemester.toString();
-          this.activeSemesterLabel = activeYearData.activeSemester.toString();
+          this.activeSemesterLabel =
+            activeYearData.activeSemester.toString();
           this.startDate = activeYearData.startDate;
           this.endDate = activeYearData.endDate;
-          
+
           this.facultyViewYear = activeYearData.facultyViewYear || 'None';
-          this.facultyViewSemester = activeYearData.facultyViewSemester ? activeYearData.facultyViewSemester.toString() : 'None';
+          this.facultyViewSemester = activeYearData.facultyViewSemester
+            ? activeYearData.facultyViewSemester.toString()
+            : 'None';
 
           // Find and set the currently active academic year
           const activeAcademicYear = this.academicYearOptions.find(
@@ -147,7 +166,8 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
 
           if (activeAcademicYear) {
             this.selectedAcademicYear = activeAcademicYear.academic_year;
-            this.selectedAcademicYearId = activeAcademicYear.academic_year_id;
+            this.selectedAcademicYearId =
+              activeAcademicYear.academic_year_id;
           } else if (this.academicYearOptions.length > 0) {
             const latestAcademicYear =
               this.academicYearOptions[0].academic_year;
@@ -163,27 +183,32 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             return;
           }
 
-          this.fetchProgramsForAcademicYear(this.selectedAcademicYear);
+          this.fetchProgramsForAcademicYear(
+            this.selectedAcademicYear,
+            true
+          );
         },
-        (error) => {
+        error: (error) => {
           this.isLoading = false;
           console.error('Error loading data:', error);
           this.snackBar.open('Failed to load data.', 'Close', {
             duration: 3000,
           });
-        }
-      );
+        },
+      });
   }
 
   /**
    * Load academic years and set the latest as selected.
    */
   loadAcademicYears() {
+    this.isTableLoading = true;
+
     this.academicYearService
       .getAcademicYears()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(
-        (academicYears: AcademicYear[]) => {
+      .subscribe({
+        next: (academicYears: AcademicYear[]) => {
           this.academicYearOptions = academicYears.map((ay) => ({
             academic_year_id: ay.academic_year_id,
             academic_year: ay.academic_year,
@@ -202,36 +227,48 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
             this.selectedAcademicYear = latestAcademicYear;
             this.selectedAcademicYearId = latestAcademicYearId;
 
-            this.fetchProgramsForAcademicYear(latestAcademicYear);
+            this.fetchProgramsForAcademicYear(latestAcademicYear, false);
           } else {
+            this.isTableLoading = false;
             this.snackBar.open('No academic years available.', 'Close', {
               duration: 3000,
             });
           }
         },
-        (error) => {
+        error: (error) => {
+          this.isTableLoading = false;
           console.error('Error loading academic years:', error);
           this.snackBar.open('Failed to load academic years.', 'Close', {
             duration: 3000,
           });
-        }
-      );
+        },
+      });
   }
 
   /**
    * Fetch programs associated with the selected academic year.
    * @param academicYear - The selected academic year.
+   * @param isInitial - Whether this is during the initial page load.
    */
-  fetchProgramsForAcademicYear(academicYear: string) {
+  fetchProgramsForAcademicYear(
+    academicYear: string,
+    isInitial = false
+  ) {
     const selectedYear = this.academicYearOptions.find(
       (year) => year.academic_year === academicYear
     );
 
     if (!selectedYear) {
       this.isLoading = false;
+      this.isTableLoading = false;
       return;
     }
 
+    if (!isInitial) {
+      this.isTableLoading = true;
+    }
+
+    const startTime = Date.now();
     this.selectedAcademicYearId = selectedYear.academic_year_id;
 
     this.academicYearService
@@ -239,27 +276,43 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
         academic_year_id: selectedYear.academic_year_id,
       })
       .pipe(takeUntil(this.destroy$))
-      .subscribe(
-        (response) => {
-          if (response.programs) {
-            this.programs = response.programs.map((program: any) => ({
-              program_id: program.program_id,
-              program_code: program.program_code,
-              program_title: program.program_title,
-              year_levels: program.year_levels,
-              sections: this.getSectionsByProgram(program),
-            }));
+      .subscribe({
+        next: (response) => {
+          const elapsed = Date.now() - startTime;
+          const remainingDelay = Math.max(
+            0,
+            this.MIN_LOADING_TIME_MS - elapsed
+          );
+
+          if (this.loadingTimer) {
+            clearTimeout(this.loadingTimer);
           }
-          this.isLoading = false;
+
+          this.loadingTimer = setTimeout(() => {
+            if (response.programs) {
+              this.programs = response.programs.map((program: any) => ({
+                program_id: program.program_id,
+                program_code: program.program_code,
+                program_title: program.program_title,
+                year_levels: program.year_levels,
+                sections: this.getSectionsByProgram(program),
+              }));
+            } else {
+              this.programs = [];
+            }
+            this.isLoading = false;
+            this.isTableLoading = false;
+          }, remainingDelay);
         },
-        (error) => {
+        error: (error) => {
           this.isLoading = false;
+          this.isTableLoading = false;
           console.error('Error fetching program details: ', error);
           this.snackBar.open('Failed to fetch program details.', 'Close', {
             duration: 3000,
           });
-        }
-      );
+        },
+      });
   }
 
   /**
@@ -275,13 +328,16 @@ export class AcademicYearComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handle input changes from the header (e.g., selecting a different academic year).
+   * Handle input changes from the header (e.g. selecting academic year).
    * @param values - The key-value pairs of input changes.
    */
   onInputChange(values: { [key: string]: any }) {
     if (values['academicYear']) {
       this.selectedAcademicYear = values['academicYear'];
-      this.fetchProgramsForAcademicYear(this.selectedAcademicYear);
+      this.fetchProgramsForAcademicYear(
+        this.selectedAcademicYear,
+        false
+      );
     }
   }
 
