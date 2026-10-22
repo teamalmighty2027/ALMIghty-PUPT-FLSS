@@ -1,11 +1,22 @@
-import { ApplicationConfig, provideZoneChangeDetection, isDevMode, ErrorHandler } from '@angular/core';
+import {
+  ApplicationConfig,
+  provideZoneChangeDetection,
+  isDevMode,
+  ErrorHandler,
+} from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
-import { MAT_RIPPLE_GLOBAL_OPTIONS, RippleGlobalOptions } from '@angular/material/core';
-import { MAT_DIALOG_DEFAULT_OPTIONS, MatDialogConfig } from '@angular/material/dialog';
+import {
+  MAT_RIPPLE_GLOBAL_OPTIONS,
+  RippleGlobalOptions,
+} from '@angular/material/core';
+import {
+  MAT_DIALOG_DEFAULT_OPTIONS,
+  MatDialogConfig,
+} from '@angular/material/dialog';
 
 import { AuthHeaderInterceptor } from './core/utils/auth-header.interceptor';
 import { CookieService } from 'ngx-cookie-service';
@@ -51,8 +62,8 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_RIPPLE_GLOBAL_OPTIONS, useValue: globalRippleConfig },
     { provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: globalDialogConfig }, 
     provideServiceWorker('ngsw-worker.js', {
-        enabled: !isDevMode(),
-        registrationStrategy: 'registerImmediately'
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
     }),
   ],
 };
