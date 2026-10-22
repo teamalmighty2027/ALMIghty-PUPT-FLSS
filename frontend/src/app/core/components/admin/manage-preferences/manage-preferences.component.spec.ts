@@ -277,4 +277,102 @@ describe('ManagePreferencesComponent', () => {
     expect(dialogSpy.open).toHaveBeenCalled();
     expect(preferencesServiceSpy.notifyFaculties).toHaveBeenCalledWith([1, 3]);
   });
+
+  it('returns false for isGloballyScheduled when start date is past', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 2);
+
+    component.allData = [
+      {
+        faculty_id: 1,
+        facultyName: 'Test Faculty',
+        facultyCode: 'TF-01',
+        facultyType: 'Full-time',
+        facultyUnits: 3,
+        is_enabled: false,
+        has_request: 0,
+        active_semesters: [
+          {
+            academic_year: '2024-2025',
+            semester_label: '1st Semester',
+            global_deadline: null,
+            global_start_date: pastDate.toISOString(),
+            individual_deadline: null,
+            individual_start_date: null,
+            courses: [],
+          },
+        ],
+      },
+    ] as any;
+
+    expect(component.isGloballyScheduled()).toBeFalse();
+  });
+
+  it('returns true for isGloballyScheduled when start date is future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 5);
+
+    component.allData = [
+      {
+        faculty_id: 1,
+        facultyName: 'Test Faculty',
+        facultyCode: 'TF-01',
+        facultyType: 'Full-time',
+        facultyUnits: 3,
+        is_enabled: false,
+        has_request: 0,
+        active_semesters: [
+          {
+            academic_year: '2024-2025',
+            semester_label: '1st Semester',
+            global_deadline: null,
+            global_start_date: futureDate.toISOString(),
+            individual_deadline: null,
+            individual_start_date: null,
+            courses: [],
+          },
+        ],
+      },
+    ] as any;
+
+    expect(component.isGloballyScheduled()).toBeTrue();
+  });
+
+  it('returns false for calculateIsIndividuallyScheduled when past', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 3);
+
+    const faculty = {
+      faculty_id: 2,
+      facultyName: 'Indiv Faculty',
+      is_enabled: false,
+      active_semesters: [
+        {
+          individual_start_date: pastDate.toISOString(),
+          individual_deadline: null,
+        },
+      ],
+    } as any;
+
+    expect(component.calculateIsIndividuallyScheduled(faculty)).toBeFalse();
+  });
+
+  it('returns true for calculateIsIndividuallyScheduled when future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 3);
+
+    const faculty = {
+      faculty_id: 2,
+      facultyName: 'Indiv Faculty',
+      is_enabled: false,
+      active_semesters: [
+        {
+          individual_start_date: futureDate.toISOString(),
+          individual_deadline: null,
+        },
+      ],
+    } as any;
+
+    expect(component.calculateIsIndividuallyScheduled(faculty)).toBeTrue();
+  });
 });

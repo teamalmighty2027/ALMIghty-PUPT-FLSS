@@ -1809,12 +1809,13 @@ class PreferenceController extends Controller
             }
 
             PreferencesSetting::query()->update([
-                'is_enabled'          => $finalStatus,
-                'global_deadline'     => $global_deadline,
-                'global_start_date'   => $global_start_date,
-                'individual_deadline' => null,
-                'has_request'         => 0,
-                'updated_at'          => now(),
+                'is_enabled'            => $finalStatus,
+                'global_deadline'       => $global_deadline,
+                'global_start_date'     => $global_start_date,
+                'individual_deadline'   => null,
+                'individual_start_date' => null,
+                'has_request'           => 0,
+                'updated_at'            => now(),
             ]);
 
             // Handle faculties without settings
@@ -1823,12 +1824,13 @@ class PreferenceController extends Controller
 
             foreach ($facultyWithoutSettings as $faculty) {
                 PreferencesSetting::create([
-                    'faculty_id'          => $faculty->id,
-                    'is_enabled'          => $status,
-                    'global_deadline'     => $global_deadline,
-                    'global_start_date'   => $global_start_date,
-                    'individual_deadline' => null,
-                    'has_request'         => 0,
+                    'faculty_id'            => $faculty->id,
+                    'is_enabled'            => $status,
+                    'global_deadline'       => $global_deadline,
+                    'global_start_date'     => $global_start_date,
+                    'individual_deadline'   => null,
+                    'individual_start_date' => null,
+                    'has_request'           => 0,
                 ]);
             }
 

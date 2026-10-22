@@ -18,48 +18,87 @@ class CheckPreferencesDeadline extends Command
     {
         $today = Carbon::now('Asia/Manila');
 
-        // Enable preferences if not enabled and past global start date
+        // Disable preferences and clear deadlines and start dates if past
         PreferencesSetting::query()
-            ->where('is_enabled', false)
-            ->whereDate(
-                'global_start_date',
-                '<=',
-                $today->copy()->startOfDay()
-            )
-            ->whereNotNull('global_start_date')
+            ->whereNotNull('global_deadline')
+            ->whereDate('global_deadline', '<', $today)
             ->update([
-                'is_enabled' => true,
+                'is_enabled'        => false,
+                'global_deadline'   => null,
+                'global_start_date' => null,
             ]);
 
-        // Enable preferences if not enabled and past individual start date
+        PreferencesSetting::query()
+            ->whereNotNull('individual_deadline')
+            ->whereDate('individual_deadline', '<', $today)
+            ->update([
+                'is_enabled'            => false,
+                'individual_deadline'   => null,
+                'individual_start_date' => null,
+            ]);
+
+        // Clean up orphaned past start dates for disabled preferences
         PreferencesSetting::query()
             ->where('is_enabled', false)
+            ->whereNull('global_deadline')
+            ->whereNotNull('global_start_date')
+            ->whereDate('global_start_date', '<=', $today->copy()->startOfDay())
+            ->update([
+                'global_start_date' => null,
+            ]);
+
+        PreferencesSetting::query()
+            ->where('is_enabled', false)
+            ->whereNull('individual_deadline')
+            ->whereNotNull('individual_start_date')
             ->whereDate(
                 'individual_start_date',
                 '<=',
                 $today->copy()->startOfDay()
             )
-            ->whereNotNull('individual_start_date')
+            ->update([
+                'individual_start_date' => null,
+            ]);
+
+        // Enable preferences if scheduled start date has arrived and active
+        PreferencesSetting::query()
+            ->where('is_enabled', false)
+            ->whereNotNull('global_start_date')
+            ->whereDate(
+                'global_start_date',
+                '<=',
+                $today->copy()->startOfDay()
+            )
+            ->where(function ($query) use ($today) {
+                $query->whereNull('global_deadline')
+                    ->orWhereDate(
+                        'global_deadline',
+                        '>=',
+                        $today->copy()->startOfDay()
+                    );
+            })
             ->update([
                 'is_enabled' => true,
             ]);
 
-        // Disable preferences and clear global deadlines if past
         PreferencesSetting::query()
-            ->where('is_enabled', true)
-            ->whereDate('global_deadline', '<', $today)
+            ->where('is_enabled', false)
+            ->whereNotNull('individual_start_date')
+            ->whereDate(
+                'individual_start_date',
+                '<=',
+                $today->copy()->startOfDay()
+            )
+            ->where(function ($query) use ($today) {
+                $query->whereNull('individual_deadline')
+                    ->orWhereDate(
+                        'individual_deadline',
+                        '>=',
+                        $today->copy()->startOfDay()
+                    );
+            })
             ->update([
-                'is_enabled' => false,
-                'global_deadline' => null,
-            ]);
-
-        // Disable preferences and clear individual deadlines if past
-        PreferencesSetting::query()
-            ->where('is_enabled', true)
-            ->whereDate('individual_deadline', '<', $today)
-            ->update([
-                'is_enabled' => false,
-                'individual_deadline' => null,
+                'is_enabled' => true,
             ]);
 
         $this->info('Preferences deadline check completed successfully.');

@@ -294,7 +294,7 @@ Update this table each time you retrain:
 | 2026-05-04 | 1,021 | 698 | S1→S2 | 0.3063 | -0.2610 | Fallback split used; negative R² found |
 | 2026-06-30 | 1572  | 393 | Random Split | 0.1797 | 0.4817 | 20% data split |
 | 2026-07-10 | 1713  | 429 | Random Split | 0.2063 | 0.4713 | 20% data split |
-| *Upcoming* | 1320  | 330 | Random 80/20 | TBD | TBD | v3 schema (17 cols, 1650 total rows) |
+| 2026-10-22 | 1884  | 472 | Random 80/20 | 0.1864 | 0.5272 | v2 schema (17 cols, 1650 total rows) |
 
 Out-of-range predictions: 27 rows (Angular clips these to 0–1)
 
