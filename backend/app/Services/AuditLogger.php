@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Auth;
 class AuditLogger
 {
     /**
+     * Custom handler callback used for testing without database.
+     *
+     * @var callable|null
+     */
+    public static $handler = null;
+
+    /**
      * Log an action in the audit trail
      */
     public static function log(
@@ -20,6 +27,11 @@ class AuditLogger
         ?array $newValues = null,
         ?array $metadata = null
     ): void {
+        if (self::$handler !== null) {
+            (self::$handler)($action, $description, $metadata);
+            return;
+        }
+
         $user = Auth::user();
         $request = request();
         $url = $request?->fullUrl();
