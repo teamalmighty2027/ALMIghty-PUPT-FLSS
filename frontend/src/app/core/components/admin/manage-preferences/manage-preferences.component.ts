@@ -441,10 +441,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * Detects whether a global start date has been set for any faculty.
    */
   checkGlobalStartDate(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     this.isGlobalStartDateSet = this.allData.some((faculty) =>
-      faculty.active_semesters?.some(
-        (semester) => semester.global_start_date !== null,
-      ),
+      faculty.active_semesters?.some((semester) => {
+        if (!semester.global_start_date) {
+          return false;
+        }
+        const startDate = new Date(semester.global_start_date);
+        startDate.setHours(0, 0, 0, 0);
+        return startDate.getTime() > today.getTime();
+      }),
     );
   }
 
@@ -452,10 +460,18 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * Detects whether any individual start dates have been configured.
    */
   checkIndividualStartDate(): void {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     this.isIndividualStartDateSet = this.allData.some((faculty) =>
-      faculty.active_semesters?.some(
-        (semester) => semester.individual_start_date !== null,
-      ),
+      faculty.active_semesters?.some((semester) => {
+        if (!semester.individual_start_date) {
+          return false;
+        }
+        const startDate = new Date(semester.individual_start_date);
+        startDate.setHours(0, 0, 0, 0);
+        return startDate.getTime() > today.getTime();
+      }),
     );
   }
 
@@ -507,16 +523,22 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Returns true if any faculty have a global start date or deadline
+   * Returns true if any faculty have a future global start date
    * configured for their active semester.
    */
   isGloballyScheduled(): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     return this.allData.some((faculty) =>
-      faculty.active_semesters?.some(
-        (semester) =>
-          semester.global_start_date !== null ||
-          semester.global_deadline !== null,
-      ),
+      faculty.active_semesters?.some((semester) => {
+        if (!semester.global_start_date) {
+          return false;
+        }
+        const startDate = new Date(semester.global_start_date);
+        startDate.setHours(0, 0, 0, 0);
+        return startDate.getTime() > today.getTime();
+      }),
     );
   }
 
@@ -543,17 +565,23 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Determines whether the given faculty has any individual start
-   * date or deadline configured.
+   * Determines whether the given faculty has a future individual start
+   * date configured.
    * @param faculty Faculty to check.
    */
   calculateIsIndividuallyScheduled(faculty: Faculty): boolean {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     return (
-      faculty.active_semesters?.some(
-        (semester) =>
-          semester.individual_start_date !== null ||
-          semester.individual_deadline !== null,
-      ) ?? false
+      faculty.active_semesters?.some((semester) => {
+        if (!semester.individual_start_date) {
+          return false;
+        }
+        const startDate = new Date(semester.individual_start_date);
+        startDate.setHours(0, 0, 0, 0);
+        return startDate.getTime() > today.getTime();
+      }) ?? false
     );
   }
 

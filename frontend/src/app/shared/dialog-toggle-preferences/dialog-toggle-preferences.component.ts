@@ -203,11 +203,16 @@ export class DialogTogglePreferencesComponent {
     if (this.startDate) this.calculateRemainingDaysStart();
 
     this.hasIndividualDeadlines = this.data.hasIndividualDeadlines || false;
-    const hasScheduledDate = Boolean(
-      this.data.global_start_date || this.data.individual_start_date
-    );
-    this.isPreferencesScheduled =
-      hasScheduledDate && !this.data.currentState;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const scheduledDate =
+      this.data.individual_start_date || this.data.global_start_date;
+    const isFutureStart = scheduledDate
+      ? new Date(scheduledDate).setHours(0, 0, 0, 0) > today.getTime()
+      : false;
+
+    this.isPreferencesScheduled = isFutureStart && !this.data.currentState;
   }
 
   ngOnInit(): void {
