@@ -52,7 +52,17 @@
             *matCellDef="let element"
             class="custom-cell max-cell"
           >
-            {{ element.facultyName }}
+            <div class="faculty-name-wrapper">
+              <span>{{ element.facultyName }}</span>
+              @if (isInactive(element)) {
+                <span
+                  class="inactive-badge"
+                  matTooltip="Faculty account is Inactive in the system"
+                >
+                  Inactive
+                </span>
+              }
+            </div>
           </td>
         </ng-container>
 
@@ -190,7 +200,11 @@
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          [class.inactive-faculty-row]="isInactive(row)"
+        ></tr>
 
         <!-- No Data Row -->
         <tr *matNoDataRow>

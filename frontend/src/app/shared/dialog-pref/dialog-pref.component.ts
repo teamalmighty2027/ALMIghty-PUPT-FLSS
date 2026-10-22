@@ -932,7 +932,11 @@ export class DialogPrefComponent implements OnInit, OnDestroy {
     const pdfBlob = this.generateFacultyPDF(false, [this.courses], true);
     if (pdfBlob instanceof Blob) {
       const blobUrl = URL.createObjectURL(pdfBlob);
-      this.pdfBlobUrl = this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
+      // Guard: only bypass security for verified internal blob URLs
+      if (blobUrl?.startsWith('blob:')) {
+        this.pdfBlobUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(blobUrl);
+      }
     } else {
       this.showSnackbar('Failed to generate PDF preview.');
     }

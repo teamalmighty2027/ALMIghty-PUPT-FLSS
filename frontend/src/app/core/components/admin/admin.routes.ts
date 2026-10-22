@@ -1,4 +1,7 @@
 import { Routes } from '@angular/router';
+import {
+  schedulingUnsavedGuard
+} from '../../guards/scheduling-unsaved.guard';
 
 export const ADMIN_ROUTES: Routes = [
   {
@@ -45,6 +48,7 @@ export const ADMIN_ROUTES: Routes = [
       },
       {
         path: 'scheduling',
+        canDeactivate: [schedulingUnsavedGuard],
         loadComponent: () =>
           import('./scheduling/scheduling.component').then(
             (m) => m.SchedulingComponent
@@ -56,6 +60,7 @@ export const ADMIN_ROUTES: Routes = [
       },
       {
         path: 'scheduling/course-centric',
+        canDeactivate: [schedulingUnsavedGuard],
         loadComponent: () =>
           import(
             './scheduling/course-centric-scheduling/course-centric-scheduling.component'

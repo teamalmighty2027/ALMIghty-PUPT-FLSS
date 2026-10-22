@@ -44,6 +44,7 @@ interface Faculty {
   facultyUnits: number;
   regularUnits?: number;
   additionalUnits?: number;
+  status?: string;
   isEnabled: boolean;
   facultyId: number;
   schedules?: any[];
@@ -247,6 +248,11 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
   isMismatchedSemester = false;
 
+  // Checks if the given faculty member has an Inactive account status
+  isInactive(faculty: any): boolean {
+    return faculty?.status?.toLowerCase() === 'inactive';
+  }
+
   fetchFacultyData(termId: number | null = null, isSilent = false): void {
     if (!isSilent) {
       this.isLoading = true;
@@ -256,13 +262,15 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
 
     this.reportsService.getFacultySchedulesReport(termId).subscribe({
       next: (response) => {
-        this.isMismatchedSemester = response.faculty_schedule_reports.isMismatchedSemester ?? false;
+        this.isMismatchedSemester =
+          response.faculty_schedule_reports.isMismatchedSemester ?? false;
         
         const facultyData = response.faculty_schedule_reports.faculties.map(
           (faculty: any) => ({
             facultyName: faculty.faculty_name,
             facultyCode: faculty.faculty_code,
             facultyType: faculty.faculty_type,
+            status: faculty.status || 'Active',
             facultyUnits: faculty.assigned_units,
             regularUnits: faculty.regular_units,
             additionalUnits: faculty.additional_units,
@@ -270,8 +278,12 @@ export class ReportFacultyComponent implements OnInit, AfterViewInit, AfterViewC
             facultyId: faculty.faculty_id,
             schedules: faculty.schedules || [],
             timePlots: faculty.time_plots || [],
-            academicYear: `${response.faculty_schedule_reports.year_start}-${response.faculty_schedule_reports.year_end}`,
-            semester: this.getSemesterDisplay(response.faculty_schedule_reports.semester),
+            academicYear:
+              `${response.faculty_schedule_reports.year_start}-` +
+              `${response.faculty_schedule_reports.year_end}`,
+            semester: this.getSemesterDisplay(
+              response.faculty_schedule_reports.semester
+            ),
           }),
         );
 

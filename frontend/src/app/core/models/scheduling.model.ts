@@ -267,6 +267,10 @@ export interface CoursePreference {
   course_assignment_id: number;
   preferences_id?: number;
   is_ignored?: boolean;
+  is_auto_submitted?: boolean;
+  lec_hours?: number;
+  lab_hours?: number;
+  tuition_hours?: number;
   course_details: CourseDetails;
   preferred_days: {
     day: string;

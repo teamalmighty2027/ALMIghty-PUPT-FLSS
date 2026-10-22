@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\PreferencesSetting;
 use App\Models\Faculty;
 use App\Models\EmailDispatchLog;
+use App\Services\EmailValidationService;
 use App\Http\Controllers\PreferenceController;
 use Carbon\Carbon;
 use Exception;
@@ -134,6 +135,25 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
                 EmailDispatchLog::where('id', $this->dispatchLogId)->update([
                     'status'        => 'failed',
                     'error_message' => 'Skipped: Email address is missing.',
+                    'processed_at'  => Carbon::now(),
+                ]);
+            }
+
+            return;
+        }
+
+        $validation = EmailValidationService::validate($email);
+
+        if (!$validation['valid']) {
+            Log::warning(
+                "Skipping preference email for faculty ID: " .
+                "{$this->facultyId} - {$validation['reason']}"
+            );
+
+            if ($this->dispatchLogId) {
+                EmailDispatchLog::where('id', $this->dispatchLogId)->update([
+                    'status'        => 'failed',
+                    'error_message' => $validation['reason'],
                     'processed_at'  => Carbon::now(),
                 ]);
             }

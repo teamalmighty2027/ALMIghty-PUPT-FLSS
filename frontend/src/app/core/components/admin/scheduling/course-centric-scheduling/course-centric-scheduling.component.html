@@ -72,6 +72,7 @@
             mat-flat-button
             class="draft-mode-btn desktop-only"
             (click)="toggleDraftMode()"
+            matTooltip="Enter draft mode to stage GenEd changes across sections"
           >
             <mat-icon>edit_note</mat-icon>
             <span class="btn-text">Enter Draft Mode</span>
@@ -99,6 +100,8 @@
             mat-stroked-button
             (click)="openHistoricalDialog()"
             [disabled]="isAiFilling || isHistoricalLoading"
+            matTooltip=
+              "Fill unassigned slots using patterns from past semesters"
           >
             @if (isHistoricalLoading) {
               <mat-spinner diameter="18"></mat-spinner>
@@ -112,6 +115,8 @@
             mat-stroked-button
             (click)="fillWithAI()"
             [disabled]="isAiFilling || isHistoricalLoading"
+            matTooltip=
+              "Automatically assign available faculty and rooms using AI"
           >
             @if (isAiFilling) {
               <div class="progress-info">
@@ -128,7 +133,12 @@
 
           <div class="divider"></div>
 
-          <button mat-flat-button color="warn" (click)="discardDraft()">
+          <button
+            mat-flat-button
+            color="warn"
+            (click)="discardDraft()"
+            matTooltip="Discard all uncommitted draft changes"
+          >
             <mat-icon>delete_sweep</mat-icon>
             Discard
           </button>
@@ -138,6 +148,8 @@
             color="primary"
             class="save-btn"
             (click)="saveDraft()"
+            matTooltip=
+              "Permanently save all valid draft changes to the database"
           >
             <mat-icon>save</mat-icon>
             Save Draft
@@ -147,6 +159,7 @@
             mat-flat-button
             color="warn"
             (click)="toggleDraftMode()"
+            matTooltip="Exit draft mode and return to live view"
           >
             <mat-icon>close</mat-icon>
             Exit Draft Mode
@@ -212,7 +225,8 @@
                   <!-- Section Column -->
                   <ng-container matColumnDef="section">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header">
+                        class="custom-header"
+                        matTooltip="Program and Section identifier">
                       Section
                     </th>
                     <td mat-cell *matCellDef="let element"
@@ -226,7 +240,8 @@
                   <!-- Day Column -->
                   <ng-container matColumnDef="day">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header">
+                        class="custom-header"
+                        matTooltip="Scheduled Day">
                       Day
                     </th>
                     <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -241,7 +256,8 @@
                   <!-- Time Column -->
                   <ng-container matColumnDef="time">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header">
+                        class="custom-header"
+                        matTooltip="Assigned Class Time Window">
                       Time
                     </th>
                     <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -256,7 +272,8 @@
                   <!-- Professor Column -->
                   <ng-container matColumnDef="professor">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header">
+                        class="custom-header"
+                        matTooltip="Assigned Faculty Member">
                       Professor
                     </th>
                     <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -274,7 +291,8 @@
                   <!-- Room Column -->
                   <ng-container matColumnDef="room">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header">
+                        class="custom-header"
+                        matTooltip="Assigned Classroom or Laboratory">
                       Room
                     </th>
                     <td mat-cell *matCellDef="let element" class="custom-cell">
@@ -289,7 +307,8 @@
                   <!-- Action Column -->
                   <ng-container matColumnDef="action">
                     <th mat-header-cell *matHeaderCellDef
-                        class="custom-header action">
+                        class="custom-header action"
+                        matTooltip="Actions for this offering">
                       Action
                     </th>
                     <td mat-cell *matCellDef="let element"
@@ -316,6 +335,7 @@
                   <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
                   <tr mat-row
                       *matRowDef="let row; columns: displayedColumns;"
+                      [matTooltip]="getRowStatusTooltip(row)"
                       [class.draft-dirty]="isDraftMode && isDraftDirty(row)"
                       [class.draft-conflict]="
                         isDraftMode && isDraftConflict(row)

@@ -135,8 +135,16 @@ class FacultyController extends Controller
             DB::commit();
 
             // Background jobs for external services
-            SendFacultyFirstLoginPasswordJob::dispatch($user, $validatedData['password']);
-            RegisterUserToIdpJob::dispatch($user, $validatedData['password']);
+            $user->setRelation('faculty', $faculty);
+
+            SendFacultyFirstLoginPasswordJob::dispatch(
+                $user,
+                $validatedData['password']
+            );
+            RegisterUserToIdpJob::dispatch(
+                $user,
+                $validatedData['password']
+            );
 
             return response()->json($user->load('faculty.facultyType'), 201);
         } catch (\Throwable $e) {
@@ -248,6 +256,21 @@ class FacultyController extends Controller
 
             if ($oldData['email'] != $user->email) {
                 $changes[] = "Email: {$oldData['email']} → {$user->email}";
+
+                $idpToken = $request->cookie('access_token')
+                    ?? $request->bearerToken()
+                    ?? $request->input('idp_access_token');
+
+                $idpSyncService = app(IdpSyncService::class);
+
+                $idpSyncService->syncUserToIdp(
+                    $user,
+                    [
+                        'email'     => $user->email,
+                        'old_email' => $oldData['email'],
+                        'token'     => $idpToken,
+                    ]
+                );
             }
 
             if ($oldData['status'] != $user->status) {

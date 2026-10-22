@@ -43,6 +43,7 @@
                       (click)="showPreviousFacultyPreference(faculty)"
                       matRipple
                       [matRippleColor]="'rgba(255,255,255,0.1)'"
+                      matTooltip="Previous preference"
                     >
                       <span mat-symbol="chevron_left"></span>
                     </button>
@@ -51,6 +52,7 @@
                       (click)="showNextFacultyPreference(faculty)"
                       matRipple
                       [matRippleColor]="'rgba(255,255,255,0.1)'"
+                      matTooltip="Next preference"
                     >
                       <span mat-symbol="chevron_right"></span>
                     </button>
@@ -213,10 +215,17 @@
             <div
               class="day-button"
               [class.selected]="day.name === selectedDay"
-              [class.original-day]="day.name === originalDay && day.name !== selectedDay"
+              [class.original-day]="
+                day.name === originalDay && day.name !== selectedDay
+              "
               (click)="selectDay(day.name)"
               matRipple
               [matRippleColor]="'rgba(255, 255, 255, 0.1)'"
+              [matTooltip]="
+                day.name === originalDay
+                  ? day.name + ' (Original day)'
+                  : day.name
+              "
             >
               {{ day.shortName }}
             </div>
@@ -347,25 +356,37 @@
         (click)="resetForm()"
         matRipple
         [matRippleColor]="'rgba(134,134,134,0.1)'"
+        [disabled]="isFormEmpty()"
+        matTooltip="Reset schedule fields to blank"
       >
         Clear All
       </button>
       <div class="button-group">
-        <button class="cancel-button" mat-button (click)="cancelDialog()">Cancel</button>
         <button
-          class="action-button"
-          mat-flat-button
-          [disabled]="
-            hasConflicts || isLoading || isValidating || scheduleForm.invalid
-          "
-          (click)="assignValidatedSchedule()"
+          class="cancel-button"
+          mat-button
+          (click)="cancelDialog()"
         >
-          @if (isLoading) {
-            <mat-spinner [diameter]="25" class="custom-spinner"></mat-spinner>
-          } @else {
-            Assign Schedule
-          }
+          Cancel
         </button>
+        <span
+          class="assign-btn-wrapper"
+          [matTooltip]="getAssignDisabledReason()"
+          [matTooltipDisabled]="!isAssignDisabled()"
+        >
+          <button
+            class="action-button"
+            mat-flat-button
+            [disabled]="isAssignDisabled()"
+            (click)="assignValidatedSchedule()"
+          >
+            @if (isLoading) {
+              <mat-spinner [diameter]="25" class="custom-spinner"></mat-spinner>
+            } @else {
+              Assign Schedule
+            }
+          </button>
+        </span>
       </div>
     </mat-dialog-actions>
 

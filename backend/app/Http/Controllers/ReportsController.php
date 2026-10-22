@@ -328,6 +328,7 @@ class ReportsController extends Controller
                 'faculty.appeal_end_date',
                 'users.id as user_id',
                 'users.code as faculty_code',
+                'users.status as status',
                 'faculty_type.faculty_type',
                 'faculty_type.regular_units',
                 'faculty_type.additional_units',
@@ -403,6 +404,9 @@ class ReportsController extends Controller
                     'faculty_name' => $users[$schedule->user_id]->formatted_name ?? 'N/A',
                     'faculty_code' => $schedule->faculty_code,
                     'faculty_type' => $schedule->faculty_type,
+                    'status' => $schedule->status ?? (
+                        $users[$schedule->user_id]->status ?? 'Active'
+                    ),
                     'regular_units' => $schedule->regular_units,
                     'additional_units' => $schedule->additional_units,
                     'is_appeal_enabled' => $schedule->is_appeal_enabled,
