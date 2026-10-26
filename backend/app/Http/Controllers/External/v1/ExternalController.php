@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Services\AuditLogger;
+use App\Services\ExternalAccessLogger;
 use Throwable;
 
 class ExternalController extends Controller
@@ -150,8 +151,10 @@ class ExternalController extends Controller
      * Returns the current active academic year and semester
      * For: Dental Management System (DMS)
      */
-    public function academicYearAndSemester()
+    public function academicYearAndSemester(Request $request)
     {
+        $this->logExternalAccess($request, 'Academic year and semester');
+
         $activeSemester = $this->getActiveSemester();
 
         if ($activeSemester) {
@@ -999,20 +1002,11 @@ class ExternalController extends Controller
      * @param  string  $resource
      * @return string
      */
-    private function logExternalAccess(Request $request, string $resource): string
-    {
-        $clientSystem = $request->attributes->get('client_system') ?? 'Unknown System';
-
-        Log::info("{$resource} accessed by external system: {$clientSystem}", 
-          ['ip' => $request->ip()]);
-
-        AuditLogger::log(
-            action: 'view',
-            description: "{$resource} accessed by external system: {$clientSystem}",
-            metadata: ['client_system' => $clientSystem]
-        );
-
-        return $clientSystem;
+    private function logExternalAccess(
+        Request $request,
+        string $resource
+    ): string {
+        return ExternalAccessLogger::log($request, $resource);
     }
 
     /**
