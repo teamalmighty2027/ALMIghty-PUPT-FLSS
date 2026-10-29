@@ -800,3 +800,124 @@
   }
 }
 
+
+
+// ── AI Badge group ───────────────────────────────────────────────────────────
+.ai-badge-group {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+
+  .ai-badge {
+    padding: 2px var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+
+    &.badge-ml {
+      background-color: var(--blue-fade-lighter);
+      color: var(--blue-primary);
+    }
+
+    &.badge-confidence {
+      background-color: var(--aqua-fade-lighter);
+      color: var(--aqua-primary);
+    }
+
+    &.badge-fallback {
+      background-color: var(--purple-fade-lighter);
+      color: var(--purple-primary);
+    }
+
+    &.badge-reason {
+      background-color: var(--neutral-fade);
+      color: var(--neutral-base);
+    }
+  }
+}
+
+// ── Historical Schedule block ────────────────────────────────────────────────
+.historical-schedule-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+
+  background: var(--neutral-extra-dark);
+  border: 1.5px solid var(--neutral-bar);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+
+  .historical-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+    flex-wrap: wrap;
+
+    .historical-header-icon {
+      font-size: 18px;
+      color: var(--primary-text);
+      flex-shrink: 0;
+    }
+
+    .historical-header-label {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--primary-text);
+    }
+
+    .historical-header-sublabel {
+      font-size: var(--font-size-xs);
+      color: var(--secondary-text);
+      opacity: 0.75;
+    }
+  }
+
+  .historical-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+    font-size: var(--font-size-sm);
+    color: var(--secondary-text);
+  }
+}
+
+.historical-card {
+  cursor: pointer;
+  transition: transform var(--transition-fast),
+    border-color var(--transition-fast);
+
+  &:hover {
+    border-color: var(--primary-color, #791b16);
+  }
+
+  .historical-badge {
+    background-color: var(--blue-fade-lighter);
+    color: var(--blue-primary);
+    font-weight: 700;
+  }
+
+  .faculty-room {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--font-size-sm);
+    color: var(--secondary-text);
+    margin-top: 2px;
+
+    .pref-icon {
+      font-size: 13px;
+      opacity: 0.6;
+    }
+  }
+}
+
+.none-option {
+  color: var(--secondary-text);
+  font-style: italic;
+  font-weight: 500;
+}

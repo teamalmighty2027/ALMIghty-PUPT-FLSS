@@ -1,11 +1,9 @@
 <div class="scheduling-dialog-container">
-
   <!-- ═══════════════════════════════════════════════
        LEFT PANEL — Faculty Preferences, AI Suggestions,
-       and Current Assignment
+       and Historical Schedule
        ═══════════════════════════════════════════════ -->
   <section class="section suggested-faculty">
-
     <div class="title">
       <h2 class="dialog-title suggested">
         <span mat-symbol="dynamic_form"></span> Suggested
@@ -14,7 +12,6 @@
     </div>
 
     <mat-dialog-content class="content faculty-list">
-
       <!-- ════════════════════════════════════════
            FACULTY PREFERENCES — Faculty who selected
            this course as their preference
@@ -23,19 +20,23 @@
         <div class="section-block-header">
           <span mat-symbol="how_to_reg" class="section-block-icon"></span>
           <span class="section-block-label">Faculty Preferences</span>
-          <span class="section-block-sublabel">Faculty who selected this course as their preference</span>
+          <span class="section-block-sublabel">
+            Faculty who selected this course as their preference
+          </span>
         </div>
 
         @if (data.suggestedFaculty.length === 0) {
-          <p class="empty-state-text">No faculty has selected this course as their preference.</p>
+          <p class="empty-state-text">
+            No faculty has selected this course as their preference.
+          </p>
         } @else {
           @for (faculty of data.suggestedFaculty; track faculty.faculty_id) {
             <div class="faculty-card-wrapper">
-
               @if (faculty.preferences.length > 1) {
                 <div class="faculty-pref-nav">
                   <span class="preference-count">
-                    {{ faculty.prefIndex + 1 }} of {{ faculty.preferences.length }} Preferences
+                    {{ faculty.prefIndex + 1 }} of
+                    {{ faculty.preferences.length }} Preferences
                   </span>
                   <div class="nav-button-container">
                     <button
@@ -62,19 +63,26 @@
 
               <div
                 class="faculty-card"
-                (click)="populateFormWithFacultyPreference(
-                  faculty,
-                  faculty.preferences[faculty.prefIndex]
-                )"
+                (click)="
+                  populateFormWithFacultyPreference(
+                    faculty,
+                    faculty.preferences[faculty.prefIndex]
+                  )
+                "
                 [class.selected-faculty]="
                   selectedFaculty?.faculty_id === faculty.faculty_id &&
-                  doesPreferenceMatchForm(faculty.preferences[faculty.prefIndex])
+                  doesPreferenceMatchForm(
+                    faculty.preferences[faculty.prefIndex]
+                  )
                 "
                 [@cardSwipeAnimation]="faculty.prefIndex"
                 matRipple
               >
                 <div class="card-row-top">
-                  <span class="faculty-type" [ngClass]="getFacultyTypeClass(faculty.type)">
+                  <span
+                    class="faculty-type"
+                    [ngClass]="getFacultyTypeClass(faculty.type)"
+                  >
                     {{ faculty.type }}
                   </span>
                 </div>
@@ -85,7 +93,6 @@
                   {{ faculty.preferences[faculty.prefIndex].time }}
                 </div>
               </div>
-
             </div>
           }
         }
@@ -105,32 +112,61 @@
         <div class="ai-block-header">
           <span mat-symbol="auto_awesome" class="ai-star-icon"></span>
           <span class="ai-block-label">AI Suggestion</span>
-          <span class="ai-block-sublabel">Suggested based on faculty preferences</span>
+          <span class="ai-block-sublabel">
+            Suggested based on faculty preferences
+          </span>
         </div>
 
         @if (!data.aiSuggestion) {
-          <p class="empty-state-text">No AI suggestion available for this slot.</p>
+          <p class="empty-state-text">
+            No AI suggestion available for this slot.
+          </p>
         } @else {
           <div
             class="faculty-card ai-suggestion-card"
-            (click)="populateFormWithFacultyPreference(
-              data.aiSuggestion,
-              data.aiSuggestion.preferences[data.aiSuggestion.prefIndex]
-            )"
+            (click)="
+              populateFormWithFacultyPreference(
+                data.aiSuggestion,
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex]
+              )
+            "
             [class.selected-faculty]="
               selectedFaculty?.faculty_id === data.aiSuggestion.faculty_id &&
-              doesPreferenceMatchForm(data.aiSuggestion.preferences[data.aiSuggestion.prefIndex])
+              doesPreferenceMatchForm(
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex]
+              )
             "
             matRipple
           >
-            <div class="card-row-top">
-              <span class="faculty-type" [ngClass]="getFacultyTypeClass('AI Suggested')">AI Suggested</span>
+            <div class="card-row-top ai-badge-group">
+              <span
+                class="ai-badge"
+                [ngClass]="
+                  data.aiSuggestion.isMl ? 'badge-ml' : 'badge-fallback'
+                "
+              >
+                {{ data.aiSuggestion.badgeLabel || "AI Recommended" }}
+              </span>
+              @if (data.aiSuggestion.reasonLabel) {
+                <span
+                  class="ai-badge"
+                  [ngClass]="
+                    data.aiSuggestion.isMl ? 'badge-confidence' : 'badge-reason'
+                  "
+                >
+                  {{ data.aiSuggestion.reasonLabel }}
+                </span>
+              }
             </div>
             <div class="faculty-name">{{ data.aiSuggestion.name }}</div>
             <div class="faculty-pref">
               <span mat-symbol="calendar_today" class="pref-icon"></span>
-              {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].day }},
-              {{ data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].time }}
+              {{
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].day
+              }},
+              {{
+                data.aiSuggestion.preferences[data.aiSuggestion.prefIndex].time
+              }}
             </div>
           </div>
         }
@@ -144,47 +180,77 @@
       </div>
 
       <!-- ════════════════════════════════════════
-           CURRENT ASSIGNMENT — Faculty currently
-           assigned to this course slot
+           HISTORICAL SCHEDULE — From previous acad
+           year of matching semester & section
            ════════════════════════════════════════ -->
-      <div class="current-assignment-block">
-        <div class="current-assignment-header">
-          <span mat-symbol="assignment" class="assignment-header-icon"></span>
-          <span class="assignment-header-label">Current Assignment</span>
-          <span class="assignment-header-sublabel">Faculty currently assigned to this course slot</span>
+      <div class="historical-schedule-block">
+        <div class="historical-header">
+          <span mat-symbol="history" class="historical-header-icon"></span>
+          <span class="historical-header-label">Historical Schedule</span>
+          <span class="historical-header-sublabel">
+            Previous academic year matching course
+          </span>
         </div>
 
-        @if (data.existingSchedule?.professor && data.existingSchedule?.professor !== 'Not set') {
+        @if (isLoadingHistorical) {
+          <div class="historical-loading">
+            <mat-spinner [diameter]="20"></mat-spinner>
+            <span>Loading historical schedule...</span>
+          </div>
+        } @else if (historicalSchedule) {
           <div
-            class="faculty-card assignment-card"
-            (click)="selectCurrentAssignment()"
-            [class.selected-assignment]="currentAssignmentSelected"
+            class="faculty-card historical-card"
+            (click)="populateFromHistoricalSchedule()"
             matRipple
+            matTooltip="Click to apply historical day, time, faculty, and room"
           >
             <div class="card-row-top">
-              <span class="faculty-type assignment-type">Current</span>
-            </div>
-            <div class="faculty-name">{{ data.existingSchedule?.professor }}</div>
-            <div class="faculty-pref">
-              <span mat-symbol="calendar_today" class="pref-icon"></span>
-              {{ data.existingSchedule?.day !== 'Not set' ? data.existingSchedule?.day : '—' }}
-              @if (data.existingSchedule?.time && data.existingSchedule?.time !== 'Not set') {
-                , {{ data.existingSchedule?.time }}
+              <span class="faculty-type historical-badge">
+                {{ historicalOriginLabel || "Previous AY" }}
+              </span>
+              @if (historicalSchedule.faculty_type) {
+                <span
+                  class="faculty-type"
+                  [ngClass]="
+                    getFacultyTypeClass(historicalSchedule.faculty_type)
+                  "
+                >
+                  {{ historicalSchedule.faculty_type }}
+                </span>
               }
             </div>
+            <div class="faculty-name">
+              {{ historicalSchedule.professor || "None" }}
+            </div>
+            <div class="faculty-pref">
+              <span mat-symbol="calendar_today" class="pref-icon"></span>
+              {{ historicalSchedule.day || "—" }},
+              {{ formatTimeForDisplay(historicalSchedule.start_time || "") }} -
+              {{ formatTimeForDisplay(historicalSchedule.end_time || "") }}
+            </div>
+            @if (
+              historicalSchedule.room_code &&
+              historicalSchedule.room_code !== "Not set"
+            ) {
+              <div class="faculty-room">
+                <span mat-symbol="meeting_room" class="pref-icon"></span>
+                Room: {{ historicalSchedule.room_code }}
+              </div>
+            }
           </div>
         } @else {
-          <p class="empty-state-text">No current assignment configured for this slot.</p>
+          <p class="empty-state-text">
+            No historical schedule found for the previous academic year.
+          </p>
         }
       </div>
 
-      <!-- CURRENT ASSIGNMENT — end marker -->
+      <!-- HISTORICAL SCHEDULE — end marker -->
       <div class="formal-end-marker">
         <div class="end-marker-line"></div>
         <span class="end-marker-text">— Nothing Follows —</span>
         <div class="end-marker-line"></div>
       </div>
-
     </mat-dialog-content>
   </section>
 
@@ -192,7 +258,6 @@
        RIGHT PANEL — Edit Schedule Details
        ═══════════════════════════════════════════════ -->
   <section class="section edit-schedule-details">
-
     <div class="title">
       <h2 class="dialog-title scheduling">Edit Schedule Details</h2>
       <div class="program-info">{{ data.selectedProgramInfo }}</div>
@@ -202,13 +267,15 @@
     @if (data.isDraftMode) {
       <div class="draft-mode-banner">
         <mat-icon>edit_note</mat-icon>
-        <span>Draft Mode — changes are not saved until you <strong>Save Draft</strong>.</span>
+        <span>
+          Draft Mode — changes are not saved until you
+          <strong>Save Draft</strong>.
+        </span>
       </div>
     }
 
     <mat-dialog-content class="content forms-list">
       <form [formGroup]="scheduleForm" class="scheduling-form-group">
-
         <!-- Day Picker -->
         <div class="day-buttons-container">
           @for (day of dayButtons; track day.name) {
@@ -242,7 +309,10 @@
                 <mat-option [value]="time">{{ time }}</mat-option>
               }
             </mat-select>
-            @if (scheduleForm.get('startTime')?.errors?.['required'] && scheduleForm.touched) {
+            @if (
+              scheduleForm.get("startTime")?.errors?.["required"] &&
+              scheduleForm.touched
+            ) {
               <mat-error>Start time is required</mat-error>
             }
           </mat-form-field>
@@ -255,7 +325,10 @@
                 <mat-option [value]="time">{{ time }}</mat-option>
               }
             </mat-select>
-            @if (scheduleForm.get('endTime')?.errors?.['required'] && scheduleForm.touched) {
+            @if (
+              scheduleForm.get("endTime")?.errors?.["required"] &&
+              scheduleForm.touched
+            ) {
               <mat-error>End time is required</mat-error>
             }
           </mat-form-field>
@@ -265,28 +338,40 @@
         <mat-form-field class="scheduling-forms">
           <mat-label>Professor</mat-label>
           <mat-icon matPrefix>person</mat-icon>
-          <input type="text" matInput formControlName="professor" [matAutocomplete]="professorAuto" />
+          <input
+            type="text"
+            matInput
+            formControlName="professor"
+            [matAutocomplete]="professorAuto"
+          />
           <mat-autocomplete #professorAuto="matAutocomplete">
             @for (
-              professor of filteredProfessors$ | async; track professor.id
+              professor of filteredProfessors$ | async;
+              track professor.id
             ) {
               <mat-option [value]="professor.name" class="prof-option">
-                <span class="prof-name">{{ professor.name }}</span>
-                @if (professor.type) {
-                  <span
-                    class="faculty-badge"
-                    [ngClass]="
-                      professor.type.toLowerCase().replace(' ', '-')
-                    "
-                  >
-                    {{ professor.type }}
+                @if (professor.name === "None") {
+                  <span class="prof-name none-option">
+                    None (Unassign / Undetermined)
                   </span>
+                } @else {
+                  <span class="prof-name">{{ professor.name }}</span>
+                  @if (professor.type) {
+                    <span
+                      class="faculty-badge"
+                      [ngClass]="professor.type.toLowerCase().replace(' ', '-')"
+                    >
+                      {{ professor.type }}
+                    </span>
+                  }
                 }
               </mat-option>
             }
           </mat-autocomplete>
-          @if (scheduleForm.get('professor')?.hasError('invalidOption')) {
-            <mat-error>This professor does not exist. Select from the provided options.</mat-error>
+          @if (scheduleForm.get("professor")?.hasError("invalidOption")) {
+            <mat-error>
+              This professor does not exist. Select from the provided options.
+            </mat-error>
           }
         </mat-form-field>
 
@@ -294,17 +379,40 @@
         <mat-form-field class="scheduling-forms">
           <mat-label>Room</mat-label>
           <mat-icon matPrefix>meeting_room</mat-icon>
-          <input type="text" matInput formControlName="room" [matAutocomplete]="roomAuto" />
+          <input
+            type="text"
+            matInput
+            formControlName="room"
+            [matAutocomplete]="roomAuto"
+          />
           <mat-autocomplete #roomAuto="matAutocomplete">
             @for (room of filteredRooms$ | async; track room) {
               <mat-option [value]="room">{{ room }}</mat-option>
             }
           </mat-autocomplete>
-          @if (scheduleForm.get('room')?.hasError('invalidOption')) {
-            <mat-error>This room does not exist. Select from the provided options.</mat-error>
+          @if (scheduleForm.get("room")?.hasError("invalidOption")) {
+            <mat-error>
+              This room does not exist. Select from the provided options.
+            </mat-error>
           }
         </mat-form-field>
 
+        <!-- Load Type -->
+        <mat-form-field class="scheduling-forms">
+          <mat-label>Load Type</mat-label>
+          <mat-icon matPrefix>work</mat-icon>
+          <mat-select formControlName="assignmentTypeId">
+            <mat-option [value]="null">None</mat-option>
+            @for (type of filteredAssignmentTypes; track type.id) {
+              <mat-option [value]="type.id">{{ type.name }}</mat-option>
+            }
+          </mat-select>
+          @if (selectedFacultyType) {
+            <mat-hint>
+              Faculty role: <strong>{{ selectedFacultyType }}</strong>
+            </mat-hint>
+          }
+        </mat-form-field>
       </form>
 
       <!-- Schedule Validator -->
@@ -316,15 +424,18 @@
               (change)="onCombineToggle($event.checked)"
               class="combine-checkbox"
             >
-              Combine with {{ pendingMatchingProgramCode }}?
-              (Will be listed as <strong>{{ pendingCombinedLabel }}</strong>)
+              Combine with {{ pendingMatchingProgramCode }}? (Will be listed as
+              <strong>{{ pendingCombinedLabel }}</strong
+              >)
             </mat-checkbox>
-          @if (!userConfirmedCombine) {
-            <div class="combine-warning-message">
+            @if (!userConfirmedCombine) {
+              <div class="combine-warning-message">
                 <span mat-symbol="warning"></span>
-                <span>You must confirm the combination to save this schedule.</span>
-            </div>
-          }
+                <span>
+                  You must confirm the combination to save this schedule.
+                </span>
+              </div>
+            }
           </div>
         } @else if (conflictMessage) {
           <div class="validation-message conflict">
@@ -362,11 +473,7 @@
         Clear All
       </button>
       <div class="button-group">
-        <button
-          class="cancel-button"
-          mat-button
-          (click)="cancelDialog()"
-        >
+        <button class="cancel-button" mat-button (click)="cancelDialog()">
           Cancel
         </button>
         <span
@@ -389,6 +496,5 @@
         </span>
       </div>
     </mat-dialog-actions>
-
   </section>
 </div>
