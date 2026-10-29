@@ -410,7 +410,11 @@ export class SchedulingComponent
         });
 
         if (matchCount === 0) {
-          this.snackBar.open('No matching historical courses found to fill empty slots.', 'Close', { duration: 3000 });
+          this.snackBar.open(
+            'No matching historical courses found to fill empty slots.',
+            'Close',
+            { duration: 3000 }
+          );
           this.isHistoricalLoading = false;
           this.cdr.markForCheck();
           return;
@@ -433,7 +437,11 @@ export class SchedulingComponent
         ).subscribe();
       },
       error: () => {
-        this.snackBar.open('Failed to load historical schedules.', 'Close', { duration: 3000 });
+        this.snackBar.open(
+          'Failed to load historical schedules.',
+          'Close',
+          { duration: 3000 }
+        );
         this.isHistoricalLoading = false;
         this.cdr.markForCheck();
       }
@@ -1831,6 +1839,9 @@ export class SchedulingComponent
             hoursAlreadyAssigned,
             lec_hours: schedule.lec_hours,
             lab_hours: schedule.lab_hours,
+            section_name: schedule.section,
+            semester: this.activeSemester || 1,
+            assignment_type_id: schedule.assignment_type_id ?? null,
           },
         });
 
@@ -1873,6 +1884,98 @@ export class SchedulingComponent
         this.loadingScheduleId = null;
         this.handleError('Failed to fetch necessary data for editing schedule')(
           error
+        );
+      },
+    });
+  }
+
+  // Checks if a schedule row has no assignments
+  public isScheduleEmpty(element: Schedule): boolean {
+    return (
+      (!element.day || element.day === 'Not set') &&
+      (!element.time || element.time === 'Not set') &&
+      (!element.professor || element.professor === 'Not set') &&
+      (!element.room || element.room === 'Not set')
+    );
+  }
+
+  // Clears a schedule row's assigned day, time, faculty, room, and load type
+  public clearSchedule(element: Schedule): void {
+    if (!element.schedule_id) return;
+
+    if (this.isDraftMode) {
+      const entry: DraftEntry = {
+        schedule_id: element.schedule_id,
+        faculty_id: null,
+        faculty_name: 'Not set',
+        room_id: null,
+        room_code: 'Not set',
+        day: null,
+        start_time: null,
+        end_time: null,
+        hasConflict: false,
+        assignment_type_id: null,
+      };
+      this.draftStateService.set(element.schedule_id, entry);
+      this.rebuildDraftSchedules();
+      this.snackBar.open(
+        `Cleared schedule for ${element.course_code}. Save draft to apply.`,
+        'Close',
+        { duration: 3000 }
+      );
+      return;
+    }
+
+    const dialogRef = this.dialog.open(DialogGenericComponent, {
+      data: {
+        title: 'Clear Schedule',
+        content:
+          `Are you sure you want to clear the schedule for ` +
+          `${element.course_code} - ${element.course_title}? ` +
+          `This will unassign day, time, professor, room, and load type.`,
+        actionText: 'Clear',
+        cancelText: 'Cancel',
+        action: 'clear',
+      },
+      autoFocus: true,
+    });
+
+    dialogRef.afterClosed().subscribe((result) => {
+      if (result === 'clear') {
+        this.executeClearSchedule(element);
+      }
+    });
+  }
+
+  // Executes the backend clear schedule request in live mode
+  private executeClearSchedule(element: Schedule): void {
+    if (!element.schedule_id) return;
+
+    this.loadingScheduleId = element.schedule_id;
+    this.schedulingService.clearSchedule(element.schedule_id).subscribe({
+      next: () => {
+        this.loadingScheduleId = null;
+        this.snackBar.open(
+          `Schedule for ${element.course_code} cleared successfully.`,
+          'Close',
+          { duration: 3000 }
+        );
+        this.schedulingService.resetCaches([CacheType.Schedules]);
+        this.onInputChange(
+          {
+            program: this.selectedProgram,
+            yearLevel: this.selectedYear,
+            section: this.selectedSection,
+          },
+          true
+        );
+      },
+      error: () => {
+        this.loadingScheduleId = null;
+        this.snackBar.open(
+          `Failed to clear schedule for ${element.course_code}.`,
+          'Close',
+          { duration: 3000 }
         );
       },
     });
