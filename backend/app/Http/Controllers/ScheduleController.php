@@ -921,7 +921,248 @@ class ScheduleController extends Controller
             description: "Updated Assignment Type: {$oldName} → {$newName}"
         );
 
-        return response()->json(['message' => 'Assignment type updated', 'schedule' => $schedule]);
+        return response()->json([
+            'message' => 'Assignment type updated',
+            'schedule' => $schedule
+        ]);
+    }
+
+    // Clears all assignment fields (faculty, room, day, time, load type) for a schedule.
+    public function clearSchedule(Request $request, $scheduleId)
+    {
+        DB::beginTransaction();
+
+        try {
+            $schedule = Schedule::find($scheduleId);
+
+            if (!$schedule) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Schedule not found'
+                ], 404);
+            }
+
+            $oldData = [
+                'faculty_id' => $schedule->faculty_id,
+                'room_id' => $schedule->room_id,
+                'day' => $schedule->day,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+                'assignment_type_id' => $schedule->assignment_type_id,
+            ];
+
+            $schedule->faculty_id = null;
+            $schedule->room_id = null;
+            $schedule->day = null;
+            $schedule->start_time = null;
+            $schedule->end_time = null;
+            $schedule->assignment_type_id = null;
+            $schedule->save();
+
+            AuditLogger::logUpdate(
+                model: 'Schedule',
+                modelId: $schedule->schedule_id,
+                oldData: $oldData,
+                newData: $schedule->toArray(),
+                description: "Cleared Schedule #{$schedule->schedule_id}"
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Schedule cleared successfully'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear schedule',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Retrieves historical schedule matching course, section, program, semester.
+    public function getHistoricalCourseSchedule(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'course_id' => 'required|integer|exists:courses,course_id',
+            'program_id' => 'required|integer|exists:programs,program_id',
+            'year_level' => 'required|integer',
+            'section_name' => 'required|string',
+            'semester' => 'required|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $activeSemester = DB::table('active_semesters')
+                ->where('is_active', 1)
+                ->first();
+
+            if (!$activeSemester) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active semester found'
+                ], 404);
+            }
+
+            $currentAy = DB::table('academic_years')
+                ->where('academic_year_id', $activeSemester->academic_year_id)
+                ->first();
+
+            $prevAy = DB::table('academic_years')
+                ->where('year_start', '<', $currentAy->year_start)
+                ->orderByDesc('year_start')
+                ->first();
+
+            if (!$prevAy) {
+                $prevAy = DB::table('academic_years')
+                    ->where(
+                        'academic_year_id',
+                        '<',
+                        $currentAy->academic_year_id
+                    )
+                    ->orderByDesc('academic_year_id')
+                    ->first();
+            }
+
+            if (!$prevAy) {
+                return response()->json([
+                    'success' => true,
+                    'data' => null,
+                    'message' => 'No previous academic year found'
+                ]);
+            }
+
+            $baseQuery = DB::table('schedules as s')
+                ->join(
+                    'section_courses as sc',
+                    's.section_course_id',
+                    '=',
+                    'sc.section_course_id'
+                )
+                ->join(
+                    'sections_per_program_year as sp',
+                    'sc.sections_per_program_year_id',
+                    '=',
+                    'sp.sections_per_program_year_id'
+                )
+                ->leftJoin(
+                    'course_assignments as ca',
+                    'sc.course_assignment_id',
+                    '=',
+                    'ca.course_assignment_id'
+                )
+                ->leftJoin(
+                    'temporary_course_offerings as tco',
+                    'sc.temporary_course_offering_id',
+                    '=',
+                    'tco.temporary_course_offering_id'
+                )
+                ->leftJoin('semesters as sem', function ($join) {
+                    $join->on('ca.semester_id', '=', 'sem.semester_id')
+                        ->orOn('tco.semester_id', '=', 'sem.semester_id');
+                })
+                ->leftJoin('faculty as f', 's.faculty_id', '=', 'f.id')
+                ->leftJoin('users as u', 'f.user_id', '=', 'u.id')
+                ->leftJoin('rooms as r', 's.room_id', '=', 'r.room_id')
+                ->where('sp.academic_year_id', $prevAy->academic_year_id)
+                ->where('sp.program_id', $request->input('program_id'))
+                ->where('sp.year_level', $request->input('year_level'))
+                ->where('sem.semester', $request->input('semester'))
+                ->where(function ($q) use ($request) {
+                    $q->where('ca.course_id', $request->input('course_id'))
+                        ->orWhere('tco.course_id', $request->input('course_id'));
+                })
+                ->whereNotNull('s.day')
+                ->where('s.day', '!=', 'Not set');
+
+            // 1. Attempt exact section match
+            $targetSection = $request->input('section_name');
+            $exactMatch = (clone $baseQuery)
+                ->where('sp.section_name', $targetSection)
+                ->select(
+                    's.schedule_id',
+                    's.day',
+                    's.start_time',
+                    's.end_time',
+                    's.faculty_id',
+                    's.room_id',
+                    's.assignment_type_id',
+                    DB::raw(
+                        "TRIM(CONCAT(COALESCE(u.last_name, ''), ', ', " .
+                        "COALESCE(u.first_name, ''), ' ', " .
+                        "COALESCE(u.middle_name, ''))) as professor"
+                    ),
+                    'f.faculty_type',
+                    'r.room_code',
+                    'sp.section_name'
+                )->first();
+
+            $isExact = true;
+            $matchResult = $exactMatch;
+
+            // 2. Fallback to any section of same program/year/semester
+            if (!$matchResult) {
+                $fallbackMatch = (clone $baseQuery)
+                    ->select(
+                        's.schedule_id',
+                        's.day',
+                        's.start_time',
+                        's.end_time',
+                        's.faculty_id',
+                        's.room_id',
+                        's.assignment_type_id',
+                        DB::raw(
+                            "TRIM(CONCAT(COALESCE(u.last_name, ''), ', ', " .
+                            "COALESCE(u.first_name, ''), ' ', " .
+                            "COALESCE(u.middle_name, ''))) as professor"
+                        ),
+                        'f.faculty_type',
+                        'r.room_code',
+                        'sp.section_name'
+                    )->first();
+
+                if ($fallbackMatch) {
+                    $isExact = false;
+                    $matchResult = $fallbackMatch;
+                }
+            }
+
+            if (!$matchResult) {
+                return response()->json([
+                    'success' => true,
+                    'data' => null,
+                ]);
+            }
+
+            $ayLabel = $prevAy->year_start . ' - ' . $prevAy->year_end;
+            $originLabel = $isExact
+                ? $ayLabel
+                : "{$ayLabel} (Section {$matchResult->section_name})";
+
+            return response()->json([
+                'success' => true,
+                'academic_year' => $ayLabel,
+                'origin_label' => $originLabel,
+                'is_exact' => $isExact,
+                'data' => $matchResult
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve historical schedule',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -1112,6 +1353,7 @@ class ScheduleController extends Controller
                     'end_time' => $schedule->end_time,
                     'elective_id' => $schedule->elective_id ?? null,
                     'elective_slot_name' => $electiveSlotName,
+                    'assignment_type_id' => $schedule->assignment_type_id ?? null,
                 ],
                 'professor' => $faculty ? $faculty->professor : 'Not set',
                 'faculty_id' => $faculty ? $faculty->id : null,
@@ -1327,6 +1569,7 @@ class ScheduleController extends Controller
                     'start_time' => $schedule->start_time,
                     'end_time' => $schedule->end_time,
                     'elective_id' => $schedule->elective_id ?? null,
+                    'assignment_type_id' => $schedule->assignment_type_id ?? null,
                 ],
                 'professor' => $faculty ? $faculty->professor : 'Not set',
                 'faculty_id' => $faculty ? $faculty->id : null,

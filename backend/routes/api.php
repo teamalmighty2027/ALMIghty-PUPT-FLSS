@@ -649,6 +649,9 @@ Route::middleware([
     Route::patch('/schedules/{id}/publish', [
         ScheduleController::class, 'toggleSingleSchedule'
     ]);
+    Route::delete('/schedules/{id}/assignment', [
+        ScheduleController::class, 'clearSchedule'
+    ]);
     Route::patch('/schedules/{schedule}/assignment-type', [
         ScheduleController::class, 'updateAssignmentType'
     ]);
@@ -680,6 +683,9 @@ Route::middleware([
      */
     Route::post('/schedules/suggestions', [
         ScheduleController::class, 'getHeuristicSchedulingSuggestion'
+    ]);
+    Route::get('/schedules/historical/course', [
+        ScheduleController::class, 'getHistoricalCourseSchedule'
     ]);
     Route::get('/schedules/historical', [
         ScheduleController::class, 'getHistoricalSchedules'
