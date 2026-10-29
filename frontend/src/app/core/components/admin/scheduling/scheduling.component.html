@@ -443,6 +443,23 @@
                     }
                   </div>
                 </button>
+                <button
+                  mat-button
+                  class="clear-button sec-ripple"
+                  (click)="clearSchedule(element)"
+                  [disabled]="
+                    loadingScheduleId === element.schedule_id ||
+                    isScheduleEmpty(element)
+                  "
+                  [matTooltip]="
+                    'Clear schedule for ' + element.course_code
+                  "
+                >
+                  <div class="button-content">
+                    <mat-icon>clear</mat-icon>
+                    <span>Clear</span>
+                  </div>
+                </button>
               </div>
             </td>
           </ng-container>

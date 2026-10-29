@@ -278,6 +278,30 @@
           }
         }
 
+        .clear-button {
+          @include mixins.flex-layout;
+          color: var(--secondary-text);
+
+          .button-content {
+            @include mixins.flex-layout($gap: var(--spacing-xs));
+
+            mat-icon {
+              @include mixins.flex-layout;
+              font-size: var(--font-size-lg);
+            }
+          }
+
+          &:hover:not([disabled]) {
+            background-color: var(--red-fade-lighter, rgba(239, 68, 68, 0.1));
+            color: var(--red-primary, #ef4444);
+          }
+
+          &[disabled] {
+            opacity: 0.35;
+            cursor: not-allowed;
+          }
+        }
+
         .edit-button {
           @include mixins.flex-layout;
           color: var(--secondary-text);
