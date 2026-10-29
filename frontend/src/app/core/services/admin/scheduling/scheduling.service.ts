@@ -22,6 +22,7 @@ import {
   BridgingCourseOption,
   TemporaryCourseOfferingPayload,
   SmartSuggestion,
+  HistoricalCourseSchedule,
   Elective,
 } from '../../../models/scheduling.model';
 
@@ -202,6 +203,48 @@ export class SchedulingService {
   /**
    * Retrieves the full course catalog for selection.
    */
+  // Clears all assignment fields for a schedule.
+  clearSchedule(scheduleId: number): Observable<any> {
+    return this.http
+      .delete(`${this.baseUrl}/schedules/${scheduleId}/assignment`)
+      .pipe(
+        tap(() => this.resetCaches([CacheType.Schedules])),
+        catchError(this.handleError)
+      );
+  }
+
+  // Retrieves historical course schedule from the previous academic year.
+  getHistoricalCourseSchedule(
+    courseId: number,
+    programId: number,
+    yearLevel: number,
+    sectionName: string,
+    semester: number
+  ): Observable<{
+    success: boolean;
+    academic_year?: string;
+    origin_label?: string;
+    is_exact?: boolean;
+    data: HistoricalCourseSchedule | null;
+  }> {
+    const params = new HttpParams()
+      .set('course_id', courseId.toString())
+      .set('program_id', programId.toString())
+      .set('year_level', yearLevel.toString())
+      .set('section_name', sectionName)
+      .set('semester', semester.toString());
+
+    return this.http
+      .get<{
+        success: boolean;
+        academic_year?: string;
+        origin_label?: string;
+        is_exact?: boolean;
+        data: HistoricalCourseSchedule | null;
+      }>(`${this.baseUrl}/schedules/historical/course`, { params })
+      .pipe(catchError(this.handleError));
+  }
+
   getCourses(): Observable<CourseCatalogItem[]> {
     return this.http
       .get<CourseCatalogItem[]>(`${this.baseUrl}/courses`)
@@ -415,7 +458,10 @@ export class SchedulingService {
   }
 
 // Change the payload key to match the database column
-  updateAssignmentType(scheduleId: number, assignmentTypeId: number | null): Observable<any> {
+  updateAssignmentType(
+    scheduleId: number,
+    assignmentTypeId: number | null
+  ): Observable<any> {
     return this.http.patch(`${this.baseUrl}/schedules/${scheduleId}/assignment-type`, {
       assignment_type_id: assignmentTypeId
     });
@@ -750,6 +796,7 @@ export class SchedulingService {
           start_time: res.preferred_start_time,
           end_time: res.preferred_end_time,
           isMl: false,
+          fallback_source: res.source || 'Heuristic Fallback',
           success: true
         } as SmartSuggestion;
       })
