@@ -60,6 +60,7 @@ export interface Schedule {
   combined_with_program_id?: number | null;
   isLastInGroup: boolean;
   elective_slot_name?: string | null;
+  assignment_type_id?: number | null;
 }
 
 export interface Semester {
@@ -142,6 +143,7 @@ export interface CourseResponse {
     room_id?: number;
     elective_id?: number | null;
      elective_slot_name?: string | null;
+  assignment_type_id?: number | null;
   };
   professor: string;
   faculty_id: number;
@@ -321,6 +323,7 @@ export interface DraftEntry {
   start_time: string | null;
   end_time: string | null;
   hasConflict: boolean;
+  assignment_type_id?: number | null;
 }
 
 export interface ProgramOption {
@@ -350,5 +353,28 @@ export interface SmartSuggestion {
   end_time: string;
   confidence?: number;
   isMl: boolean;
+  fallback_source?: string;
   success: boolean;
+}
+
+
+// Historical schedule structure for a specific course slot
+export interface HistoricalCourseSchedule {
+  schedule_id: number;
+  day: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  faculty_id: number | null;
+  professor: string | null;
+  faculty_type?: string | null;
+  room_id: number | null;
+  room_code: string | null;
+  assignment_type_id: number | null;
+  section_name?: string | null;
+}
+
+// Assignment load type representation
+export interface AssignmentType {
+  id: number;
+  name: string;
 }
