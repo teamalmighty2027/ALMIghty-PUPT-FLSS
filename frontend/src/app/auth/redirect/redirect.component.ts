@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { CustomSpinnerComponent } from
   '../../shared/custom-spinner/custom-spinner.component';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { SafeStorage } from '../../core/utils/safe-storage.utils';
 
 type RedirectState = 'checking' | 'role-selection' | 'error';
 
@@ -89,7 +90,7 @@ export class RedirectComponent implements OnInit, OnDestroy {
     }
 
     this.authService.setUserData(user, expiresAt, 'idp');
-    localStorage.setItem('token', token.token ?? '');
+    SafeStorage.setItem('token', token.token ?? '');
 
     this.router.navigate([response.redirect_to]);
   }
