@@ -206,7 +206,7 @@ $day-colors: (
                     height: 32px !important;
                     padding: 0 !important;
                     flex-shrink: 0;
-                    --mdc-icon-button-state-layer-size: 32px;
+                    --mat-icon-button-state-layer-size: 32px;
 
                     .mat-mdc-button-touch-target {
                       width: 32px !important;
@@ -270,7 +270,7 @@ $day-colors: (
                     ::ng-deep .appeals-status-button {
                       width: 28px !important;
                       height: 28px !important;
-                      --mdc-icon-button-state-layer-size: 28px;
+                      --mat-icon-button-state-layer-size: 28px;
 
                       .mat-mdc-button-touch-target {
                         width: 28px !important;
