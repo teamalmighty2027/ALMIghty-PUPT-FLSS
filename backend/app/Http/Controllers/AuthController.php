@@ -650,20 +650,8 @@ class AuthController extends Controller
             $availableRoles = $users->pluck('role')
                 ->unique()->values()->toArray();
 
-            // When a role is explicitly requested, authenticate as that role
-            if ($selectedRole) {
-                if (! in_array($selectedRole, $availableRoles, true)) {
-                    return response()->json([
-                        'session'     => false,
-                        'message'     => 
-                            "Access forbidden for role '{$selectedRole}'.",
-                        'redirect_to' => '/login',
-                    ], 403);
-                }
-
-                $user = $users->firstWhere('role', $selectedRole);
-            } elseif (count($availableRoles) > 1) {
-                // --- Multiple roles: let the frontend show a role picker ---
+            // --- Multiple roles: let the frontend show a role picker ---
+            if (count($availableRoles) > 1) {
                 return response()->json([
                     'session'                 => true,
                     'requires_role_selection' => true,
@@ -674,10 +662,10 @@ class AuthController extends Controller
                                  . ' ' . ($idpData['last_name'] ?? ''),
                     ],
                 ]);
-            } else {
-                // --- Single role: issue a Sanctum token and return ---
-                $user = $users->first();
             }
+
+            // --- Single role: issue a Sanctum token and return ---
+            $user = $users->first();
 
             if ($user->status === 'Inactive' || $user->status === 'Retired') {
                 AuditLogger::logFailedLogin(
