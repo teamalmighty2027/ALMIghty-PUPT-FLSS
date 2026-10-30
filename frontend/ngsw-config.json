@@ -2,8 +2,8 @@
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
   "appData": {
-    "version": "1.0.2",
-    "changelog": "Fix: align font URLs with index.html display=block"
+    "version": "1.0.3",
+    "changelog": "Fix: optimize font delivery and lazy service worker caching"
   },
   "assetGroups": [
     {
@@ -46,10 +46,7 @@
       "updateMode": "lazy",
       "resources": {
         "urls": [
-          "https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap",
-          "https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Round&display=block",
-          "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200",
-          "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block",
+          "https://fonts.googleapis.com/**",
           "https://fonts.gstatic.com/**"
         ]
       }
