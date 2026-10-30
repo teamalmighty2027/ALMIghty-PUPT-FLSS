@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { CustomSpinnerComponent } from
   '../../shared/custom-spinner/custom-spinner.component';
 import { AuthService } from '../../core/services/auth/auth.service';
+import { SafeStorage } from '../../core/utils/safe-storage.utils';
 
 type RedirectState = 'checking' | 'role-selection' | 'error';
 
@@ -89,29 +90,14 @@ export class RedirectComponent implements OnInit, OnDestroy {
     }
 
     this.authService.setUserData(user, expiresAt, 'idp');
-    localStorage.setItem('token', token.token ?? '');
+    SafeStorage.setItem('token', token.token ?? '');
 
     this.router.navigate([response.redirect_to]);
   }
 
-  // Complete session login scoped to the chosen role
+  // Trigger a fresh IDP login scoped to the chosen role
   selectRole(role: string): void {
-    const idpToken = this.cookieService.get('access_token');
-
-    if (!idpToken) {
-      this.authService.initiateIdpLogin([role]);
-      return;
-    }
-
-    this.state = 'checking';
-    this.authService.checkOnePortalSession(idpToken, role)
-      .pipe(takeUntil(this.unsubscribe$))
-      .subscribe({
-        next: (response) => this.handleResponse(response),
-        error: () => {
-          this.state = 'error';
-        },
-      });
+    this.authService.initiateIdpLogin([role]);
   }
 
   // Return to the login landing page

@@ -194,18 +194,10 @@ export class AuthService {
   /**
    * Proxy-check existing IDP session via the backend redirect endpoint.
    */
-  checkOnePortalSession(
-    idpToken: string,
-    role?: string,
-  ): Observable<any> {
-    const params: Record<string, string> = { idp_token: idpToken };
-    if (role) {
-      params['role'] = role;
-    }
-
+  checkOnePortalSession(idpToken: string): Observable<any> {
     return this.http.get<any>(
       `${this.baseUrl}/auth/redirect`,
-      { params },
+      { params: { idp_token: idpToken } },
     );
   }
 
@@ -349,6 +341,9 @@ export class AuthService {
   clearCookies(): void {
     const cookiesToClear = [
       'token',
+      'user_token',
+      'user_info',
+      'intended_role',
       'role',
       'user_id',
       'user_name',
@@ -380,6 +375,9 @@ export class AuthService {
     SafeStorage.removeItem('oauth_state');
     SafeStorage.removeItem('user_data');
     SafeStorage.removeItem('token');
+    try {
+      localStorage.removeItem('token');
+    } catch {}
     SafeStorage.removeItem('access_token');
     SafeStorage.removeItem('refresh_token');
     SafeStorage.removeItem('termsAccepted');
