@@ -163,6 +163,11 @@ class AuthController extends Controller
             Cookie::queue(Cookie::forget('user_info'));
             Cookie::queue(Cookie::forget('token'));
 
+            // Invalidate web session state
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
             return response()->json(['message' => 'Logged out successfully.'], 200);
         }
 
@@ -355,9 +360,18 @@ class AuthController extends Controller
             }
 
             if (! $user) {
-                $user = User::where('email', $email)
+                $matchingUsers = User::where('email', $email)
                     ->whereIn('role', $requestedRole)
-                    ->first();
+                    ->get();
+
+                if (in_array('superadmin', $requestedRole, true)) {
+                    $user = $matchingUsers
+                        ->firstWhere('role', 'superadmin');
+                }
+
+                if (! $user) {
+                    $user = $matchingUsers->first();
+                }
             }
 
             if (!$user) {
@@ -551,7 +565,10 @@ class AuthController extends Controller
             ], 500);
         }
 
-        $idpToken = $request->query('idp_token');
+        $idpToken = $request->query('idp_token') 
+            ?? $request->input('idp_token');
+        $selectedRole = $request->query('role') 
+            ?? $request->input('role');
 
         // No token present — signal the frontend to fall back
         if (empty($idpToken)) {
@@ -589,11 +606,11 @@ class AuthController extends Controller
             $email     = $idpData['email'];
             $idpUserId = $idpData['id'] ?? null;
 
-            // --- Find all FLSS users matching by IDP UUID first, then email ---
+            // --- Find all FLSS users matching by IDP UUID and/or email ---
             $users = collect();
 
             if ($idpUserId) {
-                $users = User::with([
+                $facultyUsers = User::with([
                     'faculty.facultyType',
                     'permissions',
                     'allowedPrograms',
@@ -603,18 +620,20 @@ class AuthController extends Controller
                     })
                     ->whereIn('role', ['faculty', 'admin', 'superadmin'])
                     ->get();
+
+                $users = $users->merge($facultyUsers);
             }
 
-            if ($users->isEmpty()) {
-                $users = User::with([
-                    'faculty.facultyType',
-                    'permissions',
-                    'allowedPrograms',
-                ])
-                    ->where('email', $email)
-                    ->whereIn('role', ['faculty', 'admin', 'superadmin'])
-                    ->get();
-            }
+            $emailUsers = User::with([
+                'faculty.facultyType',
+                'permissions',
+                'allowedPrograms',
+            ])
+                ->where('email', $email)
+                ->whereIn('role', ['faculty', 'admin', 'superadmin'])
+                ->get();
+
+            $users = $users->merge($emailUsers)->unique('id')->values();
 
             if ($users->isEmpty()) {
                 return response()->json([
@@ -626,8 +645,20 @@ class AuthController extends Controller
             $availableRoles = $users->pluck('role')
                 ->unique()->values()->toArray();
 
-            // --- Multiple roles: let the frontend show a role picker ---
-            if (count($availableRoles) > 1) {
+            // When a role is explicitly requested, authenticate as that role
+            if ($selectedRole) {
+                if (! in_array($selectedRole, $availableRoles, true)) {
+                    return response()->json([
+                        'session'     => false,
+                        'message'     => 
+                            "Access forbidden for role '{$selectedRole}'.",
+                        'redirect_to' => '/login',
+                    ], 403);
+                }
+
+                $user = $users->firstWhere('role', $selectedRole);
+            } elseif (count($availableRoles) > 1) {
+                // --- Multiple roles: let the frontend show a role picker ---
                 return response()->json([
                     'session'                 => true,
                     'requires_role_selection' => true,
@@ -638,10 +669,10 @@ class AuthController extends Controller
                                  . ' ' . ($idpData['last_name'] ?? ''),
                     ],
                 ]);
+            } else {
+                // --- Single role: issue a Sanctum token and return ---
+                $user = $users->first();
             }
-
-            // --- Single role: issue a Sanctum token and return ---
-            $user = $users->first();
 
             if ($user->status === 'Inactive' || $user->status === 'Retired') {
                 AuditLogger::logFailedLogin(
