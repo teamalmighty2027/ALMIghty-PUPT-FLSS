@@ -17,9 +17,21 @@ class SecurityHeaders
 
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
+        // Explicitly declare directives for API security and compliance
         $response->headers->set(
             'Content-Security-Policy',
-            "default-src 'none'; frame-ancestors 'self';"
+            "default-src 'none'; " .
+            "script-src 'none'; " .
+            "style-src 'none'; " .
+            "img-src 'none'; " .
+            "connect-src 'none'; " .
+            "frame-src 'none'; " .
+            "font-src 'none'; " .
+            "media-src 'none'; " .
+            "object-src 'none'; " .
+            "manifest-src 'none'; " .
+            "worker-src 'none'; " .
+            "frame-ancestors 'self';"
         );
         $response->headers->set(
             'Cross-Origin-Opener-Policy',

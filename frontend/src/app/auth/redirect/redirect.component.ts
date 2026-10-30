@@ -95,9 +95,24 @@ export class RedirectComponent implements OnInit, OnDestroy {
     this.router.navigate([response.redirect_to]);
   }
 
-  // Trigger a fresh IDP login scoped to the chosen role
+  // Complete session login scoped to the chosen role
   selectRole(role: string): void {
-    this.authService.initiateIdpLogin([role]);
+    const idpToken = this.cookieService.get('access_token');
+
+    if (!idpToken) {
+      this.authService.initiateIdpLogin([role]);
+      return;
+    }
+
+    this.state = 'checking';
+    this.authService.checkOnePortalSession(idpToken, role)
+      .pipe(takeUntil(this.unsubscribe$))
+      .subscribe({
+        next: (response) => this.handleResponse(response),
+        error: () => {
+          this.state = 'error';
+        },
+      });
   }
 
   // Return to the login landing page
