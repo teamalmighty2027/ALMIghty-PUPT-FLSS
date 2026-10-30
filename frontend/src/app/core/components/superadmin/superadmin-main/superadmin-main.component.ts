@@ -115,7 +115,8 @@ export class SuperadminMainComponent implements OnInit, AfterViewInit, OnDestroy
       .pipe(
         filter(
           (event): event is NavigationEnd => event instanceof NavigationEnd
-        )
+        ),
+        takeUntil(this.destroy$)
       )
       .subscribe(() => {
         this.setPageTitle();
