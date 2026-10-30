@@ -15,6 +15,24 @@
   height: 100%;
 }
 
+.academic-year-content {
+  @include mixins.flex-layout(
+    $direction: column,
+    $align: none,
+    $justify: none,
+    $gap: var(--spacing-md)
+  );
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.table-loading {
+  min-height: 25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .academic-year-table-container {
   @include mixins.flex-layout($direction: column, $align: none, $justify: none);
   @include mixins.hide-scrollbar;
