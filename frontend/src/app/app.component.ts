@@ -27,6 +27,7 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     this.titleService.initializeTitleService();
     this.themeService.loadTheme();
+    this.handleUnrecoverableState();
     this.checkForUpdates();
   }
 
@@ -48,10 +49,28 @@ export class AppComponent implements OnInit {
     }
   }
 
+  // Listen to service worker unrecoverable state to unstuck mobile devices
+  private handleUnrecoverableState(): void {
+    if (this.swUpdate.isEnabled) {
+      this.swUpdate.unrecoverable.subscribe((event) => {
+        console.error('Service worker unrecoverable state:', event.reason);
+        if (typeof caches !== 'undefined') {
+          caches.keys().then((names) => {
+            Promise.all(names.map((name) => caches.delete(name))).then(() => {
+              document.location.reload();
+            });
+          });
+        } else {
+          document.location.reload();
+        }
+      });
+    }
+  }
+
+  // Subscribe to service worker updates and notify or reload
   private checkForUpdates() {
     if (this.swUpdate.isEnabled) {
       this.swUpdate.versionUpdates.subscribe((event) => {
-        
         if (event.type === 'VERSION_READY') {
           this.swUpdate.activateUpdate().then(() => {
             // Wait 250ms for cache swap completion before reload
@@ -60,7 +79,13 @@ export class AppComponent implements OnInit {
             }, 250);
           });
         }
-        
+
+        if (event.type === 'VERSION_INSTALLATION_FAILED') {
+          console.error(
+            'Service worker installation failed:',
+            event.error
+          );
+        }
       });
 
       // Force update check on startup

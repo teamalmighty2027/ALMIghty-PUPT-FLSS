@@ -2,8 +2,8 @@
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
   "appData": {
-    "version": "1.0.3",
-    "changelog": "Fix: optimize font delivery and lazy service worker caching"
+    "version": "1.0.4",
+    "changelog": "Fix: native font caching, mobile self-healing, CSP parity"
   },
   "assetGroups": [
     {
@@ -36,18 +36,8 @@
       "resources": {
         "files": [
           "/assets/**/*",
+          "/media/**/*",
           "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
-        ]
-      }
-    },
-    {
-      "name": "fonts",
-      "installMode": "lazy",
-      "updateMode": "lazy",
-      "resources": {
-        "urls": [
-          "https://fonts.googleapis.com/**",
-          "https://fonts.gstatic.com/**"
         ]
       }
     }

@@ -15,10 +15,11 @@ describe('AppComponent', () => {
           provide: SwUpdate,
           useValue: {
             isEnabled: false,
-            versionUpdates: of()
-          }
-        }
-      ]
+            versionUpdates: of(),
+            unrecoverable: of(),
+          },
+        },
+      ],
     }).compileComponents();
   });
 
