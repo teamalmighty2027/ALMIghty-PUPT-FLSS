@@ -2,8 +2,8 @@
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
   "appData": {
-    "version": "1.0.1",
-    "changelog": "Fix: lazy-load JS chunks to prevent empty chunk prefetch errors"
+    "version": "1.0.4",
+    "changelog": "Fix: native font caching, mobile self-healing, CSP parity"
   },
   "assetGroups": [
     {
@@ -36,21 +36,8 @@
       "resources": {
         "files": [
           "/assets/**/*",
+          "/media/**/*",
           "/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
-        ]
-      }
-    },
-    {
-      "name": "fonts",
-      "installMode": "lazy",
-      "updateMode": "lazy",
-      "resources": {
-        "urls": [
-          "https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap",
-          "https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Round",
-          "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200",
-          "https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200",
-          "https://fonts.gstatic.com/**"
         ]
       }
     }

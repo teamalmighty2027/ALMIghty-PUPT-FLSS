@@ -1,12 +1,17 @@
-﻿# Enable rewrite engine
+# Enable rewrite engine
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Normalize directory trailing slashes to suppress default redirect bodies (Alert #5)
+  # Normalize directory trailing slashes to suppress default redirect bodies
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteCond %{REQUEST_URI} !/$
   RewriteRule ^(.*)$ /$1/ [R=301,L]
+
+  # Prevent rewriting missing static assets to index.html (return 404 directly)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} \.(woff2?|ttf|eot|otf|svg|png|jpg|jpeg|gif|webp|ico|css|js|json|map)$ [NC]
+  RewriteRule ^ - [R=404,L]
 
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
@@ -26,6 +31,7 @@
     Header always set Cache-Control "no-cache, no-store, must-revalidate"
     Header always set Pragma "no-cache"
     Header always set Expires "0"
+    Header always set X-LiteSpeed-Cache-Control "no-cache, no-store"
   </FilesMatch>
 
   # Don't cache manifest files
@@ -60,11 +66,15 @@
   # Content Security Policy
   Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; \
+script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' \
+  https://cdn.jsdelivr.net \
+  https://static.cloudflareinsights.com; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
-font-src 'self' https://fonts.gstatic.com; \
+font-src 'self' https://fonts.gstatic.com data:; \
 img-src 'self' data: blob: https://test-flss.alquatrilixbsit2027.com; \
 connect-src 'self' \
+  https://fonts.googleapis.com \
+  https://fonts.gstatic.com \
   https://test-flss.alquatrilixbsit2027.com \
   https://flss.alquatrilixbsit2027.com; \
 frame-src 'self' blob: \
@@ -128,4 +138,8 @@ base-uri 'self';"
   AddType image/webp webp
   AddType application/wasm wasm
   AddType application/javascript mjs
+  AddType font/woff2 woff2
+  AddType font/woff woff
+  AddType font/ttf ttf
+  AddType font/otf otf
 </IfModule>
