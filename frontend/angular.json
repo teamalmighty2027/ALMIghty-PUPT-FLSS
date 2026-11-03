@@ -69,14 +69,7 @@
           },
           "configurations": {
             "production": {
-              "optimization": {
-                "scripts": true,
-                "styles": {
-                  "minify": true,
-                  "inlineCritical": true
-                },
-                "fonts": false
-              },
+              "optimization": true,
               "extractLicenses": true,
               "sourceMap": false,
               "fileReplacements": [
