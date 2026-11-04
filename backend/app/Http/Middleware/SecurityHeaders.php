@@ -31,7 +31,9 @@ class SecurityHeaders
             "object-src 'none'; " .
             "manifest-src 'none'; " .
             "worker-src 'none'; " .
-            "frame-ancestors 'self';"
+            "frame-ancestors 'self'; " .
+            "form-action 'none'; " .
+            "base-uri 'none';"
         );
         $response->headers->set(
             'Cross-Origin-Opener-Policy',

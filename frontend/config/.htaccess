@@ -3,14 +3,15 @@
   RewriteEngine On
   RewriteBase /
 
-  # Normalize directory trailing slashes to suppress default redirect bodies
+  # Normalize directory trailing slashes
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteCond %{REQUEST_URI} !/$
   RewriteRule ^(.*)$ /$1/ [R=301,L]
 
   # Prevent rewriting missing static assets to index.html (return 404 directly)
   RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_URI} \.(woff2?|ttf|eot|otf|svg|png|jpg|jpeg|gif|webp|ico|css|js|json|map)$ [NC]
+  RewriteCond %{REQUEST_URI} \.(woff2?|ttf|eot|otf|svg|png|jpg|jpeg)$ [NC,OR]
+  RewriteCond %{REQUEST_URI} \.(gif|webp|ico|css|js|json|map)$ [NC]
   RewriteRule ^ - [R=404,L]
 
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
@@ -46,18 +47,15 @@
     Header set Cache-Control "public, max-age=31536000"
   </FilesMatch>
 
-  # Cache Google Fonts CSS for 1 day
-  <FilesMatch "^(?:googleapis\.com|gstatic\.com).*\.css$">
-    Header set Cache-Control "public, max-age=86400"
-  </FilesMatch>
-
   # Security Headers
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-XSS-Protection "1; mode=block"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
-  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security \
+    "max-age=31536000; includeSubDomains"
+  Header always set Permissions-Policy \
+    "camera=(), microphone=(), geolocation=()"
 
   # Strip server information headers
   Header always unset X-Powered-By
@@ -69,18 +67,20 @@ default-src 'self'; \
 script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' \
   https://cdn.jsdelivr.net \
   https://static.cloudflareinsights.com; \
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
-font-src 'self' https://fonts.gstatic.com data:; \
+style-src 'self' 'unsafe-inline'; \
+font-src 'self' data:; \
 img-src 'self' data: blob: https://test-flss.alquatrilixbsit2027.com; \
 connect-src 'self' \
-  https://fonts.googleapis.com \
-  https://fonts.gstatic.com \
+  https://cdn.jsdelivr.net \
+  https://static.cloudflareinsights.com \
+  https://cloudflareinsights.com \
   https://test-flss.alquatrilixbsit2027.com \
   https://flss.alquatrilixbsit2027.com; \
 frame-src 'self' blob: \
   https://www.youtube-nocookie.com \
   https://www.youtube.com; \
 frame-ancestors 'self'; \
+form-action 'self'; \
 object-src 'self' blob:; \
 child-src 'self' blob:; \
 worker-src 'self' blob:; \
@@ -91,11 +91,16 @@ base-uri 'self';"
   Header always set Cross-Origin-Embedder-Policy "unsafe-none"
 
   # CORS Headers
-  SetEnvIf Origin "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" AccessControlAllowOrigin=$0
-  Header always set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
+  SetEnvIf Origin \
+    "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" \
+    AccessControlAllowOrigin=$0
+  Header always set Access-Control-Allow-Origin \
+    "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
   Header always set Access-Control-Allow-Credentials "true"
-  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-  Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
+  Header always set Access-Control-Allow-Methods \
+    "GET, POST, PUT, DELETE, OPTIONS"
+  Header always set Access-Control-Allow-Headers \
+    "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
