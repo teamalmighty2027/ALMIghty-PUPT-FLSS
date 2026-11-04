@@ -1,0 +1,44 @@
+# Enable rewrite engine
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Allow direct access to maintenance assets
+  RewriteCond %{REQUEST_URI} ^/(favicon\.ico|pup_taguig_logo\.svg)$ [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/(robots\.txt|503\.json)$ [NC]
+  RewriteRule ^ - [L]
+
+  # 2. Prevent Service Worker manifest and API calls from receiving HTML
+  RewriteCond %{REQUEST_URI} ^/(api|sanctum)/ [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/(ngsw.*|manifest\.webmanifest)$ [NC,OR]
+  RewriteCond %{HTTP:Accept} application/json [NC]
+  RewriteRule ^ 503.json [L]
+
+  # 3. Direct all URL navigations to the maintenance page
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} !^/index\.html$ [NC]
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Cache Control & Security Headers
+<IfModule mod_headers.c>
+  # Ensure all maintenance responses are never cached by browsers
+  Header always set Cache-Control "no-cache, no-store, must-revalidate"
+  Header always set Pragma "no-cache"
+  Header always set Expires "0"
+  Header always set Retry-After "3600"
+
+  # Security Headers
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Content-Security-Policy "\
+default-src 'self' 'unsafe-inline' data:; \
+connect-src 'none'; \
+frame-ancestors 'self';"
+
+  # Set Content-Type for JSON maintenance responses
+  <Files "503.json">
+    Header always set Content-Type "application/json; charset=utf-8"
+  </Files>
+</IfModule>
