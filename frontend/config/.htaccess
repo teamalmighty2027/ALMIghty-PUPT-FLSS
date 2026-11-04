@@ -8,11 +8,10 @@
   RewriteCond %{REQUEST_URI} !/$
   RewriteRule ^(.*)$ /$1/ [R=301,L]
 
-  # Prevent rewriting missing static assets to index.html (return 404 directly)
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_URI} \.(woff2?|ttf|eot|otf|svg|png|jpg|jpeg)$ [NC,OR]
-  RewriteCond %{REQUEST_URI} \.(gif|webp|ico|css|js|json|map)$ [NC]
-  RewriteRule ^ - [R=404,L]
+  # Serve existing physical files and directories directly without rewriting
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
 
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
@@ -137,6 +136,7 @@ base-uri 'self';"
 # Set proper MIME types
 <IfModule mod_mime.c>
   AddType application/manifest+json webmanifest
+  AddType application/javascript js
   AddType application/x-javascript js
   AddType text/css css
   AddType image/svg+xml svg
