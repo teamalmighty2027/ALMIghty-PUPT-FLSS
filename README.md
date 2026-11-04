@@ -200,8 +200,7 @@ The backend includes custom `php artisan` management commands:
 | `php artisan address:sync` | Downloads and caches Philippine PSGC address dataset |
 | `php artisan sync:idp-uuids` | Syncs faculty email addresses with IDP user UUIDs |
 | `php artisan optimize:clear` | Clears all backend caches (config, route, view) |
-| `php artisan flss:down {--message=} {--retry=3600} {--secret=}` | Activates downtime returning 503 for all endpoints |
-| `php artisan flss:up` | Brings application out of downtime and restores live APIs |
+| `php artisan down --render="errors.503"` | Native laravel downtime returning 503 for all endpoints |
 
 #### Key Command Usage Examples
 
@@ -218,11 +217,6 @@ The backend includes custom `php artisan` management commands:
 - **Export ML Dataset**:
   ```bash
   php artisan ml:export-dataset --all
-  ```
-
-- **Activate Backend Downtime (Maintenance Mode)**:
-  ```bash
-  php artisan flss:down --secret="pupt-admin-bypass"
   ```
 
 - **Restore Application Online**:
