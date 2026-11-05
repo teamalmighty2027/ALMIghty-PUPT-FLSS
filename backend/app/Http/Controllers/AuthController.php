@@ -25,6 +25,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+        Log::info("Login initiated");
         $loginUserData = $request->validate([
             'email'         => 'required|string|email|max:254',
             'password'      => 'required|string|min:8|max:128',
@@ -68,6 +69,8 @@ class AuthController extends Controller
                 'email'   => $user->email,
             ], 403);
         }
+        
+        Log::info("User role checked");
 
         $tokenResult = $user->createToken('user-token');
         $token       = $tokenResult->plainTextToken;
@@ -77,6 +80,7 @@ class AuthController extends Controller
         $tokenResult->accessToken->save();
 
         $faculty = $user->faculty;
+        Log::info("Faculty role: {$faculty}");
 
         // Get permissions and allowed programs for response
         $permissions = $user->permissions->pluck('permission_key')->toArray();
@@ -97,7 +101,7 @@ class AuthController extends Controller
             'faculty'          => $faculty ? [
                 'faculty_id'    => $faculty->id,
                 'faculty_email' => $user->email,
-                'faculty_type'  => $faculty->facultyType->faculty_type ?? null,
+                'faculty_type'  => $faculty->facultyType?->faculty_type ?? null,
                 'faculty_units' => $faculty->faculty_units,
             ] : null,
         ]);
@@ -109,7 +113,8 @@ class AuthController extends Controller
         Cookie::queue(Cookie::make('user_info', $userData, 60));
 
         // AuditLogger automatically grabs their Name, Role, and ID
-        Auth::setUser($user);
+        Auth::login($user);
+        $request->session()->regenerate();
 
         // ══════════════════════════════════════════════════════════
         // ← LOG LOGIN ACTION
@@ -125,8 +130,7 @@ class AuthController extends Controller
             'expires_at' => $expiration,
             'token'      => $token,
             'user'       => json_decode($userData, true),
-        ])
-        ->cookie('token', $token, 1440, null, null, true, true);
+        ]);
     }
 
     /**
@@ -158,11 +162,17 @@ class AuthController extends Controller
             }
         }
 
-        // Invalidate web session state
-        Auth::guard('web')->logout();
-        if ($request->hasSession()) {
+            // Clear the cookies
+            Cookie::queue(Cookie::forget('user_token'));
+            Cookie::queue(Cookie::forget('user_info'));
+            Cookie::queue(Cookie::forget('token'));
+
+            // Invalidate web session state
+            Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+
+            return response()->json(['message' => 'Logged out successfully.'], 200);
         }
 
         return response()->json([
@@ -480,7 +490,6 @@ class AuthController extends Controller
                 ],
                 'data'       => $userDataArray,
             ])
-            ->cookie('token', $sanctumToken, $expiration, null, null, true, true)
             ->cookie('user_info', $userDataJson, $expiration);
         } catch (Exception $e) {
             Log::error('Error handling IDP callback: ' . $e->getMessage());
@@ -574,6 +583,8 @@ class AuthController extends Controller
 
         $idpToken = $request->query('idp_token') 
             ?? $request->input('idp_token');
+        $selectedRole = $request->query('role') 
+            ?? $request->input('role');
 
         // No token present — signal the frontend to fall back
         if (empty($idpToken)) {
@@ -650,8 +661,20 @@ class AuthController extends Controller
             $availableRoles = $users->pluck('role')
                 ->unique()->values()->toArray();
 
-            // --- Multiple roles: let the frontend show a role picker ---
-            if (count($availableRoles) > 1) {
+            // When a role is explicitly requested, authenticate as that role
+            if ($selectedRole) {
+                if (! in_array($selectedRole, $availableRoles, true)) {
+                    return response()->json([
+                        'session'     => false,
+                        'message'     => 
+                            "Access forbidden for role '{$selectedRole}'.",
+                        'redirect_to' => '/login',
+                    ], 403);
+                }
+
+                $user = $users->firstWhere('role', $selectedRole);
+            } elseif (count($availableRoles) > 1) {
+                // --- Multiple roles: let the frontend show a role picker ---
                 return response()->json([
                     'session'                 => true,
                     'requires_role_selection' => true,
@@ -662,10 +685,10 @@ class AuthController extends Controller
                                  . ' ' . ($idpData['last_name'] ?? ''),
                     ],
                 ]);
+            } else {
+                // --- Single role: issue a Sanctum token and return ---
+                $user = $users->first();
             }
-
-            // --- Single role: issue a Sanctum token and return ---
-            $user = $users->first();
 
             if ($user->status === 'Inactive' || $user->status === 'Retired') {
                 AuditLogger::logFailedLogin(

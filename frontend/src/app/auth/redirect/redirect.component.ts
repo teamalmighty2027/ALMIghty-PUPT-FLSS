@@ -90,7 +90,7 @@ export class RedirectComponent implements OnInit, OnDestroy {
     }
 
     this.authService.setUserData(user, expiresAt, 'idp');
-    SafeStorage.setItem('token', token.token ?? '');
+    localStorage.setItem('token', token.token ?? '');
 
     this.router.navigate([response.redirect_to]);
   }

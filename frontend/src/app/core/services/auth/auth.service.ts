@@ -205,7 +205,7 @@ export class AuthService {
 
     return this.http.get<any>(
       `${this.baseUrl}/auth/redirect`,
-      { params: { idp_token: idpToken } },
+      { params },
     );
   }
 

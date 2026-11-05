@@ -162,6 +162,8 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
         }
 
         $previousPreferencesData['app_url'] = rtrim($this->appUrl, '/');
+        $pilotTesting = storage_path('app/public/PilotTestingLetter.pdf');
+        $emailUsage = storage_path('app/public/EmailUsage.pdf');
 
         $template = $this->is_individual
             ? 'emails.preferences_single_open'
@@ -171,11 +173,25 @@ class SendFacultyPreferenceEmailJob implements ShouldQueue
             Mail::send(
                 $template,
                 $previousPreferencesData,
-                function ($message) use ($email) {
+                function ($message) use ($email, $pilotTesting, $emailUsage) {
                     $message->to($email)
                         ->subject(
                             'Faculty Load & Schedule Preferences ' .
                             'Submission is now open'
+                        )
+                        ->attach(
+                            $pilotTesting,
+                            [
+                                'as' => 'Pilot_Testing_Letter.pdf',
+                                'mime' => 'application/pdf',
+                            ]
+                        )
+                        ->attach(
+                            $emailUsage,
+                            [
+                                'as' => 'Email_Usage.pdf',
+                                'mime' => 'application/pdf',
+                            ]
                         );
                 }
             );
