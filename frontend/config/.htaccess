@@ -2,6 +2,17 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Normalize directory trailing slashes
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteCond %{REQUEST_URI} !/$
+  RewriteRule ^(.*)$ /$1/ [R=301,L]
+
+  # Serve existing physical files and directories directly without rewriting
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -20,6 +31,7 @@
     Header always set Cache-Control "no-cache, no-store, must-revalidate"
     Header always set Pragma "no-cache"
     Header always set Expires "0"
+    Header always set X-LiteSpeed-Cache-Control "no-cache, no-store"
   </FilesMatch>
 
   # Don't cache manifest files
@@ -34,18 +46,15 @@
     Header set Cache-Control "public, max-age=31536000"
   </FilesMatch>
 
-  # Cache Google Fonts CSS for 1 day
-  <FilesMatch "^(?:googleapis\.com|gstatic\.com).*\.css$">
-    Header set Cache-Control "public, max-age=86400"
-  </FilesMatch>
-
   # Security Headers
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-XSS-Protection "1; mode=block"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
-  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security \
+    "max-age=31536000; includeSubDomains"
+  Header always set Permissions-Policy \
+    "camera=(), microphone=(), geolocation=()"
 
   # Strip server information headers
   Header always unset X-Powered-By
@@ -54,17 +63,23 @@
   # Content Security Policy
   Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; \
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
-font-src 'self' https://fonts.gstatic.com; \
+script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' \
+  https://cdn.jsdelivr.net \
+  https://static.cloudflareinsights.com; \
+style-src 'self' 'unsafe-inline'; \
+font-src 'self' data:; \
 img-src 'self' data: blob: https://test-flss.alquatrilixbsit2027.com; \
 connect-src 'self' \
+  https://cdn.jsdelivr.net \
+  https://static.cloudflareinsights.com \
+  https://cloudflareinsights.com \
   https://test-flss.alquatrilixbsit2027.com \
   https://flss.alquatrilixbsit2027.com; \
 frame-src 'self' blob: \
   https://www.youtube-nocookie.com \
   https://www.youtube.com; \
 frame-ancestors 'self'; \
+form-action 'self'; \
 object-src 'self' blob:; \
 child-src 'self' blob:; \
 worker-src 'self' blob:; \
@@ -75,11 +90,16 @@ base-uri 'self';"
   Header always set Cross-Origin-Embedder-Policy "unsafe-none"
 
   # CORS Headers
-  SetEnvIf Origin "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" AccessControlAllowOrigin=$0
-  Header always set Access-Control-Allow-Origin "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
+  SetEnvIf Origin \
+    "^https://(test-flss|flss)\.alquatrilixbsit2027\.com$" \
+    AccessControlAllowOrigin=$0
+  Header always set Access-Control-Allow-Origin \
+    "%{AccessControlAllowOrigin}e" env=AccessControlAllowOrigin
   Header always set Access-Control-Allow-Credentials "true"
-  Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-  Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
+  Header always set Access-Control-Allow-Methods \
+    "GET, POST, PUT, DELETE, OPTIONS"
+  Header always set Access-Control-Allow-Headers \
+    "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
@@ -116,10 +136,15 @@ base-uri 'self';"
 # Set proper MIME types
 <IfModule mod_mime.c>
   AddType application/manifest+json webmanifest
+  AddType application/javascript js
   AddType application/x-javascript js
   AddType text/css css
   AddType image/svg+xml svg
   AddType image/webp webp
   AddType application/wasm wasm
   AddType application/javascript mjs
+  AddType font/woff2 woff2
+  AddType font/woff woff
+  AddType font/ttf ttf
+  AddType font/otf otf
 </IfModule>

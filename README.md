@@ -23,9 +23,9 @@ Streamlining the academic scheduling at PUP Taguig.
 ## Version and Technology
 
 ### Frontend
-- **Framework**: Angular 19 (`^19.2.0`)
-- **Language**: TypeScript (`^5.7.3`)
-- **Styling & UI**: Angular Material (`^19.2.0`), SCSS
+- **Framework**: Angular 20 (`^20.3.34`)
+- **Language**: TypeScript (`^5.9.3`)
+- **Styling & UI**: Angular Material (`^20.2.14`), SCSS
 - **Calendar & Analytics**:
   - FullCalendar (`^6.1.16`)
   - Chart.js (`^4.5.1`), ng2-charts (`^6.0.1`)
@@ -67,7 +67,8 @@ The repository is structured into the following main directories:
 ## Onboarding & Setup Guide
 
 ### Prerequisites
-- **Node.js**: v18.0.0 or higher
+- **Node.js**: >= 20.11.1 (excluding v22.0 - v22.10)
+- **TypeScript**: >= 5.8 (v5.9.3)
 - **npm**: v9.0.0 or higher
 - **PHP**: ^8.1
 - **Composer**: ^2.0

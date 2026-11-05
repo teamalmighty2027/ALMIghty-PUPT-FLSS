@@ -154,13 +154,13 @@ class AuthController extends Controller
             // ══════════════════════════════════════════════════════════
             AuditLogger::logLogout();
 
-            // Revoke the token that was used to authenticate the current request
+            // Revoke the token used to authenticate the current request
             $token = $request->user()->currentAccessToken();
 
-            // Check if token exists and has a delete method
             if ($token && method_exists($token, 'delete')) {
                 $token->delete();
             }
+        }
 
             // Clear the cookies
             Cookie::queue(Cookie::forget('user_token'));
@@ -175,7 +175,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Logged out successfully.'], 200);
         }
 
-        return response()->json(['message' => 'Unauthenticated.'], 401);
+        return response()->json([
+            'message' => 'Logged out successfully.',
+        ], 200)
+            ->withoutCookie('token')
+            ->withoutCookie('user_token')
+            ->withoutCookie('user_info');
     }
 
     /**
@@ -356,11 +361,22 @@ class AuthController extends Controller
             $user = null;
 
             if ($id) {
-                $user = User::whereHas('faculty', function ($query) use ($id) {
-                    $query->where('idp_user_id', $id);
-                })
+                $idpUsers = User::whereHas(
+                    'faculty',
+                    function ($query) use ($id) {
+                        $query->where('idp_user_id', $id);
+                    }
+                )
                     ->whereIn('role', $requestedRole)
-                    ->first();
+                    ->get();
+
+                if (in_array('superadmin', $requestedRole, true)) {
+                    $user = $idpUsers->firstWhere('role', 'superadmin');
+                }
+
+                if (! $user) {
+                    $user = $idpUsers->first();
+                }
             }
 
             if (! $user) {
@@ -446,19 +462,16 @@ class AuthController extends Controller
                 'is_full_access'   => $isFullAccess,
             ];
 
-            if ($user->role === 'superadmin') {
-                $userDataArray['role'] = 'superadmin';
-            } else if (in_array('faculty', $requestedRole)) {                
-                // Add to user data if faculty
-                $userDataArray['role'] = 'faculty';
+            $userDataArray['role'] = $user->role;
+
+            if ($user->role === 'faculty') {
                 $userDataArray['faculty'] = $user->faculty ? [
                     'faculty_id'    => $user->faculty->id,
                     'faculty_email' => $user->email,
-                    'faculty_type'  => $user->faculty->facultyType->faculty_type ?? null,
+                    'faculty_type'  =>
+                        $user->faculty->facultyType->faculty_type ?? null,
                     'faculty_units' => $user->faculty->faculty_units,
                 ] : null;
-            } else if (in_array('admin', $requestedRole)) {
-                $userDataArray['role'] = 'admin';
             }
 
             $userDataJson = json_encode($userDataArray);
