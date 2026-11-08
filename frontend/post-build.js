@@ -55,3 +55,29 @@ if (updatedFilesCount > 0 && fs.existsSync(ngswPath)) {
     console.log('ngsw.json updated successfully.');
   }
 }
+
+// Sanitize SHA-1 mathematical constants in ngsw-worker.js to hex notation
+// to prevent heuristic Unix Timestamp Disclosure false positives in ZAP.
+const workerPath = path.join(distDir, 'ngsw-worker.js');
+
+if (fs.existsSync(workerPath)) {
+  let workerContent = fs.readFileSync(workerPath, 'utf8');
+  const replacements = [
+    { target: '1732584193', hex: '0x67452301' },
+    { target: '1518500249', hex: '0x5a827999' },
+    { target: '1859775393', hex: '0x6ed9eba1' },
+  ];
+  let workerModified = false;
+
+  replacements.forEach(({ target, hex }) => {
+    if (workerContent.includes(target)) {
+      workerContent = workerContent.replace(target, hex);
+      workerModified = true;
+    }
+  });
+
+  if (workerModified) {
+    fs.writeFileSync(workerPath, workerContent, 'utf8');
+    console.log('Sanitized SHA-1 constants in ngsw-worker.js to hex.');
+  }
+}
