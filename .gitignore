@@ -1,7 +1,5 @@
 /documents
-!/documents/
 /documents/*
-!/documents/FIX.md
 
 # Node modules
 node_modules/
@@ -31,3 +29,4 @@ bazel-out/
 # Angular CLI
 .angular/
 .nx/
+documents/FIX.md
