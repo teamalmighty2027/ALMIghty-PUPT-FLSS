@@ -13,6 +13,11 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
+  # Prevent rewriting missing XML, TXT, and JSON files to index.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_URI} \.(xml|txt|json)$ [NC]
+  RewriteRule ^ - [R=404,L]
+
   RewriteRule ^(api|sanctum)/ backend/public/index.php [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
@@ -41,6 +46,13 @@
     Header always set Expires "0"
   </FilesMatch>
 
+  # Don't cache sitemap and robots files
+  <FilesMatch "(sitemap\.xml|robots\.txt)$">
+    Header always set Cache-Control "no-cache, must-revalidate"
+    Header always set Pragma "no-cache"
+    Header always set Expires "0"
+  </FilesMatch>
+
   # Cache font files for 1 year
   <FilesMatch "\.(woff2?|ttf|eot|svg)$">
     Header set Cache-Control "public, max-age=31536000"
@@ -60,7 +72,9 @@
   Header always unset X-Powered-By
   Header always unset Server
 
-  # Content Security Policy
+  # Content Security Policy (Application baseline for HTML & Service Workers)
+  SetEnvIf Request_URI "^/(api|sanctum)(/|$)" API_REQUEST=1
+  Header always unset Content-Security-Policy
   Header always set Content-Security-Policy "\
 default-src 'self'; \
 script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' \
@@ -83,7 +97,16 @@ form-action 'self'; \
 object-src 'self' blob:; \
 child-src 'self' blob:; \
 worker-src 'self' blob:; \
-base-uri 'self';"
+base-uri 'self';" env=!API_REQUEST
+  Header always edit Content-Security-Policy \
+    "^upgrade-insecure-requests$" \
+    "default-src 'none'; script-src 'none'; style-src 'none'; img-src 'none'; connect-src 'none'; frame-src 'none'; font-src 'none'; media-src 'none'; object-src 'none'; manifest-src 'none'; worker-src 'none'; frame-ancestors 'self'; form-action 'none'; base-uri 'none';"
+
+  # Strict zero-script/zero-style CSP for static XML and text assets
+  <FilesMatch "\.(xml|txt)$">
+    Header always set Content-Security-Policy \
+      "default-src 'none'; base-uri 'none'; form-action 'none';"
+  </FilesMatch>
 
   # Non-blocking Cross-Origin Isolation headers
   Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
@@ -100,6 +123,7 @@ base-uri 'self';"
     "GET, POST, PUT, DELETE, OPTIONS"
   Header always set Access-Control-Allow-Headers \
     "Content-Type, Authorization, X-CSRF-TOKEN, X-XSRF-TOKEN"
+  Header always set Vary "Origin"
 
   # Cache-Control Headers for index.html and ngsw.json
   <FilesMatch "index\.html$">
@@ -136,6 +160,7 @@ base-uri 'self';"
 # Set proper MIME types
 <IfModule mod_mime.c>
   AddType application/manifest+json webmanifest
+  AddType application/xml xml
   AddType application/javascript js
   AddType application/x-javascript js
   AddType text/css css

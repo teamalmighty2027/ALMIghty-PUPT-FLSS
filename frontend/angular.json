@@ -30,6 +30,8 @@
               "src/assets",
               "src/manifest.webmanifest",
               "src/icons",
+              "src/sitemap.xml",
+              "src/robots.txt",
               {
                 "glob": "*",
                 "input": "node_modules/onnxruntime-web/dist/",
@@ -103,6 +105,8 @@
                 "src/assets",
                 "src/manifest.webmanifest",
                 "src/icons",
+              "src/sitemap.xml",
+              "src/robots.txt",
                 {
                   "glob": ".htaccess",
                   "input": "config",

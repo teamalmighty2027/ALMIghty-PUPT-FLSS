@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /login
+Disallow: /admin/
+Disallow: /superadmin/
+Disallow: /faculty/
+Disallow: /api/
+
+Sitemap: https://test-flss.alquatrilixbsit2027.com/sitemap.xml

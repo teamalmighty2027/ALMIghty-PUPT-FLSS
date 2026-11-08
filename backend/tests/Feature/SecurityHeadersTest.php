@@ -18,8 +18,20 @@ class SecurityHeadersTest extends TestCase
         $response->assertHeader('X-Frame-Options', 'SAMEORIGIN');
         $response->assertHeader('X-Content-Type-Options', 'nosniff');
         $response->assertHeader(
+            'Strict-Transport-Security',
+            'max-age=31536000; includeSubDomains'
+        );
+        $response->assertHeader(
             'Content-Security-Policy',
-            "default-src 'none'; frame-ancestors 'self';"
+            "default-src 'none'; script-src 'none'; style-src 'none'; " .
+            "img-src 'none'; connect-src 'none'; frame-src 'none'; " .
+            "font-src 'none'; media-src 'none'; object-src 'none'; " .
+            "manifest-src 'none'; worker-src 'none'; frame-ancestors 'self'; " .
+            "form-action 'none'; base-uri 'none';"
+        );
+        $response->assertHeader(
+            'Permissions-Policy',
+            'camera=(), microphone=(), geolocation=()'
         );
         $response->assertHeader(
             'Cross-Origin-Opener-Policy',
