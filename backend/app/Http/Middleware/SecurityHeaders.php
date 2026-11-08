@@ -17,7 +17,10 @@ class SecurityHeaders
 
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        // Explicitly declare directives for API security and compliance
+        $response->headers->set(
+            'Strict-Transport-Security',
+            'max-age=31536000; includeSubDomains'
+        );
         $response->headers->set(
             'Content-Security-Policy',
             "default-src 'none'; " .
@@ -34,6 +37,10 @@ class SecurityHeaders
             "frame-ancestors 'self'; " .
             "form-action 'none'; " .
             "base-uri 'none';"
+        );
+        $response->headers->set(
+            'Permissions-Policy',
+            'camera=(), microphone=(), geolocation=()'
         );
         $response->headers->set(
             'Cross-Origin-Opener-Policy',

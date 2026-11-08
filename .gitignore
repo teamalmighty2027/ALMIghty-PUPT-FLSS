@@ -1,4 +1,7 @@
 /documents
+!/documents/
+/documents/*
+!/documents/FIX.md
 
 # Node modules
 node_modules/
