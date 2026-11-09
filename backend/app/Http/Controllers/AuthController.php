@@ -158,6 +158,11 @@ class AuthController extends Controller
             }
         }
 
+        // Clear the cookies
+        Cookie::queue(Cookie::forget('user_token'));
+        Cookie::queue(Cookie::forget('user_info'));
+        Cookie::queue(Cookie::forget('token'));
+
         // Invalidate web session state
         Auth::guard('web')->logout();
         if ($request->hasSession()) {
