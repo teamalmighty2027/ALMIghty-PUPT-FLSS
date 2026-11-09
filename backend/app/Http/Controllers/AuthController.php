@@ -162,17 +162,16 @@ class AuthController extends Controller
             }
         }
 
-            // Clear the cookies
-            Cookie::queue(Cookie::forget('user_token'));
-            Cookie::queue(Cookie::forget('user_info'));
-            Cookie::queue(Cookie::forget('token'));
+        // Clear the cookies
+        Cookie::queue(Cookie::forget('user_token'));
+        Cookie::queue(Cookie::forget('user_info'));
+        Cookie::queue(Cookie::forget('token'));
 
-            // Invalidate web session state
-            Auth::guard('web')->logout();
+        // Invalidate web session state
+        Auth::guard('web')->logout();
+        if ($request->hasSession()) {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
-
-            return response()->json(['message' => 'Logged out successfully.'], 200);
         }
 
         return response()->json([
