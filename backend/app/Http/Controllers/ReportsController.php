@@ -1882,18 +1882,28 @@ class ReportsController extends Controller
             ->select('curricula.curriculum_id', 'curricula.curriculum_year')
             ->get();
 
-        // Step 5: Calculate Preferences Progress
-        $preferencesWithEntries = DB::table('preferences_settings')
-            ->join('preferences', function ($join) use ($activeSemester) {
-                $join->on('preferences.faculty_id', '=', 'preferences_settings.faculty_id')
-                    ->where('preferences.active_semester_id', '=', $activeSemester->active_semester_id);
+        // Step 5: Calculate Preferences Progress (Active Faculty Only)
+        $facultyWithPreferencesCount = DB::table('preferences')
+            ->join('faculty', 'preferences.faculty_id', '=', 'faculty.id')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('users.status', 'Active')
+            ->where(
+                'preferences.active_semester_id',
+                '=',
+                $activeSemester->active_semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('preferences.course_assignment_id')
+                    ->orWhereNotNull(
+                        'preferences.temporary_course_offering_id'
+                    );
             })
-            ->where('preferences_settings.is_enabled', 0)
-            ->distinct('preferences_settings.faculty_id')
-            ->count('preferences_settings.faculty_id');
+            ->distinct('preferences.faculty_id')
+            ->count('preferences.faculty_id');
 
-        $submittedProperlyCount = $preferencesWithEntries;
-        $preferencesProgress = $activeFacultyCount > 0 ? ($submittedProperlyCount / $activeFacultyCount) * 100 : 0;
+        $preferencesProgress = $activeFacultyCount > 0
+            ? ($facultyWithPreferencesCount / $activeFacultyCount) * 100
+            : 0;
 
         // Step 6: Calculate Scheduling Progress
         $schedules = DB::table('schedules')
@@ -1933,13 +1943,21 @@ class ReportsController extends Controller
 
         $roomUtilization = $totalRooms > 0 ? ($usedRooms / $totalRooms) * 100 : 0;
 
-        // Step 8: Calculate Published Schedules
+        // Step 8: Calculate Published Schedules (Active Faculty Only)
         $publishedSchedules = DB::table('faculty_schedule_publication')
+            ->join(
+                'faculty',
+                'faculty_schedule_publication.faculty_id',
+                '=',
+                'faculty.id'
+            )
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('schedules', 'faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->where('users.status', 'Active')
             ->where('ca_semesters.semester', '=', $activeSemester->semester)
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
             ->where('faculty_schedule_publication.is_published', 1)
@@ -1950,19 +1968,35 @@ class ReportsController extends Controller
 
         $publishProgress = $activeFacultyCount > 0 ? ($publishedSchedules / $activeFacultyCount) * 100 : 0;
 
-        // Step 9: Calculate preferencesSubmissionEnabled
+        // Step 9: Calculate preferencesSubmissionEnabled (Active Faculty Only)
         if ($activeFacultyCount > 0) {
-            $preferencesSubmissionEnabled = PreferencesSetting::where('is_enabled', 1)->count() === $activeFacultyCount;
+            $enabledActiveCount = DB::table('preferences_settings')
+                ->join(
+                    'faculty',
+                    'preferences_settings.faculty_id',
+                    '=',
+                    'faculty.id'
+                )
+                ->join('users', 'faculty.user_id', '=', 'users.id')
+                ->where('users.status', 'Active')
+                ->where('preferences_settings.is_enabled', 1)
+                ->count();
+
+            $preferencesSubmissionEnabled =
+                ($enabledActiveCount === $activeFacultyCount);
         } else {
             $preferencesSubmissionEnabled = true;
         }
 
-        // Step 10: Count the number of faculty who have at least one schedule
+        // Step 10: Count active faculty who have at least one schedule
         $facultyWithSchedulesCount = DB::table('schedules')
+            ->join('faculty', 'schedules.faculty_id', '=', 'faculty.id')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->where('users.status', 'Active')
             ->where('ca_semesters.semester', '=', $activeSemester->semester)
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
             ->distinct('schedules.faculty_id')
@@ -1995,6 +2029,7 @@ class ReportsController extends Controller
             'publishProgress' => round($publishProgress, 0),
             'preferencesSubmissionEnabled' => $preferencesSubmissionEnabled,
             'facultyWithSchedulesCount' => $facultyWithSchedulesCount,
+            'facultyWithPreferencesCount' => $facultyWithPreferencesCount,
             'global_deadline' => $globalDeadline,
             'global_start_date' => $globalStartDate,
         ]);
