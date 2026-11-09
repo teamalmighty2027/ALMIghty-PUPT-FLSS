@@ -28,6 +28,7 @@ export interface OverviewDetails {
   publishProgress: number;
   preferencesSubmissionEnabled: boolean;
   facultyWithSchedulesCount: number;
+  facultyWithPreferencesCount?: number;
   global_deadline: string | null;
 }
 

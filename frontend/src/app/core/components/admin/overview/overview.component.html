@@ -106,7 +106,21 @@
             <div class="overview-group one">
               <!-- Preferences Submitted Progress Bar -->
               <div class="overview-item preferences-submitted">
-                <h3 class="item-title">Preferences Submitted</h3>
+                <h3 class="item-title">
+                  Preferences Submitted
+                  <span
+                    mat-symbol="help"
+                    class="help-icon"
+                    [fill]="false"
+                    [matTooltip]="
+                      facultyWithPreferencesCount +
+                      ' out of ' +
+                      activeFacultyCount +
+                      ' active faculty submitted preferences'
+                    "
+                    matTooltipPosition="right"
+                  ></span>
+                </h3>
 
                 <div class="progress-container">
                   <svg class="circular-progress" viewBox="0 0 100 100">

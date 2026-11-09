@@ -84,6 +84,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   schedulesPublished = false;
   notificationsLoaded = false;
   facultyWithSchedulesCount = 0;
+  facultyWithPreferencesCount = 0;
   isMismatchedSemester = false;
 
   requestNotifications: RequestNotification[] = [];
@@ -221,6 +222,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.activeProgramsCount = data.activeProgramsCount;
     this.activeCurricula = data.activeCurricula;
     this.facultyWithSchedulesCount = data.facultyWithSchedulesCount;
+    this.facultyWithPreferencesCount = data.facultyWithPreferencesCount ?? 0;
     this.preferencesEnabled = data.preferencesSubmissionEnabled;
     this.schedulesPublished = data.publishProgress > 0;
     this.globalDeadline = data.global_deadline || null;
