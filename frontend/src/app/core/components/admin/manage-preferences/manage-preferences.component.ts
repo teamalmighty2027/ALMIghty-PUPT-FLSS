@@ -28,6 +28,9 @@ import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '.
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import {
+  ScheduleSyncService,
+} from '../../../services/admin/sync/schedule-sync.service';
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
@@ -113,6 +116,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   selection = new SelectionModel<Faculty>(true, []);
 
   isLoading = new BehaviorSubject<boolean>(true);
+  isRefreshing = false;
 
   selectedTermId: number | null = null;
   private activeTermId: number | null = null;
@@ -144,19 +148,27 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
     private reportHeaderService: ReportHeaderService,
-    private reportsService: ReportsService
+    private reportsService: ReportsService,
+    private syncService: ScheduleSyncService
   ) {}
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
 
-    this.loadTerms(); 
+    this.loadTerms();
     this.setupFilterPredicate();
-    
+
     this.searchSubject
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchValue) => {
         this.applyFilter(searchValue);
+      });
+
+    this.syncService.startAutoRefresh('manage-preferences', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshPreferencesTableSilently();
       });
   }
 
@@ -166,6 +178,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * and allow observables to complete.
    */
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('manage-preferences');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -280,9 +293,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * Loads faculty preferences for the specified term and updates
    * the component's data structures and UI state.
    * @param termId Optional term id to scope the preferences request.
+   * @param silent When true, reloads in background without full-page spinner.
    */
-  loadFacultyPreferences(termId?: number | null): void {
-    this.isLoading.next(true);
+  loadFacultyPreferences(
+    termId?: number | null,
+    silent = false
+  ): void {
+    if (!silent) {
+      this.isLoading.next(true);
+    }
 
     if (this.prefsSub) {
       this.prefsSub.unsubscribe();
@@ -293,6 +312,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
+          this.isRefreshing = false;
+
           if (!response || !response.preferences) {
             this.handleEmptyData();
             return;
@@ -311,7 +332,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
           this.allData = faculties;
           this.filteredData = faculties;
-          this.applyFilter(this.currentFilter);
+          this.applyFilter(this.currentFilter, !silent);
           this.checkToggleAllState();
           this.updateHasAnyPreferences();
           this.updateIndividualDeadlinesState();
@@ -320,16 +341,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           this.initializeScheduledFacultyState();
           this.updateExportButtonState();
           this.isLoading.next(false);
+          this.cdr.markForCheck();
         },
         error: (error) => {
+          this.isRefreshing = false;
           console.error('Error loading faculty preferences:', error);
-          this.snackBar.open(
-            'Error loading faculty preferences. Please try again.',
-            'Close',
-            { duration: 3000 },
-          );
-          this.handleEmptyData();
-        }
+
+          if (!silent) {
+            this.snackBar.open(
+              'Error loading faculty preferences. Please try again.',
+              'Close',
+              { duration: 3000 }
+            );
+            this.handleEmptyData();
+          }
+        },
       });
   }
 
@@ -350,15 +376,16 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   /**
    * Applies a text filter to the faculty list and updates the table.
    * @param filterValue Raw filter string entered by the user.
+   * @param resetPage Whether to reset pagination to the first page.
    */
-  applyFilter(filterValue: string): void {
+  applyFilter(filterValue: string, resetPage = true): void {
     this.currentFilter = filterValue.trim().toLowerCase();
 
     if (this.currentFilter === '') {
       this.filteredData = [...this.allData];
     } else {
       this.filteredData = this.allData.filter((faculty) =>
-        this.filterPredicate(faculty, this.currentFilter),
+        this.filterPredicate(faculty, this.currentFilter)
       );
     }
 
@@ -366,7 +393,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.checkToggleAllState();
     this.updateExportButtonState();
 
-    if (this.paginator) {
+    if (resetPage && this.paginator) {
       this.paginator.firstPage();
     }
   }
@@ -392,7 +419,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Reloads the current term after a successful bulk toggle.
+   * Reloads the current term after a successful bulk toggle or dialog close.
    * Clears cached preferences first so the table reflects server state.
    */
   private refreshPreferencesTable(): void {
@@ -404,6 +431,29 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     this.preferencesService.clearPreferencesCache();
     this.loadFacultyPreferences(termId);
+  }
+
+  /**
+   * Silently reloads faculty preferences for background polling or manual
+   * refresh without displaying the full-page blocking spinner.
+   */
+  public refreshPreferencesTableSilently(): void {
+    const termId = this.selectedTermId ?? this.activeTermId;
+
+    if (termId === null || this.isLoading.value) {
+      return;
+    }
+
+    this.isRefreshing = true;
+    this.preferencesService.clearPreferencesCache();
+    this.loadFacultyPreferences(termId, true);
+  }
+
+  /**
+   * Triggers an immediate manual refresh via the shared sync service.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   /**
@@ -927,7 +977,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
-    this.dialog.open(DialogPrefComponent, {
+    const dialogRef = this.dialog.open(DialogPrefComponent, {
       maxWidth: '90vw',
       width: '100%',
       data: {
@@ -937,12 +987,22 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         isAdmin: true,
         hasSubmitted: this.hasSubmittedPreferences(faculty),
         generateExcelFunction: async () => {
-          const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
+          const excelBlob = await this.generateFacultyExcelBlob(
+            false,
+            [faculty]
+          );
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
-        }
+        },
       },
       autoFocus: true,
     });
+
+    dialogRef
+      .afterClosed()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshPreferencesTableSilently();
+      });
   }
 
   /**
