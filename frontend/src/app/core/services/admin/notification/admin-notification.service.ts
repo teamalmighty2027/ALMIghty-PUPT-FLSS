@@ -12,6 +12,8 @@ export interface AppNotification {
     icon: string;
     faculty_id: number;
     type: string;
+    is_admin_override?: boolean;
+    admin_name?: string | null;
   };
   read_at: string | null;
   created_at: string;
