@@ -301,7 +301,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
 
     this.subscriptions.add(
       this.preferencesService
-        .getPreferencesByFacultyId(facultyId)
+        .getPreferencesByFacultyId(facultyId, true)
         .pipe(
           tap((resp) => this.processPreferencesResponse(resp)),
           switchMap((resp) =>
@@ -1107,6 +1107,7 @@ export class PreferencesComponent implements OnInit, OnDestroy, HasUnsavedPrefer
       data: {
         facultyName: this.facultyName(),
         faculty_id: parseInt(this.facultyId()!, 10),
+        termId: this.activeSemesterId(),
         isViewOnlyTable: true,
         isViewHistory: true,
         isAdmin: false,
