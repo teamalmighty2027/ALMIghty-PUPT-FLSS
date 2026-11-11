@@ -1,0 +1,357 @@
+<div class="dialog-breakdown-container">
+  <!-- Dialog Header -->
+  <header class="dialog-header">
+    <div class="header-left">
+      <span mat-symbol="pie_chart" class="header-icon"></span>
+      <div class="header-text">
+        <h2 class="dialog-title">Faculty Preferences Breakdown</h2>
+        <p class="dialog-subtitle">
+          A.Y. {{ breakdownData?.academic_year || data.academicYear }},
+          {{ breakdownData?.semester || data.semester }}
+        </p>
+      </div>
+    </div>
+    <button
+      type="button"
+      class="close-button"
+      (click)="closeDialog()"
+      aria-label="Close dialog"
+    >
+      <span mat-symbol="close"></span>
+    </button>
+  </header>
+
+  <!-- Loading State -->
+  @if (isLoading) {
+    <div class="loading-wrapper">
+      <app-loading></app-loading>
+    </div>
+  } @else if (hasError) {
+    <!-- Error State -->
+    <div class="error-container">
+      <span mat-symbol="error" class="error-icon"></span>
+      <p class="error-message">{{ errorMessage }}</p>
+      <button
+        mat-flat-button
+        color="primary"
+        (click)="loadBreakdown()"
+        class="retry-button"
+      >
+        Retry
+      </button>
+    </div>
+  } @else if (breakdownData) {
+    <!-- Scrollable Modal Content -->
+    <div class="scrollable-modal-body">
+      <!-- Campus Overview Metric Banner -->
+      <div class="campus-overview-banner">
+        <div class="summary-pill">
+          <span class="pill-label">Faculty Submissions</span>
+          <span class="pill-value">
+            {{ breakdownData.faculty_submission_percentage ?? 0 }}%
+          </span>
+          <span class="pill-sub">
+            {{ breakdownData.total_faculty_submitted ?? 0 }} of
+            {{ breakdownData.total_active_faculty ?? 0 }} active faculty
+            ({{ breakdownData.total_preferences_submitted }} preferences)
+          </span>
+        </div>
+
+        <div class="summary-pill">
+          <span class="pill-label">Overall Subject Coverage</span>
+          <span class="pill-value">
+            {{ breakdownData.overall_subject_coverage_percentage }}%
+          </span>
+          <span class="pill-sub">
+            {{ breakdownData.total_subjects_with_preferences }} of
+            {{ breakdownData.total_subjects_offered }} subjects preferred
+          </span>
+        </div>
+
+        <div class="summary-pill">
+          <span class="pill-label">Active Programs</span>
+          <span class="pill-value">
+            {{ breakdownData.programs.length }}
+          </span>
+          <span class="pill-sub">enrolled this term</span>
+        </div>
+      </div>
+
+      <!-- General Education (GEED) Section -->
+      <section class="breakdown-section geed-section">
+        <div class="section-title-wrapper">
+          <span mat-symbol="public" class="section-icon geed-icon"></span>
+          <div class="section-title-content">
+            <h3 class="section-title">General Education Subjects</h3>
+            <p class="section-desc">
+              Institutional common subjects (GEED, NSTP, PATHFit) separated
+              from degree program curriculums.
+            </p>
+          </div>
+        </div>
+
+        <div class="category-card geed-card">
+          <div class="card-main-row">
+            <div class="coverage-group">
+              <div class="coverage-header">
+                <span class="coverage-label">Subject Coverage</span>
+                <span
+                  class="coverage-badge"
+                  [ngClass]="
+                    getCoverageClass(
+                      breakdownData.general_education
+                        .subject_coverage_percentage
+                    )
+                  "
+                >
+                  {{
+                    breakdownData.general_education
+                      .subject_coverage_percentage
+                  }}%
+                </span>
+              </div>
+              <div class="progress-track">
+                <div
+                  class="progress-fill"
+                  [ngClass]="
+                    getCoverageClass(
+                      breakdownData.general_education
+                        .subject_coverage_percentage
+                    )
+                  "
+                  [style.width.%]="
+                    breakdownData.general_education
+                      .subject_coverage_percentage
+                  "
+                ></div>
+              </div>
+            </div>
+
+            <div class="card-stats-grid">
+              <div class="stat-item">
+                <span class="stat-number">
+                  {{
+                    breakdownData.general_education
+                      .subjects_with_preferences
+                  }}
+                  /
+                  {{
+                    breakdownData.general_education
+                      .total_subjects_offered
+                  }}
+                </span>
+                <span class="stat-caption">Subjects with Preferences</span>
+              </div>
+
+              <div class="stat-item">
+                <span class="stat-number">
+                  {{
+                    breakdownData.general_education
+                      .preference_submissions_count
+                  }}
+                </span>
+                <span class="stat-caption">
+                  Total Preferences ({{
+                    breakdownData.general_education
+                      .preference_share_percentage
+                  }}% of campus)
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Unassigned Courses Expandable Trigger -->
+          @if (
+            breakdownData.general_education.unassigned_courses.length > 0
+          ) {
+            <div class="unassigned-toggle-row">
+              <button
+                type="button"
+                class="toggle-unassigned-btn"
+                (click)="toggleExpand('GEED')"
+              >
+                <span
+                  mat-symbol="warning"
+                  class="unassigned-icon"
+                ></span>
+                <span>
+                  {{
+                    breakdownData.general_education.unassigned_courses
+                      .length
+                  }}
+                  unassigned subject(s) with 0 preferences
+                </span>
+                <span
+                  mat-symbol="expand_more"
+                  class="expand-chevron"
+                  [class.rotated]="isExpanded('GEED')"
+                ></span>
+              </button>
+            </div>
+
+            @if (isExpanded('GEED')) {
+              <div class="unassigned-course-list">
+                @for (
+                  course of breakdownData.general_education
+                    .unassigned_courses;
+                  track course.course_id
+                ) {
+                  <div class="unassigned-chip">
+                    <span class="chip-code">
+                      {{ course.course_code }}
+                    </span>
+                    <span class="chip-title">
+                      {{ course.course_title }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          } @else {
+            <div class="all-assigned-banner">
+              <span mat-symbol="check_circle" class="check-icon"></span>
+              <span>All offered GEED subjects have preferences!</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <!-- Degree Programs Section -->
+      <section class="breakdown-section programs-section">
+        <div class="section-title-wrapper">
+          <span mat-symbol="school" class="section-icon"></span>
+          <div class="section-title-content">
+            <h3 class="section-title">Degree Programs Breakdown</h3>
+            <p class="section-desc">
+              Subject preference coverage and submission volume for each
+              active program.
+            </p>
+          </div>
+        </div>
+
+        <div class="programs-grid">
+          @for (
+            program of breakdownData.programs;
+            track program.program_id
+          ) {
+            <div class="category-card program-card">
+              <div class="program-card-header">
+                <span class="program-code-badge">
+                  {{ program.program_code }}
+                </span>
+                <h4 class="program-title" [title]="program.program_title">
+                  {{ program.program_title }}
+                </h4>
+              </div>
+
+              <div class="coverage-group">
+                <div class="coverage-header">
+                  <span class="coverage-label">Subject Coverage</span>
+                  <span
+                    class="coverage-badge"
+                    [ngClass]="
+                      getCoverageClass(program.subject_coverage_percentage)
+                    "
+                  >
+                    {{ program.subject_coverage_percentage }}%
+                  </span>
+                </div>
+                <div class="progress-track">
+                  <div
+                    class="progress-fill"
+                    [ngClass]="
+                      getCoverageClass(program.subject_coverage_percentage)
+                    "
+                    [style.width.%]="program.subject_coverage_percentage"
+                  ></div>
+                </div>
+              </div>
+
+              <div class="card-stats-grid">
+                <div class="stat-item">
+                  <span class="stat-number">
+                    {{ program.subjects_with_preferences }} /
+                    {{ program.total_subjects_offered }}
+                  </span>
+                  <span class="stat-caption">Subjects with Preferences</span>
+                </div>
+
+                <div class="stat-item">
+                  <span class="stat-number">
+                    {{ program.preference_submissions_count }}
+                  </span>
+                  <span class="stat-caption">
+                    Preferences ({{
+                      program.preference_share_percentage
+                    }}% campus)
+                  </span>
+                </div>
+              </div>
+
+              <!-- Unassigned Courses Expandable Trigger -->
+              @if (program.unassigned_courses.length > 0) {
+                <div class="unassigned-toggle-row">
+                  <button
+                    type="button"
+                    class="toggle-unassigned-btn"
+                    (click)="
+                      toggleExpand('program_' + program.program_id)
+                    "
+                  >
+                    <span
+                      mat-symbol="warning"
+                      class="unassigned-icon"
+                    ></span>
+                    <span>
+                      {{ program.unassigned_courses.length }} unassigned
+                    </span>
+                    <span
+                      mat-symbol="expand_more"
+                      class="expand-chevron"
+                      [class.rotated]="
+                        isExpanded('program_' + program.program_id)
+                      "
+                    ></span>
+                  </button>
+                </div>
+
+                @if (isExpanded('program_' + program.program_id)) {
+                  <div class="unassigned-course-list">
+                    @for (
+                      course of program.unassigned_courses;
+                      track course.course_id
+                    ) {
+                      <div class="unassigned-chip">
+                        <span class="chip-code">
+                          {{ course.course_code }}
+                        </span>
+                        <span class="chip-title">
+                          {{ course.course_title }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              } @else {
+                <div class="all-assigned-banner">
+                  <span
+                    mat-symbol="check_circle"
+                    class="check-icon"
+                  ></span>
+                  <span>All program subjects have preferences</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
+
+  <!-- Dialog Actions Footer -->
+  <footer class="dialog-footer">
+    <button mat-button class="close-footer-btn" (click)="closeDialog()">
+      Close
+    </button>
+  </footer>
+</div>
