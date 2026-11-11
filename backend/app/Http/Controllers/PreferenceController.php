@@ -173,20 +173,30 @@ class PreferenceController extends Controller
                 ->get();
 
             $faculty = Faculty::find($facultyId);
+            $currentUser = $request->user();
+            $adminName = ($isAdmin && $currentUser)
+                ? $currentUser->formatted_name
+                : null;
 
             foreach ($admins as $admin) {
-                // 1. Check if the admin already has an UNREAD notification for this specific faculty
                 $existingNotification = $admin->unreadNotifications()
                     ->where('type', PreferenceSubmittedNotification::class)
                     ->where('data->faculty_id', $facultyId)
                     ->first();
 
+                $notification = new PreferenceSubmittedNotification(
+                    $faculty,
+                    $isAdmin,
+                    $adminName
+                );
+
                 if (!$existingNotification) {
-                    // 2. Only notify if there isn't an unread one already
-                    $admin->notify(new PreferenceSubmittedNotification($faculty));
+                    $admin->notify($notification);
                 } else {
-                    // 3. Prevent spam: Just update the timestamp to bump it to the top of the dropdown
-                    $existingNotification->update(['created_at' => now()]);
+                    $existingNotification->update([
+                        'data' => $notification->toArray($admin),
+                        'created_at' => now(),
+                    ]);
                 }
             }
 
@@ -207,22 +217,33 @@ class PreferenceController extends Controller
                 ? "Course Assignment ID: {$courseAssignmentId}"
                 : "Temporary Offering ID: {$temporaryCourseOfferingId}";
 
+            if ($isAdmin) {
+                $actorPrefix = $adminName ? "Admin {$adminName}" : 'Admin';
+                $updateDesc = "{$actorPrefix} updated schedule preference for "
+                    . "{$facultyName} ({$courseReference}) via Manual Override";
+                $createDesc = "{$actorPrefix} inputted new schedule preference "
+                    . "for {$facultyName} via Manual Override";
+            } else {
+                $updateDesc = "Updated schedule preference for "
+                    . "{$facultyName} ({$courseReference})";
+                $createDesc = "Submitted new schedule preference for "
+                    . $facultyName;
+            }
+
             if ($isUpdate) {
                 AuditLogger::logUpdate(
                     model: 'Preference',
                     modelId: $preferenceRecord->preferences_id,
                     oldData: [],
                     newData: ['days' => $validatedData['preferred_days']],
-                    description: "Updated schedule preference for " .
-                        $facultyName . " (" . $courseReference . ")"
+                    description: $updateDesc
                 );
             } else {
                 AuditLogger::logCreate(
                     model: 'Preference',
                     modelId: $preferenceRecord->preferences_id,
                     data: $validatedData,
-                    description: "Submitted new schedule preference for " .
-                        $facultyName
+                    description: $createDesc
                 );
             }
         } catch (\Exception $e) {
@@ -239,26 +260,38 @@ class PreferenceController extends Controller
     }
 
     /**
-     * Retrieves all unique faculty preferences for the active year and semester.
+     * Resolves the target active semester using an explicit term ID or falls
+     * back to the currently active semester (then faculty view semester).
+     */
+    private function resolveActiveSemester(?string $termId): ?ActiveSemester
+    {
+        $query = ActiveSemester::with(['academicYear', 'semester']);
+
+        if ($termId) {
+            return (clone $query)
+                ->where('active_semester_id', $termId)
+                ->first();
+        }
+
+        return (clone $query)->where('is_active', 1)->first()
+            ?? (clone $query)->where('is_faculty_view', 1)->first();
+    }
+
+    /**
+     * Retrieves unique faculty preferences for the active year and semester.
      * In this context, 'unique' means it returns only one instance of a course,
      * a.k.a. the actual selected preference of the faculty
      */
     public function getUniqueFacultyPreferences(Request $request)
     {
         $termId = $request->query('term_id');
-
-        if ($termId) {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('active_semester_id', $termId)
-                ->first();
-        } else {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('is_faculty_view', 1)
-                ->first();
-        }
+        $activeSemester = $this->resolveActiveSemester($termId);
 
         if (! $activeSemester) {
-            return response()->json(['error' => 'No active semester found'], 404);
+            return response()->json(
+                ['error' => 'No active semester found'],
+                404
+            );
         }
 
         $curriculumElectives = DB::table('curriculum_electives as ce')
@@ -509,19 +542,13 @@ class PreferenceController extends Controller
     public function getAllFacultyPreferences(Request $request)
     {
         $termId = $request->query('term_id');
-
-        if ($termId) {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('active_semester_id', $termId)
-                ->first();
-        } else {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('is_faculty_view', 1)
-                ->first();
-        }
+        $activeSemester = $this->resolveActiveSemester($termId);
 
         if (! $activeSemester) {
-            return response()->json(['error' => 'No active semester found'], 404);
+            return response()->json(
+                ['error' => 'No active semester found'],
+                404
+            );
         }
 
         $curriculumElectives = DB::table('curriculum_electives as ce')
@@ -798,15 +825,13 @@ class PreferenceController extends Controller
     public function getFacultyPreferencesById(Request $request, $faculty_id)
     {
         $termId = $request->query('term_id');
+        $activeSemester = $this->resolveActiveSemester($termId);
 
-        if ($termId) {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('active_semester_id', $termId)
-                ->first();
-        } else {
-            $activeSemester = ActiveSemester::with(['academicYear', 'semester'])
-                ->where('is_faculty_view', 1)
-                ->first();
+        if (! $activeSemester) {
+            return response()->json(
+                ['error' => 'No active semester found'],
+                404
+            );
         }
 
         $curriculumElectives = DB::table('curriculum_electives as ce')
@@ -1621,6 +1646,33 @@ class PreferenceController extends Controller
     }
 
     /**
+     * Returns true when a non-admin user attempts to modify preferences while
+     * submission is disabled or past its deadline.
+     */
+    private function isSubmissionBlockedForUser(
+        Request $request,
+        $facultyId
+    ): bool {
+        $isAdmin = $request->user() && $request->user()->role === 'admin';
+
+        if ($isAdmin) {
+            return false;
+        }
+
+        $setting = PreferencesSetting::where('faculty_id', $facultyId)->first();
+
+        if (! $setting) {
+            return true;
+        }
+
+        $deadline = $setting->individual_deadline ?? $setting->global_deadline;
+        $isPastDeadline = $deadline
+            && Carbon::now()->greaterThan(Carbon::parse($deadline)->endOfDay());
+
+        return $setting->is_enabled == 0 || $isPastDeadline;
+    }
+
+    /**
      * Deletes a specific faculty preference.
      */
     public function deletePreferences(Request $request, $preference_id)
@@ -1638,13 +1690,10 @@ class PreferenceController extends Controller
             return response()->json(['message' => 'Active semester ID is required.'], 400);
         }
 
-        // Check deadline
-        $preferenceSetting = PreferencesSetting::where('faculty_id', $facultyId)->first();
-        $deadline          = $preferenceSetting->individual_deadline ?? $preferenceSetting->global_deadline;
-
-        if ($preferenceSetting->is_enabled == 0 || ($deadline && Carbon::now()->greaterThan(Carbon::parse($deadline)->endOfDay()))) {
+        if ($this->isSubmissionBlockedForUser($request, $facultyId)) {
             return response()->json([
-                'message' => 'The submission deadline has passed. You cannot delete preferences.',
+                'message' => 'The submission deadline has passed. '
+                    . 'You cannot delete preferences.',
             ], 403);
         }
 
@@ -1698,11 +1747,24 @@ class PreferenceController extends Controller
             ? "Temporary Offering ID: {$temporaryCourseOfferingId}"
             : "Course Assignment ID: {$preference_id}";
 
+        $currentUser = $request->user();
+        $isAdmin = $currentUser && $currentUser->role === 'admin';
+        $adminName = $isAdmin ? $currentUser->formatted_name : null;
+
+        if ($isAdmin) {
+            $actorPrefix = $adminName ? "Admin {$adminName}" : 'Admin';
+            $deleteDesc = "{$actorPrefix} deleted schedule preference for "
+                . "{$facultyName} ({$courseReference}) via Manual Override";
+        } else {
+            $deleteDesc = "Deleted a schedule preference for {$facultyName} "
+                . "({$courseReference})";
+        }
+
         AuditLogger::logDelete(
             model: 'Preference',
             modelId: $originalData['preferences_id'],
             data: $originalData,
-            description: "Deleted a schedule preference for {$facultyName} ({$courseReference})"
+            description: $deleteDesc
         );
 
         return response()->json(['message' => 'Preference deleted successfully.'], 200);
@@ -1724,13 +1786,10 @@ class PreferenceController extends Controller
             return response()->json(['message' => 'Active semester ID is required.'], 400);
         }
 
-        // Check deadline
-        $preferenceSetting = PreferencesSetting::where('faculty_id', $facultyId)->first();
-        $deadline          = $preferenceSetting->individual_deadline ?? $preferenceSetting->global_deadline;
-
-        if ($preferenceSetting->is_enabled == 0 || ($deadline && Carbon::now()->greaterThan(Carbon::parse($deadline)->endOfDay()))) {
+        if ($this->isSubmissionBlockedForUser($request, $facultyId)) {
             return response()->json([
-                'message' => 'The submission deadline has passed. You cannot delete preferences.',
+                'message' => 'The submission deadline has passed. '
+                    . 'You cannot delete preferences.',
             ], 403);
         }
 
@@ -1759,11 +1818,26 @@ class PreferenceController extends Controller
         })->first();
         $facultyName = $facultyUser ? $facultyUser->formatted_name : "Faculty ID: {$facultyId}";
 
+        $currentUser = $request->user();
+        $isAdmin = $currentUser && $currentUser->role === 'admin';
+        $adminName = $isAdmin ? $currentUser->formatted_name : null;
+
+        if ($isAdmin) {
+            $actorPrefix = $adminName ? "Admin {$adminName}" : 'Admin';
+            $clearDesc = "{$actorPrefix} cleared ALL schedule preferences "
+                . "({$deletedCount} total) for {$facultyName} in Active "
+                . "Semester {$activeSemesterId} via Manual Override";
+        } else {
+            $clearDesc = "Cleared ALL schedule preferences ({$deletedCount} "
+                . "total) for {$facultyName} in Active Semester "
+                . "{$activeSemesterId}";
+        }
+
         AuditLogger::logDelete(
             model: 'Preference',
             modelId: 0,
             data: ['faculty_id' => $facultyId, 'active_semester_id' => $activeSemesterId],
-            description: "Cleared ALL schedule preferences ({$deletedCount} total) for {$facultyName} in Active Semester {$activeSemesterId}"
+            description: $clearDesc
         );
 
         return response()->json(['message' => 'All preferences for this faculty in the active semester deleted successfully.'], 200);

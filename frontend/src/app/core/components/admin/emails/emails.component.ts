@@ -590,7 +590,9 @@ export class EmailsComponent implements OnInit, OnDestroy {
       case 'preference_request':
         return 'Preference Request';
       case 'preference_submission':
-        return 'Preferences Submitted';
+        return notif.data.is_admin_override
+          ? 'Preferences Inputted by Admin'
+          : 'Preferences Submitted';
       case 'appeal_request':
         return 'Appeal Request';
       case 'appeal_request_cancelled':
