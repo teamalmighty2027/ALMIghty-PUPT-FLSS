@@ -39,6 +39,7 @@
                 <span
                   mat-symbol="help"
                   class="help-icon"
+                  size="20px"
                   [fill]="false"
                   [matTooltip]="
                     `${facultyWithSchedulesCount} out of ${activeFacultyCount} faculty have schedules assigned`
@@ -105,12 +106,23 @@
             <!-- Overview Group One -->
             <div class="overview-group one">
               <!-- Preferences Submitted Progress Bar -->
-              <div class="overview-item preferences-submitted">
+              <div
+                class="overview-item preferences-submitted clickable-metric"
+                role="button"
+                tabindex="0"
+                (click)="openPreferencesBreakdownDialog()"
+                (keydown.enter)="openPreferencesBreakdownDialog()"
+                [matTooltip]="
+                  'Click to view preferences breakdown by program and GEED'
+                "
+                matTooltipPosition="above"
+              >
                 <h3 class="item-title">
                   Preferences Submitted
                   <span
                     mat-symbol="help"
                     class="help-icon"
+                    size="20px"
                     [fill]="false"
                     [matTooltip]="
                       facultyWithPreferencesCount +
