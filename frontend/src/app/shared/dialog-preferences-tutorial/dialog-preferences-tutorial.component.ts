@@ -51,8 +51,8 @@ export class DialogPreferencesTutorialComponent {
         'your preferences for the upcoming semester.',
       icon: 'school',
       highlight:
-        'Note: Previous preferences found (from the matching semester of the ' +
-        'latest academic year) have been automatically loaded.',
+        'Note: Previous preferences found have been automatically loaded.' +
+        'Please refresh the page if you do not see your previous preferences.',
     },
     {
       stepNumber: 2,
