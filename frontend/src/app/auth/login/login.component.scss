@@ -128,23 +128,6 @@
         }
       }
 
-      .feature-icon-wrapper {
-        @include mixins.flex-layout($align: center, $justify: center);
-        min-width: 2rem;
-        height: 2rem;
-        border-radius: var(--border-radius-md);
-        background: var(--surface-card);
-        transition: background 0.3s ease;
-
-        span[mat-symbol] {
-          font-size: var(--font-size-xlx);
-          width: auto;
-          height: auto;
-          color: var(--primary-text);
-          transition: transform 0.3s ease;
-        }
-      }
-
       .feature-content {
         p {
           margin: 0;
@@ -204,6 +187,21 @@
     .button-text {
       @include mixins.flex-layout($gap: var(--spacing-xs));
     }
+
+    .button-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.25em;
+      height: 1.25em;
+      flex: 0 0 auto;
+      overflow: hidden;
+
+      span[mat-symbol] {
+        font-size: 1.25rem;
+        line-height: 1;
+      }
+    }
   }
 
   /* Portal & Local Links Section */
@@ -233,12 +231,24 @@
       border-radius: var(--border-radius-sm);
       transition: color 0.3s ease, background-color 0.3s ease;
 
-      span[mat-symbol] {
+      .link-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25em;
+        height: 1.25em;
+        flex: 0 0 auto;
+        overflow: hidden;
         font-size: var(--font-size-mdx);
-      }
 
-      .external-icon {
-        font-size: var(--font-size-sm);
+        span[mat-symbol] {
+          font-size: inherit;
+          line-height: 1;
+        }
+
+        &.external-icon {
+          font-size: var(--font-size-sm);
+        }
       }
 
       &:hover {
@@ -278,12 +288,24 @@
       border-radius: var(--border-radius-sm);
       transition: color 0.3s ease, background-color 0.3s ease;
 
-      span[mat-symbol] {
+      .link-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.25em;
+        height: 1.25em;
+        flex: 0 0 auto;
+        overflow: hidden;
         font-size: var(--font-size-mdx);
-      }
 
-      .external-icon {
-        font-size: var(--font-size-sm);
+        span[mat-symbol] {
+          font-size: inherit;
+          line-height: 1;
+        }
+
+        &.external-icon {
+          font-size: var(--font-size-sm);
+        }
       }
 
       &:hover {
