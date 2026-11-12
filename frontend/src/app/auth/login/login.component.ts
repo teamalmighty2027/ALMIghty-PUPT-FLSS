@@ -56,6 +56,8 @@ export class LoginComponent implements OnInit, OnDestroy {
   isFacultyLoading = false;
   isAdminLoading = false;
   isIdpAvailable = true;
+  /** Icon names stay out of the DOM until the icon font can draw them. */
+  iconsReady = false;
 
   readonly onePortalUrl = environmentOAuth.onePortalUrl || 
     "https://one-portal.isaxbsit2027.com/portal";
@@ -99,6 +101,34 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.currentBackgroundImage = `url(${this.slideshowImages[0]})`;
     this.showSessionExpiredNotice();
     this.checkIdpAvailability();
+    this.revealIconsWhenReady();
+  }
+
+  /**
+   * Show button icons only after the icon font has loaded, so ligature
+   * names never paint as text and shift the login layout.
+   */
+  private revealIconsWhenReady(): void {
+    const fonts = document.fonts;
+    if (!fonts?.load) {
+      this.iconsReady = true;
+      return;
+    }
+
+    Promise.all([
+      fonts.load('24px "Material Symbols Rounded"'),
+      fonts.load('24px "Material Icons"'),
+    ])
+      .then((loaded) => {
+        this.iconsReady = loaded.every(
+          (faces) =>
+            faces.length > 0 &&
+            faces.every((face) => face.status === 'loaded'),
+        );
+      })
+      .catch(() => {
+        this.iconsReady = false;
+      });
   }
 
   /**

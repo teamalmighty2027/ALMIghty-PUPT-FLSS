@@ -8,6 +8,10 @@ import { TitleService } from './core/services/title/title.service';
 import { routeAnimation } from './core/animations/animations';
 import { OfflineStatusComponent } from './shared/offline-status/offline-status.component';
 
+/** Prevents a broken service worker from reloading and cold-starting fonts on every visit. */
+const SW_UNRECOVERABLE_RELOAD_KEY = 'pupt-flss-sw-unrecoverable-reload';
+let unrecoverableReloadStarted = false;
+
 @Component({
   selector: 'app-root',
   imports: [CommonModule, RouterOutlet, OfflineStatusComponent],
@@ -49,22 +53,35 @@ export class AppComponent implements OnInit {
     }
   }
 
-  // Listen to service worker unrecoverable state to unstuck mobile devices
+  // Reload once when the worker is unrecoverable. Leave Cache Storage intact so
+  // icon fonts are not downloaded again on every failed check.
   private handleUnrecoverableState(): void {
-    if (this.swUpdate.isEnabled) {
-      this.swUpdate.unrecoverable.subscribe((event) => {
-        console.error('Service worker unrecoverable state:', event.reason);
-        if (typeof caches !== 'undefined') {
-          caches.keys().then((names) => {
-            Promise.all(names.map((name) => caches.delete(name))).then(() => {
-              document.location.reload();
-            });
-          });
-        } else {
-          document.location.reload();
-        }
-      });
+    if (!this.swUpdate.isEnabled) {
+      return;
     }
+
+    this.swUpdate.unrecoverable.subscribe((event) => {
+      console.error('Service worker unrecoverable state:', event.reason);
+      this.reloadOnceAfterUnrecoverable();
+    });
+  }
+
+  private reloadOnceAfterUnrecoverable(): void {
+    if (unrecoverableReloadStarted) {
+      return;
+    }
+
+    try {
+      if (sessionStorage.getItem(SW_UNRECOVERABLE_RELOAD_KEY)) {
+        return;
+      }
+      sessionStorage.setItem(SW_UNRECOVERABLE_RELOAD_KEY, '1');
+    } catch {
+      // Storage can be blocked; the in-memory flag still limits this page.
+    }
+
+    unrecoverableReloadStarted = true;
+    document.location.reload();
   }
 
   // Subscribe to service worker updates and notify or reload
