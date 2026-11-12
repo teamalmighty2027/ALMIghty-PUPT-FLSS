@@ -2,8 +2,8 @@
   "$schema": "./node_modules/@angular/service-worker/config/schema.json",
   "index": "/index.html",
   "appData": {
-    "version": "1.0.4",
-    "changelog": "Fix: native font caching, mobile self-healing, CSP parity"
+    "version": "1.0.5",
+    "changelog": "Defer service worker until stable and prefetch icon fonts"
   },
   "assetGroups": [
     {
@@ -26,6 +26,18 @@
       "resources": {
         "files": [
           "/*.js"
+        ]
+      }
+    },
+    {
+      "name": "icon-fonts",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/assets/fonts/material-symbols-rounded.woff2",
+          "/assets/fonts/material-icons.woff2",
+          "/assets/fonts/material-icons-round.woff2"
         ]
       }
     },
