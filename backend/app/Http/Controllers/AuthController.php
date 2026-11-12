@@ -121,10 +121,10 @@ class AuthController extends Controller
         // ══════════════════════════════════════════════════════════
         AuditLogger::logLogin($loginUserData['email']);
 
-        // Disabled: auto-insert of previous faculty preferences on login
-        // if ($faculty) {
-        //     $this->checkAndTriggerFacultyPreferencesAutoSubmit($faculty->id);
-        // }
+        
+        if ($faculty) {
+            $this->checkAndTriggerFacultyPreferencesAutoSubmit($faculty->id);
+        }
 
         return response()->json([
             'message'    => 'Login successful.',
@@ -774,12 +774,11 @@ class AuthController extends Controller
             Auth::setUser($user);
             AuditLogger::logLogin($email);
 
-            // Disabled: auto-insert of previous faculty preferences on login
-            // if ($user->faculty) {
-            //     $this->checkAndTriggerFacultyPreferencesAutoSubmit(
-            //         $user->faculty->id
-            //     );
-            // }
+            if ($user->faculty) {
+                $this->checkAndTriggerFacultyPreferencesAutoSubmit(
+                    $user->faculty->id
+                );
+            }
 
             return response()->json([
                 'session'                 => true,
@@ -952,7 +951,7 @@ class AuthController extends Controller
             }
 
             // Disabled: auto-insert of previous faculty preferences job
-            // AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
+            AutoSubmitPreviousPreferencesJob::dispatch($facultyId);
         } catch (Exception $e) {
             Log::error(
                 'Error in checkAndTriggerFacultyPreferencesAutoSubmit: ' .
