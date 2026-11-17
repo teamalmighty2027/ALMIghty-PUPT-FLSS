@@ -38,6 +38,8 @@ export class ReportsHeaderComponent implements OnInit, OnDestroy {
   @Input() inputFields: InputField[] = [];
   @Input() addButtonLabel = 'Add';
   @Input() addIconName = 'add_box';
+  @Input() exportButtonLabel = 'Export All';
+  @Input() exportIconName = 'file_download';
   @Input() buttonDisabled = false;
   @Input() showExportButton = true;
   @Input() showExportDialog = false;
