@@ -121,8 +121,8 @@
         (click)="onExport()"
         [disabled]="buttonDisabled"
         [ngClass]="{ 'disabled-button': buttonDisabled }">
-        <mat-icon>picture_as_pdf</mat-icon>
-        <span>Export to PDF</span>
+        <mat-icon>{{ exportIconName }}</mat-icon>
+        <span>{{ exportButtonLabel }}</span>
       </button>
     </span>
     }

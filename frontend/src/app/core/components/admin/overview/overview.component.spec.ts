@@ -56,7 +56,9 @@ describe('OverviewComponent', () => {
               global_start_date: null,
               preferencesProgress: 0,
               schedulingProgress: 0,
-              roomUtilization: 0
+              roomUtilization: 0,
+              facultyWithSchedulesCount: 0,
+              facultyWithPreferencesCount: 0
             }),
             getRequestNotifications: () => of([])
           }

@@ -13,8 +13,11 @@
       [showExportByProgramButton]="true" 
       [showAddButton]="false"
       [showActiveYearAndSem]="false"
+      [showRefreshButton]="true"
+      [isRefreshing]="isRefreshing"
       [buttonDisabled]="exportButtonsDisabled"
       [tooltipMessage]="exportTooltipMessage"
+      (refresh)="onManualRefresh()"
       (exportByProgram)="onExportByProgram()"
       (export)="onExportAll()"
       (inputChange)="onInputChange($event)">

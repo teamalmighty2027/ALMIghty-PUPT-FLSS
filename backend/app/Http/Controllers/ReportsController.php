@@ -46,10 +46,14 @@ class ReportsController extends Controller
                 'semesters.semester'
             );
 
-        if ($requestedSemesterId && $requestedSemesterId !== 'null') {
+        if (
+            $requestedSemesterId &&
+            is_numeric($requestedSemesterId) &&
+            (int) $requestedSemesterId > 0
+        ) {
             $query->where(
                 'active_semesters.active_semester_id',
-                $requestedSemesterId
+                (int) $requestedSemesterId
             );
         } else {
             $query->where('active_semesters.is_active', 1);
@@ -1882,18 +1886,28 @@ class ReportsController extends Controller
             ->select('curricula.curriculum_id', 'curricula.curriculum_year')
             ->get();
 
-        // Step 5: Calculate Preferences Progress
-        $preferencesWithEntries = DB::table('preferences_settings')
-            ->join('preferences', function ($join) use ($activeSemester) {
-                $join->on('preferences.faculty_id', '=', 'preferences_settings.faculty_id')
-                    ->where('preferences.active_semester_id', '=', $activeSemester->active_semester_id);
+        // Step 5: Calculate Preferences Progress (Active Faculty Only)
+        $facultyWithPreferencesCount = DB::table('preferences')
+            ->join('faculty', 'preferences.faculty_id', '=', 'faculty.id')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('users.status', 'Active')
+            ->where(
+                'preferences.active_semester_id',
+                '=',
+                $activeSemester->active_semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('preferences.course_assignment_id')
+                    ->orWhereNotNull(
+                        'preferences.temporary_course_offering_id'
+                    );
             })
-            ->where('preferences_settings.is_enabled', 0)
-            ->distinct('preferences_settings.faculty_id')
-            ->count('preferences_settings.faculty_id');
+            ->distinct('preferences.faculty_id')
+            ->count('preferences.faculty_id');
 
-        $submittedProperlyCount = $preferencesWithEntries;
-        $preferencesProgress = $activeFacultyCount > 0 ? ($submittedProperlyCount / $activeFacultyCount) * 100 : 0;
+        $preferencesProgress = $activeFacultyCount > 0
+            ? ($facultyWithPreferencesCount / $activeFacultyCount) * 100
+            : 0;
 
         // Step 6: Calculate Scheduling Progress
         $schedules = DB::table('schedules')
@@ -1933,13 +1947,21 @@ class ReportsController extends Controller
 
         $roomUtilization = $totalRooms > 0 ? ($usedRooms / $totalRooms) * 100 : 0;
 
-        // Step 8: Calculate Published Schedules
+        // Step 8: Calculate Published Schedules (Active Faculty Only)
         $publishedSchedules = DB::table('faculty_schedule_publication')
+            ->join(
+                'faculty',
+                'faculty_schedule_publication.faculty_id',
+                '=',
+                'faculty.id'
+            )
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('schedules', 'faculty_schedule_publication.faculty_id', '=', 'schedules.faculty_id')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->where('users.status', 'Active')
             ->where('ca_semesters.semester', '=', $activeSemester->semester)
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
             ->where('faculty_schedule_publication.is_published', 1)
@@ -1950,19 +1972,35 @@ class ReportsController extends Controller
 
         $publishProgress = $activeFacultyCount > 0 ? ($publishedSchedules / $activeFacultyCount) * 100 : 0;
 
-        // Step 9: Calculate preferencesSubmissionEnabled
+        // Step 9: Calculate preferencesSubmissionEnabled (Active Faculty Only)
         if ($activeFacultyCount > 0) {
-            $preferencesSubmissionEnabled = PreferencesSetting::where('is_enabled', 1)->count() === $activeFacultyCount;
+            $enabledActiveCount = DB::table('preferences_settings')
+                ->join(
+                    'faculty',
+                    'preferences_settings.faculty_id',
+                    '=',
+                    'faculty.id'
+                )
+                ->join('users', 'faculty.user_id', '=', 'users.id')
+                ->where('users.status', 'Active')
+                ->where('preferences_settings.is_enabled', 1)
+                ->count();
+
+            $preferencesSubmissionEnabled =
+                ($enabledActiveCount === $activeFacultyCount);
         } else {
             $preferencesSubmissionEnabled = true;
         }
 
-        // Step 10: Count the number of faculty who have at least one schedule
+        // Step 10: Count active faculty who have at least one schedule
         $facultyWithSchedulesCount = DB::table('schedules')
+            ->join('faculty', 'schedules.faculty_id', '=', 'faculty.id')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
             ->join('section_courses', 'schedules.section_course_id', '=', 'section_courses.section_course_id')
             ->join('course_assignments', 'section_courses.course_assignment_id', '=', 'course_assignments.course_assignment_id')
             ->join('semesters as ca_semesters', 'ca_semesters.semester_id', '=', 'course_assignments.semester_id')
             ->join('sections_per_program_year', 'section_courses.sections_per_program_year_id', '=', 'sections_per_program_year.sections_per_program_year_id')
+            ->where('users.status', 'Active')
             ->where('ca_semesters.semester', '=', $activeSemester->semester)
             ->where('sections_per_program_year.academic_year_id', '=', $activeSemester->academic_year_id)
             ->distinct('schedules.faculty_id')
@@ -1984,6 +2022,7 @@ class ReportsController extends Controller
         // Step 11: Structure the response with the new field
         return response()->json([
             'isMismatchedSemester' => $isMismatchedSemester,
+            'active_semester_id' => $activeSemester->active_semester_id,
             'activeAcademicYear' => "{$activeSemester->year_start}-{$activeSemester->year_end}",
             'activeSemester' => $this->getSemesterLabel($activeSemester->semester),
             'activeFacultyCount' => $activeFacultyCount,
@@ -1995,8 +2034,529 @@ class ReportsController extends Controller
             'publishProgress' => round($publishProgress, 0),
             'preferencesSubmissionEnabled' => $preferencesSubmissionEnabled,
             'facultyWithSchedulesCount' => $facultyWithSchedulesCount,
+            'facultyWithPreferencesCount' => $facultyWithPreferencesCount,
             'global_deadline' => $globalDeadline,
             'global_start_date' => $globalStartDate,
+        ]);
+    }
+
+    /**
+     * Get preferences breakdown by degree program and General Education.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPreferencesBreakdown(Request $request)
+    {
+        $activeSemester = $this->getActiveSemester(
+            $request->query('active_semester_id')
+        );
+
+        if (!$activeSemester) {
+            return response()->json([
+                'message' => 'No active semester found.',
+            ], 404);
+        }
+
+        // Helper to identify General Education (GEED / Common) courses
+        $isGenEd = function ($code, $title = '') {
+            $pattern = '/(GEED|NSTP|PATHFit|CWTS|PHED|ROTC)/i';
+            return (bool) preg_match($pattern, trim($code ?? ''))
+                || (bool) preg_match($pattern, trim($title ?? ''))
+                || (bool) preg_match(
+                    '/^(Physical Activities|Physical Education|' .
+                    'National Service)/i',
+                    trim($title ?? '')
+                );
+        };
+
+        // Query active semester curriculum courses across programs
+        $curriculumCourses = DB::table('program_year_level_curricula as pylc')
+            ->join('programs as p', 'pylc.program_id', '=', 'p.program_id')
+            ->join('curricula_program as cp', function ($join) {
+                $join->on('pylc.program_id', '=', 'cp.program_id')
+                    ->on('pylc.curriculum_id', '=', 'cp.curriculum_id');
+            })
+            ->leftJoin('year_levels as yl', function ($join) {
+                $join->on(
+                    'cp.curricula_program_id',
+                    '=',
+                    'yl.curricula_program_id'
+                )->on('pylc.year_level', '=', 'yl.year');
+            })
+            ->leftJoin('semesters as s', function ($join) use (
+                $activeSemester
+            ) {
+                $join->on('yl.year_level_id', '=', 's.year_level_id')
+                    ->where('s.semester', $activeSemester->semester);
+            })
+            ->leftJoin('course_assignments as ca', function ($join) {
+                $join->on('ca.semester_id', '=', 's.semester_id')
+                    ->on(
+                        'ca.curricula_program_id',
+                        '=',
+                        'cp.curricula_program_id'
+                    );
+            })
+            ->leftJoin('courses as co', 'ca.course_id', '=', 'co.course_id')
+            ->where('pylc.academic_year_id', $activeSemester->academic_year_id)
+            ->where('p.status', 'Active')
+            ->whereNotNull('co.course_id')
+            ->select(
+                'p.program_id',
+                'p.program_code',
+                'p.program_title',
+                'co.course_id',
+                'co.course_code',
+                'co.course_title',
+                'ca.course_assignment_id'
+            )
+            ->distinct()
+            ->get();
+
+        // Query active semester temporary course offerings
+        $temporaryCourses = DB::table('temporary_course_offerings as tco')
+            ->join('courses as co', 'tco.course_id', '=', 'co.course_id')
+            ->join('programs as p', 'tco.program_id', '=', 'p.program_id')
+            ->where('tco.academic_year_id', $activeSemester->academic_year_id)
+            ->where('tco.semester_id', $activeSemester->semester_id)
+            ->where('tco.is_archived', 0)
+            ->where('tco.status', 'Approved')
+            ->select(
+                'p.program_id',
+                'p.program_code',
+                'p.program_title',
+                'co.course_id',
+                'co.course_code',
+                'co.course_title',
+                'tco.temporary_course_offering_id'
+            )
+            ->distinct()
+            ->get();
+
+        // Query preferences submitted by active faculty for this semester
+        $activePreferences = DB::table('preferences as pref')
+            ->join('faculty as f', 'pref.faculty_id', '=', 'f.id')
+            ->join('users as u', 'f.user_id', '=', 'u.id')
+            ->leftJoin(
+                'course_assignments as ca',
+                'pref.course_assignment_id',
+                '=',
+                'ca.course_assignment_id'
+            )
+            ->leftJoin(
+                'curricula_program as ca_cp',
+                'ca.curricula_program_id',
+                '=',
+                'ca_cp.curricula_program_id'
+            )
+            ->leftJoin(
+                'temporary_course_offerings as tco',
+                'pref.temporary_course_offering_id',
+                '=',
+                'tco.temporary_course_offering_id'
+            )
+            ->leftJoin(
+                'sections_per_program_year as sp',
+                'pref.sections_per_program_year_id',
+                '=',
+                'sp.sections_per_program_year_id'
+            )
+            ->leftJoin(
+                'courses as co_ca',
+                'ca.course_id',
+                '=',
+                'co_ca.course_id'
+            )
+            ->leftJoin(
+                'courses as co_tco',
+                'tco.course_id',
+                '=',
+                'co_tco.course_id'
+            )
+            ->where('u.status', 'Active')
+            ->where(
+                'pref.active_semester_id',
+                '=',
+                $activeSemester->active_semester_id
+            )
+            ->where(function ($query) {
+                $query->whereNotNull('pref.course_assignment_id')
+                    ->orWhereNotNull('pref.temporary_course_offering_id');
+            })
+            ->select(
+                'pref.preferences_id',
+                'pref.faculty_id',
+                'pref.course_assignment_id',
+                'pref.temporary_course_offering_id',
+                'pref.sections_per_program_year_id',
+                DB::raw(
+                    'COALESCE(ca.course_id, tco.course_id) as course_id'
+                ),
+                DB::raw(
+                    'COALESCE(co_ca.course_code, ' .
+                    'co_tco.course_code) as course_code'
+                ),
+                DB::raw(
+                    'COALESCE(co_ca.course_title, ' .
+                    'co_tco.course_title) as course_title'
+                ),
+                DB::raw(
+                    'COALESCE(ca_cp.program_id, tco.program_id, ' .
+                    'sp.program_id) as program_id'
+                )
+            )
+            ->get();
+
+        $activeFacultyCount = DB::table('faculty')
+            ->join('users', 'faculty.user_id', '=', 'users.id')
+            ->where('users.status', 'Active')
+            ->count();
+
+        $facultyWithPreferencesCount = $activePreferences
+            ->pluck('faculty_id')
+            ->unique()
+            ->count();
+
+        $facultySubmissionPercentage = $activeFacultyCount > 0
+            ? round(
+                ($facultyWithPreferencesCount / $activeFacultyCount) * 100,
+                1
+            )
+            : 0.0;
+
+        $totalCampusPreferences = $activePreferences->count();
+
+        // Map courses to their offering degree programs
+        // for cross-program detection
+        $courseProgramsMap = [];
+        $courseDetailsMap = [];
+
+        foreach ($curriculumCourses as $row) {
+            $courseProgramsMap[$row->course_id][$row->program_id] =
+                $row->program_code;
+            $courseDetailsMap[$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        foreach ($temporaryCourses as $row) {
+            $courseProgramsMap[$row->course_id][$row->program_id] =
+                $row->program_code;
+            $courseDetailsMap[$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        // Identify GEED and common multi-program courses
+        $geedOfferedMap = [];
+        $commonCourseIds = [];
+
+        foreach ($courseDetailsMap as $cId => $details) {
+            $matchesRegex = $isGenEd(
+                $details['course_code'],
+                $details['course_title']
+            );
+            $isMultiProgram = isset($courseProgramsMap[$cId]) &&
+                count($courseProgramsMap[$cId]) > 1;
+
+            if ($matchesRegex || $isMultiProgram) {
+                $commonCourseIds[$cId] = true;
+                $progCodes = array_values(
+                    array_unique(
+                        array_values($courseProgramsMap[$cId] ?? [])
+                    )
+                );
+                sort($progCodes);
+                $geedOfferedMap[$cId] = [
+                    'course_id' => $cId,
+                    'course_code' => $details['course_code'],
+                    'course_title' => $details['course_title'],
+                    'programs' => $progCodes,
+                ];
+            }
+        }
+
+        $programsMap = [];
+
+        $allPrograms = DB::table('programs')
+            ->select('program_id', 'program_code', 'program_title', 'status')
+            ->get()
+            ->keyBy('program_id');
+
+        foreach ($allPrograms as $ap) {
+            if ($ap->status === 'Active') {
+                $programsMap[$ap->program_id] = [
+                    'program_id' => $ap->program_id,
+                    'program_code' => $ap->program_code,
+                    'program_title' => $ap->program_title,
+                    'courses' => [],
+                ];
+            }
+        }
+
+        foreach ($curriculumCourses as $row) {
+            if (isset($commonCourseIds[$row->course_id])) {
+                continue;
+            }
+
+            if (!isset($programsMap[$row->program_id])) {
+                $programsMap[$row->program_id] = [
+                    'program_id' => $row->program_id,
+                    'program_code' => $row->program_code,
+                    'program_title' => $row->program_title,
+                    'courses' => [],
+                ];
+            }
+            $programsMap[$row->program_id]['courses'][$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        foreach ($temporaryCourses as $row) {
+            if (isset($commonCourseIds[$row->course_id])) {
+                continue;
+            }
+
+            if (!isset($programsMap[$row->program_id])) {
+                $programsMap[$row->program_id] = [
+                    'program_id' => $row->program_id,
+                    'program_code' => $row->program_code,
+                    'program_title' => $row->program_title,
+                    'courses' => [],
+                ];
+            }
+            $programsMap[$row->program_id]['courses'][$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        // Map preferences: GEED vs per Program
+        $geedPrefCount = 0;
+        $geedPreferredCourseIds = [];
+        $programPrefCounts = [];
+        $programPreferredCourseIds = [];
+
+        foreach ($activePreferences as $pref) {
+            $courseId = $pref->course_id;
+            $code = $pref->course_code;
+            $title = $pref->course_title;
+            $progId = $pref->program_id;
+
+            $isCommon = $courseId && (
+                isset($geedOfferedMap[$courseId]) ||
+                isset($commonCourseIds[$courseId]) ||
+                $isGenEd($code, $title)
+            );
+
+            if ($isCommon) {
+                if (!isset($geedOfferedMap[$courseId])) {
+                    $progCodes = [];
+                    if ($progId && isset($allPrograms[$progId])) {
+                        $progCodes[] = $allPrograms[$progId]->program_code;
+                    }
+                    $geedOfferedMap[$courseId] = [
+                        'course_id' => $courseId,
+                        'course_code' => $code,
+                        'course_title' => $title,
+                        'programs' => $progCodes,
+                    ];
+                } elseif ($progId && isset($allPrograms[$progId])) {
+                    $pCode = $allPrograms[$progId]->program_code;
+                    if (!in_array(
+                        $pCode,
+                        $geedOfferedMap[$courseId]['programs']
+                    )) {
+                        $geedOfferedMap[$courseId]['programs'][] = $pCode;
+                        sort($geedOfferedMap[$courseId]['programs']);
+                    }
+                }
+                $geedPrefCount++;
+                $geedPreferredCourseIds[$courseId] = true;
+            } else {
+                $targetProgId = null;
+
+                if ($progId && isset($programsMap[$progId])) {
+                    $targetProgId = $progId;
+                } else if ($progId && isset($allPrograms[$progId])) {
+                    $ap = $allPrograms[$progId];
+                    $programsMap[$progId] = [
+                        'program_id' => $ap->program_id,
+                        'program_code' => $ap->program_code,
+                        'program_title' => $ap->program_title,
+                        'courses' => [],
+                    ];
+                    $targetProgId = $progId;
+                } else if ($courseId) {
+                    // Fallback to whichever program offers this course
+                    foreach ($programsMap as $pId => $pData) {
+                        if (isset($pData['courses'][$courseId])) {
+                            $targetProgId = $pId;
+                            break;
+                        }
+                    }
+                }
+
+                if ($targetProgId !== null) {
+                    $programPrefCounts[$targetProgId] =
+                        ($programPrefCounts[$targetProgId] ?? 0) + 1;
+
+                    if ($courseId) {
+                        $coursesRef = &$programsMap[$targetProgId]['courses'];
+                        if (!isset($coursesRef[$courseId])) {
+                            $coursesRef[$courseId] = [
+                                'course_id' => $courseId,
+                                'course_code' => $code,
+                                'course_title' => $title,
+                            ];
+                        }
+                        unset($coursesRef);
+                        $programPreferredCourseIds[$targetProgId][$courseId] =
+                            true;
+                    }
+                }
+            }
+        }
+
+        // Build General Education breakdown object
+        $totalGeedOffered = count($geedOfferedMap);
+        $geedWithPrefsCount = count($geedPreferredCourseIds);
+        $geedCoveragePct = $totalGeedOffered > 0
+            ? round(($geedWithPrefsCount / $totalGeedOffered) * 100, 1)
+            : 0.0;
+        $geedSharePct = $totalCampusPreferences > 0
+            ? round(($geedPrefCount / $totalCampusPreferences) * 100, 1)
+            : 0.0;
+
+        $geedUnassigned = [];
+        $geedAssigned = [];
+        foreach ($geedOfferedMap as $cId => $cData) {
+            if (isset($geedPreferredCourseIds[$cId])) {
+                $geedAssigned[] = $cData;
+            } else {
+                $geedUnassigned[] = $cData;
+            }
+        }
+        usort(
+            $geedUnassigned,
+            fn($a, $b) => strcmp($a['course_code'], $b['course_code'])
+        );
+        usort(
+            $geedAssigned,
+            fn($a, $b) => strcmp($a['course_code'], $b['course_code'])
+        );
+
+        $generalEducationBreakdown = [
+            'category_name' => 'General Education',
+            'category_code' => 'GEED',
+            'total_subjects_offered' => $totalGeedOffered,
+            'subjects_with_preferences' => $geedWithPrefsCount,
+            'subject_coverage_percentage' => $geedCoveragePct,
+            'preference_submissions_count' => $geedPrefCount,
+            'preference_share_percentage' => $geedSharePct,
+            'unassigned_courses' => array_values($geedUnassigned),
+            'assigned_courses' => array_values($geedAssigned),
+        ];
+
+        // Build Program breakdown list
+        $programsBreakdown = [];
+        foreach ($programsMap as $progId => $progData) {
+            $courses = array_values($progData['courses']);
+            $totalOffered = count($courses);
+            $prefCourseIds = $programPreferredCourseIds[$progId] ?? [];
+            $withPrefsCount = count($prefCourseIds);
+            $coveragePct = $totalOffered > 0
+                ? round(($withPrefsCount / $totalOffered) * 100, 1)
+                : 0.0;
+            $prefCount = $programPrefCounts[$progId] ?? 0;
+
+            if ($totalOffered === 0 && $prefCount === 0) {
+                continue;
+            }
+
+            $sharePct = $totalCampusPreferences > 0
+                ? round(($prefCount / $totalCampusPreferences) * 100, 1)
+                : 0.0;
+
+            $unassigned = [];
+            $assigned = [];
+            foreach ($courses as $c) {
+                if (isset($prefCourseIds[$c['course_id']])) {
+                    $assigned[] = $c;
+                } else {
+                    $unassigned[] = $c;
+                }
+            }
+            usort(
+                $unassigned,
+                fn($a, $b) => strcmp($a['course_code'], $b['course_code'])
+            );
+            usort(
+                $assigned,
+                fn($a, $b) => strcmp($a['course_code'], $b['course_code'])
+            );
+
+            $programsBreakdown[] = [
+                'program_id' => $progData['program_id'],
+                'program_code' => $progData['program_code'],
+                'program_title' => $progData['program_title'],
+                'total_subjects_offered' => $totalOffered,
+                'subjects_with_preferences' => $withPrefsCount,
+                'subject_coverage_percentage' => $coveragePct,
+                'preference_submissions_count' => $prefCount,
+                'preference_share_percentage' => $sharePct,
+                'unassigned_courses' => array_values($unassigned),
+                'assigned_courses' => array_values($assigned),
+            ];
+        }
+
+        usort(
+            $programsBreakdown,
+            fn($a, $b) => strcmp($a['program_code'], $b['program_code'])
+        );
+
+        // Campus overall stats
+        $totalCampusSubjectsOffered = $totalGeedOffered;
+        $totalCampusSubjectsWithPrefs = $geedWithPrefsCount;
+        foreach ($programsBreakdown as $pb) {
+            $totalCampusSubjectsOffered += $pb['total_subjects_offered'];
+            $totalCampusSubjectsWithPrefs += $pb['subjects_with_preferences'];
+        }
+
+        $overallSubjectCoveragePercentage =
+            $totalCampusSubjectsOffered > 0
+                ? round(
+                    ($totalCampusSubjectsWithPrefs /
+                     $totalCampusSubjectsOffered) * 100,
+                    1
+                )
+                : 0.0;
+
+        return response()->json([
+            'active_semester_id' => $activeSemester->active_semester_id,
+            'academic_year' =>
+                "{$activeSemester->year_start}-{$activeSemester->year_end}",
+            'semester' =>
+                $this->getSemesterLabel($activeSemester->semester),
+            'total_active_faculty' => $activeFacultyCount,
+            'total_faculty_submitted' => $facultyWithPreferencesCount,
+            'faculty_submission_percentage' => $facultySubmissionPercentage,
+            'total_preferences_submitted' => $totalCampusPreferences,
+            'total_subjects_offered' => $totalCampusSubjectsOffered,
+            'total_subjects_with_preferences' =>
+                $totalCampusSubjectsWithPrefs,
+            'overall_subject_coverage_percentage' =>
+                $overallSubjectCoveragePercentage,
+            'general_education' => $generalEducationBreakdown,
+            'programs' => $programsBreakdown,
         ]);
     }
 

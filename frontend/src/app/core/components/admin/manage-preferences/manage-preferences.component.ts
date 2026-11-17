@@ -28,6 +28,9 @@ import { DialogTogglePreferencesComponent, DialogTogglePreferencesData } from '.
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import {
+  ScheduleSyncService,
+} from '../../../services/admin/sync/schedule-sync.service';
 import { ActiveSemester } from '../../../models/preferences.model';
 
 import { fadeAnimation } from '../../../animations/animations';
@@ -113,9 +116,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   selection = new SelectionModel<Faculty>(true, []);
 
   isLoading = new BehaviorSubject<boolean>(true);
+  isRefreshing = false;
 
   selectedTermId: number | null = null;
   private activeTermId: number | null = null;
+  private loadedTerms: any[] = [];
   showPreferenceToggleColumn = false;
   exportButtonsDisabled = true;
   exportTooltipMessage = '';
@@ -144,19 +149,27 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
     private reportHeaderService: ReportHeaderService,
-    private reportsService: ReportsService
+    private reportsService: ReportsService,
+    private syncService: ScheduleSyncService
   ) {}
 
   ngOnInit(): void {
     this.preferencesService.clearPreferencesCache();
 
-    this.loadTerms(); 
+    this.loadTerms();
     this.setupFilterPredicate();
-    
+
     this.searchSubject
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntil(this.destroy$))
       .subscribe((searchValue) => {
         this.applyFilter(searchValue);
+      });
+
+    this.syncService.startAutoRefresh('manage-preferences', 15000);
+    this.syncService.refreshTrigger$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshPreferencesTableSilently();
       });
   }
 
@@ -166,6 +179,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * and allow observables to complete.
    */
   ngOnDestroy(): void {
+    this.syncService.stopAutoRefresh('manage-preferences');
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -178,7 +192,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   loadTerms(): void {
     this.reportsService.getAllTermsForDropdown().subscribe({
       next: (data) => {
-        const activeTerm = data.find((term: any) => term.is_active === 1);
+        this.loadedTerms = data || [];
+        const activeTerm = this.loadedTerms.find(
+          (term: any) => term.is_active === 1
+        );
 
         this.activeTermId = activeTerm?.active_semester_id ?? null;
 
@@ -194,6 +211,59 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         console.error('Error loading terms:', error);
       }
     });
+  }
+
+  /**
+   * Retrieves academic year and semester label metadata for the
+   * currently selected term or falls back to faculty/empty defaults.
+   * @returns Object containing academic_year and semester_label strings.
+   */
+  private getSelectedTermMeta(): {
+    academic_year: string;
+    semester_label: string;
+  } {
+    const termMeta = this.loadedTerms.find(
+      (t) => t.active_semester_id === this.selectedTermId
+    );
+
+    if (termMeta) {
+      const academic_year =
+        termMeta.year_start && termMeta.year_end
+          ? `${termMeta.year_start}-${termMeta.year_end}`
+          : termMeta.academic_year || 'N/A';
+      const semester_label = this.getSemesterLabel(termMeta.semester);
+      return { academic_year, semester_label };
+    }
+
+    const firstActive = this.allData.find(
+      (f) => f.active_semesters && f.active_semesters.length > 0
+    )?.active_semesters?.[0];
+
+    return {
+      academic_year: firstActive?.academic_year || 'N/A',
+      semester_label: firstActive?.semester_label || 'N/A',
+    };
+  }
+
+  /**
+   * Converts numeric or string semester indicator into human-readable label.
+   * @param semester Numeric or string semester representation.
+   * @returns Formatted semester string label.
+   */
+  private getSemesterLabel(semester: number | string | undefined): string {
+    const semNum = Number(semester);
+    switch (semNum) {
+      case 1:
+        return '1st Semester';
+      case 2:
+        return '2nd Semester';
+      case 3:
+        return 'Summer Semester';
+      default:
+        return typeof semester === 'string' && semester.trim()
+          ? semester
+          : 'N/A';
+    }
   }
 
   /**
@@ -241,7 +311,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Updates export button enabled/disabled state and tooltip message.
-   * Disables export when there are no preferences or when submission
+   * Disables export when there are no faculties loaded or when submission
    * is currently open (global or individual toggles active).
    */
   private updateExportButtonState(): void {
@@ -250,10 +320,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       (this.isToggleAllChecked || this.isAnyIndividualToggleOn);
 
     this.exportButtonsDisabled =
-      !this.hasAnyPreferences || exportBlockedBySubmission;
+      !this.allData.length || exportBlockedBySubmission;
 
-    if (!this.hasAnyPreferences) {
-      this.exportTooltipMessage = 'No faculty preferences available for export';
+    if (!this.allData.length) {
+      this.exportTooltipMessage = 'No faculty data available for export';
       return;
     }
 
@@ -280,9 +350,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    * Loads faculty preferences for the specified term and updates
    * the component's data structures and UI state.
    * @param termId Optional term id to scope the preferences request.
+   * @param silent When true, reloads in background without full-page spinner.
    */
-  loadFacultyPreferences(termId?: number | null): void {
-    this.isLoading.next(true);
+  loadFacultyPreferences(
+    termId?: number | null,
+    silent = false
+  ): void {
+    if (!silent) {
+      this.isLoading.next(true);
+    }
 
     if (this.prefsSub) {
       this.prefsSub.unsubscribe();
@@ -293,6 +369,8 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
+          this.isRefreshing = false;
+
           if (!response || !response.preferences) {
             this.handleEmptyData();
             return;
@@ -311,7 +389,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
           this.allData = faculties;
           this.filteredData = faculties;
-          this.applyFilter(this.currentFilter);
+          this.applyFilter(this.currentFilter, !silent);
           this.checkToggleAllState();
           this.updateHasAnyPreferences();
           this.updateIndividualDeadlinesState();
@@ -320,16 +398,21 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           this.initializeScheduledFacultyState();
           this.updateExportButtonState();
           this.isLoading.next(false);
+          this.cdr.markForCheck();
         },
         error: (error) => {
+          this.isRefreshing = false;
           console.error('Error loading faculty preferences:', error);
-          this.snackBar.open(
-            'Error loading faculty preferences. Please try again.',
-            'Close',
-            { duration: 3000 },
-          );
-          this.handleEmptyData();
-        }
+
+          if (!silent) {
+            this.snackBar.open(
+              'Error loading faculty preferences. Please try again.',
+              'Close',
+              { duration: 3000 }
+            );
+            this.handleEmptyData();
+          }
+        },
       });
   }
 
@@ -350,15 +433,16 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   /**
    * Applies a text filter to the faculty list and updates the table.
    * @param filterValue Raw filter string entered by the user.
+   * @param resetPage Whether to reset pagination to the first page.
    */
-  applyFilter(filterValue: string): void {
+  applyFilter(filterValue: string, resetPage = true): void {
     this.currentFilter = filterValue.trim().toLowerCase();
 
     if (this.currentFilter === '') {
       this.filteredData = [...this.allData];
     } else {
       this.filteredData = this.allData.filter((faculty) =>
-        this.filterPredicate(faculty, this.currentFilter),
+        this.filterPredicate(faculty, this.currentFilter)
       );
     }
 
@@ -366,7 +450,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     this.checkToggleAllState();
     this.updateExportButtonState();
 
-    if (this.paginator) {
+    if (resetPage && this.paginator) {
       this.paginator.firstPage();
     }
   }
@@ -392,7 +476,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Reloads the current term after a successful bulk toggle.
+   * Reloads the current term after a successful bulk toggle or dialog close.
    * Clears cached preferences first so the table reflects server state.
    */
   private refreshPreferencesTable(): void {
@@ -404,6 +488,29 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     this.preferencesService.clearPreferencesCache();
     this.loadFacultyPreferences(termId);
+  }
+
+  /**
+   * Silently reloads faculty preferences for background polling or manual
+   * refresh without displaying the full-page blocking spinner.
+   */
+  public refreshPreferencesTableSilently(): void {
+    const termId = this.selectedTermId ?? this.activeTermId;
+
+    if (termId === null || this.isLoading.value) {
+      return;
+    }
+
+    this.isRefreshing = true;
+    this.preferencesService.clearPreferencesCache();
+    this.loadFacultyPreferences(termId, true);
+  }
+
+  /**
+   * Triggers an immediate manual refresh via the shared sync service.
+   */
+  onManualRefresh(): void {
+    this.syncService.forceRefresh();
   }
 
   /**
@@ -927,7 +1034,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
     const fileNameBase = `${this.sanitizeFileName(faculty.facultyName)}_preferences_report`;
 
-    this.dialog.open(DialogPrefComponent, {
+    const dialogRef = this.dialog.open(DialogPrefComponent, {
       maxWidth: '90vw',
       width: '100%',
       data: {
@@ -937,12 +1044,22 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         isAdmin: true,
         hasSubmitted: this.hasSubmittedPreferences(faculty),
         generateExcelFunction: async () => {
-          const excelBlob = await this.generateFacultyExcelBlob(false, [faculty]);
+          const excelBlob = await this.generateFacultyExcelBlob(
+            false,
+            [faculty]
+          );
           saveAs(excelBlob, `${fileNameBase}.xlsx`);
-        }
+        },
       },
       autoFocus: true,
     });
+
+    dialogRef
+      .afterClosed()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.refreshPreferencesTableSilently();
+      });
   }
 
   /**
@@ -951,20 +1068,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   onExportAll(): void {
     if (!this.allData.length) {
-      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
+      this.snackBar.open(
+        'No faculty preferences available for export.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 
-    const firstActiveSemesterFaculty = this.allData.find(
-      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
-    );
-
-    if (!firstActiveSemesterFaculty) {
-      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
+    const { academic_year, semester_label } = this.getSelectedTermMeta();
 
     this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
@@ -975,13 +1087,24 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         entity: 'faculty',
         customTitle: 'Export All Faculty Preferences',
         subtitle: `For Academic Year ${academic_year}, ${semester_label}`,
-        generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(true, this.allData, preview),
+        generatePdfFunction: (preview: boolean) =>
+          this.generateFacultyPDF(true, this.allData, preview),
         generateExcelFunction: async () => {
-          const excelBlob = await this.generateFacultyExcelBlob(true, this.allData);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.xlsx`;
+          const excelBlob = await this.generateFacultyExcelBlob(
+            true,
+            this.allData
+          );
+          const cleanYear = academic_year.replace('/', '_');
+          const cleanSem = semester_label.toLowerCase();
+          const fileName =
+            `${cleanYear}_${cleanSem}_all_faculty_preferences_report.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.pdf`,
+        generateFileNameFunction: () => {
+          const cleanYear = academic_year.replace('/', '_');
+          const cleanSem = semester_label.toLowerCase();
+          return `${cleanYear}_${cleanSem}_all_faculty_preferences_report.pdf`;
+        },
       },
     });
   }
@@ -993,20 +1116,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   async onExportByProgram(): Promise<void> {
     if (!this.allData.length) {
-      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
+      this.snackBar.open(
+        'No faculty preferences available for export.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 
-    const firstActiveSemesterFaculty = this.allData.find(
-      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
-    );
-
-    if (!firstActiveSemesterFaculty) {
-      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
+    const { academic_year, semester_label } = this.getSelectedTermMeta();
 
     // Fetch master list of programs to guarantee all courses are printed
     let masterPrograms: any[] = [];
@@ -1178,7 +1296,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       const activeSemester = faculty.active_semesters?.[0];
       if (!activeSemester || !activeSemester.courses) return;
 
-      activeSemester.courses.forEach((course: any) => {
+      const facultyCourses =
+        this.deduplicateCourses(activeSemester.courses || []);
+
+      facultyCourses.forEach((course: any) => {
         if (course.is_ignored) return;
 
         const progCode = course.course_details?.program_code || course.program_details?.program_code || 'UNKNOWN PROGRAM';
@@ -1353,7 +1474,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           let yearDisplay = '';
 
           if (!yearStr || yearStr === 'N/A' || yearStr === 'null') {
-            yearDisplay = 'Unassigned Year';
+            yearDisplay = 'No Preferences';
           } else {
             let suffix = 'TH';
             if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
@@ -1532,7 +1653,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           let yearDisplay = '';
           
           if (yearStr === 'N/A' || yearStr === 'null' || !yearStr) {
-              yearDisplay = 'Unassigned Year';
+              yearDisplay = 'No Preferences';
           } else {
               let suffix = 'TH';
               if (yearStr.endsWith('1') && !yearStr.endsWith('11')) suffix = 'ST';
@@ -1612,33 +1733,62 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Generates an Excel workbook blob containing one sheet per faculty
-   * with their preference details.
+   * Generates an Excel workbook blob containing one sheet per faculty.
+   *
    * @param isAll Whether the export is for all faculties.
    * @param faculties Array of faculties to include in the workbook.
    * @returns Promise resolving to an Excel Blob.
    */
-  private async generateFacultyExcelBlob(isAll: boolean, faculties: Faculty[]): Promise<Blob> {
+  private async generateFacultyExcelBlob(
+    isAll: boolean,
+    faculties: Faculty[]
+  ): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
+
+    const {
+      academic_year: defaultAcademicYear,
+      semester_label: defaultSemesterLabel,
+    } = this.getSelectedTermMeta();
 
     for (const faculty of faculties) {
       const activeSemester = faculty.active_semesters?.[0];
-      if (!activeSemester || !activeSemester.courses?.length) continue;
+      const rawCourses = activeSemester?.courses || [];
+      const courses = this.deduplicateCourses(rawCourses);
+      const prefCount = courses.length;
 
-      let tabName = faculty.facultyName.split(',')[0].substring(0, 30).replace(/[^\w\s-]/gi, '');
-      
+      let tabName = faculty.facultyName
+        ? faculty.facultyName
+            .split(',')[0]
+            .substring(0, 30)
+            .replace(/[^\w\s-]/gi, '')
+        : 'Faculty';
+      if (!tabName.trim()) {
+        tabName = 'Faculty';
+      }
+
       let uniqueTabName = tabName;
       let counter = 1;
       while (workbook.getWorksheet(uniqueTabName)) {
-         uniqueTabName = `${tabName.substring(0, 27)}_${counter}`;
-         counter++;
+        uniqueTabName = `${tabName.substring(0, 27)}_${counter}`;
+        counter++;
       }
-      
+
       const worksheet = workbook.addWorksheet(uniqueTabName);
 
       worksheet.pageSetup = {
-        orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0,
-        margins: { left: 0.25, right: 0.25, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 }
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 0,
+        margins: {
+          left: 0.25,
+          right: 0.25,
+          top: 0.5,
+          bottom: 0.5,
+          header: 0.3,
+          footer: 0.3,
+        },
       };
 
       worksheet.columns = [
@@ -1650,38 +1800,88 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         { width: 8 },
         { width: 8 },
         { width: 8 },
-        { width: 30 }
+        { width: 30 },
       ];
 
-      worksheet.mergeCells('A1:D1'); worksheet.mergeCells('E1:I1');
-      worksheet.mergeCells('A2:D2'); worksheet.mergeCells('E2:I2');
+      worksheet.mergeCells('A1:D1');
+      worksheet.mergeCells('E1:I1');
+      worksheet.mergeCells('A2:D2');
+      worksheet.mergeCells('E2:I2');
 
-      worksheet.getCell('A1').value = `Faculty Name: ${faculty.facultyName.toUpperCase()}`;
-      worksheet.getCell('E1').value = `Faculty Code: ${faculty.facultyCode}`;
-      worksheet.getCell('A2').value = `Academic Year: ${activeSemester.academic_year}`;
-      worksheet.getCell('E2').value = `Semester: ${activeSemester.semester_label}`;
+      const facultyNameUpper = (faculty.facultyName || 'N/A').toUpperCase();
+      worksheet.getCell('A1').value =
+        `Faculty Name: ${facultyNameUpper} | Total Preferences: ${prefCount}`;
+      worksheet.getCell('E1').value =
+        `Faculty Code: ${faculty.facultyCode || 'N/A'}`;
+      const acYear =
+        activeSemester?.academic_year || defaultAcademicYear;
+      worksheet.getCell('A2').value = `Academic Year: ${acYear}`;
 
-      ['A1', 'E1', 'A2', 'E2'].forEach(c => {
+      const semLabel =
+        activeSemester?.semester_label || defaultSemesterLabel;
+      worksheet.getCell('E2').value = `Semester: ${semLabel}`;
+
+      ['A1', 'E1', 'A2', 'E2'].forEach((c) => {
         const cell = worksheet.getCell(c);
         cell.font = { bold: true };
-        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'left',
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
       });
 
       worksheet.addRow([]);
 
+      if (prefCount === 0) {
+        worksheet.mergeCells('A4:I4');
+        const emptyCell = worksheet.getCell('A4');
+        emptyCell.value = 'No preferences submitted.';
+        emptyCell.font = { italic: true };
+        emptyCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        worksheet.getRow(4).height = 25;
+        continue;
+      }
+
       const headerRow = worksheet.addRow([
-        '#', 'Program Code', 'Year & Section', 'Course Code', 'Course Title', 'Lec', 'Lab', 'Units', 'Preferred Day & Time'
+        '#',
+        'Program Code',
+        'Year & Section',
+        'Course Code',
+        'Course Title',
+        'Lec',
+        'Lab',
+        'Units',
+        'Preferred Day & Time',
       ]);
       headerRow.height = 25;
-      headerRow.eachCell(cell => {
+      headerRow.eachCell((cell) => {
         cell.font = { bold: true };
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center',
+          wrapText: true,
+        };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF0F0F0' },
+        };
       });
 
-      activeSemester.courses.forEach((course: any, index: number) => {
+      courses.forEach((course: any, index: number) => {
         const preferredDays = course.preferred_days || [];
         const formattedDayTimes =
           this.formatPreferredDaysAndTime(preferredDays);
@@ -1701,7 +1901,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
         const displayCode = originalCode
           ? `${course.course_details?.course_code} (${originalCode})`
-          : (course.course_details?.course_code || 'N/A');
+          : course.course_details?.course_code || 'N/A';
 
         const row = worksheet.addRow([
           index + 1,
@@ -1714,7 +1914,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
           course.lec_hours || 0,
           course.lab_hours || 0,
           course.units || 0,
-          formattedDayTimes || 'N/A'
+          formattedDayTimes || 'N/A',
         ]);
 
         row.eachCell((cell, colNum) => {
@@ -1722,13 +1922,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             vertical: 'middle',
             horizontal:
               colNum === 5 || colNum === 9 ? 'left' : 'center',
-            wrapText: true
+            wrapText: true,
           };
           cell.border = {
             top: { style: 'thin' },
             left: { style: 'thin' },
             bottom: { style: 'thin' },
-            right: { style: 'thin' }
+            right: { style: 'thin' },
           };
         });
       });
@@ -1740,7 +1940,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
-    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const mimeType =
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    return new Blob([buffer], { type: mimeType });
   }
 
   /**
@@ -1759,6 +1961,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const pageWidth = doc.internal.pageSize.width;
     let currentY = 15;
 
+    const {
+      academic_year: defaultAcademicYear,
+      semester_label: defaultSemesterLabel,
+    } = this.getSelectedTermMeta();
+
     try {
       this.reportHeaderService
         .addHeader(
@@ -1773,25 +1980,59 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
           faculties.forEach((faculty, facultyIndex) => {
             const activeSemester = faculty.active_semesters?.[0];
-
-            if (!activeSemester || !activeSemester.courses?.length) return;
+            const rawCourses = activeSemester?.courses || [];
+            const courses = this.deduplicateCourses(rawCourses);
+            const count = courses.length;
 
             doc.setFontSize(12);
             doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+
+            const acYear =
+              activeSemester?.academic_year || defaultAcademicYear;
+            const semLabel =
+              activeSemester?.semester_label || defaultSemesterLabel;
+
             const facultyInfo = [
-              `Faculty Name: ${faculty.facultyName}`,
-              `Faculty Code: ${faculty.facultyCode}`,
-              `Academic Year: ${activeSemester.academic_year}`,
-              `Semester: ${activeSemester.semester_label}`,
+              `Faculty Name: ${faculty.facultyName} (${count} Preferences)`,
+              `Faculty Code: ${faculty.facultyCode || 'N/A'}`,
+              `Academic Year: ${acYear}`,
+              `Semester: ${semLabel}`,
             ];
 
             facultyInfo.forEach((info) => {
               doc.text(info, 10, currentY);
               currentY += 5;
             });
-            currentY += 5;
+            currentY += 2;
 
-            const courseData = activeSemester.courses.map(
+            if (count === 0) {
+              doc.setFont('helvetica', 'italic');
+              doc.setFontSize(10);
+              doc.setTextColor(100, 100, 100);
+              doc.text('No preferences submitted.', 10, currentY);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(0, 0, 0);
+              currentY += 10;
+
+              if (currentY + 35 > 320 && facultyIndex < faculties.length - 1) {
+                doc.addPage();
+                this.reportHeaderService
+                  .addHeader(
+                    doc,
+                    isAll
+                      ? 'All Faculty Preferences Report'
+                      : 'Faculty Preferences Report',
+                    15,
+                  )
+                  .subscribe((newPageY) => {
+                    currentY = newPageY;
+                  });
+              }
+              return;
+            }
+
+            const courseData = courses.map(
               (course: any, index: number) => {
                 const preferredDays = course.preferred_days || [];
                 const formattedDayTimes =
@@ -1818,9 +2059,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                   yearSec,
                   displayCode,
                   course.course_details?.course_title || 'N/A',
-                  course.lec_hours.toString(),
-                  course.lab_hours.toString(),
-                  course.units.toString(),
+                  (course.lec_hours ?? 0).toString(),
+                  (course.lab_hours ?? 0).toString(),
+                  (course.units ?? 0).toString(),
                   formattedDayTimes || 'N/A',
                 ];
               },
@@ -1879,7 +2120,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             (doc as any).autoTable(tableConfig);
 
             currentY = (doc as any).lastAutoTable.finalY + 10;
-            if (currentY > 270) {
+            if (currentY + 35 > 320 && facultyIndex < faculties.length - 1) {
               doc.addPage();
               this.reportHeaderService
                 .addHeader(
@@ -1953,6 +2194,46 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     );
 
     return { has_any_day, has_any_time };
+  }
+
+  /**
+   * Filters duplicate courses based on preference ID or course attributes.
+   *
+   * @param courses Array of course preference records.
+   * @returns Filtered array of unique courses.
+   */
+  private deduplicateCourses(courses: any[]): any[] {
+    if (!courses || !Array.isArray(courses)) {
+      return [];
+    }
+
+    const seen = new Set<string>();
+    return courses.filter((course) => {
+      const prefId = course.preferences_id;
+      const courseCode =
+        course.course_details?.course_code || course.course_code || '';
+      const secName =
+        course.section_details?.section_name ||
+        course.course_details?.section_name ||
+        '';
+      const caId =
+        course.course_assignment_id != null
+          ? course.course_assignment_id
+          : course.temporary_course_offering_id != null
+            ? course.temporary_course_offering_id
+            : course.course_id ?? '';
+
+      const key = prefId != null
+        ? `pref_${prefId}`
+        : `${courseCode}_${secName}_${caId}`;
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
   }
 
   /**

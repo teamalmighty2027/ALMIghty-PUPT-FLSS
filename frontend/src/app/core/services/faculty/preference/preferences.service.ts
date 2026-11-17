@@ -347,21 +347,33 @@ export class PreferencesService {
   }
 
   /**
-   * Clears the cached preferences for a specific faculty_id.
+   * Clears the cached preferences for a specific faculty_id,
+   * including any term-scoped entries.
    */
   private clearCaches(facultyId: string): void {
-    if (this.preferencesCache.has(facultyId)) {
-      this.preferencesCache.delete(facultyId);
+    const prefix = `${facultyId}_`;
+
+    for (const key of Array.from(this.preferencesCache.keys())) {
+      if (key === facultyId || key.startsWith(prefix)) {
+        this.preferencesCache.delete(key);
+      }
     }
   }
 
+  /**
+   * Clears all cached preference responses and program data.
+   */
   clearAllCaches(): void {
     this.preferencesCache.clear();
     this.programsCache$ = null;
     this.preferencesSubject.next(null);
   }
 
+  /**
+   * Clears the faculty preferences cache and resets the subject.
+   */
   clearPreferencesCache(): void {
+    this.preferencesCache.clear();
     this.preferencesSubject.next(null);
   }
 }

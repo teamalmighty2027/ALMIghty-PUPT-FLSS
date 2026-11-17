@@ -5,12 +5,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSlideToggleChange } from '@angular/material/slide-toggle';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 
 import { ManagePreferencesComponent } from './manage-preferences.component';
 import { PreferencesService } from '../../../services/faculty/preference/preferences.service';
 import { ReportHeaderService } from '../../../services/report-header/report-header.service';
 import { ReportsService } from '../../../services/admin/reports/reports.service';
+import {
+  ScheduleSyncService,
+} from '../../../services/admin/sync/schedule-sync.service';
 
 describe('ManagePreferencesComponent', () => {
   let component: ManagePreferencesComponent;
@@ -19,6 +22,12 @@ describe('ManagePreferencesComponent', () => {
   let preferencesServiceSpy: jasmine.SpyObj<PreferencesService>;
   let reportsServiceSpy: jasmine.SpyObj<ReportsService>;
   let dialogSpy: jasmine.SpyObj<MatDialog>;
+  let syncServiceMock: {
+    startAutoRefresh: jasmine.Spy;
+    stopAutoRefresh: jasmine.Spy;
+    forceRefresh: jasmine.Spy;
+    refreshTrigger$: Subject<boolean>;
+  };
 
   beforeEach(async () => {
     preferencesServiceSpy = jasmine.createSpyObj('PreferencesService', [
@@ -31,6 +40,12 @@ describe('ManagePreferencesComponent', () => {
       'getAllTermsForDropdown',
     ]);
     dialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
+    syncServiceMock = {
+      startAutoRefresh: jasmine.createSpy('startAutoRefresh'),
+      stopAutoRefresh: jasmine.createSpy('stopAutoRefresh'),
+      forceRefresh: jasmine.createSpy('forceRefresh'),
+      refreshTrigger$: new Subject<boolean>(),
+    };
 
     reportsServiceSpy.getAllTermsForDropdown.and.returnValue(of([]));
     dialogSpy.open.and.returnValue({
@@ -42,6 +57,7 @@ describe('ManagePreferencesComponent', () => {
       providers: [
         { provide: PreferencesService, useValue: preferencesServiceSpy },
         { provide: ReportsService, useValue: reportsServiceSpy },
+        { provide: ScheduleSyncService, useValue: syncServiceMock },
         {
           provide: MatDialog,
           useValue: dialogSpy,
@@ -374,5 +390,55 @@ describe('ManagePreferencesComponent', () => {
     } as any;
 
     expect(component.calculateIsIndividuallyScheduled(faculty)).toBeTrue();
+  });
+
+  it('starts and stops auto-refresh and triggers silent reload', () => {
+    const silentSpy = spyOn(
+      component,
+      'refreshPreferencesTableSilently'
+    ).and.stub();
+
+    component.ngOnInit();
+
+    expect(syncServiceMock.startAutoRefresh).toHaveBeenCalledWith(
+      'manage-preferences',
+      15000
+    );
+
+    syncServiceMock.refreshTrigger$.next(true);
+    expect(silentSpy).toHaveBeenCalled();
+
+    component.ngOnDestroy();
+    expect(syncServiceMock.stopAutoRefresh).toHaveBeenCalledWith(
+      'manage-preferences'
+    );
+  });
+
+  it('calls syncService.forceRefresh on manual refresh', () => {
+    component.onManualRefresh();
+    expect(syncServiceMock.forceRefresh).toHaveBeenCalled();
+  });
+
+  it('silently refreshes table when view/override dialog closes', () => {
+    const silentSpy = spyOn(
+      component,
+      'refreshPreferencesTableSilently'
+    ).and.stub();
+
+    const faculty = {
+      faculty_id: 10,
+      facultyName: 'Jane Doe',
+      facultyCode: 'JD-10',
+      facultyType: 'Full-time',
+      facultyUnits: 12,
+      is_enabled: false,
+      has_request: 0,
+      active_semesters: [],
+    } as any;
+
+    component.onView(faculty);
+
+    expect(dialogSpy.open).toHaveBeenCalled();
+    expect(silentSpy).toHaveBeenCalled();
   });
 });

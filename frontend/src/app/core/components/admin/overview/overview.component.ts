@@ -28,6 +28,10 @@ import { CommonModule, formatDate } from '@angular/common';
 import { 
   DialogToggleAppealsComponent 
 } from '../../../../shared/dialog-toggle-appeals/dialog-toggle-appeals.component';
+import {
+  DialogPreferencesBreakdownComponent,
+  DialogPreferencesBreakdownData,
+} from '../../../../shared/dialog-preferences-breakdown/dialog-preferences-breakdown.component';
 
 interface CurriculumInfo {
   curriculum_id: number;
@@ -84,6 +88,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
   schedulesPublished = false;
   notificationsLoaded = false;
   facultyWithSchedulesCount = 0;
+  facultyWithPreferencesCount = 0;
   isMismatchedSemester = false;
 
   requestNotifications: RequestNotification[] = [];
@@ -215,12 +220,14 @@ export class OverviewComponent implements OnInit, OnDestroy {
   private updateBasicInfo(data: any): void {
     this.activeYear = data.activeAcademicYear;
     this.activeSemester = data.activeSemester;
-    this.activeSemesterId = data.activeSemesterId || 1; 
+    this.activeSemesterId =
+      data.active_semester_id ?? data.activeSemesterId ?? null;
     this.isMismatchedSemester = data.isMismatchedSemester ?? false;
     this.activeFacultyCount = data.activeFacultyCount;
     this.activeProgramsCount = data.activeProgramsCount;
     this.activeCurricula = data.activeCurricula;
     this.facultyWithSchedulesCount = data.facultyWithSchedulesCount;
+    this.facultyWithPreferencesCount = data.facultyWithPreferencesCount ?? 0;
     this.preferencesEnabled = data.preferencesSubmissionEnabled;
     this.schedulesPublished = data.publishProgress > 0;
     this.globalDeadline = data.global_deadline || null;
@@ -276,6 +283,27 @@ export class OverviewComponent implements OnInit, OnDestroy {
   }
 
   // ================
+  /**
+   * Opens the dialog displaying the preferences breakdown by program and GEED.
+   */
+  openPreferencesBreakdownDialog(): void {
+    const dialogData: DialogPreferencesBreakdownData = {
+      academicYear: this.activeYear,
+      semester: this.formatSemester(this.activeSemester),
+      activeSemesterId: this.activeSemesterId,
+    };
+
+    this.dialog.open(DialogPreferencesBreakdownComponent, {
+      data: dialogData,
+      panelClass: 'preferences-breakdown-dialog-panel',
+      width: '74rem',
+      maxWidth: '96vw',
+      maxHeight: '92vh',
+      autoFocus: false,
+      restoreFocus: false,
+    });
+  }
+
   // Toggle Methods
   // ================
 

@@ -142,6 +142,30 @@ To build the Angular frontend for production:
 ng build --configuration production && node post-build.js
 ```
 
+### Static Maintenance & Downtime Build
+
+To build a standalone, zero-backend 503 maintenance page package for uploading
+during scheduled downtime or attack mitigation:
+
+```bash
+cd frontend
+npm run build:maintenance
+```
+
+With an optional completion notice:
+
+```bash
+npm run build:maintenance -- --until="5:00 PM PHT"
+```
+
+This generates:
+- `dist/maintenance/`: Standalone directory with `.htaccess`, `503.json`,
+  `index.html`, `pup_taguig_logo.svg`, `robots.txt`, and `favicon.ico`.
+- `dist/pupt-flss/browser/`: Drop-in replacement for production browser build.
+- `dist/pupt-flss-maintenance.zip`: Ready-to-upload archive for cPanel / FTP.
+  All navigation routes, Service Worker checks, and API calls return 503
+  with zero backend connections.
+
 ### Angular Tests
 
 To execute unit tests for the Angular frontend:
@@ -176,6 +200,7 @@ The backend includes custom `php artisan` management commands:
 | `php artisan address:sync` | Downloads and caches Philippine PSGC address dataset |
 | `php artisan sync:idp-uuids` | Syncs faculty email addresses with IDP user UUIDs |
 | `php artisan optimize:clear` | Clears all backend caches (config, route, view) |
+| `php artisan down --render="errors.503"` | Native laravel downtime returning 503 for all endpoints |
 
 #### Key Command Usage Examples
 
@@ -192,6 +217,11 @@ The backend includes custom `php artisan` management commands:
 - **Export ML Dataset**:
   ```bash
   php artisan ml:export-dataset --all
+  ```
+
+- **Restore Application Online**:
+  ```bash
+  php artisan flss:up
   ```
 
 ---

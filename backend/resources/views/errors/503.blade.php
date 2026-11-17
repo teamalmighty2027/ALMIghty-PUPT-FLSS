@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>503 Service Unavailable - PUPT-FLSS</title>
+  <style>
+    :root {
+      --pup-maroon: #800000;
+      --pup-maroon-dark: #540909;
+      --pup-gold: #d4af37;
+      --pup-gold-light: #fef3c7;
+      --text-main: #1f2937;
+      --text-muted: #4b5563;
+      --bg-page: #f3f4f6;
+      --card-bg: #ffffff;
+      --border-color: #e5e7eb;
+      --badge-bg: #fef2f2;
+      --badge-text: #991b1b;
+      --badge-border: #fecaca;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+
+    .maintenance-wrapper {
+      width: 100%;
+      max-width: 640px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08),
+                  0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .maintenance-header {
+      background: linear-gradient(
+        135deg,
+        var(--pup-maroon-dark) 0%,
+        var(--pup-maroon) 100%
+      );
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      color: #ffffff;
+      border-bottom: 3px solid var(--pup-gold);
+    }
+
+    .header-titles h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    .header-titles p {
+      font-size: 0.8125rem;
+      color: #fde68a;
+      letter-spacing: 0.25px;
+      margin-top: 0.25rem;
+    }
+
+    .maintenance-body {
+      padding: 2rem 1.75rem;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: var(--badge-bg);
+      color: var(--badge-text);
+      border: 1px solid var(--badge-border);
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #dc2626;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+      animation: pulse-dot 1.8s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+      }
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(220, 38, 38, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+      }
+    }
+
+    .status-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--pup-maroon);
+      margin-bottom: 0.75rem;
+      line-height: 1.25;
+    }
+
+    .status-desc {
+      font-size: 0.9375rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-bottom: 1.5rem;
+    }
+
+    .completion-banner {
+      background-color: var(--pup-gold-light);
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      color: #92400e;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .security-notice {
+      background-color: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      color: #64748b;
+      margin-bottom: 1.75rem;
+      line-height: 1.45;
+    }
+
+    .actions-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.875rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .timer-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .timer-text strong {
+      color: var(--pup-maroon);
+      font-size: 1rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.625rem 1.25rem;
+      border-radius: 6px;
+      transition: background-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--pup-maroon);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--pup-maroon-dark);
+    }
+
+    .btn-secondary {
+      background-color: #e5e7eb;
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: #d1d5db;
+    }
+
+    .maintenance-footer {
+      background-color: #fafafa;
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border-color);
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 480px) {
+      .maintenance-header {
+        padding: 1rem;
+        flex-direction: column;
+        text-align: center;
+      }
+      .maintenance-body {
+        padding: 1.5rem 1rem;
+      }
+      .status-title {
+        font-size: 1.25rem;
+      }
+      .button-group {
+        width: 100%;
+        flex-direction: column;
+      }
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="maintenance-wrapper" role="alert" aria-live="polite">
+    <header class="maintenance-header">
+      <div class="header-titles">
+        <h1>POLYTECHNIC UNIVERSITY OF THE PHILIPPINES</h1>
+        <p>TAGUIG BRANCH &bull; FACULTY LOADING &amp; SCHEDULING SYSTEM</p>
+      </div>
+    </header>
+
+    <div class="maintenance-body">
+      <div class="badge">
+        <span class="badge-dot" aria-hidden="true"></span>
+        <span>HTTP 503 &bull; System Maintenance</span>
+      </div>
+
+      <h2 class="status-title">Service Temporarily Unavailable</h2>
+
+      <p class="status-desc">
+        {{ (isset($exception) && $exception->getMessage()) ?
+           $exception->getMessage() :
+           'The Faculty Loading & Scheduling System (PUPT-FLSS) is ' .
+           'temporarily offline for scheduled upgrades and maintenance.'
+        }}
+      </p>
+
+      <div class="completion-banner">
+        Scheduled maintenance in progress. Expected to resume shortly.
+      </div>
+
+      <div class="security-notice">
+        <strong>Security Lockdown Active:</strong> Direct API endpoints,
+        database transactions, and authentication workflows are paused.
+      </div>
+
+      <div class="actions-box">
+        <p class="timer-text">
+          Automatic check in <strong id="timer-count">60</strong> seconds
+        </p>
+        <div class="button-group">
+          <button
+            type="button"
+            class="btn btn-primary"
+            onclick="window.location.reload()"
+          >
+            Check Now
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="maintenance-footer">
+      Polytechnic University of the Philippines - Taguig Branch<br>
+      For urgent inquiries, please contact your Academic Head or Department.
+    </footer>
+  </main>
+
+  <script>
+    var countdown = 60;
+    var timerElement = document.getElementById('timer-count');
+
+    setInterval(function() {
+      if (timerElement) {
+        countdown--;
+
+        if (countdown <= 0) {
+          window.location.reload();
+        } else {
+          timerElement.textContent = countdown;
+        }
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

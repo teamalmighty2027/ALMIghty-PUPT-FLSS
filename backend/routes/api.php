@@ -589,6 +589,9 @@ Route::middleware([
     Route::get('/reports/overview', [
         ReportsController::class, 'getOverviewDetails'
     ]);
+    Route::get('/reports/overview/preferences-breakdown', [
+        ReportsController::class, 'getPreferencesBreakdown'
+    ]);
 
     /**
      * Analytics
