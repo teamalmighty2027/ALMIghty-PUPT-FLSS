@@ -2059,11 +2059,15 @@ class ReportsController extends Controller
         }
 
         // Helper to identify General Education (GEED / Common) courses
-        $isGenEd = function ($code) {
-            return (bool) preg_match(
-                '/^(GEED|NSTP|PATHFit|CWTS|PHED)/i',
-                trim($code ?? '')
-            );
+        $isGenEd = function ($code, $title = '') {
+            $pattern = '/(GEED|NSTP|PATHFit|CWTS|PHED|ROTC)/i';
+            return (bool) preg_match($pattern, trim($code ?? ''))
+                || (bool) preg_match($pattern, trim($title ?? ''))
+                || (bool) preg_match(
+                    '/^(Physical Activities|Physical Education|' .
+                    'National Service)/i',
+                    trim($title ?? '')
+                );
         };
 
         // Query active semester curriculum courses across programs
@@ -2223,8 +2227,60 @@ class ReportsController extends Controller
 
         $totalCampusPreferences = $activePreferences->count();
 
-        // Collect all General Education offered courses across curricula
+        // Map courses to their offering degree programs
+        // for cross-program detection
+        $courseProgramsMap = [];
+        $courseDetailsMap = [];
+
+        foreach ($curriculumCourses as $row) {
+            $courseProgramsMap[$row->course_id][$row->program_id] =
+                $row->program_code;
+            $courseDetailsMap[$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        foreach ($temporaryCourses as $row) {
+            $courseProgramsMap[$row->course_id][$row->program_id] =
+                $row->program_code;
+            $courseDetailsMap[$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
+        }
+
+        // Identify GEED and common multi-program courses
         $geedOfferedMap = [];
+        $commonCourseIds = [];
+
+        foreach ($courseDetailsMap as $cId => $details) {
+            $matchesRegex = $isGenEd(
+                $details['course_code'],
+                $details['course_title']
+            );
+            $isMultiProgram = isset($courseProgramsMap[$cId]) &&
+                count($courseProgramsMap[$cId]) > 1;
+
+            if ($matchesRegex || $isMultiProgram) {
+                $commonCourseIds[$cId] = true;
+                $progCodes = array_values(
+                    array_unique(
+                        array_values($courseProgramsMap[$cId] ?? [])
+                    )
+                );
+                sort($progCodes);
+                $geedOfferedMap[$cId] = [
+                    'course_id' => $cId,
+                    'course_code' => $details['course_code'],
+                    'course_title' => $details['course_title'],
+                    'programs' => $progCodes,
+                ];
+            }
+        }
+
         $programsMap = [];
 
         $allPrograms = DB::table('programs')
@@ -2244,55 +2300,43 @@ class ReportsController extends Controller
         }
 
         foreach ($curriculumCourses as $row) {
-            $isCourseGenEd = $isGenEd($row->course_code);
+            if (isset($commonCourseIds[$row->course_id])) {
+                continue;
+            }
 
-            if ($isCourseGenEd) {
-                $geedOfferedMap[$row->course_id] = [
-                    'course_id' => $row->course_id,
-                    'course_code' => $row->course_code,
-                    'course_title' => $row->course_title,
-                ];
-            } else {
-                if (!isset($programsMap[$row->program_id])) {
-                    $programsMap[$row->program_id] = [
-                        'program_id' => $row->program_id,
-                        'program_code' => $row->program_code,
-                        'program_title' => $row->program_title,
-                        'courses' => [],
-                    ];
-                }
-                $programsMap[$row->program_id]['courses'][$row->course_id] = [
-                    'course_id' => $row->course_id,
-                    'course_code' => $row->course_code,
-                    'course_title' => $row->course_title,
+            if (!isset($programsMap[$row->program_id])) {
+                $programsMap[$row->program_id] = [
+                    'program_id' => $row->program_id,
+                    'program_code' => $row->program_code,
+                    'program_title' => $row->program_title,
+                    'courses' => [],
                 ];
             }
+            $programsMap[$row->program_id]['courses'][$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
         }
 
         foreach ($temporaryCourses as $row) {
-            $isCourseGenEd = $isGenEd($row->course_code);
+            if (isset($commonCourseIds[$row->course_id])) {
+                continue;
+            }
 
-            if ($isCourseGenEd) {
-                $geedOfferedMap[$row->course_id] = [
-                    'course_id' => $row->course_id,
-                    'course_code' => $row->course_code,
-                    'course_title' => $row->course_title,
-                ];
-            } else {
-                if (!isset($programsMap[$row->program_id])) {
-                    $programsMap[$row->program_id] = [
-                        'program_id' => $row->program_id,
-                        'program_code' => $row->program_code,
-                        'program_title' => $row->program_title,
-                        'courses' => [],
-                    ];
-                }
-                $programsMap[$row->program_id]['courses'][$row->course_id] = [
-                    'course_id' => $row->course_id,
-                    'course_code' => $row->course_code,
-                    'course_title' => $row->course_title,
+            if (!isset($programsMap[$row->program_id])) {
+                $programsMap[$row->program_id] = [
+                    'program_id' => $row->program_id,
+                    'program_code' => $row->program_code,
+                    'program_title' => $row->program_title,
+                    'courses' => [],
                 ];
             }
+            $programsMap[$row->program_id]['courses'][$row->course_id] = [
+                'course_id' => $row->course_id,
+                'course_code' => $row->course_code,
+                'course_title' => $row->course_title,
+            ];
         }
 
         // Map preferences: GEED vs per Program
@@ -2304,17 +2348,36 @@ class ReportsController extends Controller
         foreach ($activePreferences as $pref) {
             $courseId = $pref->course_id;
             $code = $pref->course_code;
+            $title = $pref->course_title;
             $progId = $pref->program_id;
 
-            if ($courseId &&
-                ($isGenEd($code) || isset($geedOfferedMap[$courseId]))
-            ) {
+            $isCommon = $courseId && (
+                isset($geedOfferedMap[$courseId]) ||
+                isset($commonCourseIds[$courseId]) ||
+                $isGenEd($code, $title)
+            );
+
+            if ($isCommon) {
                 if (!isset($geedOfferedMap[$courseId])) {
+                    $progCodes = [];
+                    if ($progId && isset($allPrograms[$progId])) {
+                        $progCodes[] = $allPrograms[$progId]->program_code;
+                    }
                     $geedOfferedMap[$courseId] = [
                         'course_id' => $courseId,
                         'course_code' => $code,
-                        'course_title' => $pref->course_title,
+                        'course_title' => $title,
+                        'programs' => $progCodes,
                     ];
+                } elseif ($progId && isset($allPrograms[$progId])) {
+                    $pCode = $allPrograms[$progId]->program_code;
+                    if (!in_array(
+                        $pCode,
+                        $geedOfferedMap[$courseId]['programs']
+                    )) {
+                        $geedOfferedMap[$courseId]['programs'][] = $pCode;
+                        sort($geedOfferedMap[$courseId]['programs']);
+                    }
                 }
                 $geedPrefCount++;
                 $geedPreferredCourseIds[$courseId] = true;
@@ -2352,7 +2415,7 @@ class ReportsController extends Controller
                             $coursesRef[$courseId] = [
                                 'course_id' => $courseId,
                                 'course_code' => $code,
-                                'course_title' => $pref->course_title,
+                                'course_title' => $title,
                             ];
                         }
                         unset($coursesRef);
