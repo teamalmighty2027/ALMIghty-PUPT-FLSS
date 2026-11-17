@@ -120,6 +120,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   selectedTermId: number | null = null;
   private activeTermId: number | null = null;
+  private loadedTerms: any[] = [];
   showPreferenceToggleColumn = false;
   exportButtonsDisabled = true;
   exportTooltipMessage = '';
@@ -191,7 +192,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   loadTerms(): void {
     this.reportsService.getAllTermsForDropdown().subscribe({
       next: (data) => {
-        const activeTerm = data.find((term: any) => term.is_active === 1);
+        this.loadedTerms = data || [];
+        const activeTerm = this.loadedTerms.find(
+          (term: any) => term.is_active === 1
+        );
 
         this.activeTermId = activeTerm?.active_semester_id ?? null;
 
@@ -207,6 +211,59 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         console.error('Error loading terms:', error);
       }
     });
+  }
+
+  /**
+   * Retrieves academic year and semester label metadata for the
+   * currently selected term or falls back to faculty/empty defaults.
+   * @returns Object containing academic_year and semester_label strings.
+   */
+  private getSelectedTermMeta(): {
+    academic_year: string;
+    semester_label: string;
+  } {
+    const termMeta = this.loadedTerms.find(
+      (t) => t.active_semester_id === this.selectedTermId
+    );
+
+    if (termMeta) {
+      const academic_year =
+        termMeta.year_start && termMeta.year_end
+          ? `${termMeta.year_start}-${termMeta.year_end}`
+          : termMeta.academic_year || 'N/A';
+      const semester_label = this.getSemesterLabel(termMeta.semester);
+      return { academic_year, semester_label };
+    }
+
+    const firstActive = this.allData.find(
+      (f) => f.active_semesters && f.active_semesters.length > 0
+    )?.active_semesters?.[0];
+
+    return {
+      academic_year: firstActive?.academic_year || 'N/A',
+      semester_label: firstActive?.semester_label || 'N/A',
+    };
+  }
+
+  /**
+   * Converts numeric or string semester indicator into human-readable label.
+   * @param semester Numeric or string semester representation.
+   * @returns Formatted semester string label.
+   */
+  private getSemesterLabel(semester: number | string | undefined): string {
+    const semNum = Number(semester);
+    switch (semNum) {
+      case 1:
+        return '1st Semester';
+      case 2:
+        return '2nd Semester';
+      case 3:
+        return 'Summer Semester';
+      default:
+        return typeof semester === 'string' && semester.trim()
+          ? semester
+          : 'N/A';
+    }
   }
 
   /**
@@ -254,7 +311,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
 
   /**
    * Updates export button enabled/disabled state and tooltip message.
-   * Disables export when there are no preferences or when submission
+   * Disables export when there are no faculties loaded or when submission
    * is currently open (global or individual toggles active).
    */
   private updateExportButtonState(): void {
@@ -263,10 +320,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
       (this.isToggleAllChecked || this.isAnyIndividualToggleOn);
 
     this.exportButtonsDisabled =
-      !this.hasAnyPreferences || exportBlockedBySubmission;
+      !this.allData.length || exportBlockedBySubmission;
 
-    if (!this.hasAnyPreferences) {
-      this.exportTooltipMessage = 'No faculty preferences available for export';
+    if (!this.allData.length) {
+      this.exportTooltipMessage = 'No faculty data available for export';
       return;
     }
 
@@ -1011,20 +1068,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   onExportAll(): void {
     if (!this.allData.length) {
-      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
+      this.snackBar.open(
+        'No faculty preferences available for export.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 
-    const firstActiveSemesterFaculty = this.allData.find(
-      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
-    );
-
-    if (!firstActiveSemesterFaculty) {
-      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
+    const { academic_year, semester_label } = this.getSelectedTermMeta();
 
     this.dialog.open(DialogExportComponent, {
       maxWidth: '70rem',
@@ -1035,13 +1087,24 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         entity: 'faculty',
         customTitle: 'Export All Faculty Preferences',
         subtitle: `For Academic Year ${academic_year}, ${semester_label}`,
-        generatePdfFunction: (preview: boolean) => this.generateFacultyPDF(true, this.allData, preview),
+        generatePdfFunction: (preview: boolean) =>
+          this.generateFacultyPDF(true, this.allData, preview),
         generateExcelFunction: async () => {
-          const excelBlob = await this.generateFacultyExcelBlob(true, this.allData);
-          const fileName = `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.xlsx`;
+          const excelBlob = await this.generateFacultyExcelBlob(
+            true,
+            this.allData
+          );
+          const cleanYear = academic_year.replace('/', '_');
+          const cleanSem = semester_label.toLowerCase();
+          const fileName =
+            `${cleanYear}_${cleanSem}_all_faculty_preferences_report.xlsx`;
           saveAs(excelBlob, fileName);
         },
-        generateFileNameFunction: () => `${academic_year.replace('/', '_')}_${semester_label.toLowerCase()}_all_faculty_preferences_report.pdf`,
+        generateFileNameFunction: () => {
+          const cleanYear = academic_year.replace('/', '_');
+          const cleanSem = semester_label.toLowerCase();
+          return `${cleanYear}_${cleanSem}_all_faculty_preferences_report.pdf`;
+        },
       },
     });
   }
@@ -1053,20 +1116,15 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
    */
   async onExportByProgram(): Promise<void> {
     if (!this.allData.length) {
-      this.snackBar.open('No faculty preferences available for export.', 'Close', { duration: 3000 });
+      this.snackBar.open(
+        'No faculty preferences available for export.',
+        'Close',
+        { duration: 3000 }
+      );
       return;
     }
 
-    const firstActiveSemesterFaculty = this.allData.find(
-      (faculty) => faculty.active_semesters && faculty.active_semesters.length > 0,
-    );
-
-    if (!firstActiveSemesterFaculty) {
-      this.snackBar.open('No active semester data available for export.', 'Close', { duration: 3000 });
-      return;
-    }
-
-    const { academic_year, semester_label } = firstActiveSemesterFaculty.active_semesters![0];
+    const { academic_year, semester_label } = this.getSelectedTermMeta();
 
     // Fetch master list of programs to guarantee all courses are printed
     let masterPrograms: any[] = [];
@@ -1687,13 +1745,10 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
   ): Promise<Blob> {
     const workbook = new ExcelJS.Workbook();
 
-    const fallbackSemester = faculties.find(
-      (f) => f.active_semesters?.[0]
-    )?.active_semesters?.[0];
-    const defaultAcademicYear =
-      fallbackSemester?.academic_year || 'N/A';
-    const defaultSemesterLabel =
-      fallbackSemester?.semester_label || 'N/A';
+    const {
+      academic_year: defaultAcademicYear,
+      semester_label: defaultSemesterLabel,
+    } = this.getSelectedTermMeta();
 
     for (const faculty of faculties) {
       const activeSemester = faculty.active_semesters?.[0];
@@ -1906,6 +1961,11 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
     const pageWidth = doc.internal.pageSize.width;
     let currentY = 15;
 
+    const {
+      academic_year: defaultAcademicYear,
+      semester_label: defaultSemesterLabel,
+    } = this.getSelectedTermMeta();
+
     try {
       this.reportHeaderService
         .addHeader(
@@ -1917,14 +1977,6 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         )
         .subscribe((newY) => {
           currentY = newY;
-
-          const fallbackSemester = faculties.find(
-            (f) => f.active_semesters?.[0]
-          )?.active_semesters?.[0];
-          const defaultAcademicYear =
-            fallbackSemester?.academic_year || 'N/A';
-          const defaultSemesterLabel =
-            fallbackSemester?.semester_label || 'N/A';
 
           faculties.forEach((faculty, facultyIndex) => {
             const activeSemester = faculty.active_semesters?.[0];
@@ -1963,7 +2015,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
               doc.setTextColor(0, 0, 0);
               currentY += 10;
 
-              if (currentY > 270 && facultyIndex < faculties.length - 1) {
+              if (currentY + 35 > 320 && facultyIndex < faculties.length - 1) {
                 doc.addPage();
                 this.reportHeaderService
                   .addHeader(
@@ -2007,9 +2059,9 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
                   yearSec,
                   displayCode,
                   course.course_details?.course_title || 'N/A',
-                  course.lec_hours.toString(),
-                  course.lab_hours.toString(),
-                  course.units.toString(),
+                  (course.lec_hours ?? 0).toString(),
+                  (course.lab_hours ?? 0).toString(),
+                  (course.units ?? 0).toString(),
                   formattedDayTimes || 'N/A',
                 ];
               },
@@ -2068,7 +2120,7 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
             (doc as any).autoTable(tableConfig);
 
             currentY = (doc as any).lastAutoTable.finalY + 10;
-            if (currentY > 270 && facultyIndex < faculties.length - 1) {
+            if (currentY + 35 > 320 && facultyIndex < faculties.length - 1) {
               doc.addPage();
               this.reportHeaderService
                 .addHeader(
@@ -2165,12 +2217,13 @@ export class ManagePreferencesComponent implements OnInit, OnDestroy {
         course.course_details?.section_name ||
         '';
       const caId =
-        course.course_assignment_id ||
-        course.temporary_course_offering_id ||
-        course.course_id ||
-        '';
+        course.course_assignment_id != null
+          ? course.course_assignment_id
+          : course.temporary_course_offering_id != null
+            ? course.temporary_course_offering_id
+            : course.course_id ?? '';
 
-      const key = prefId
+      const key = prefId != null
         ? `pref_${prefId}`
         : `${courseCode}_${secName}_${caId}`;
 
