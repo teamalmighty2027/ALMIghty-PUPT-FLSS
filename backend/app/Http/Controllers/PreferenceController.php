@@ -261,7 +261,7 @@ class PreferenceController extends Controller
 
     /**
      * Resolves the target active semester using an explicit term ID or falls
-     * back to the currently active semester (then faculty view semester).
+     * back to the currently active semester.
      */
     private function resolveActiveSemester(?string $termId): ?ActiveSemester
     {
@@ -273,8 +273,7 @@ class PreferenceController extends Controller
                 ->first();
         }
 
-        return (clone $query)->where('is_active', 1)->first()
-            ?? (clone $query)->where('is_faculty_view', 1)->first();
+        return (clone $query)->where('is_active', 1)->first();
     }
 
     /**

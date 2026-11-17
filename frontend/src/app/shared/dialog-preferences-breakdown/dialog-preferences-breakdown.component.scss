@@ -190,6 +190,13 @@
         font-size: 1.25rem;
         font-weight: 600;
         color: var(--primary-text);
+
+        .header-count-inline {
+          font-size: 0.95rem;
+          font-weight: 500;
+          color: var(--secondary-text);
+          margin-left: 6px;
+        }
       }
 
       .section-desc {
@@ -253,6 +260,13 @@
     font-weight: 600;
     color: var(--primary-text);
   }
+
+  .program-count-inline {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--secondary-text);
+    white-space: nowrap;
+  }
 }
 
 /* Coverage Progress Bar */
@@ -272,6 +286,13 @@
       font-size: 0.95rem;
       font-weight: 500;
       color: var(--secondary-text);
+
+      .coverage-count-inline {
+        font-size: 0.85rem;
+        font-weight: 400;
+        color: var(--secondary-text);
+        margin-left: 6px;
+      }
     }
 
     .coverage-badge {
@@ -325,25 +346,27 @@
 
 /* Stats Grid */
 .card-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-md);
-  padding: var(--spacing-xs) 0;
+  padding: var(--spacing-xxs) 0;
 
   .stat-item {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
 
     .stat-number {
-      font-size: 1.35rem;
+      font-size: 1.15rem;
       font-weight: 700;
       color: var(--primary-text);
       line-height: 1.2;
     }
 
     .stat-caption {
-      font-size: 0.875rem;
+      font-size: 0.85rem;
       color: var(--secondary-text);
       line-height: 1.3;
     }
@@ -415,6 +438,19 @@
     .chip-title {
       color: var(--secondary-text);
       @include mixins.ellipsis;
+    }
+
+    .chip-programs {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--primary-color);
+      background: var(--primary-fade);
+      padding: 1px 6px;
+      border-radius: var(--border-radius-sm);
+      white-space: nowrap;
+      margin-left: 4px;
+      flex-shrink: 0;
     }
   }
 }

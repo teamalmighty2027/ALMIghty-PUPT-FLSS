@@ -82,7 +82,18 @@
         <div class="section-title-wrapper">
           <span mat-symbol="public" class="section-icon geed-icon"></span>
           <div class="section-title-content">
-            <h3 class="section-title">General Education Subjects</h3>
+            <h3 class="section-title">
+              General Education Subjects
+              <span class="header-count-inline">
+                ({{
+                  breakdownData.general_education
+                    .subjects_with_preferences
+                }}/{{
+                  breakdownData.general_education
+                    .total_subjects_offered
+                }} preferred)
+              </span>
+            </h3>
             <p class="section-desc">
               Institutional common subjects (GEED, NSTP, PATHFit) separated
               from degree program curriculums.
@@ -94,7 +105,19 @@
           <div class="card-main-row">
             <div class="coverage-group">
               <div class="coverage-header">
-                <span class="coverage-label">Subject Coverage</span>
+                <span class="coverage-label">
+                  Subject Coverage
+                  <span class="coverage-count-inline">
+                    ({{
+                      breakdownData.general_education
+                        .subjects_with_preferences
+                    }} of
+                    {{
+                      breakdownData.general_education
+                        .total_subjects_offered
+                    }} preferred)
+                  </span>
+                </span>
                 <span
                   class="coverage-badge"
                   [ngClass]="
@@ -179,7 +202,7 @@
                     breakdownData.general_education.unassigned_courses
                       .length
                   }}
-                  unassigned subject(s) with 0 preferences
+                  subject(s) with no preferences
                 </span>
                 <span
                   mat-symbol="expand_more"
@@ -203,6 +226,11 @@
                     <span class="chip-title">
                       {{ course.course_title }}
                     </span>
+                    @if (course.programs?.length) {
+                      <span class="chip-programs">
+                        [{{ course.programs?.join(', ') }}]
+                      </span>
+                    }
                   </div>
                 }
               </div>
@@ -242,11 +270,22 @@
                 <h4 class="program-title" [title]="program.program_title">
                   {{ program.program_title }}
                 </h4>
+                <span class="program-count-inline">
+                  ({{ program.subjects_with_preferences }}/{{
+                    program.total_subjects_offered
+                  }} subjects preferred)
+                </span>
               </div>
 
               <div class="coverage-group">
                 <div class="coverage-header">
-                  <span class="coverage-label">Subject Coverage</span>
+                  <span class="coverage-label">
+                    Subject Coverage
+                    <span class="coverage-count-inline">
+                      ({{ program.subjects_with_preferences }} of
+                      {{ program.total_subjects_offered }} preferred)
+                    </span>
+                  </span>
                   <span
                     class="coverage-badge"
                     [ngClass]="
@@ -303,7 +342,8 @@
                       class="unassigned-icon"
                     ></span>
                     <span>
-                      {{ program.unassigned_courses.length }} unassigned
+                      {{ program.unassigned_courses.length }}
+                      with no preferences
                     </span>
                     <span
                       mat-symbol="expand_more"

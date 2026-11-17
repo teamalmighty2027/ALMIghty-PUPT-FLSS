@@ -37,6 +37,7 @@ export interface BreakdownCourse {
   course_id: number;
   course_code: string;
   course_title: string;
+  programs?: string[];
 }
 
 export interface GeneralEducationBreakdown {
