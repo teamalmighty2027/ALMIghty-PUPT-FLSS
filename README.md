@@ -200,7 +200,7 @@ npm run build:maintenance -- --until="5:00 PM PHT"
 
 This generates:
 - `dist/maintenance/`: Standalone directory with `.htaccess`, `503.json`,
-  `index.html`, `pup_taguig_logo.svg`, `robots.txt`, and `favicon.ico`.
+  `index.html`, `pup_logo.svg`, `robots.txt`, and `favicon.ico`.
 - `dist/pupt-flss/browser/`: Drop-in replacement for production browser build.
 - `dist/pupt-flss-maintenance.zip`: Ready-to-upload archive for cPanel / FTP.
   All navigation routes, Service Worker checks, and API calls return 503
