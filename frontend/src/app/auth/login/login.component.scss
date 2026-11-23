@@ -13,25 +13,42 @@
 .login-container {
   @include mixins.flex-layout($align: stretch, $justify: flex-start);
   height: 100%;
-  background-image: var(--background-image);
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  box-sizing: border-box;
   position: relative;
   padding: var(--spacing-lg);
-  box-sizing: border-box;
-  transition: background-image 1s ease-in-out;
-  will-change: background-image;
+  overflow: hidden;
 
-  &::before {
-    content: '';
-    position: absolute;
+  // Phase 2: Watermark cover background
+  background-color: var(--login-bg);
+  background-image: var(--login-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background 0.3s ease;
+}
+
+/* Corner Accent Vectors */
+.corner-accent {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  width: 24rem;
+  max-width: 38vw;
+  height: auto;
+  user-select: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+  transition: width 0.3s ease, max-width 0.3s ease;
+
+  &.top-left {
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: var(--blur-bg);
-    backdrop-filter: blur(50px) saturate(150%);
-    z-index: 1;
+  }
+
+  &.bottom-right {
+    bottom: 0;
+    right: 0;
+    transform: rotate(180deg);
   }
 }
 
@@ -43,8 +60,10 @@
 
 /* ------- LOGIN IMAGE SECTION STYLING ------- */
 .login-image-section {
-  padding: var(--spacing-lg);
-  flex: 3;
+  padding: var(--spacing-md);
+  flex: 1.15;
+  height: 100%;
+  box-sizing: border-box;
   @include mixins.flex-layout($align: center, $justify: center);
 
   app-slideshow {
@@ -54,152 +73,146 @@
 }
 
 /* ------- LOGIN FORM SECTION STYLING ------- */
-
 .login-main-section {
   @include mixins.hide-scrollbar;
-  @include mixins.flex-layout(
-    $direction: column,
-    $align: center,
-    $justify: flex-start,
-    $gap: var(--spacing-md)
-  );
-  padding: var(--spacing-2xl) var(--spacing-xl);
-  flex: 2;
-  width: 100%;
-  overflow: scroll;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
+  flex: 1;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
 
   /* Login Header Section */
   .header-section {
-    @include mixins.flex-layout($gap: var(--spacing-lg));
-    width: inherit;
+    @include mixins.flex-layout(
+      $direction: column,
+      $align: center,
+      $justify: center,
+      $gap: var(--spacing-md)
+    );
+    width: 100%;
+    max-width: 28rem;
+    text-align: center;
+    margin-top: auto;
 
     .university-logo {
-      width: 4.5rem;
+      width: 6.75rem;
       height: auto;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
+      transition: transform 0.3s ease;
     }
 
     .header-text {
       @include mixins.flex-layout(
         $direction: column,
-        $align: flex-start,
-        $gap: var(--spacing-xxs)
+        $align: center,
+        $justify: center,
+        $gap: var(--spacing-xs)
       );
-      text-align: left;
       width: 100%;
-      height: 100%;
-    }
-
-    .university-name,
-    .system-name {
-      font-family: var(--font-header);
-      font-size: var(--font-size-md);
-      font-weight: 600;
+      text-align: center;
     }
 
     .university-name {
+      font-family: var(--font-header);
+      font-size: var(--font-size-xl);
+      font-weight: 700;
       color: var(--primary-text);
-    }
-  }
-
-  /* Login Features Section */
-  .features-section {
-    @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
-    padding: var(--spacing-sm) 0;
-    width: inherit;
-
-    .feature-item {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: flex-start,
-        $justify: flex-start,
-        $gap: var(--spacing-xs)
-      );
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-      width: 100%;
-
-      .feature-header {
-        @include mixins.flex-layout($gap: var(--spacing-xs));
-
-        h3 {
-          margin: 0;
-          font-size: var(--font-size-lg);
-          font-weight: 500;
-          color: var(--primary-text);
-        }
-      }
-
-      .feature-content {
-        p {
-          margin: 0;
-          font-size: var(--font-size-md);
-          color: var(--neutral-base);
-          line-height: 1.5;
-          letter-spacing: var(--letter-spacing-xxs);
-          text-align: justify;
-        }
-      }
-    }
-  }
-
-  #privacyNotice {
-    p {
-      font-size: var(--font-size-md);
-      color: var(--neutral-base);
+      line-height: 1.25;
+      letter-spacing: var(--letter-spacing-xs);
+      margin: 0;
       text-align: center;
-      margin-top: var(--spacing-sm);
+    }
 
-      a {
-        color: var(--primary-one);
-        text-decoration: none;
-        transition: color 0.3s ease;
-
-        &:hover {
-          color: var(--primary-two);
-        }
-      }
+    .system-name {
+      font-family: var(--font-header);
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--login-title-secondary);
+      line-height: 1.35;
+      letter-spacing: 1.8px;
+      margin: 0;
+      text-align: center;
     }
   }
 
   /* Login Buttons Section */
   .buttons-section {
     width: 100%;
-    @include mixins.flex-layout($gap: var(--spacing-md));
+    max-width: 22rem;
+    @include mixins.flex-layout(
+      $direction: column,
+      $gap: var(--spacing-md)
+    );
+    margin-top: var(--spacing-xs);
 
     .login-button {
-      @include mixins.flex-layout(
-        $direction: row-reverse,
-        $gap: var(--spacing-md)
-      );
-      width: inherit;
-      font-size: var(--font-size-mdx);
-      padding: var(--spacing-lg);
+      width: 100%;
+      min-height: 3.25rem;
+      border-radius: 9999px !important;
+      overflow: hidden;
+      padding: var(--spacing-sm) var(--spacing-lg);
       letter-spacing: var(--letter-spacing-xs);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+      transition: transform 0.2s ease,
+        box-shadow 0.2s ease,
+        filter 0.2s ease;
+
+      &:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+        filter: brightness(1.04);
+      }
+
+      &:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
 
       &.faculty {
         @include mixins.gradient-primary(315deg);
+        color: white !important;
       }
 
       &.admin {
-        @include mixins.gradient-secondary(315deg);
+        background: var(--login-admin-btn-bg) !important;
+        color: white !important;
+
+        &:hover:not(:disabled) {
+          background: var(--login-admin-btn-hover) !important;
+        }
       }
     }
 
     .button-text {
-      @include mixins.flex-layout($gap: var(--spacing-xs));
+      @include mixins.flex-layout(
+        $direction: row,
+        $align: center,
+        $justify: center,
+        $gap: var(--spacing-sm)
+      );
+      width: 100%;
+      font-size: var(--font-size-mdx);
+      font-weight: 500;
+      color: white;
     }
 
     .button-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.25em;
-      height: 1.25em;
+      width: 1.5rem;
+      height: 1.5rem;
       flex: 0 0 auto;
-      overflow: hidden;
 
       span[mat-symbol] {
-        font-size: 1.25rem;
+        font-size: 1.35rem;
         line-height: 1;
+        color: white;
       }
     }
   }
@@ -207,15 +220,14 @@
   /* Portal & Local Links Section */
   .portal-links-section {
     width: 100%;
+    max-width: 24rem;
     @include mixins.flex-layout(
       $direction: row,
       $align: center,
       $justify: center,
-      $gap: var(--spacing-sm)
+      $gap: var(--spacing-xs)
     );
-    flex-wrap: wrap;
 
-    .portal-link,
     .local-login-link {
       @include mixins.flex-layout(
         $direction: row,
@@ -224,54 +236,86 @@
       );
       color: var(--primary-one);
       font-size: var(--font-size-md);
-      font-weight: 500;
-      text-decoration: none;
+      font-weight: 600;
+      text-decoration: underline;
       cursor: pointer;
-      padding: var(--spacing-xs) var(--spacing-sm);
-      border-radius: var(--border-radius-sm);
-      transition: color 0.3s ease, background-color 0.3s ease;
+      padding: var(--spacing-xxs) var(--spacing-xs);
+      border-radius: var(--border-radius-xs);
+      transition: color 0.2s ease, opacity 0.2s ease;
 
       .link-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 1.25em;
-        height: 1.25em;
-        flex: 0 0 auto;
-        overflow: hidden;
-        font-size: var(--font-size-mdx);
+        color: var(--primary-one);
 
         span[mat-symbol] {
-          font-size: inherit;
+          font-size: 1.25rem;
           line-height: 1;
-        }
-
-        &.external-icon {
-          font-size: var(--font-size-sm);
         }
       }
 
       &:hover {
         color: var(--primary-one-hover);
-        text-decoration: underline;
+        opacity: 0.85;
       }
-    }
-
-    .link-divider {
-      color: var(--neutral-button);
-      font-size: var(--font-size-md);
-      user-select: none;
     }
   }
 
+  /* Privacy Notice Section */
+  #privacyNotice {
+    width: 100%;
+    max-width: 26rem;
+    text-align: center;
+    margin-top: var(--spacing-xs);
+
+    p {
+      margin: 0;
+      font-size: var(--font-size-smx);
+      color: var(--login-privacy-color, var(--neutral-button));
+      line-height: 1.6;
+      text-align: center;
+
+      a {
+        color: var(--login-privacy-link, var(--primary-one));
+        font-weight: 600;
+        text-decoration: underline;
+        transition: color 0.2s ease;
+
+        &:hover {
+          color: var(--primary-one-hover);
+        }
+      }
+    }
+  }
+
+  :host-context(.dark-theme) #privacyNotice {
+    p {
+      color: #ffffff !important;
+
+      a {
+        color: var(--primary-text-lighter) !important;
+
+        &:hover {
+          color: #ffffff !important;
+        }
+      }
+    }
+  }
+
+  /* Theme and Portal Toggle Section */
   .toggle-theme-section {
     width: 100%;
+    max-width: 26rem;
     @include mixins.flex-layout(
       $direction: row,
       $align: center,
       $justify: space-between,
       $gap: var(--spacing-md)
     );
+    margin-top: auto;
+    margin-bottom: var(--spacing-xl);
+    padding-top: var(--spacing-sm);
 
     .portal-link {
       @include mixins.flex-layout(
@@ -279,55 +323,59 @@
         $align: center,
         $gap: var(--spacing-xs)
       );
-      color: var(--primary-one);
-      font-size: var(--font-size-md);
-      font-weight: 500;
+      color: var(--neutral-base);
+      font-size: var(--font-size-mdx);
+      font-weight: 600;
       text-decoration: none;
       cursor: pointer;
       padding: var(--spacing-xs) var(--spacing-sm);
       border-radius: var(--border-radius-sm);
-      transition: color 0.3s ease, background-color 0.3s ease;
+      transition: color 0.2s ease, transform 0.2s ease;
 
       .link-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 1.25em;
-        height: 1.25em;
-        flex: 0 0 auto;
-        overflow: hidden;
-        font-size: var(--font-size-mdx);
+        color: var(--primary-one);
 
         span[mat-symbol] {
-          font-size: inherit;
+          font-size: 1.45rem;
           line-height: 1;
         }
 
         &.external-icon {
-          font-size: var(--font-size-sm);
+          font-size: var(--font-size-smx);
+          margin-left: 2px;
         }
       }
 
       &:hover {
-        color: var(--primary-one-hover);
-        text-decoration: underline;
+        color: var(--primary-one);
+        transform: translateY(-1px);
+
+        .link-icon {
+          color: var(--primary-one-hover);
+        }
       }
     }
 
     .toggle-button {
-      &.light-theme {
-        color: var(--primary-text);
+      font-size: var(--font-size-md);
+      font-weight: 500;
+      color: var(--neutral-base);
+
+      mat-icon {
+        color: var(--neutral-base);
+        font-size: 1.4rem;
+        width: 1.4rem;
+        height: 1.4rem;
+      }
+
+      &:hover {
+        color: var(--primary-one);
 
         mat-icon {
           color: var(--primary-one);
-        }
-      }
-
-      &.dark-theme {
-        color: var(--secondary-text);
-
-        mat-icon {
-          color: var(--secondary-text);
         }
       }
     }
@@ -338,72 +386,46 @@
 // Media Queries
 // =============
 
-@media screen and (max-width: bp.$breakpoint-xl) {
-  .login-main-section {
-    .header-section {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: center,
-        $gap: var(--spacing-md)
-      );
-
-      .header-text {
-        @include mixins.flex-layout(
-          $direction: column,
-          $align: center,
-          $justify: center,
-          $gap: var(--spacing-xxs)
-        );
-        text-align: center;
-      }
-    }
-
-    .features-section {
-      .feature-item.extra {
-        display: none;
-      }
-    }
-  }
-}
-
 @media screen and (max-width: bp.$breakpoint-lgx) {
+  .corner-accent {
+    width: 17rem;
+    max-width: 30vw;
+  }
+
   .login-image-section {
     display: none;
   }
 
   .login-main-section {
-    .header-text {
-      @include mixins.flex-layout(
-        $direction: column,
-        $align: flex-start,
-        $justify: flex-start,
-        $gap: var(--spacing-xxs)
-      );
-      text-align: left;
-    }
-
-    .features-section {
-      .feature-item.extra {
-        @include mixins.flex-layout(
-          $direction: column,
-          $align: flex-start,
-          $justify: flex-start,
-          $gap: var(--spacing-xs)
-        );
-      }
-    }
+    max-width: 100%;
+    padding: var(--spacing-xl);
   }
 }
 
 @media screen and (max-width: bp.$breakpoint-md) {
   .login-container {
-    padding: 0;
+    padding: var(--spacing-sm);
+  }
+
+  .corner-accent {
+    width: 13rem;
+    max-width: 28vw;
   }
 
   .login-main-section {
-    .features-section {
-      .feature-item.extra {
-        display: none;
+    padding: var(--spacing-lg) var(--spacing-md);
+
+    .header-section {
+      .university-logo {
+        width: 5.75rem;
+      }
+
+      .university-name {
+        font-size: var(--font-size-lg);
+      }
+
+      .system-name {
+        font-size: var(--font-size-mdx);
       }
     }
   }
@@ -411,14 +433,46 @@
 
 @media screen and (max-width: bp.$breakpoint-sm) {
   .login-container {
+    padding: 0;
+
+    .corner-accent {
+      width: 9rem;
+      max-width: 26vw;
+    }
+
     .login-main-section {
-      padding: var(--spacing-xl);
+      padding: var(--spacing-md) var(--spacing-sm);
+
+      .header-section {
+        .university-logo {
+          width: 4.75rem;
+        }
+
+        .university-name {
+          font-size: var(--font-size-mdx);
+        }
+
+        .system-name {
+          font-size: var(--font-size-smx);
+        }
+      }
 
       .buttons-section {
-        @include mixins.flex-layout(
-          $direction: column,
-          $gap: var(--spacing-sm)
-        );
+        max-width: 100%;
+
+        .login-button {
+          min-height: 2.85rem;
+          font-size: var(--font-size-md);
+        }
+      }
+
+      #privacyNotice {
+        max-width: 100%;
+      }
+
+      .toggle-theme-section {
+        max-width: 100%;
+        margin-bottom: var(--spacing-md);
       }
     }
   }
