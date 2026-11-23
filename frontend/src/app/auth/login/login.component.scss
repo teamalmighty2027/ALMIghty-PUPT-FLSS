@@ -28,16 +28,16 @@
   transition: background 0.3s ease;
 }
 
-/* Corner Accent Vectors */
+/* Corner Accent Vectors — Placed on top of carousel (z-index: 10) */
 .corner-accent {
   position: absolute;
   pointer-events: none;
-  z-index: 1;
-  width: 24rem;
-  max-width: 38vw;
+  z-index: 10;
+  width: clamp(18rem, 26vw, 28rem);
+  max-width: 40vw;
   height: auto;
   user-select: none;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.12));
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.15));
   transition: width 0.3s ease, max-width 0.3s ease;
 
   &.top-left {
@@ -60,15 +60,20 @@
 
 /* ------- LOGIN IMAGE SECTION STYLING ------- */
 .login-image-section {
-  padding: var(--spacing-md);
   flex: 1.15;
   height: 100%;
   box-sizing: border-box;
   @include mixins.flex-layout($align: center, $justify: center);
+  padding: clamp(1.5rem, 5vh, 4rem) clamp(1rem, 2vw, 2.5rem)
+    clamp(1.5rem, 5vh, 4rem) clamp(2rem, 4vw, 4.5rem);
 
   app-slideshow {
+    display: block;
     width: 100%;
-    height: 100%;
+    max-width: 48rem;
+    max-height: 72vh;
+    aspect-ratio: 16 / 10.5;
+    box-sizing: border-box;
   }
 }
 
@@ -79,8 +84,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-lg) var(--spacing-sm);
   flex: 1;
   height: 100%;
   box-sizing: border-box;
@@ -92,18 +96,19 @@
       $direction: column,
       $align: center,
       $justify: center,
-      $gap: var(--spacing-md)
+      $gap: var(--spacing-sm)
     );
     width: 100%;
-    max-width: 28rem;
+    max-width: 26rem;
     text-align: center;
     margin-top: auto;
 
     .university-logo {
-      width: 6.75rem;
+      width: 8.75rem;
       height: auto;
       filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
       transition: transform 0.3s ease;
+      margin-bottom: var(--spacing-xxs);
     }
 
     .header-text {
@@ -111,7 +116,7 @@
         $direction: column,
         $align: center,
         $justify: center,
-        $gap: var(--spacing-xs)
+        $gap: var(--spacing-xxs)
       );
       width: 100%;
       text-align: center;
@@ -123,8 +128,8 @@
       font-weight: 700;
       color: var(--primary-text);
       line-height: 1.25;
-      letter-spacing: var(--letter-spacing-xs);
       margin: 0;
+      max-width: 24rem;
       text-align: center;
     }
 
@@ -134,8 +139,8 @@
       font-weight: 600;
       color: var(--login-title-secondary);
       line-height: 1.35;
-      letter-spacing: 1.8px;
       margin: 0;
+      margin-top: var(--spacing-xxs);
       text-align: center;
     }
   }
@@ -143,19 +148,19 @@
   /* Login Buttons Section */
   .buttons-section {
     width: 100%;
-    max-width: 22rem;
+    max-width: 18rem;
     @include mixins.flex-layout(
       $direction: column,
-      $gap: var(--spacing-md)
+      $gap: 0.65rem
     );
-    margin-top: var(--spacing-xs);
+    margin-top: var(--spacing-xl);
 
     .login-button {
       width: 100%;
-      min-height: 3.25rem;
+      min-height: 2.85rem;
       border-radius: 9999px !important;
       overflow: hidden;
-      padding: var(--spacing-sm) var(--spacing-lg);
+      padding: 0.65rem var(--spacing-lg);
       letter-spacing: var(--letter-spacing-xs);
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
       transition: transform 0.2s ease,
@@ -196,7 +201,7 @@
         $gap: var(--spacing-sm)
       );
       width: 100%;
-      font-size: var(--font-size-mdx);
+      font-size: var(--font-size-md);
       font-weight: 500;
       color: white;
     }
@@ -205,12 +210,12 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 1.35rem;
+      height: 1.35rem;
       flex: 0 0 auto;
 
       span[mat-symbol] {
-        font-size: 1.35rem;
+        font-size: 1.25rem;
         line-height: 1;
         color: white;
       }
@@ -220,13 +225,14 @@
   /* Portal & Local Links Section */
   .portal-links-section {
     width: 100%;
-    max-width: 24rem;
+    max-width: 18rem;
     @include mixins.flex-layout(
       $direction: row,
       $align: center,
       $justify: center,
       $gap: var(--spacing-xs)
     );
+    margin-top: 0.65rem;
 
     .local-login-link {
       @include mixins.flex-layout(
@@ -235,7 +241,7 @@
         $gap: var(--spacing-xs)
       );
       color: var(--primary-one);
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-smx);
       font-weight: 600;
       text-decoration: underline;
       cursor: pointer;
@@ -250,7 +256,7 @@
         color: var(--primary-one);
 
         span[mat-symbol] {
-          font-size: 1.25rem;
+          font-size: 1.15rem;
           line-height: 1;
         }
       }
@@ -265,15 +271,15 @@
   /* Privacy Notice Section */
   #privacyNotice {
     width: 100%;
-    max-width: 26rem;
+    max-width: 22rem;
     text-align: center;
-    margin-top: var(--spacing-xs);
+    margin-top: 1.25rem;
 
     p {
       margin: 0;
-      font-size: var(--font-size-smx);
+      font-size: var(--font-size-sm);
       color: var(--login-privacy-color, var(--neutral-button));
-      line-height: 1.6;
+      line-height: 1.5;
       text-align: center;
 
       a {
@@ -306,16 +312,15 @@
   /* Theme and Portal Toggle Section */
   .toggle-theme-section {
     width: 100%;
-    max-width: 26rem;
+    max-width: 22rem;
     @include mixins.flex-layout(
       $direction: row,
       $align: center,
       $justify: space-between,
-      $gap: var(--spacing-md)
     );
     margin-top: auto;
-    margin-bottom: var(--spacing-xl);
-    padding-top: var(--spacing-sm);
+    margin-bottom: clamp(1.5rem, 3.5vh, 2.75rem);
+    padding-bottom: var(--spacing-lgx);
 
     .portal-link {
       @include mixins.flex-layout(
@@ -324,7 +329,7 @@
         $gap: var(--spacing-xs)
       );
       color: var(--neutral-base);
-      font-size: var(--font-size-mdx);
+      font-size: var(--font-size-md);
       font-weight: 600;
       text-decoration: none;
       cursor: pointer;
@@ -472,7 +477,7 @@
 
       .toggle-theme-section {
         max-width: 100%;
-        margin-bottom: var(--spacing-md);
+        padding-bottom: var(--spacing-5xxl);
       }
     }
   }
