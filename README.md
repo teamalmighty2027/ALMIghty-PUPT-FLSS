@@ -130,6 +130,46 @@ The repository is structured into the following main directories:
    ```
    The backend API will run on `http://127.0.0.1:8000/`.
 
+### Environment Setup
+1. **Navigate to frontend/src/environments**
+  ```bash
+  cd frontend/src/environments
+  ```
+
+2. **Create environment.dev.ts**
+  - Copy the following:
+  ```js
+  export const environment = {
+    production: false,
+    apiUrl: 'http://127.0.0.1:8000/api',
+    appUrl: 'http://localhost:4200',
+    useLocalLogin: true,
+  };
+  ```
+
+3. **Create environment.prod.ts**
+  - Copy the following:
+  ```js
+  export const environment = {
+    production: true,
+    // Change apiUrl depending on website url
+    apiUrl: 'https://flss.alquatrilixbsit2027.com/api',
+    appUrl: 'https://flss.alquatrilixbsit2027.com/', 
+    useLocalLogin: false,
+  };
+  ```
+
+4. **Create environment.auth.ts**
+  - Copy the following:
+  ```js
+  export const environmentOAuth = {  
+    onePortalUrl: 'https://one-portal.isaxbsit2027.com/portal',
+    // Flags whether the login dialog uses default mode
+    // Use true to use default login on staging
+    useLocalLogin: false,
+  };
+  ```
+
 ---
 
 ## Commands and Testing
