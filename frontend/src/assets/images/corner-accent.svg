@@ -1,0 +1,72 @@
+<!-- Corner accent ribbon SVG -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" fill="none">
+  <defs>
+    <linearGradient id="maroon-grad-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4e0202" />
+      <stop offset="40%" stop-color="#7a0000" />
+      <stop offset="70%" stop-color="#8d0d0d" />
+      <stop offset="100%" stop-color="#550000" />
+    </linearGradient>
+    <linearGradient id="maroon-grad-b" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5a0000" />
+      <stop offset="50%" stop-color="#800000" />
+      <stop offset="100%" stop-color="#400000" />
+    </linearGradient>
+    <linearGradient id="gold-grad-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#996e14" />
+      <stop offset="25%" stop-color="#e0b236" />
+      <stop offset="50%" stop-color="#fff2b3" />
+      <stop offset="75%" stop-color="#d4af37" />
+      <stop offset="100%" stop-color="#855a07" />
+    </linearGradient>
+    <linearGradient id="gold-grad-b" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#b8860b" />
+      <stop offset="35%" stop-color="#ffd700" />
+      <stop offset="70%" stop-color="#fff8d6" />
+      <stop offset="100%" stop-color="#aa7a1e" />
+    </linearGradient>
+    <filter id="accent-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="4" stdDeviation="5" flood-color="#2a0000"
+        flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Deep maroon main back wave -->
+  <path
+    d="M0,0 L0,250 C30,220 80,160 150,115 C230,65 320,35 400,20 L400,0 Z"
+    fill="url(#maroon-grad-a)"
+  />
+
+  <!-- Secondary maroon swoosh -->
+  <path
+    d="M0,0 L0,180 C40,155 100,110 180,75 C260,38 345,15 400,0 Z"
+    fill="url(#maroon-grad-b)"
+    filter="url(#accent-shadow)"
+  />
+
+  <!-- Main flowing gold ribbon -->
+  <path
+    d="M0,130 C45,110 110,80 190,52 C270,25 345,14 400,8 C335,18 250,33 175,60 C100,88 45,118 0,145 Z"
+    fill="url(#gold-grad-a)"
+    filter="url(#accent-shadow)"
+  />
+
+  <!-- Secondary gold ribbon -->
+  <path
+    d="M0,90 C45,72 110,50 185,32 C260,15 330,8 375,3 C320,10 245,21 170,40 C95,58 40,79 0,102 Z"
+    fill="url(#gold-grad-b)"
+  />
+
+  <!-- Fine gold highlight streak -->
+  <path
+    d="M0,52 C50,40 120,25 195,16 C260,7 320,3 350,0 C305,4 245,10 180,20 C110,30 50,44 0,60 Z"
+    fill="url(#gold-grad-a)"
+    opacity="0.9"
+  />
+
+  <!-- Dynamic foreground maroon ribbon tip -->
+  <path
+    d="M0,210 C35,180 85,130 160,90 C240,48 325,24 395,12 C325,28 230,55 150,102 C80,145 28,195 0,228 Z"
+    fill="url(#maroon-grad-b)"
+  />
+</svg>

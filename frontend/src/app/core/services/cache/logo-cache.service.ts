@@ -13,7 +13,7 @@ export class LogoCacheService {
     government: 'pupt_government_logo_cache',
   } as const;
 
-  private readonly DEFAULT_UNIVERSITY_LOGO = 'pup_taguig_logo.png';
+  private readonly DEFAULT_UNIVERSITY_LOGO = 'pup_logo.png';
 
   private universityLogoSubject = new BehaviorSubject<string>('');
   private governmentLogoSubject = new BehaviorSubject<string>('');

@@ -4,7 +4,7 @@
   RewriteBase /
 
   # 1. Allow direct access to maintenance assets
-  RewriteCond %{REQUEST_URI} ^/(favicon\.ico|pup_taguig_logo\.svg)$ [NC,OR]
+  RewriteCond %{REQUEST_URI} ^/(favicon\.ico|pup_logo\.svg)$ [NC,OR]
   RewriteCond %{REQUEST_URI} ^/(robots\.txt|503\.json)$ [NC]
   RewriteRule ^ - [L]
 

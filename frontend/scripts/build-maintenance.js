@@ -171,7 +171,7 @@ async function run() {
     'src',
     'assets',
     'images',
-    'pup_taguig_logo.svg'
+    'pup_logo.svg'
   );
 
   const htaccessContent = fs.existsSync(htaccessPath)
@@ -188,7 +188,7 @@ async function run() {
 
   // Locate favicon from available project assets
   const faviconCandidates = [
-    path.join(frontendRoot, 'src', 'assets', 'images', 'pupt.ico'),
+    path.join(frontendRoot, 'src', 'assets', 'images', 'pup.ico'),
     path.join(frontendRoot, 'src', 'favicon.ico'),
   ];
   let faviconBuffer = Buffer.from('');
@@ -232,7 +232,7 @@ async function run() {
 
     if (logoContent) {
       fs.writeFileSync(
-        path.join(target, 'pup_taguig_logo.svg'),
+        path.join(target, 'pup_logo.svg'),
         logoContent,
         'utf8'
       );
@@ -248,7 +248,7 @@ async function run() {
     { name: '503.json', content: jsonContent },
     { name: 'robots.txt', content: robotsContent },
     { name: 'favicon.ico', content: faviconBuffer },
-    { name: 'pup_taguig_logo.svg', content: logoContent },
+    { name: 'pup_logo.svg', content: logoContent },
   ];
 
   const zipOutputPath = path.join(distDir, 'pupt-flss-maintenance.zip');
