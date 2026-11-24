@@ -68,6 +68,7 @@
   --border-radius-sm: 0.5rem;
   --border-radius-md: 0.75rem;
   --border-radius-lg: 1rem;
+  --border-radius-lgx: 1.5rem;
   --border-radius-xl: 2rem;
 
   // Box Shadow
@@ -103,6 +104,26 @@
   --dialog-medium: 30rem;
   --dialog-base-height: 50vh;
 
+  // Login Design Tokens
+  --login-bg: var(--main-bg);
+  --login-bg-image: url('/assets/images/pup_pylon_cover.png');
+  --login-accent-maroon: var(--primary-const);
+  --login-accent-gold: #c5a028;
+  --login-border-gradient: linear-gradient(
+    135deg,
+    var(--login-accent-maroon) 0%,
+    var(--login-accent-gold) 100%
+  );
+  --login-halo-shadow:
+    inset 0 0 24px rgba(128, 0, 0, 0.06),
+    0 0 35px rgba(128, 0, 0, 0.12);
+  --login-title-secondary: #4a4a4a;
+  --login-card-bg: #ffffff;
+  --login-admin-btn-bg: #4a4d50;
+  --login-admin-btn-hover: #373a3c;
+  --login-privacy-color: var(--neutral-button);
+  --login-privacy-link: var(--primary-one);
+
   @include m3-theme.all-component-themes(m3-theme.$light-theme);
 
   // Colors
@@ -116,6 +137,28 @@
 }
 
 .dark-theme {
+  // Login Design Tokens (Dark Theme)
+  --login-bg: var(--main-bg);
+  --login-bg-image:
+    linear-gradient(rgba(17, 17, 17, 0.88), rgba(17, 17, 17, 0.88)),
+    url('/assets/images/pup_pylon_cover.png');
+  --login-accent-maroon: var(--primary-one);
+  --login-accent-gold: #d4af37;
+  --login-border-gradient: linear-gradient(
+    135deg,
+    var(--login-accent-maroon) 0%,
+    var(--login-accent-gold) 100%
+  );
+  --login-halo-shadow:
+    inset 0 0 28px rgba(169, 50, 50, 0.12),
+    0 0 38px rgba(212, 175, 55, 0.15);
+  --login-title-secondary: #c2c2c2;
+  --login-card-bg: var(--neutral-light);
+  --login-admin-btn-bg: #35383a;
+  --login-admin-btn-hover: #26282a;
+  --login-privacy-color: #ffffff;
+  --login-privacy-link: var(--primary-text-lighter);
+
   @include mat.all-component-colors(m3-theme.$dark-theme);
 }
 
@@ -840,6 +883,54 @@ html body div.asw-container .asw-menu * {
     span[mat-symbol] {
       color: var(--primary-text) !important;
     }
+  }
+}
+
+/* ============================================================
+   Local Login Dropdown Menu
+   ============================================================ */
+
+.local-login-menu.mat-mdc-menu-panel {
+  border-radius: var(--border-radius-md) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22) !important;
+  min-width: 210px !important;
+  overflow: hidden !important;
+}
+
+.local-login-menu .mat-mdc-menu-item {
+  min-height: 44px !important;
+  padding: 0 var(--spacing-md) !important;
+  font-size: var(--font-size-smx) !important;
+  font-weight: 500 !important;
+
+  .mdc-list-item__primary-text,
+  .mat-mdc-menu-item-text {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: var(--spacing-sm) !important;
+    width: 100% !important;
+    font-family: var(--font-base) !important;
+  }
+
+  span[mat-symbol] {
+    font-size: 20px !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    line-height: 1 !important;
+    margin-right: var(--spacing-xs) !important;
+    color: var(--primary-one) !important;
+  }
+}
+
+.dark-theme .local-login-menu .mat-mdc-menu-item {
+  span[mat-symbol] {
+    color: var(--primary-text-lighter) !important;
   }
 }
 

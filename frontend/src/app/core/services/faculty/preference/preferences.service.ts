@@ -4,7 +4,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { map, shareReplay, tap, take, catchError } from 'rxjs/operators';
 
-import { PreferredDay, Program, AssignedCoursesResponse } from '../../../../core/models/preferences.model';
+import {
+  PreferredDay,
+  Program,
+  AssignedCoursesResponse,
+} from '../../../../core/models/preferences.model';
 
 import { environment } from '../../../../../environments/environment.dev';
 
@@ -89,16 +93,20 @@ export class PreferencesService {
   }
 
   getPreferencesByFacultyId(
-    facultyId: string,
+    facultyId: string | number,
     forceRefresh: boolean = false,
     termId?: number | null
   ): Observable<any> {
-    if (!facultyId) {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
+
+    if (!facultyIdStr) {
       console.error('Invalid faculty ID provided.');
       return throwError(() => new Error('Invalid faculty ID'));
     }
 
-    const cacheKey = termId ? `${facultyId}_term_${termId}` : facultyId;
+    const cacheKey = termId
+      ? `${facultyIdStr}_term_${termId}`
+      : facultyIdStr;
 
     if (forceRefresh) {
       this.preferencesCache.delete(cacheKey);
@@ -113,14 +121,14 @@ export class PreferencesService {
       params = params.set('term_id', termId.toString());
     }
 
-    const url = `${this.baseUrl}/faculty/${facultyId}/preferences`;
+    const url = `${this.baseUrl}/faculty/${facultyIdStr}/preferences`;
     
     // Pass the { params } object into the http.get call
     const preferences$ = this.http.get(url, { params }).pipe(
       shareReplay(1),
       catchError((error) => {
         console.error(
-          `Error fetching preferences for faculty ID ${facultyId}:`,
+          `Error fetching preferences for faculty ID ${facultyIdStr}:`,
           error
         );
         this.preferencesCache.delete(cacheKey);
@@ -135,16 +143,20 @@ export class PreferencesService {
   /*
   * Retrieves preferences history for a specific faculty by ID.
   **/
-  getPreferencesHistoryByFacultyId(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/faculty/${facultyId}/preferences/history`;
+  getPreferencesHistoryByFacultyId(
+    facultyId: string | number
+  ): Observable<any> {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
+    const url = `${this.baseUrl}/faculty/${facultyIdStr}/preferences/history`;
+
     return this.http.get(url).pipe(
       shareReplay(1),
       catchError((error) => {
         console.error(
-          `Error fetching preferences for faculty ID ${facultyId}:`,
+          `Error fetching preferences for faculty ID ${facultyIdStr}:`,
           error
         );
-        this.preferencesCache.delete(facultyId);
+        this.clearCaches(facultyIdStr);
         return throwError(() => error);
       })
     );
@@ -152,12 +164,14 @@ export class PreferencesService {
 
   toggleIgnorePreference(
     preferenceId: number,
-    facultyId: string
+    facultyId: string | number
   ): Observable<any> {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
     const url = `${this.baseUrl}/preferences/${preferenceId}/toggle-ignore`;
+
     return this.http.patch(url, {}).pipe(
       tap(() => {
-        this.clearCaches(facultyId);
+        this.clearCaches(facultyIdStr);
         this.clearPreferencesCache();
       }),
       catchError((error) => {
@@ -179,8 +193,9 @@ export class PreferencesService {
     preferred_days: PreferredDay[];
   }): Observable<any> {
     const url = `${this.baseUrl}/preferences`;
+
     return this.http.post(url, preference).pipe(
-      tap(() => this.clearCaches(preference.faculty_id.toString())),
+      tap(() => this.clearCaches(preference.faculty_id?.toString() ?? '')),
       catchError((error) => {
         console.error('Error submitting single preference:', error);
         return throwError(() => error);
@@ -190,18 +205,20 @@ export class PreferencesService {
 
   deletePreference(
     preferenceId: number,
-    facultyId: string,
+    facultyId: string | number,
     activeSemesterId: number,
     sectionId: number
   ): Observable<any> {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
     const params = new HttpParams()
-      .set('faculty_id', facultyId)
+      .set('faculty_id', facultyIdStr)
       .set('active_semester_id', activeSemesterId.toString())
       .set('sections_per_program_year_id', sectionId.toString());
 
     const url = `${this.baseUrl}/preferences/${preferenceId}`;
+
     return this.http.delete(url, { params }).pipe(
-      tap(() => this.clearCaches(facultyId)),
+      tap(() => this.clearCaches(facultyIdStr)),
       catchError((error) => {
         console.error(`Error deleting preference ID ${preferenceId}:`, error);
         return throwError(() => error);
@@ -303,26 +320,32 @@ export class PreferencesService {
     );
   }
 
-  requestAccess(facultyId: string): Observable<any> {
+  requestAccess(facultyId: string | number): Observable<any> {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
     const url = `${this.baseUrl}/preferences/access-requests`;
-    return this.http.post(url, { faculty_id: parseInt(facultyId, 10) }).pipe(
-      tap(() => {
-        this.updatePreferencesCache(facultyId);
-      }),
-      catchError((error) => {
-        console.error('Error requesting access:', error);
-        return throwError(() => error);
-      })
-    );
-  }
 
-  cancelRequestAccess(facultyId: string): Observable<any> {
-    const url = `${this.baseUrl}/preferences/access-requests`;
     return this.http
-      .delete(url, { params: { faculty_id: facultyId } })
+      .post(url, { faculty_id: parseInt(facultyIdStr, 10) })
       .pipe(
         tap(() => {
-          this.updatePreferencesCache(facultyId);
+          this.updatePreferencesCache(facultyIdStr);
+        }),
+        catchError((error) => {
+          console.error('Error requesting access:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  cancelRequestAccess(facultyId: string | number): Observable<any> {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
+    const url = `${this.baseUrl}/preferences/access-requests`;
+
+    return this.http
+      .delete(url, { params: { faculty_id: facultyIdStr } })
+      .pipe(
+        tap(() => {
+          this.updatePreferencesCache(facultyIdStr);
         }),
         catchError((error) => {
           console.error('Error cancelling access request:', error);
@@ -332,14 +355,17 @@ export class PreferencesService {
   }
 
   /**
-   * Updates the preferences cache by fetching the latest data for a specific faculty_id.
+   * Updates the preferences cache by fetching the latest data for
+   * a specific faculty_id.
    */
-  updatePreferencesCache(facultyId: string): void {
-    this.preferencesCache.delete(facultyId);
-    this.getPreferencesByFacultyId(facultyId).subscribe({
+  updatePreferencesCache(facultyId: string | number): void {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
+
+    this.clearCaches(facultyIdStr);
+    this.getPreferencesByFacultyId(facultyIdStr).subscribe({
       error: (error) => {
         console.error(
-          `Error updating preferences cache for faculty ID ${facultyId}:`,
+          `Error updating preferences cache for faculty ID ${facultyIdStr}:`,
           error
         );
       },
@@ -348,13 +374,20 @@ export class PreferencesService {
 
   /**
    * Clears the cached preferences for a specific faculty_id,
-   * including any term-scoped entries.
+   * including any term-scoped entries. Safe against non-string keys.
    */
-  private clearCaches(facultyId: string): void {
-    const prefix = `${facultyId}_`;
+  private clearCaches(facultyId: string | number): void {
+    const facultyIdStr = facultyId != null ? String(facultyId) : '';
+    if (!facultyIdStr) {
+      return;
+    }
+
+    const prefix = `${facultyIdStr}_`;
 
     for (const key of Array.from(this.preferencesCache.keys())) {
-      if (key === facultyId || key.startsWith(prefix)) {
+      const keyStr = String(key);
+
+      if (keyStr === facultyIdStr || keyStr.startsWith(prefix)) {
         this.preferencesCache.delete(key);
       }
     }

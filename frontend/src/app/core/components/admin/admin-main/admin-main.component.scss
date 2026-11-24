@@ -41,8 +41,12 @@
     @include mixins.flex-layout($direction: column, $gap: var(--spacing-md));
     padding: var(--spacing-lg) var(--spacing-md);
 
-    img {
-      width: 40%;
+    img,
+    .side-toolbar-img {
+      width: 4rem;
+      max-width: 4rem;
+      height: auto;
+      user-select: none;
     }
 
     .header-name {
@@ -197,8 +201,11 @@
     gap: var(--spacing-md);
     border-bottom: 1px solid var(--neutral-option);
 
-    img {
-      width: 32%;
+    img,
+    .side-toolbar-img {
+      width: 3.5rem;
+      max-width: 3.5rem;
+      height: auto;
     }
   }
 

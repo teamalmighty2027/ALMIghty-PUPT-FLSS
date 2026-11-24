@@ -734,8 +734,8 @@ export class AuthService {
 
   // Return the current user's faculty id.
   getUserFacultyId(): string {
-    const faculty = this.getUserData().faculty;
-    return faculty?.faculty_id ?? '';
+    const faculty = this.getUserData()?.faculty;
+    return faculty?.faculty_id != null ? String(faculty.faculty_id) : '';
   }
 
   // Return the current user's permissions.
