@@ -1378,14 +1378,23 @@ class ReportsController extends Controller
             return response()->json(['message' => 'Semester information not found'], 404);
         }
 
-        // Determine if requested semester is current or past
-        $activeSemester = DB::table('active_semesters')
-            ->where('is_active', 1)
+        // Determine if requested semester matches faculty view
+        $facultyViewSemester = DB::table('active_semesters')
+            ->where('is_faculty_view', 1)
             ->first();
 
-        $isCurrent = $activeSemester && 
-            ($semesterInfo->academic_year_id == $activeSemester->academic_year_id) && 
-            ($semesterInfo->semester_id == $activeSemester->semester_id);
+        // Fallback to active semester if faculty view is not set
+        if (!$facultyViewSemester) {
+            $facultyViewSemester = DB::table('active_semesters')
+                ->where('is_active', 1)
+                ->first();
+        }
+
+        $isCurrent = $facultyViewSemester &&
+            ($semesterInfo->academic_year_id ==
+                $facultyViewSemester->academic_year_id) &&
+            ($semesterInfo->semester_id ==
+                $facultyViewSemester->semester_id);
 
         // Step 3: Get faculty info
         $faculty = DB::table('faculty')
@@ -1715,29 +1724,67 @@ class ReportsController extends Controller
             ], 400);
         }
 
-        // Get current active semester for exclusion
-        $activeSemester = DB::table('active_semesters')
-            ->where('is_active', 1)
+        // Get the faculty-view semester for filtering
+        $facultyViewSemester = DB::table('active_semesters as as')
+            ->join(
+                'academic_years as ay',
+                'ay.academic_year_id',
+                '=',
+                'as.academic_year_id'
+            )
+            ->join(
+                'semesters as s',
+                's.semester_id',
+                '=',
+                'as.semester_id'
+            )
+            ->where('as.is_faculty_view', 1)
+            ->select([
+                'as.active_semester_id',
+                'as.academic_year_id',
+                'as.semester_id',
+                'ay.year_start',
+                'ay.year_end',
+                's.semester',
+            ])
             ->first();
 
-        if (!$activeSemester) {
+        // Fallback to active semester if faculty view is not set
+        if (!$facultyViewSemester) {
+            $facultyViewSemester = DB::table('active_semesters as as')
+                ->join(
+                    'academic_years as ay',
+                    'ay.academic_year_id',
+                    '=',
+                    'as.academic_year_id'
+                )
+                ->join(
+                    'semesters as s',
+                    's.semester_id',
+                    '=',
+                    'as.semester_id'
+                )
+                ->where('as.is_active', 1)
+                ->select([
+                    'as.active_semester_id',
+                    'as.academic_year_id',
+                    'as.semester_id',
+                    'ay.year_start',
+                    'ay.year_end',
+                    's.semester',
+                ])
+                ->first();
+        }
+
+        if (!$facultyViewSemester) {
             return response()->json([
-              'message' => 'No active semester configured'
+                'message' => 'No faculty view or active semester configured'
             ], 404);
         }
 
-        $currentSemester = DB::table('semesters')
-            ->where('semester_id', $activeSemester->semester_id)
-            ->first();
-            
-        if (!$currentSemester) {
-            return response()->json([
-              'message' => 'Active semester points to missing semester record'
-            ], 404);
-        }
-
-        // Query to get all academic years and semesters 
-        // where a faculty had published schedules  
+        // Query all academic years and semesters:
+        // - All past semesters (prior to faculty view) are viewable
+        // - Current faculty view semester is viewable ONLY IF published
         $historyData = DB::table('active_semesters as as')
             ->select([
                 'as.active_semester_id',
@@ -1745,7 +1792,9 @@ class ReportsController extends Controller
                 'as.academic_year_id',
                 'as.start_date',
                 'as.end_date',
-                DB::raw("CONCAT(ay.year_start, '-', ay.year_end) as academic_year"),
+                DB::raw(
+                    "CONCAT(ay.year_start, '-', ay.year_end) as academic_year"
+                ),
                 DB::raw('CASE 
                     WHEN s.semester = 1 THEN "1st Semester"
                     WHEN s.semester = 2 THEN "2nd Semester"
@@ -1754,73 +1803,71 @@ class ReportsController extends Controller
                 END as semester_number'),
                 's.semester'
             ])
-            ->join('academic_years as ay', 'ay.academic_year_id', '=', 'as.academic_year_id')
-            ->join('semesters as s', 's.semester_id', '=', 'as.semester_id')
-            ->whereExists(function ($query) use (
+            ->join(
+                'academic_years as ay',
+                'ay.academic_year_id',
+                '=',
+                'as.academic_year_id'
+            )
+            ->join(
+                'semesters as s',
+                's.semester_id',
+                '=',
+                'as.semester_id'
+            )
+            ->where(function ($query) use (
                 $faculty_id,
-                $activeSemester,
-                $currentSemester
+                $facultyViewSemester
             ) {
-                $query->select(DB::raw(1))
-                    ->from('faculty_schedule_publication as fsp')
-                    ->where('fsp.faculty_id', $faculty_id)
-                    ->whereColumn('fsp.academic_year_id', 'as.academic_year_id')
-                    ->whereColumn('fsp.semester_id', 'as.semester_id')
-                    ->where(function($statusFilter) use (
-                        $activeSemester,
-                        $currentSemester
+                // Past semesters: prior year or same year earlier semester
+                $query->where(function ($past) use ($facultyViewSemester) {
+                    $past->where(
+                        'ay.year_start',
+                        '<',
+                        $facultyViewSemester->year_start
+                    )->orWhere(function ($sameYear) use ($facultyViewSemester) {
+                        $sameYear->where(
+                            'ay.year_start',
+                            '=',
+                            $facultyViewSemester->year_start
+                        )->where(
+                            's.semester',
+                            '<',
+                            $facultyViewSemester->semester
+                        );
+                    });
+                })
+                // Current faculty view semester: must be published
+                ->orWhere(function ($current) use (
+                    $faculty_id,
+                    $facultyViewSemester
+                ) {
+                    $current->where(
+                        'as.academic_year_id',
+                        '=',
+                        $facultyViewSemester->academic_year_id
+                    )->where(
+                        'as.semester_id',
+                        '=',
+                        $facultyViewSemester->semester_id
+                    )->whereExists(function ($pub) use (
+                        $faculty_id,
+                        $facultyViewSemester
                     ) {
-                        // Past semesters: no publish requirement
-                        $statusFilter->where(function($past) use (
-                            $activeSemester,
-                            $currentSemester
-                        ) {
-                            $past->where(
-                                'as.academic_year_id',
-                                '<',
-                                $activeSemester->academic_year_id
+                        $pub->select(DB::raw(1))
+                            ->from('faculty_schedule_publication as fsp')
+                            ->where('fsp.faculty_id', $faculty_id)
+                            ->where(
+                                'fsp.academic_year_id',
+                                $facultyViewSemester->academic_year_id
                             )
-                                ->orWhere(function($sameYear) use (
-                                    $activeSemester,
-                                    $currentSemester
-                                ) {
-                                    $sameYear->where(
-                                        'as.academic_year_id',
-                                        '=',
-                                        $activeSemester->academic_year_id
-                                    )
-                                        ->where(
-                                            's.semester',
-                                            '<',
-                                            $currentSemester->semester
-                                        );
-                                });
-                        })
-                        // Current semester: must be published
-                        ->orWhere(function($current) use (
-                            $activeSemester,
-                            $currentSemester
-                        ) {
-                            $current->where(
-                                'as.academic_year_id',
-                                '=',
-                                $activeSemester->academic_year_id
+                            ->where(
+                                'fsp.semester_id',
+                                $facultyViewSemester->semester_id
                             )
-                                ->where(
-                                    's.semester',
-                                    '=',
-                                    $currentSemester->semester
-                                )
-                                ->where('fsp.is_published', '=', 1);
-                        });
+                            ->where('fsp.is_published', 1);
                     });
-            })
-            ->where(function($query) use ($activeSemester, $currentSemester) {
-                $query->where('as.academic_year_id', '<', $activeSemester->academic_year_id)
-                    ->orWhere(function($q) use ($activeSemester, $currentSemester) {
-                        $q->where('as.academic_year_id', '=', $activeSemester->academic_year_id)
-                            ->where('s.semester', '<=', $currentSemester->semester);
-                    });
+                });
             })
             ->orderBy('ay.year_start', 'desc')
             ->orderBy('s.semester', 'desc')
