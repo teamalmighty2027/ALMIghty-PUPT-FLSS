@@ -329,10 +329,18 @@ export class SchedulingComponent
     this.schedulingService.getHistoricalSchedules(academic_year_id, semester_id).subscribe({
       next: (response) => {
         // Identify valid courses for current program, year level, and section
-        const program = response.programs.find(p => {
+        const selectedDisplay = this.selectedProgram.trim().toLowerCase();
+        const selectedCode = selectedDisplay.split(' - ')[0].trim();
+        let program = response.programs.find((p) => {
           const display = `${p.program_code} - ${p.program_title}`;
-          return display.trim().toLowerCase() === this.selectedProgram.trim().toLowerCase();
+          return display.trim().toLowerCase() === selectedDisplay;
         });
+
+        if (!program) {
+          program = response.programs.find(
+            (p) => p.program_code?.trim().toLowerCase() === selectedCode
+          );
+        }
 
         let section: any = null;
         if (program && program.year_levels) {
@@ -386,12 +394,22 @@ export class SchedulingComponent
         let matchCount = 0;
         const filledEntries: DraftEntry[] = [];
 
-        emptySlots.forEach(slot => {
-          const matchedCourse = section.courses.find((c: any) => 
-            c.course_code.trim().toLowerCase() === slot.course_code.trim().toLowerCase() &&
-            Number(c.is_copy) === Number(slot.is_copy)
+        emptySlots.forEach((slot) => {
+          const slotCode = slot.course_code?.trim().toLowerCase() || '';
+          const matchedCourse = section.courses.find((c: any) =>
+            (c.course_code?.trim().toLowerCase() || '') === slotCode &&
+            Number(c.is_copy || 0) === Number(slot.is_copy || 0)
           );
-          if (matchedCourse && matchedCourse.schedule && matchedCourse.schedule.day !== 'Not set') {
+          if (
+            matchedCourse &&
+            matchedCourse.schedule &&
+            matchedCourse.schedule.day &&
+            matchedCourse.schedule.day !== 'Not set' &&
+            matchedCourse.schedule.start_time &&
+            matchedCourse.schedule.start_time !== 'Not set' &&
+            matchedCourse.schedule.end_time &&
+            matchedCourse.schedule.end_time !== 'Not set'
+          ) {
             const entry: DraftEntry = {
               schedule_id: slot.schedule_id!,
               faculty_id: matchedCourse.faculty_id || null,

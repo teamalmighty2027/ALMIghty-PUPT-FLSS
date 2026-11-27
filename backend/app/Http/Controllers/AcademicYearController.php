@@ -777,8 +777,12 @@ class AcademicYearController extends Controller
     /**
      * Set the curriculum used of a program year level
      */
-    public function updateYearLevelCurricula(Request $request)
+    public function updateYearLevelCurricula(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['academic_year_id' => $id]);
+        }
+
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',
@@ -858,8 +862,12 @@ class AcademicYearController extends Controller
     /**
      * Set the number of sections in a program year level
      */
-    public function updateSections(Request $request)
+    public function updateSections(Request $request, $id = null)
     {
+        if ($id !== null) {
+            $request->merge(['academic_year_id' => $id]);
+        }
+
         $request->validate([
             'academic_year_id' => 'required|integer',
             'program_id' => 'required|integer',

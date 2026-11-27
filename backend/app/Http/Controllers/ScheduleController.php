@@ -65,14 +65,8 @@ class ScheduleController extends Controller
                 'co.tuition_hours',
                 'pylc.academic_year_id'
             )
-            ->join('curricula_program as cp', function ($join) {
-                $join->on('c.curriculum_id', '=', 'cp.curriculum_id')
-                    ->whereIn('c.status', ['Active']);
-            })
-            ->join('programs as p', function ($join) {
-                $join->on('cp.program_id', '=', 'p.program_id')
-                    ->where('p.status', 'Active');
-            })
+            ->join('curricula_program as cp', 'c.curriculum_id', '=', 'cp.curriculum_id')
+            ->join('programs as p', 'cp.program_id', '=', 'p.program_id')
             ->join('year_levels as yl', 'cp.curricula_program_id', '=', 'yl.curricula_program_id')
             ->join('semesters as s', 'yl.year_level_id', '=', 's.year_level_id')
             ->join('program_year_level_curricula as pylc', function ($join) {
@@ -95,6 +89,9 @@ class ScheduleController extends Controller
             ->orderBy('s.semester')
             ->orderBy('co.course_code')
             ->get();
+
+        // Preload electives so historical elective slots match resolved codes
+        $this->loadElectiveCaches($academicYearId);
 
         // PRELOAD SECTIONS: Group by program_id and year_level
         $allSections = DB::table('sections_per_program_year')
@@ -127,7 +124,14 @@ class ScheduleController extends Controller
             $sections = $allSections->get($key, []);
 
             foreach ($sections as $section) {
-                $this->assignHistoricalCourseToSectionAndSchedule($row, $section, $response[$programIndex]['year_levels'][$yearLevelIndex]['semesters'][$semesterIndex]['sections'], $sectionCoursesData);
+                $this->assignHistoricalCourseToSectionAndSchedule(
+                    $row,
+                    $section,
+                    $response[$programIndex]['year_levels'][$yearLevelIndex]
+                             ['semesters'][$semesterIndex]['sections'],
+                    $sectionCoursesData,
+                    (int) $academicYearId
+                );
             }
         }
 
@@ -142,7 +146,11 @@ class ScheduleController extends Controller
      * Optimized assignment using preloaded data
      */
     private function assignHistoricalCourseToSectionAndSchedule(
-      $row, $section, &$sections, $sectionCoursesData
+        $row,
+        $section,
+        &$sections,
+        $sectionCoursesData,
+        int $academicYearId = 0
     ) {
         if (is_null($row->course_assignment_id)) {
             return;
@@ -150,7 +158,8 @@ class ScheduleController extends Controller
 
         $sectionIndex = $this->findOrCreateSection($sections, $section);
 
-        $key = $section->sections_per_program_year_id . '-' . $row->course_assignment_id;
+        $key = $section->sections_per_program_year_id
+            . '-' . $row->course_assignment_id;
         $sectionCourses = $sectionCoursesData->get($key, []);
 
         foreach ($sectionCourses as $section_course) {
@@ -171,6 +180,11 @@ class ScheduleController extends Controller
             }
 
             $room = $existingSchedule->room;
+            $elective = $this->resolveCourseElective(
+                $row,
+                $existingSchedule,
+                $academicYearId
+            );
 
             if (!isset($sections[$sectionIndex]['courses'])) {
                 $sections[$sectionIndex]['courses'] = [];
@@ -178,8 +192,9 @@ class ScheduleController extends Controller
 
             $sections[$sectionIndex]['courses'][] = [
                 'course_id' => $row->course_id,
-                'course_code' => $row->course_code,
-                'course_title' => $row->course_title,
+                'course_code' => $elective['course_code'] ?? $row->course_code,
+                'course_title' => $elective['course_title']
+                    ?? $row->course_title,
                 'lec_hours' => $row->lec_hours,
                 'lab_hours' => $row->lab_hours,
                 'units' => $row->units,
@@ -191,6 +206,7 @@ class ScheduleController extends Controller
                     'end_time' => $existingSchedule->end_time ?? 'Not set',
                     'room_id' => $existingSchedule->room_id ?? null,
                     'elective_id' => $existingSchedule->elective_id ?? null,
+                    'elective_slot_name' => $elective['elective_slot_name'],
                 ],
                 'faculty_id' => $existingSchedule->faculty_id ?? null,
                 'faculty_email' => $facultyEmail,
@@ -200,9 +216,102 @@ class ScheduleController extends Controller
                     'room_code' => $room ? $room->room_code : 'Not set',
                 ],
                 'section_course_id' => $section_course->section_course_id,
-                'is_copy' => $section_course->is_copy,
+                'is_copy' => $section_course->is_copy ?? 0,
             ];
         }
+    }
+
+    /**
+     * Loads curriculum electives and electives caches for a given academic year.
+     */
+    private function loadElectiveCaches(int $academicYearId): void
+    {
+        $this->curriculumElectivesCache = DB::table('curriculum_electives as ce')
+            ->join(
+                'electives as e',
+                'ce.selected_elective_id',
+                '=',
+                'e.elective_id'
+            )
+            ->where(function ($q) use ($academicYearId) {
+                $q->where('ce.academic_year_id', $academicYearId)
+                    ->orWhereNull('ce.academic_year_id');
+            })
+            ->select(
+                'ce.curriculum_id',
+                'ce.program_id',
+                'ce.year_level',
+                'ce.semester_id',
+                'e.elective_id',
+                'e.elective_slot_name',
+                'e.course_title',
+                'e.course_code',
+                'ce.academic_year_id'
+            )
+            ->get();
+
+        $this->electivesCache = DB::table('electives')
+            ->select(
+                'elective_id',
+                'elective_slot_name',
+                'course_title',
+                'course_code'
+            )
+            ->get()
+            ->keyBy('elective_id');
+    }
+
+    /**
+     * Resolves elective code, title, and slot name for a course schedule.
+     */
+    private function resolveCourseElective(
+        $row,
+        $schedule,
+        int $academicYearId
+    ): array {
+        $electiveId = $schedule->elective_id ?? null;
+
+        if (!$electiveId) {
+            $matchedElective = null;
+            foreach ($this->curriculumElectivesCache as $ce) {
+                if (
+                    $ce->curriculum_id == $row->curriculum_id &&
+                    $ce->program_id == $row->program_id &&
+                    $ce->year_level == $row->year_level &&
+                    $ce->semester_id == $row->semester_id &&
+                    strcasecmp($ce->elective_slot_name, $row->course_title) === 0
+                ) {
+                    if (
+                        is_null($matchedElective) ||
+                        (!is_null($ce->academic_year_id) &&
+                            (int) $ce->academic_year_id === $academicYearId)
+                    ) {
+                        $matchedElective = $ce;
+                    }
+                }
+            }
+
+            if ($matchedElective) {
+                $electiveId = $matchedElective->elective_id;
+            }
+        }
+
+        if ($electiveId) {
+            $elective = $this->electivesCache->get($electiveId, null);
+            if ($elective) {
+                return [
+                    'elective_slot_name' => $elective->elective_slot_name,
+                    'course_title' => $elective->course_title,
+                    'course_code' => $elective->course_code,
+                ];
+            }
+        }
+
+        return [
+            'elective_slot_name' => null,
+            'course_title' => null,
+            'course_code' => null,
+        ];
     }
 
     /**
@@ -277,39 +386,7 @@ class ScheduleController extends Controller
             ->get()
             ->keyBy('room_id');
 
-        $this->curriculumElectivesCache = DB::table('curriculum_electives as ce')
-            ->join(
-                'electives as e',
-                'ce.selected_elective_id',
-                '=',
-                'e.elective_id'
-            )
-            ->where(function ($q) use ($activeAcademicYearId) {
-                $q->where('ce.academic_year_id', $activeAcademicYearId)
-                  ->orWhereNull('ce.academic_year_id');
-            })
-            ->select(
-                'ce.curriculum_id',
-                'ce.program_id',
-                'ce.year_level',
-                'ce.semester_id',
-                'e.elective_id',
-                'e.elective_slot_name',
-                'e.course_title',
-                'e.course_code',
-                'ce.academic_year_id'
-            )
-            ->get();
-
-        $this->electivesCache = DB::table('electives')
-            ->select(
-                'elective_id',
-                'elective_slot_name',
-                'course_title',
-                'course_code'
-            )
-            ->get()
-            ->keyBy('elective_id');
+        $this->loadElectiveCaches((int) $activeAcademicYearId);
 
         $allSections = DB::table('sections_per_program_year')
             ->where('academic_year_id', $activeAcademicYearId)
@@ -1047,50 +1124,14 @@ class ScheduleController extends Controller
                 $section_course->section_course_id
             );
 
-            $electiveTitle = null;
-            $electiveCode = null;
-            $electiveSlotName = null;
-
-            // Use the schedule's own elective_id first;
-            // fall back to the curriculum_electives assignment.
-            $electiveId = $schedule->elective_id ?? null;
-
-            if (!$electiveId) {
-                // Resolve from curriculum_electives cache
-                $matchedElective = null;
-                foreach ($this->curriculumElectivesCache as $ce) {
-                    if ($ce->curriculum_id == $row->curriculum_id &&
-                        $ce->program_id == $row->program_id &&
-                        $ce->year_level == $row->year_level &&
-                        $ce->semester_id == $row->semester_id) {
-
-                        if (strcasecmp(
-                            $ce->elective_slot_name,
-                            $row->course_title
-                        ) === 0) {
-                            if (is_null($matchedElective) ||
-                                (!is_null($ce->academic_year_id) &&
-                                 (int)$ce->academic_year_id ===
-                                 (int)$activeAcademicYearId)) {
-                                $matchedElective = $ce;
-                            }
-                        }
-                    }
-                }
-
-                if ($matchedElective) {
-                    $electiveId = $matchedElective->elective_id;
-                }
-            }
-
-            if ($electiveId) {
-                $elective = $this->electivesCache->get($electiveId, null);
-                if ($elective) {
-                    $electiveSlotName = $elective->elective_slot_name;
-                    $electiveTitle = $elective->course_title;
-                    $electiveCode  = $elective->course_code;
-                }
-            }
+            $elective = $this->resolveCourseElective(
+                $row,
+                $schedule,
+                (int) $activeAcademicYearId
+            );
+            $electiveTitle = $elective['course_title'];
+            $electiveCode = $elective['course_code'];
+            $electiveSlotName = $elective['elective_slot_name'];
 
             if (!isset($sections[$sectionIndex]['courses'])) {
                 $sections[$sectionIndex]['courses'] = [];

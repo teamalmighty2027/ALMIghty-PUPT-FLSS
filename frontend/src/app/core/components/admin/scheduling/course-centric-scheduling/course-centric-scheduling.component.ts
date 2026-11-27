@@ -1190,15 +1190,16 @@ export class CourseCentricSchedulingComponent
         let matchCount = 0;
         const filledEntries: DraftEntry[] = [];
 
-        emptySlots.forEach(slot => {
-          const matched = historicalSchedules.find(hs => 
-            hs.course_code.trim().toLowerCase() ===
-              slot.course_code.trim().toLowerCase() &&
-            hs.section.trim().toLowerCase() ===
-              slot.section?.trim().toLowerCase() &&
-            hs.program_code.trim().toLowerCase() ===
-              slot.program_code?.trim().toLowerCase() &&
-            Number(hs.is_copy) === Number(slot.is_copy)
+        emptySlots.forEach((slot) => {
+          const slotCode = slot.course_code?.trim().toLowerCase() || '';
+          const slotSection = slot.section?.trim().toLowerCase() || '';
+          const slotProg = slot.program_code?.trim().toLowerCase() || '';
+          const matched = historicalSchedules.find(
+            (hs) =>
+              (hs.course_code?.trim().toLowerCase() || '') === slotCode &&
+              (hs.section?.trim().toLowerCase() || '') === slotSection &&
+              (hs.program_code?.trim().toLowerCase() || '') === slotProg &&
+              Number(hs.is_copy || 0) === Number(slot.is_copy || 0)
           );
 
           if (
